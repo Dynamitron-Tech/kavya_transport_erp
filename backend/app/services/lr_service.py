@@ -1,0 +1,190 @@
+# LR Service - CRUD + Status workflow
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, or_
+
+from app.models.postgres.lr import LR, LRItem, LRDocument, LRStatus, PaymentMode
+from app.models.postgres.job import Job
+from app.models.postgres.vehicle import Vehicle
+from app.models.postgres.driver import Driver
+from app.utils.generators import generate_lr_number
+
+
+VALID_LR_TRANSITIONS = {
+    "draft": ["generated", "cancelled"],
+    "generated": ["in_transit", "cancelled"],
+    "in_transit": ["delivered", "cancelled"],
+    "delivered": ["pod_received"],
+    "pod_received": [],
+    "cancelled": ["draft"],
+}
+
+
+def _coerce_enum(enum_cls, raw_value):
+    if raw_value is None:
+        return None
+    if isinstance(raw_value, enum_cls):
+        return raw_value
+
+    text = str(raw_value).strip()
+    if not text:
+        return None
+
+    for member in enum_cls:
+        if text.lower() == str(member.value).lower() or text.upper() == member.name.upper():
+            return member
+
+    return raw_value
+
+
+async def list_lrs(db: AsyncSession, page: int = 1, limit: int = 20, search: str = None, status: str = None, job_id: int = None, trip_id: int = None):
+    query = select(LR).where(LR.is_deleted == False)
+    count_query = select(func.count(LR.id)).where(LR.is_deleted == False)
+
+    if search:
+        sf = or_(
+            LR.lr_number.ilike(f"%{search}%"),
+            LR.consignor_name.ilike(f"%{search}%"),
+            LR.consignee_name.ilike(f"%{search}%"),
+            LR.origin.ilike(f"%{search}%"),
+            LR.destination.ilike(f"%{search}%"),
+        )
+        query = query.where(sf)
+        count_query = count_query.where(sf)
+
+    if status:
+        normalized_status = _coerce_enum(LRStatus, status)
+        query = query.where(LR.status == normalized_status)
+        count_query = count_query.where(LR.status == normalized_status)
+
+    if job_id:
+        query = query.where(LR.job_id == job_id)
+        count_query = count_query.where(LR.job_id == job_id)
+
+    if trip_id:
+        query = query.where(LR.trip_id == trip_id)
+        count_query = count_query.where(LR.trip_id == trip_id)
+
+    total = (await db.execute(count_query)).scalar() or 0
+    offset = (page - 1) * limit
+    result = await db.execute(query.offset(offset).limit(limit).order_by(LR.id.desc()))
+    return result.scalars().all(), total
+
+
+async def get_lr(db: AsyncSession, lr_id: int):
+    result = await db.execute(
+        select(LR).where(LR.id == lr_id, LR.is_deleted == False)
+    )
+    return result.scalar_one_or_none()
+
+
+async def create_lr(db: AsyncSession, data: dict, user_id: int = None) -> LR:
+    data = dict(data)
+    items_data = data.pop("items", [])
+    data["lr_number"] = generate_lr_number()
+    data["created_by"] = user_id
+    data["status"] = _coerce_enum(LRStatus, data.get("status", "draft"))
+    data["payment_mode"] = _coerce_enum(PaymentMode, data.get("payment_mode", "to_be_billed"))
+
+    # Calculate total freight
+    freight = float(data.get("freight_amount") or 0)
+    loading = float(data.get("loading_charges") or 0)
+    unloading = float(data.get("unloading_charges") or 0)
+    detention = float(data.get("detention_charges") or 0)
+    other = float(data.get("other_charges") or 0)
+    data["total_freight"] = freight + loading + unloading + detention + other
+
+    lr = LR(**data)
+    db.add(lr)
+    await db.flush()
+
+    # Add items
+    for idx, item_data in enumerate(items_data, 1):
+        item = LRItem(lr_id=lr.id, item_number=idx, **item_data)
+        db.add(item)
+    await db.flush()
+
+    return lr
+
+
+async def update_lr(db: AsyncSession, lr_id: int, data: dict):
+    lr = await get_lr(db, lr_id)
+    if not lr:
+        return None
+
+    data = dict(data)
+    if "status" in data:
+        data["status"] = _coerce_enum(LRStatus, data.get("status"))
+    if "payment_mode" in data:
+        data["payment_mode"] = _coerce_enum(PaymentMode, data.get("payment_mode"))
+
+    for k, v in data.items():
+        if v is not None:
+            setattr(lr, k, v)
+    # Recalculate freight
+    lr.total_freight = float(lr.freight_amount or 0) + float(lr.loading_charges or 0) + float(lr.unloading_charges or 0) + float(lr.detention_charges or 0) + float(lr.other_charges or 0)
+    return lr
+
+
+async def delete_lr(db: AsyncSession, lr_id: int) -> bool:
+    lr = await get_lr(db, lr_id)
+    if not lr:
+        return False
+    lr.is_deleted = True
+    return True
+
+
+async def change_lr_status(db: AsyncSession, lr_id: int, new_status: str, user_id: int = None, remarks: str = None, received_by: str = None):
+    lr = await get_lr(db, lr_id)
+    if not lr:
+        return None, "LR not found"
+
+    current = lr.status.value if hasattr(lr.status, 'value') else str(lr.status)
+    allowed = VALID_LR_TRANSITIONS.get(current, [])
+    if new_status not in allowed:
+        return None, f"Cannot transition from '{current}' to '{new_status}'. Allowed: {allowed}"
+
+    lr.status = LRStatus(new_status)
+
+    if new_status == "delivered":
+        from datetime import datetime
+        lr.delivered_at = datetime.utcnow()
+        lr.delivery_remarks = remarks
+        lr.received_by = received_by
+
+    await db.flush()
+    return lr, None
+
+
+async def get_lr_with_details(db: AsyncSession, lr: LR) -> dict:
+    """Build response dict with related data."""
+    # Get job number
+    job_number = None
+    if lr.job_id:
+        result = await db.execute(select(Job.job_number).where(Job.id == lr.job_id))
+        job_number = result.scalar_one_or_none()
+
+    # Get vehicle registration
+    vehicle_reg = None
+    if lr.vehicle_id:
+        result = await db.execute(select(Vehicle.registration_number).where(Vehicle.id == lr.vehicle_id))
+        vehicle_reg = result.scalar_one_or_none()
+
+    # Get driver name
+    driver_name = None
+    if lr.driver_id:
+        result = await db.execute(select(Driver.first_name).where(Driver.id == lr.driver_id))
+        driver_name = result.scalar_one_or_none()
+
+    # Get items
+    items_result = await db.execute(select(LRItem).where(LRItem.lr_id == lr.id).order_by(LRItem.item_number))
+    items = items_result.scalars().all()
+
+    return {
+        **{c.key: getattr(lr, c.key) for c in lr.__table__.columns},
+        "job_number": job_number,
+        "vehicle_registration": vehicle_reg,
+        "driver_name": driver_name,
+        "status": lr.status.value if hasattr(lr.status, 'value') else str(lr.status),
+        "payment_mode": lr.payment_mode.value if hasattr(lr.payment_mode, 'value') else str(lr.payment_mode) if lr.payment_mode else None,
+        "items": [{c.key: getattr(item, c.key) for c in item.__table__.columns} for item in items],
+    }
