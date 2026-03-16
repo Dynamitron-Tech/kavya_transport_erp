@@ -27,12 +27,6 @@ export default function FuelPricePage() {
         <p className="text-gray-500 text-sm mt-1">Current diesel & petrol prices across cities</p>
       </div>
 
-      {singlePrice?.source === 'MOCK_DATA' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
-          ⚠️ Showing mock fuel prices — actual prices update daily
-        </div>
-      )}
-
       {/* Selected city card */}
       {singlePrice && (
         <div className="bg-white rounded-xl border border-gray-200 p-6">

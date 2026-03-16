@@ -25,12 +25,6 @@ export default function GSTVerificationPage() {
         <p className="text-gray-500 text-sm mt-1">Verify client/vendor GSTIN details</p>
       </div>
 
-      {data?.source === 'MOCK_DATA' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
-          ⚠️ Showing mock data — configure GST_VERIFY_API_KEY in .env for live results
-        </div>
-      )}
-
       <form onSubmit={handleSearch} className="flex gap-3">
         <input
           type="text"

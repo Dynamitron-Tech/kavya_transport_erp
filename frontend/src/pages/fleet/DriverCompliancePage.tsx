@@ -26,20 +26,12 @@ export default function DriverCompliancePage() {
     if (dlNumber.trim() && dob) setSearched({ dl: dlNumber.trim().toUpperCase(), dob });
   };
 
-  const source = dlData?.source || '';
-
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Driver Compliance</h1>
         <p className="text-gray-500 text-sm mt-1">Verify Driving Licence via Sarathi & check challans</p>
       </div>
-
-      {source === 'MOCK_DATA' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
-          ⚠️ Showing mock data — configure SARATHI_API_KEY in .env for live results
-        </div>
-      )}
 
       <form onSubmit={handleSearch} className="flex gap-3 flex-wrap">
         <input

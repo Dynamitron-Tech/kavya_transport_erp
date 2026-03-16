@@ -45,12 +45,6 @@ export default function NotificationCenterPage() {
         <p className="text-gray-500 text-sm mt-1">Send SMS, WhatsApp, or Push notifications</p>
       </div>
 
-      {result?.source === 'MOCK_DATA' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
-          ⚠️ Mock notification — configure API keys in .env for real delivery
-        </div>
-      )}
-
       <div className="bg-white rounded-xl border border-gray-200">
         {/* Tabs */}
         <div className="flex border-b">
@@ -106,7 +100,6 @@ export default function NotificationCenterPage() {
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <p className="text-green-700 font-medium">✅ Notification sent successfully</p>
           <p className="text-sm text-gray-600 mt-1">Message ID: {result.message_id || result.request_id || '-'}</p>
-          <p className="text-xs text-gray-400">Source: {result.source}</p>
         </div>
       )}
     </div>

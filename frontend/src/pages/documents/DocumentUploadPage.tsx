@@ -39,12 +39,6 @@ export default function DocumentUploadPage() {
         <p className="text-gray-500 text-sm mt-1">Upload RC, Insurance, POD, Invoice or other documents</p>
       </div>
 
-      {result?.source === 'MOCK_DATA' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
-          ⚠️ File saved locally (mock S3) — configure AWS_ACCESS_KEY_ID for real S3 uploads
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-4 max-w-lg">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">File *</label>

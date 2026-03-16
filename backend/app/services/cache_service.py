@@ -8,13 +8,6 @@ logger = logging.getLogger(__name__)
 _redis_client = None
 
 
-def is_placeholder(key: Optional[str]) -> bool:
-    """Check if an API key is a placeholder (not configured)."""
-    if not key:
-        return True
-    return key.startswith("YOUR_") or key == "PLACEHOLDER" or key.endswith("_HERE")
-
-
 async def get_redis():
     """Get async Redis client (lazy singleton)."""
     global _redis_client

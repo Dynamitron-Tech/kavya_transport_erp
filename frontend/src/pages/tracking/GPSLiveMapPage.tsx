@@ -32,7 +32,6 @@ export default function GPSLiveMapPage() {
 
   const vehicles = safeArray<any>(positionsData?.vehicles ?? positionsData);
   const pathPoints: [number, number][] = safeArray<any>(pathData?.path ?? []).map((p: any) => [p.lat, p.lng]);
-  const source = positionsData?.source || '';
 
   return (
     <div className="space-y-4">
@@ -43,9 +42,6 @@ export default function GPSLiveMapPage() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-500">{vehicles.length} vehicles</span>
-          {source === 'MOCK_DATA' && (
-            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">MOCK DATA</span>
-          )}
         </div>
       </div>
 

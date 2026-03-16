@@ -30,7 +30,6 @@ export default function TripReplayPage() {
   };
 
   const pathPoints: [number, number][] = safeArray<any>(pathData?.path ?? []).map((p: any) => [p.lat, p.lng]);
-  const source = pathData?.source || '';
 
   return (
     <div className="space-y-4">
@@ -38,12 +37,6 @@ export default function TripReplayPage() {
         <h1 className="text-2xl font-bold text-gray-900">Trip Replay</h1>
         <p className="text-gray-500 text-sm mt-1">View historical vehicle path on map</p>
       </div>
-
-      {source === 'MOCK_DATA' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
-          ⚠️ Mock GPS data — configure GPS devices for live tracking
-        </div>
-      )}
 
       <form onSubmit={handleSearch} className="flex gap-3 flex-wrap">
         <input
@@ -102,8 +95,8 @@ export default function TripReplayPage() {
             <p className="text-lg font-semibold">{searched.hours}h</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-            <p className="text-gray-500 text-sm">Source</p>
-            <p className="text-lg font-semibold">{pathData.source}</p>
+            <p className="text-gray-500 text-sm">Status</p>
+            <p className="text-lg font-semibold text-green-600">Loaded</p>
           </div>
         </div>
       )}

@@ -119,15 +119,6 @@ class Settings(BaseSettings):
     GPS_PROVIDER: str = "internal"
     GPS_API_KEY: Optional[str] = None
     
-    # Feature Flags — switch from mock to real
-    USE_MOCK_VAHAN: bool = True
-    USE_MOCK_MAPS: bool = True
-    USE_MOCK_PAYMENTS: bool = True
-    USE_MOCK_SMS: bool = True
-    USE_MOCK_WHATSAPP: bool = True
-    USE_MOCK_S3: bool = True
-    USE_MOCK_FCM: bool = True
-    
     # Push Notifications (Firebase)
     FCM_SERVER_KEY: Optional[str] = None
     

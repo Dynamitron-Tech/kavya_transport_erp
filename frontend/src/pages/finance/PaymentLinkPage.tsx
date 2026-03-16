@@ -43,12 +43,6 @@ export default function PaymentLinkPage() {
         <p className="text-gray-500 text-sm mt-1">Generate a Razorpay payment link for clients</p>
       </div>
 
-      {result?.source === 'MOCK_DATA' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
-          ⚠️ Mock payment link — configure RAZORPAY_KEY_ID in .env for real links
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
           <div>

@@ -1,9 +1,9 @@
 # Sarathi Service — Driving Licence verification
 import logging
-from datetime import date, timedelta
-
+import httpx
+from fastapi import HTTPException
 from app.core.config import settings
-from app.services.cache_service import is_placeholder, cache_get, cache_set
+from app.services.cache_service import cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 
@@ -14,41 +14,24 @@ async def verify_driving_licence(dl_number: str, dob: str = "") -> dict:
     cached = await cache_get(cache_key)
     if cached:
         return cached
-
-    if is_placeholder(settings.SARATHI_API_KEY):
-        result = {
-            "dl_number": dl_number,
-            "name": "Rajesh Kumar",
-            "father_name": "Shanmugam K",
-            "dob": dob or "1990-05-15",
-            "blood_group": "O+",
-            "address": "123, Gandhipuram, Coimbatore, Tamil Nadu - 641012",
-            "issue_date": "2015-03-20",
-            "valid_until": str(date.today() + timedelta(days=730)),
-            "cov_details": [
-                {"cov": "HMV", "issue_date": "2015-03-20", "valid_until": str(date.today() + timedelta(days=730))},
-                {"cov": "LMV", "issue_date": "2012-06-10", "valid_until": str(date.today() + timedelta(days=730))},
-            ],
-            "is_valid": True,
-            "days_remaining": 730,
-            "rto": "RTO Coimbatore",
-            "status": "ACTIVE",
-            "source": "MOCK_DATA",
-        }
-        await cache_set(cache_key, result, 86400)
-        return result
-
-    import httpx
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.post(
-            f"https://sarathi.parivahan.gov.in/api/dl/verify",
-            headers={"Authorization": f"Bearer {settings.SARATHI_API_KEY}"},
-            json={"dl_number": dl_number, "dob": dob},
-        )
-        result = resp.json()
-        result["source"] = "LIVE"
-        await cache_set(cache_key, result, 86400)
-        return result
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://sarathi.parivahan.gov.in/api/dl/verify",
+                headers={"Authorization": f"Bearer {settings.SARATHI_API_KEY}"},
+                json={"dl_number": dl_number, "dob": dob},
+            )
+            resp.raise_for_status()
+            result = resp.json()
+            result["source"] = "LIVE"
+            await cache_set(cache_key, result, 86400)
+            return result
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=503, detail="Sarathi API timeout. Check SARATHI_API_KEY in .env")
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=f"Sarathi API error: {e.response.text[:200]}")
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail="Cannot connect to Sarathi API. Check network.")
 
 
 async def get_dl_details(dl_number: str) -> dict:

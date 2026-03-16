@@ -38,12 +38,6 @@ export default function RouteCalculatorPage() {
         <p className="text-gray-500 text-sm mt-1">Calculate distance and estimated time between locations</p>
       </div>
 
-      {routeResult?.source === 'MOCK_DATA' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
-          ⚠️ Mock calculation — configure GOOGLE_MAPS_API_KEY for accurate results
-        </div>
-      )}
-
       <form onSubmit={handleCalculate} className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>

@@ -25,7 +25,6 @@ export default function VehicleCompliancePage() {
     if (regNumber.trim()) setSearched(regNumber.trim().toUpperCase());
   };
 
-  const source = fullCheck?.source || '';
   const checks = fullCheck?.checks || {};
 
   const statusBadge = (status: string) => {
@@ -50,12 +49,6 @@ export default function VehicleCompliancePage() {
         <h1 className="text-2xl font-bold text-gray-900">Vehicle Compliance</h1>
         <p className="text-gray-500 text-sm mt-1">Check RC, Insurance, Fitness, Permit, PUC & Challans via VAHAN / eChallan</p>
       </div>
-
-      {source === 'MOCK_DATA' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 text-sm text-amber-800">
-          ⚠️ Showing mock data — configure VAHAN_API_KEY in .env for live results
-        </div>
-      )}
 
       <form onSubmit={handleSearch} className="flex gap-3">
         <input
