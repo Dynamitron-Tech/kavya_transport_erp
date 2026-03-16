@@ -82,8 +82,8 @@ const normalizeRevenue = (data: unknown): RevenueData => {
 };
 
 const fmt = (val: number) => {
-  if (Math.abs(val) >= 100000) return `₹${Number((val / 100000) ?? 0).toFixed(1)}L`;
-  if (Math.abs(val) >= 1000) return `₹${Number((val / 1000) ?? 0).toFixed(1)}K`;
+  if (Math.abs(val) >= 100000) return `₹${Number(val / 100000).toFixed(1)}L`;
+  if (Math.abs(val) >= 1000) return `₹${Number(val / 1000).toFixed(1)}K`;
   return `₹${Number(val ?? 0).toLocaleString('en-IN')}`;
 };
 

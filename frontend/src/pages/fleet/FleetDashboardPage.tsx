@@ -212,7 +212,7 @@ export default function FleetDashboardPage() {
             <BarChart data={maintenanceData?.trend || []}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="label" fontSize={12} />
-              <YAxis fontSize={12} tickFormatter={(v: number) => `₹${Number((v / 1000) ?? 0).toFixed(0)}k`} />
+              <YAxis fontSize={12} tickFormatter={(v: number) => `₹${Number(v / 1000).toFixed(0)}k`} />
               <Tooltip formatter={(value: number) => `₹${(value ?? 0).toLocaleString('en-IN')}`} />
               <Legend />
               <Bar dataKey="preventive" stackId="a" fill="#3b82f6" name="Preventive" />

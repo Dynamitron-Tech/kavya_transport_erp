@@ -19,16 +19,14 @@ class AppException implements Exception {
 }
 
 class NetworkException extends AppException {
-  const NetworkException([String message = 'No internet connection. Please check your network.'])
-      : super(message);
+  const NetworkException([super.message = 'No internet connection. Please check your network.']);
 }
 
 class TimeoutException extends AppException {
-  const TimeoutException([String message = 'Request timed out. Please try again.'])
-      : super(message);
+  const TimeoutException([super.message = 'Request timed out. Please try again.']);
 }
 
 class UnauthorizedException extends AppException {
-  const UnauthorizedException([String message = 'Session expired. Please login again.'])
-      : super(message, statusCode: 401);
+  const UnauthorizedException([super.message = 'Session expired. Please login again.'])
+      : super(statusCode: 401);
 }

@@ -101,7 +101,7 @@ export default function FleetFuelPage() {
             <BarChart data={s.monthly_trend || []}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="month" fontSize={12} />
-              <YAxis fontSize={12} tickFormatter={(v: number) => `₹${Number((v / 100000) ?? 0).toFixed(1)}L`} />
+              <YAxis fontSize={12} tickFormatter={(v: number) => `₹${Number(v / 100000).toFixed(1)}L`} />
               <Tooltip formatter={(value: number) => `₹${(value ?? 0).toLocaleString('en-IN')}`} />
               <Legend />
               <Bar dataKey="cost" fill="#3b82f6" name="Cost (₹)" radius={[4, 4, 0, 0]} />

@@ -14,13 +14,13 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
 
   @override
   void dispose() {
-    _usernameCtrl.dispose();
+    _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
@@ -29,7 +29,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (_formKey.currentState?.validate() ?? false) {
       ref
           .read(authStateProvider.notifier)
-          .login(_usernameCtrl.text.trim(), _passwordCtrl.text);
+          .login(_emailCtrl.text.trim(), _passwordCtrl.text);
     }
   }
 
@@ -91,10 +91,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 color: AppTheme.textPrimary)),
                         const SizedBox(height: 20),
                         KtTextField(
-                          label: 'Username',
-                          controller: _usernameCtrl,
-                          hint: 'Enter your username',
-                          prefixIcon: const Icon(Icons.person_outline),
+                          label: 'Email',
+                          controller: _emailCtrl,
+                          hint: 'Enter your email',
+                          keyboardType: TextInputType.emailAddress,
+                          prefixIcon: const Icon(Icons.email_outlined),
                           validator: (v) =>
                               v == null || v.isEmpty ? 'Required' : null,
                         ),

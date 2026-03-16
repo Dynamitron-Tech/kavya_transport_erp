@@ -229,7 +229,7 @@ export default function FleetReportsPage() {
               <BarChart data={mainCost.monthly_trend || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" fontSize={12} />
-                <YAxis fontSize={12} tickFormatter={(v: number) => `₹${Number((v / 1000) ?? 0).toFixed(0)}k`} />
+                <YAxis fontSize={12} tickFormatter={(v: number) => `₹${Number(v / 1000).toFixed(0)}k`} />
                 <Tooltip formatter={(value: number) => `₹${(value ?? 0).toLocaleString('en-IN')}`} />
                 <Bar dataKey="cost" fill="#ef4444" name="Cost" radius={[4, 4, 0, 0]} />
               </BarChart>

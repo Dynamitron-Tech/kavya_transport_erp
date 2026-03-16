@@ -482,7 +482,7 @@ function PerformanceTab({ driverId }: { driverId: number }) {
                       {comp.score > 12 && <span className="text-white text-xs font-medium">{comp.score}</span>}
                     </div>
                   </div>
-                  <span className="text-xs text-gray-400 w-12 text-right">{Number((comp.weight * 100) ?? 0).toFixed(0)}% wt</span>
+                  <span className="text-xs text-gray-400 w-12 text-right">{Number(comp.weight * 100).toFixed(0)}% wt</span>
                 </div>
               );
             })}

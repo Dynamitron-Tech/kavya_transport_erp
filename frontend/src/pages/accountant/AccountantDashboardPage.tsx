@@ -192,7 +192,7 @@ export default function AccountantDashboardPage() {
             <BarChart data={revenueTrend || []}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${Number((v / 100000) ?? 0).toFixed(0)}L`} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${Number(v / 100000).toFixed(0)}L`} />
               <Tooltip formatter={(v: number) => [`₹${(v ?? 0).toLocaleString('en-IN')}`, '']} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="revenue" name="Revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
@@ -246,7 +246,7 @@ export default function AccountantDashboardPage() {
           <AreaChart data={cashFlow || []}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${Number((v / 100000) ?? 0).toFixed(0)}L`} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${Number(v / 100000).toFixed(0)}L`} />
             <Tooltip formatter={(v: number) => [`₹${(v ?? 0).toLocaleString('en-IN')}`, '']} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Area type="monotone" dataKey="inflow" name="Inflow" stroke="#10b981" fill="#10b981" fillOpacity={0.15} />

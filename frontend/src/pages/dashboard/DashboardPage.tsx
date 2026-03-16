@@ -62,8 +62,8 @@ export default function DashboardPage() {
   const displayFleet = Array.isArray(fleetUtilization) ? fleetUtilization : [];
 
   const fmt = (val: number) => {
-    if (val >= 100000) return `₹${Number((val / 100000) ?? 0).toFixed(1)}L`;
-    if (val >= 1000) return `₹${Number((val / 1000) ?? 0).toFixed(1)}K`;
+    if (val >= 100000) return `₹${Number(val / 100000).toFixed(1)}L`;
+    if (val >= 1000) return `₹${Number(val / 1000).toFixed(1)}K`;
     return `₹${val}`;
   };
 

@@ -49,10 +49,10 @@ function BankingSkeleton() {
 
 function formatAmount(amount: number): string {
   if (amount >= 100000) {
-    return `₹${Number((amount / 100000) ?? 0).toFixed(1)}L`;
+    return `₹${Number(amount / 100000).toFixed(1)}L`;
   }
   if (amount >= 1000) {
-    return `₹${Number((amount / 1000) ?? 0).toFixed(1)}K`;
+    return `₹${Number(amount / 1000).toFixed(1)}K`;
   }
   return `₹${Number(amount ?? 0).toLocaleString('en-IN')}`;
 }

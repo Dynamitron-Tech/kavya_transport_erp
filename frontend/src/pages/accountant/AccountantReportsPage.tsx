@@ -165,7 +165,7 @@ function ReportContent({ config, data, fmt }: { config: ReportConfig; data: any;
               <BarChart data={data.monthly}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={(v: number) => `₹${Number((v / 100000) ?? 0).toFixed(0)}L`} tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={(v: number) => `₹${Number(v / 100000).toFixed(0)}L`} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(value: number) => [fmt(value), '']} />
                 <Legend />
                 <Bar dataKey="revenue" name="Revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
@@ -183,7 +183,7 @@ function ReportContent({ config, data, fmt }: { config: ReportConfig; data: any;
           {data.categories?.length > 0 && (
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
-                <Pie data={data.categories} dataKey="amount" nameKey="category" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }: any) => `${name} ${Number((percent * 100) ?? 0).toFixed(0)}%`}>
+                <Pie data={data.categories} dataKey="amount" nameKey="category" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }: any) => `${name} ${Number(percent * 100).toFixed(0)}%`}>
                   {data.categories.map((_: any, i: number) => (
                     <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                   ))}
@@ -228,7 +228,7 @@ function ReportContent({ config, data, fmt }: { config: ReportConfig; data: any;
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={data.by_client} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis type="number" tickFormatter={(v: number) => `₹${Number((v / 100000) ?? 0).toFixed(0)}L`} tick={{ fontSize: 11 }} />
+                <XAxis type="number" tickFormatter={(v: number) => `₹${Number(v / 100000).toFixed(0)}L`} tick={{ fontSize: 11 }} />
                 <YAxis dataKey="client" type="category" width={120} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(value: number) => [fmt(value), '']} />
                 <Bar dataKey="revenue" fill="#3b82f6" radius={[0, 4, 4, 0]} />
@@ -338,7 +338,7 @@ function ReportContent({ config, data, fmt }: { config: ReportConfig; data: any;
               <BarChart data={data.by_vehicle}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="vehicle" tick={{ fontSize: 10 }} />
-                <YAxis tickFormatter={(v: number) => `₹${Number((v / 1000) ?? 0).toFixed(0)}K`} tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={(v: number) => `₹${Number(v / 1000).toFixed(0)}K`} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(value: number) => [fmt(value), '']} />
                 <Legend />
                 <Bar dataKey="cost" name="Fuel Cost" fill="#ef4444" radius={[4, 4, 0, 0]} />
@@ -370,7 +370,7 @@ function ReportContent({ config, data, fmt }: { config: ReportConfig; data: any;
               <LineChart data={data.months}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={(v: number) => `₹${Number((v / 100000) ?? 0).toFixed(0)}L`} tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={(v: number) => `₹${Number(v / 100000).toFixed(0)}L`} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(value: number) => [fmt(value), '']} />
                 <Legend />
                 <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#10b981" strokeWidth={2} />

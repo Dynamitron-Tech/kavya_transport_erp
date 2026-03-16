@@ -754,7 +754,7 @@ export default function CreateJobPage() {
                             </div>
                             {c.outstanding && c.outstanding > 0 && (
                               <span className="text-xs text-amber-600 font-medium">
-                                O/S: ₹{Number((c.outstanding / 100000) ?? 0).toFixed(1)}L
+                                O/S: ₹{Number(c.outstanding / 100000).toFixed(1)}L
                               </span>
                             )}
                           </button>
@@ -770,11 +770,11 @@ export default function CreateJobPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
                 <div>
                   <p className="text-[11px] text-gray-500 uppercase tracking-wider">Credit Limit</p>
-                  <p className="text-sm font-semibold text-gray-900">₹{Number(((selectedClient.credit_limit || 0) / 100000) ?? 0).toFixed(1)}L</p>
+                  <p className="text-sm font-semibold text-gray-900">₹{Number((selectedClient.credit_limit || 0) / 100000).toFixed(1)}L</p>
                 </div>
                 <div>
                   <p className="text-[11px] text-gray-500 uppercase tracking-wider">Outstanding</p>
-                  <p className="text-sm font-semibold text-amber-700">₹{Number(((selectedClient.outstanding || 0) / 100000) ?? 0).toFixed(1)}L</p>
+                  <p className="text-sm font-semibold text-amber-700">₹{Number((selectedClient.outstanding || 0) / 100000).toFixed(1)}L</p>
                 </div>
                 <div>
                   <p className="text-[11px] text-gray-500 uppercase tracking-wider">Credit Days</p>
@@ -1222,7 +1222,7 @@ export default function CreateJobPage() {
                     <FileText size={16} className="text-gray-400" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-gray-900 truncate">{file.name}</p>
-                      <p className="text-xs text-gray-400">{Number((file.size / 1024) ?? 0).toFixed(0)} KB</p>
+                      <p className="text-xs text-gray-400">{Number(file.size / 1024).toFixed(0)} KB</p>
                     </div>
                     <button
                       type="button"
