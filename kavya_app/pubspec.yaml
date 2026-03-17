@@ -25,6 +25,7 @@ dependencies:
   dio: ^5.9.2
   pretty_dio_logger: ^1.4.0
   connectivity_plus: ^7.0.0
+  web_socket_channel: ^3.0.2
 
   # Storage
   flutter_secure_storage: ^10.0.0
