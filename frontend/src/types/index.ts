@@ -325,6 +325,7 @@ export interface Driver {
   current_trip_id?: number;
   current_vehicle_id?: number;
   current_location?: string;
+  security_pin?: string;
   total_trips: number;
   total_km: number;
   rating: number;
@@ -938,6 +939,8 @@ export interface Trip {
   tracking_id?: string;
   lr_numbers: string[];
   notes?: string;
+  payment_approved?: boolean;
+  driver_pay?: number;
   created_by: number;
   created_at: string;
   updated_at: string;

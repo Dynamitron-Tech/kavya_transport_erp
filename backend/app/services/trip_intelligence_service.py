@@ -203,7 +203,7 @@ async def _check_long_stop(db, trip, speed, lat, lng, threshold_min, escalation_
     return {
         "alert_type": "LONG_STOP",
         "severity": "warning",
-        "title": f"Unauthorized stop detected",
+        "title": "Unauthorized stop detected",
         "description": (
             f"Vehicle has stopped at ({round(lat, 4)}, {round(lng, 4)}). "
             f"Monitoring for {threshold_min}min threshold."

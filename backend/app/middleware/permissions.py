@@ -557,7 +557,7 @@ class PermissionChecker:
             if not has_required:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Insufficient permissions"
+                    detail="Insufficient permissions"
                 )
         else:
             if user_permissions:
@@ -570,7 +570,7 @@ class PermissionChecker:
             if not has_required:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Insufficient permissions"
+                    detail="Insufficient permissions"
                 )
         
         return current_user

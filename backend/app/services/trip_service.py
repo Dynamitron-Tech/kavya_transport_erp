@@ -1,7 +1,7 @@
 # Trip Service - CRUD + Status workflow + Expenses + Fuel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 from app.models.postgres.trip import Trip, TripExpense, TripFuelEntry, TripStatus, TripStatusEnum, ExpenseCategory
 from app.models.postgres.job import Job, JobStatusEnum, JobStatus
