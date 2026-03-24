@@ -23,17 +23,22 @@ in Indian transport documents. Extract data from this
 Registration Certificate (RC) image.
 
 FIELDS TO EXTRACT:
-1. registration_number — Vehicle registration number
+1. registration_number   — Vehicle registration number
    (e.g., TN01AB1234, KA05CD5678)
-2. owner_name         — Full name of the registered owner
-3. vehicle_class      — Class of vehicle
+2. owner_name            — Full name of the registered owner
+3. make                  — Vehicle manufacturer / brand
+   (e.g., TATA, Ashok Leyland, Mahindra, Eicher, BharatBenz)
+4. model_name            — Vehicle model name / variant
+   (e.g., Prima 4028, LPS 3523, Blazo 37)
+5. year_of_manufacture   — Year the vehicle was manufactured (4-digit integer)
+6. vehicle_class         — Class of vehicle
    (e.g., LMV, HMV, TRANS, MCWG, Motor Car)
-4. fuel_type          — Fuel type
+7. fuel_type             — Fuel type
    (normalise to: Diesel / Petrol / CNG / Electric / LPG)
-5. engine_number      — Engine number (may be partial)
-6. chassis_number     — Chassis number (may be partial)
-7. issue_date         — Date of issue of the RC
-8. validity_date      — Validity / expiry date of the RC
+8. engine_number         — Engine number (may be partial)
+9. chassis_number        — Chassis number (may be partial)
+10. issue_date           — Date of issue of the RC
+11. validity_date        — Validity / expiry date of the RC
 
 EXTRACTION RULES:
 - registration_number: appears prominently at the top; may also
@@ -41,6 +46,12 @@ EXTRACTION RULES:
   Format: state-code (2 letters) + district-code (2 digits) +
   series (1-2 letters) + number (4 digits). Extract as-is.
 - owner_name: extract the full name exactly as printed.
+- make: the vehicle manufacturer brand. Look near labels like
+  "Maker", "Manufacturer", "Make", "Brand". If not found: null.
+- model_name: vehicle model. Look near labels like "Model",
+  "Vehicle Model", "Type". If not found: null.
+- year_of_manufacture: 4-digit integer year. Look near labels like
+  "Year of Mfg", "Mfg. Year", "Year". If not found: null.
 - vehicle_class: extract the class code or full description
   as printed on the document.
 - fuel_type: normalise to one of:
@@ -57,6 +68,9 @@ explanation, no extra text before or after the JSON.
 {
   "registration_number": "TN01AB1234",
   "owner_name": "Kumar Selvam",
+  "make": "TATA",
+  "model_name": "Prima 4028",
+  "year_of_manufacture": 2019,
   "vehicle_class": "HGV",
   "fuel_type": "Diesel",
   "engine_number": "XXXXX98765",

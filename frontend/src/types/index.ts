@@ -245,6 +245,7 @@ export interface Vehicle {
   year: number;
   chassis_number?: string;
   engine_number?: string;
+  year_of_manufacture?: number;
   capacity_tons: number;
   capacity_volume?: number;
   fuel_type: string;

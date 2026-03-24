@@ -14,6 +14,7 @@ import { safeArray } from '@/utils/helpers';
 import { handleApiError } from '../../utils/handleApiError';
 import { DocumentChecklist } from '@/components/documents/DocumentChecklist';
 import type { ExtractionResult } from '@/components/documents/DocumentUploadWithExtraction';
+import { DocAutoFill } from '@/components/documents/DocAutoFill';
 
 const STATUS_TABS = [
   { key: '', label: 'All' },
@@ -139,6 +140,22 @@ export default function DriversPage() {
       ...prev,
       license_number: d.license_number || prev.license_number,
       full_name: (!prev.full_name && d.holder_name) ? d.holder_name : prev.full_name,
+    }));
+  };
+
+  // Called by DocAutoFill inline widget (raw extraction data)
+  const ddmmToISO = (dd: string): string => {
+    const parts = String(dd || '').split('/');
+    if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+    return '';
+  };
+
+  const handleDLDocAutoFill = (d: Record<string, any>) => {
+    setCreateForm(prev => ({
+      ...prev,
+      license_number: d.license_number || prev.license_number,
+      full_name: (!prev.full_name && d.holder_name) ? d.holder_name : prev.full_name,
+      license_expiry: d.expiry_date ? ddmmToISO(d.expiry_date) || prev.license_expiry : prev.license_expiry,
     }));
   };
 
@@ -422,6 +439,12 @@ export default function DriversPage() {
               createMutation.mutate();
             }}
           >
+            {/* AI Auto-fill from Driving License */}
+            <DocAutoFill
+              documentType="driving_license"
+              entityType="driver"
+              onExtracted={handleDLDocAutoFill}
+            />
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Employee ID</label>

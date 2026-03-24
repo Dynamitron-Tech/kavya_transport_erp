@@ -14,6 +14,7 @@ import { safeArray } from '@/utils/helpers';
 import { handleApiError } from '../../utils/handleApiError';
 import { DocumentChecklist } from '@/components/documents/DocumentChecklist';
 import type { ExtractionResult } from '@/components/documents/DocumentUploadWithExtraction';
+import { DocAutoFill } from '@/components/documents/DocAutoFill';
 
 export default function VehiclesPage() {
   const navigate = useNavigate();
@@ -32,6 +33,11 @@ export default function VehiclesPage() {
     fuel_type: 'diesel',
     capacity_tons: '0',
     ownership_type: 'owned',
+    make: '',
+    model: '',
+    year_of_manufacture: '',
+    chassis_number: '',
+    engine_number: '',
   });
 
   const { data, isLoading, refetch } = useQuery({
@@ -63,11 +69,14 @@ export default function VehiclesPage() {
       fuel_type: createForm.fuel_type,
       capacity_tons: Number(createForm.capacity_tons || 0),
       ownership_type: createForm.ownership_type as any,
+      make: createForm.make,
+      model: createForm.model,
+      year_of_manufacture: createForm.year_of_manufacture ? Number(createForm.year_of_manufacture) : undefined,
+      chassis_number: createForm.chassis_number || undefined,
+      engine_number: createForm.engine_number || undefined,
       status: 'available',
       gps_enabled: false,
-      make: '',
-      model: '',
-      year: new Date().getFullYear(),
+      year: createForm.year_of_manufacture ? Number(createForm.year_of_manufacture) : new Date().getFullYear(),
       total_km_run: 0,
       is_active: true,
     }),
@@ -94,6 +103,11 @@ export default function VehiclesPage() {
       fuel_type: 'diesel',
       capacity_tons: '0',
       ownership_type: 'owned',
+      make: '',
+      model: '',
+      year_of_manufacture: '',
+      chassis_number: '',
+      engine_number: '',
     });
     setCreateStep(1);
     setCreatedVehicleId(null);
@@ -110,6 +124,26 @@ export default function VehiclesPage() {
           : d.fuel_type_extracted.toLowerCase().includes('cng') ? 'cng'
           : 'diesel'
         : prev.fuel_type,
+    }));
+  };
+
+  // Called by DocAutoFill inline widget (raw extraction data, not wrapped ExtractionResult)
+  const handleRCDocAutoFill = (d: Record<string, any>) => {
+    const rawFuel = String(d.fuel_type || '').toLowerCase();
+    setCreateForm(prev => ({
+      ...prev,
+      registration_number: d.registration_number || prev.registration_number,
+      fuel_type: rawFuel.includes('petrol') ? 'petrol'
+        : rawFuel.includes('cng') ? 'cng'
+        : rawFuel.includes('electric') ? 'electric'
+        : rawFuel.includes('lpg') ? 'lpg'
+        : rawFuel.includes('diesel') ? 'diesel'
+        : prev.fuel_type,
+      make: d.make || prev.make,
+      model: d.model_name || prev.model,
+      year_of_manufacture: d.year_of_manufacture ? String(d.year_of_manufacture) : prev.year_of_manufacture,
+      chassis_number: d.chassis_number || prev.chassis_number,
+      engine_number: d.engine_number || prev.engine_number,
     }));
   };
 
@@ -311,9 +345,15 @@ export default function VehiclesPage() {
               createMutation.mutate();
             }}
           >
+            {/* AI Auto-fill from RC */}
+            <DocAutoFill
+              documentType="rc"
+              entityType="vehicle"
+              onExtracted={handleRCDocAutoFill}
+            />
             <div>
-              <label className="label">Registration Number</label>
-              <input className="input-field" value={createForm.registration_number} onChange={(e) => setCreateForm((p) => ({ ...p, registration_number: e.target.value.toUpperCase() }))} required />
+              <label className="label">Registration Number <span className="text-red-500">*</span></label>
+              <input className="input-field" value={createForm.registration_number} onChange={(e) => setCreateForm((p) => ({ ...p, registration_number: e.target.value.toUpperCase() }))} placeholder="e.g. TN01AB1234" required />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -330,23 +370,53 @@ export default function VehiclesPage() {
               </div>
               <div>
                 <label className="label">Fuel Type</label>
-                <input className="input-field" value={createForm.fuel_type} onChange={(e) => setCreateForm((p) => ({ ...p, fuel_type: e.target.value }))} />
+                <select className="input-field" value={createForm.fuel_type} onChange={(e) => setCreateForm((p) => ({ ...p, fuel_type: e.target.value }))}>
+                  <option value="diesel">Diesel</option>
+                  <option value="petrol">Petrol</option>
+                  <option value="cng">CNG</option>
+                  <option value="electric">Electric</option>
+                  <option value="lpg">LPG</option>
+                </select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
+                <label className="label">Make</label>
+                <input className="input-field" value={createForm.make} onChange={(e) => setCreateForm((p) => ({ ...p, make: e.target.value }))} placeholder="e.g. TATA" />
+              </div>
+              <div>
+                <label className="label">Model</label>
+                <input className="input-field" value={createForm.model} onChange={(e) => setCreateForm((p) => ({ ...p, model: e.target.value }))} placeholder="e.g. Prima 4028" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Year of Manufacture</label>
+                <input type="number" className="input-field" value={createForm.year_of_manufacture} onChange={(e) => setCreateForm((p) => ({ ...p, year_of_manufacture: e.target.value }))} placeholder="e.g. 2019" min="1990" max={new Date().getFullYear()} />
+              </div>
+              <div>
                 <label className="label">Capacity (Tons)</label>
                 <input type="number" className="input-field" value={createForm.capacity_tons} onChange={(e) => setCreateForm((p) => ({ ...p, capacity_tons: e.target.value }))} />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="label">Ownership</label>
-                <select className="input-field" value={createForm.ownership_type} onChange={(e) => setCreateForm((p) => ({ ...p, ownership_type: e.target.value }))}>
-                  <option value="owned">Owned</option>
-                  <option value="leased">Leased</option>
-                  <option value="attached">Attached</option>
-                  <option value="market">Market</option>
-                </select>
+                <label className="label">Chassis Number</label>
+                <input className="input-field" value={createForm.chassis_number} onChange={(e) => setCreateForm((p) => ({ ...p, chassis_number: e.target.value.toUpperCase() }))} placeholder="Auto-filled from RC" />
               </div>
+              <div>
+                <label className="label">Engine Number</label>
+                <input className="input-field" value={createForm.engine_number} onChange={(e) => setCreateForm((p) => ({ ...p, engine_number: e.target.value.toUpperCase() }))} placeholder="Auto-filled from RC" />
+              </div>
+            </div>
+            <div>
+              <label className="label">Ownership</label>
+              <select className="input-field" value={createForm.ownership_type} onChange={(e) => setCreateForm((p) => ({ ...p, ownership_type: e.target.value }))}>
+                <option value="owned">Owned</option>
+                <option value="leased">Leased</option>
+                <option value="attached">Attached</option>
+                <option value="market">Market</option>
+              </select>
             </div>
             <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
               <button type="button" className="btn-secondary" onClick={resetCreate}>Cancel</button>
