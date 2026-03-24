@@ -59,3 +59,8 @@ structlog==24.1.0
 
 # CORS & Security
 python-dotenv==1.0.1
+
+# AI Document Extraction
+anthropic>=0.40.0
+pdf2image>=1.17.0
+Pillow>=10.3.0

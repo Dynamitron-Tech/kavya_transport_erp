@@ -110,7 +110,10 @@ class Settings(BaseSettings):
     EMAIL_FROM: str = "noreply@transporterp.com"
     
     # Finance
-    
+
+    # AI / Document Extraction
+    ANTHROPIC_API_KEY: str = ""
+
     # GPS Device
     GPS_TCP_HOST: str = "0.0.0.0"
     GPS_TCP_PORT: int = 5000

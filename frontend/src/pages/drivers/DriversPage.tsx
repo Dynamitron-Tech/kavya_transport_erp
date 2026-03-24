@@ -12,6 +12,8 @@ import type { Driver, DriverDashboard, FilterParams } from '@/types';
 import { Star, Users, UserCheck, Truck, Clock, AlertTriangle, LayoutDashboard, Shield } from 'lucide-react';
 import { safeArray } from '@/utils/helpers';
 import { handleApiError } from '../../utils/handleApiError';
+import { DocumentChecklist } from '@/components/documents/DocumentChecklist';
+import type { ExtractionResult } from '@/components/documents/DocumentUploadWithExtraction';
 
 const STATUS_TABS = [
   { key: '', label: 'All' },
@@ -31,6 +33,8 @@ export default function DriversPage() {
   const [editDriver, setEditDriver] = useState<Driver | null>(null);
   const [editName, setEditName] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createStep, setCreateStep] = useState<1 | 2>(1);
+  const [createdDriverId, setCreatedDriverId] = useState<number | null>(null);
   const [createForm, setCreateForm] = useState({
     employee_id: '',
     full_name: '',
@@ -92,23 +96,19 @@ export default function DriversPage() {
     onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ['drivers'] });
       qc.invalidateQueries({ queryKey: ['admin-employees'] });
+      const driverId = data?.id ?? data?.data?.id;
       const email = data?.login_email || data?.data?.login_email;
       const password = data?.login_password || data?.data?.login_password;
       if (email && password) {
         const pinMsg = createForm.security_pin ? `\nSecurity PIN: ${createForm.security_pin}` : '';
         toast.success(`Driver created!\nLogin: ${email}\nPassword: ${password}${pinMsg}`, { duration: 10000 });
-      } else {
-        toast.success('Driver created successfully.');
       }
-      setCreateForm({
-        employee_id: '',
-        full_name: '',
-        phone: '',
-        license_number: '',
-        license_expiry: '',
-        security_pin: '',
-      });
-      setIsCreateOpen(false);
+      if (driverId) {
+        setCreatedDriverId(driverId);
+        setCreateStep(2);
+      } else {
+        resetCreate();
+      }
     },
     onError: (error) => {
       handleApiError(error, 'Operation failed');
@@ -125,6 +125,22 @@ export default function DriversPage() {
       handleApiError(error, 'Operation failed');
     },
   });
+
+  const resetCreate = () => {
+    setCreateForm({ employee_id: '', full_name: '', phone: '', license_number: '', license_expiry: '', security_pin: '' });
+    setCreateStep(1);
+    setCreatedDriverId(null);
+    setIsCreateOpen(false);
+  };
+
+  const handleDriverExtracted = (result: ExtractionResult) => {
+    const d = result.data;
+    setCreateForm(prev => ({
+      ...prev,
+      license_number: d.license_number || prev.license_number,
+      full_name: (!prev.full_name && d.holder_name) ? d.holder_name : prev.full_name,
+    }));
+  };
 
   const kpis = dashboard?.kpis;
 
@@ -393,69 +409,92 @@ export default function DriversPage() {
 
       <Modal
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        title="Create Driver"
+        onClose={resetCreate}
+        title={createStep === 1 ? 'Create Driver' : 'Upload Documents'}
+        subtitle={createStep === 1 ? 'Step 1 of 2 — Driver details' : 'Step 2 of 2 — Attach compliance documents'}
         size="lg"
       >
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            createMutation.mutate();
-          }}
-        >
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Employee ID</label>
-              <input className="input-field" value={createForm.employee_id} onChange={(e) => setCreateForm((p) => ({ ...p, employee_id: e.target.value }))} required />
+        {createStep === 1 ? (
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              createMutation.mutate();
+            }}
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Employee ID</label>
+                <input className="input-field" value={createForm.employee_id} onChange={(e) => setCreateForm((p) => ({ ...p, employee_id: e.target.value }))} required />
+              </div>
+              <div>
+                <label className="label">Full Name</label>
+                <input className="input-field" value={createForm.full_name} onChange={(e) => setCreateForm((p) => ({ ...p, full_name: e.target.value }))} required />
+              </div>
             </div>
-            <div>
-              <label className="label">Full Name</label>
-              <input className="input-field" value={createForm.full_name} onChange={(e) => setCreateForm((p) => ({ ...p, full_name: e.target.value }))} required />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Phone</label>
+                <input className="input-field" value={createForm.phone} onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))} required />
+              </div>
+              <div>
+                <label className="label">License Number</label>
+                <input className="input-field" value={createForm.license_number} onChange={(e) => setCreateForm((p) => ({ ...p, license_number: e.target.value }))} required />
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Phone</label>
-              <input className="input-field" value={createForm.phone} onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))} required />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">License Expiry</label>
+                <input type="date" className="input-field" value={createForm.license_expiry} onChange={(e) => setCreateForm((p) => ({ ...p, license_expiry: e.target.value }))} required />
+              </div>
+              <div>
+                <label className="label">Security PIN (6 digits)</label>
+                <input
+                  className="input-field"
+                  value={createForm.security_pin}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setCreateForm((p) => ({ ...p, security_pin: v }));
+                  }}
+                  placeholder="e.g. 482910"
+                  maxLength={6}
+                  pattern="\\d{6}"
+                  inputMode="numeric"
+                  required
+                />
+              </div>
             </div>
-            <div>
-              <label className="label">License Number</label>
-              <input className="input-field" value={createForm.license_number} onChange={(e) => setCreateForm((p) => ({ ...p, license_number: e.target.value }))} required />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">License Expiry</label>
-              <input type="date" className="input-field" value={createForm.license_expiry} onChange={(e) => setCreateForm((p) => ({ ...p, license_expiry: e.target.value }))} required />
-            </div>
-            <div>
-              <label className="label">Security PIN (6 digits)</label>
-              <input
-                className="input-field"
-                value={createForm.security_pin}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\D/g, '').slice(0, 6);
-                  setCreateForm((p) => ({ ...p, security_pin: v }));
-                }}
-                placeholder="e.g. 482910"
-                maxLength={6}
-                pattern="\\d{6}"
-                inputMode="numeric"
-                required
+            <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+              <button type="button" className="btn-secondary" onClick={resetCreate}>Cancel</button>
+              <SubmitButton
+                isLoading={createMutation.isPending}
+                label="Next: Documents →"
+                loadingLabel="Creating..."
+                disabled={!createForm.employee_id.trim() || !createForm.full_name.trim() || !createForm.phone.trim() || !createForm.license_number.trim() || !createForm.license_expiry || createForm.security_pin.length !== 6}
               />
             </div>
-          </div>
-          <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
-            <button type="button" className="btn-secondary" onClick={() => setIsCreateOpen(false)}>Cancel</button>
-            <SubmitButton
-              isLoading={createMutation.isPending}
-              label="Create Driver"
-              loadingLabel="Creating..."
-              disabled={!createForm.employee_id.trim() || !createForm.full_name.trim() || !createForm.phone.trim() || !createForm.license_number.trim() || !createForm.license_expiry || createForm.security_pin.length !== 6}
+          </form>
+        ) : (
+          <div className="space-y-4">
+            <DocumentChecklist
+              entityType="driver"
+              entityId={createdDriverId ?? undefined}
+              onExtracted={(_req, result) => handleDriverExtracted(result)}
             />
+            <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+              <button className="btn-secondary" onClick={() => setCreateStep(1)}>← Back</button>
+              <button
+                className="px-5 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                onClick={() => {
+                  toast.success('Driver created successfully.');
+                  resetCreate();
+                }}
+              >
+                Done
+              </button>
+            </div>
           </div>
-        </form>
+        )}
       </Modal>
     </div>
   );

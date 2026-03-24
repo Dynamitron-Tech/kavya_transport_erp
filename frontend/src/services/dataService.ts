@@ -1107,6 +1107,27 @@ export const documentService = {
     const data = await api.get('/documents/lookup/reviewers');
     return unwrap<{ items: any[] }>(data).items;
   },
+  // ── Extraction helpers ──────────────────────────────────────────────────
+  extract: async (formData: FormData): Promise<{ extracted: boolean; data: Record<string, any>; entity_type?: string }> => {
+    const data = await api.post('/documents/extract', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return unwrap(data);
+  },
+  getRequirements: async (entityType: string): Promise<Record<string, any>> => {
+    const data = await api.get('/documents/requirements', { params: { entity_type: entityType } });
+    return unwrap(data);
+  },
+  listForEntity: async (entityId: number, entityType: string): Promise<Document[]> => {
+    const data = await api.get('/documents', { params: { entity_id: entityId, entity_type: entityType } });
+    return (data as any)?.items ?? [];
+  },
+  uploadFile: async (formData: FormData): Promise<Document> => {
+    const data = await api.post('/documents/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return unwrap(data);
+  },
 };
 
 // ---- Routes ----

@@ -51,7 +51,7 @@
 
 from sqlalchemy import (
     Column, String, Integer, Boolean, ForeignKey,
-    DateTime, Text, Date, Enum as SQLEnum
+    DateTime, Text, Date, JSON, Enum as SQLEnum
 )
 from sqlalchemy.orm import relationship
 import enum
@@ -66,6 +66,7 @@ class DocumentType(enum.Enum):
     FITNESS = "FITNESS"
     LICENSE = "LICENSE"
     POLLUTION = "POLLUTION"
+    PUC = "PUC"
     INVOICE = "INVOICE"
     EWAY_BILL = "EWAY_BILL"
     LR_COPY = "LR_COPY"
@@ -73,6 +74,11 @@ class DocumentType(enum.Enum):
     CONTRACT = "CONTRACT"
     POD = "POD"
     TAX_RECEIPT = "TAX_RECEIPT"
+    DRIVER_BADGE = "DRIVER_BADGE"
+    MEDICAL_FITNESS = "MEDICAL_FITNESS"
+    AADHAAR = "AADHAAR"
+    PAN_CARD = "PAN_CARD"
+    GST_CERTIFICATE = "GST_CERTIFICATE"
     OTHER = "OTHER"
 
 
@@ -145,6 +151,10 @@ class Document(Base, TimestampMixin, SoftDeleteMixin):
     file_size = Column(Integer, nullable=True)
     file_type = Column(String(50), nullable=True)
     file_url = Column(String(500), nullable=True)
+    file_key = Column(String(500), nullable=True)
+
+    # AI-extracted structured data
+    extracted_data = Column(JSON, nullable=True)
 
     # Ownership
     uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=True)

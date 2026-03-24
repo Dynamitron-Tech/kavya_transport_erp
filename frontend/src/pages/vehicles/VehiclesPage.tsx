@@ -12,6 +12,8 @@ import type { Vehicle, FilterParams, VehicleStatus } from '@/types';
 import { Truck, Wrench, Navigation, CheckCircle2, Pencil, Trash2 } from 'lucide-react';
 import { safeArray } from '@/utils/helpers';
 import { handleApiError } from '../../utils/handleApiError';
+import { DocumentChecklist } from '@/components/documents/DocumentChecklist';
+import type { ExtractionResult } from '@/components/documents/DocumentUploadWithExtraction';
 
 export default function VehiclesPage() {
   const navigate = useNavigate();
@@ -22,6 +24,8 @@ export default function VehiclesPage() {
   const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null);
   const [editStatus, setEditStatus] = useState<VehicleStatus>('available');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createStep, setCreateStep] = useState<1 | 2>(1);
+  const [createdVehicleId, setCreatedVehicleId] = useState<number | null>(null);
   const [createForm, setCreateForm] = useState({
     registration_number: '',
     vehicle_type: 'truck',
@@ -67,22 +71,47 @@ export default function VehiclesPage() {
       total_km_run: 0,
       is_active: true,
     }),
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ['vehicles'] });
-      toast.success('Vehicle created successfully.');
-      setCreateForm({
-        registration_number: '',
-        vehicle_type: 'truck',
-        fuel_type: 'diesel',
-        capacity_tons: '0',
-        ownership_type: 'owned',
-      });
-      setIsCreateOpen(false);
+      const vehicleId = data?.id ?? data?.data?.id;
+      if (vehicleId) {
+        setCreatedVehicleId(vehicleId);
+        setCreateStep(2);
+      } else {
+        toast.success('Vehicle created successfully.');
+        resetCreate();
+      }
     },
     onError: (error) => {
       handleApiError(error, 'Operation failed');
     },
   });
+
+  const resetCreate = () => {
+    setCreateForm({
+      registration_number: '',
+      vehicle_type: 'truck',
+      fuel_type: 'diesel',
+      capacity_tons: '0',
+      ownership_type: 'owned',
+    });
+    setCreateStep(1);
+    setCreatedVehicleId(null);
+    setIsCreateOpen(false);
+  };
+
+  const handleVehicleExtracted = (result: ExtractionResult) => {
+    const d = result.data;
+    setCreateForm(prev => ({
+      ...prev,
+      registration_number: d.registration_number || prev.registration_number,
+      fuel_type: d.fuel_type_extracted
+        ? d.fuel_type_extracted.toLowerCase().includes('petrol') ? 'petrol'
+          : d.fuel_type_extracted.toLowerCase().includes('cng') ? 'cng'
+          : 'diesel'
+        : prev.fuel_type,
+    }));
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => vehicleService.delete(id),
@@ -269,59 +298,82 @@ export default function VehiclesPage() {
 
       <Modal
         isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        title="Create Vehicle"
-        size="md"
+        onClose={resetCreate}
+        title={createStep === 1 ? 'Create Vehicle' : 'Upload Documents'}
+        subtitle={createStep === 1 ? 'Step 1 of 2 — Vehicle details' : 'Step 2 of 2 — Attach compliance documents'}
+        size="lg"
       >
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            createMutation.mutate();
-          }}
-        >
-          <div>
-            <label className="label">Registration Number</label>
-            <input className="input-field" value={createForm.registration_number} onChange={(e) => setCreateForm((p) => ({ ...p, registration_number: e.target.value.toUpperCase() }))} required />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+        {createStep === 1 ? (
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              createMutation.mutate();
+            }}
+          >
             <div>
-              <label className="label">Vehicle Type</label>
-              <select className="input-field" value={createForm.vehicle_type} onChange={(e) => setCreateForm((p) => ({ ...p, vehicle_type: e.target.value }))}>
-                <option value="truck">Truck</option>
-                <option value="trailer">Trailer</option>
-                <option value="tanker">Tanker</option>
-                <option value="container">Container</option>
-                <option value="mini_truck">Mini Truck</option>
-                <option value="pickup">Pickup</option>
-                <option value="other">Other</option>
-              </select>
+              <label className="label">Registration Number</label>
+              <input className="input-field" value={createForm.registration_number} onChange={(e) => setCreateForm((p) => ({ ...p, registration_number: e.target.value.toUpperCase() }))} required />
             </div>
-            <div>
-              <label className="label">Fuel Type</label>
-              <input className="input-field" value={createForm.fuel_type} onChange={(e) => setCreateForm((p) => ({ ...p, fuel_type: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Vehicle Type</label>
+                <select className="input-field" value={createForm.vehicle_type} onChange={(e) => setCreateForm((p) => ({ ...p, vehicle_type: e.target.value }))}>
+                  <option value="truck">Truck</option>
+                  <option value="trailer">Trailer</option>
+                  <option value="tanker">Tanker</option>
+                  <option value="container">Container</option>
+                  <option value="mini_truck">Mini Truck</option>
+                  <option value="pickup">Pickup</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Fuel Type</label>
+                <input className="input-field" value={createForm.fuel_type} onChange={(e) => setCreateForm((p) => ({ ...p, fuel_type: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label">Capacity (Tons)</label>
+                <input type="number" className="input-field" value={createForm.capacity_tons} onChange={(e) => setCreateForm((p) => ({ ...p, capacity_tons: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Ownership</label>
+                <select className="input-field" value={createForm.ownership_type} onChange={(e) => setCreateForm((p) => ({ ...p, ownership_type: e.target.value }))}>
+                  <option value="owned">Owned</option>
+                  <option value="leased">Leased</option>
+                  <option value="attached">Attached</option>
+                  <option value="market">Market</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+              <button type="button" className="btn-secondary" onClick={resetCreate}>Cancel</button>
+              <SubmitButton isLoading={createMutation.isPending} label="Next: Documents →" loadingLabel="Creating..." disabled={!createForm.registration_number.trim()} />
+            </div>
+          </form>
+        ) : (
+          <div className="space-y-4">
+            <DocumentChecklist
+              entityType="vehicle"
+              entityId={createdVehicleId ?? undefined}
+              onExtracted={(_req, result) => handleVehicleExtracted(result)}
+            />
+            <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+              <button className="btn-secondary" onClick={() => setCreateStep(1)}>← Back</button>
+              <button
+                className="px-5 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                onClick={() => {
+                  toast.success('Vehicle created successfully.');
+                  resetCreate();
+                }}
+              >
+                Done
+              </button>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Capacity (Tons)</label>
-              <input type="number" className="input-field" value={createForm.capacity_tons} onChange={(e) => setCreateForm((p) => ({ ...p, capacity_tons: e.target.value }))} />
-            </div>
-            <div>
-              <label className="label">Ownership</label>
-              <select className="input-field" value={createForm.ownership_type} onChange={(e) => setCreateForm((p) => ({ ...p, ownership_type: e.target.value }))}>
-                <option value="owned">Owned</option>
-                <option value="leased">Leased</option>
-                <option value="attached">Attached</option>
-                <option value="market">Market</option>
-              </select>
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
-            <button type="button" className="btn-secondary" onClick={() => setIsCreateOpen(false)}>Cancel</button>
-            <SubmitButton isLoading={createMutation.isPending} label="Create Vehicle" loadingLabel="Creating..." disabled={!createForm.registration_number.trim()} />
-          </div>
-        </form>
+        )}
       </Modal>
     </div>
   );

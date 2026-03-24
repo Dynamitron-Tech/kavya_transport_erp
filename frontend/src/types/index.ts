@@ -1205,7 +1205,7 @@ export interface FilterParams {
 // ---- Documents ----
 export type DocumentApprovalStatus = 'draft' | 'pending' | 'approved' | 'rejected';
 export type DocumentExpiryStatus = 'valid' | 'expiring_soon' | 'expired' | 'none';
-export type DocumentType = 'rc' | 'insurance' | 'fitness' | 'license' | 'pollution' | 'invoice' | 'eway_bill' | 'lr_copy' | 'permit' | 'contract' | 'pod' | 'tax_receipt' | 'other';
+export type DocumentType = 'rc' | 'insurance' | 'fitness' | 'license' | 'pollution' | 'puc' | 'invoice' | 'eway_bill' | 'lr_copy' | 'permit' | 'contract' | 'pod' | 'tax_receipt' | 'driver_badge' | 'medical_fitness' | 'aadhaar' | 'pan_card' | 'gst_certificate' | 'other';
 export type EntityType = 'vehicle' | 'driver' | 'trip' | 'client' | 'finance';
 export type ComplianceCategory = 'mandatory' | 'optional';
 
@@ -1250,6 +1250,8 @@ export interface Document {
   file_size: number;
   file_type: string;
   file_url: string;
+  file_key?: string;
+  extracted_data?: Record<string, any>;
   versions: DocumentVersion[];
   status_history: DocumentStatusChange[];
   created_at: string;

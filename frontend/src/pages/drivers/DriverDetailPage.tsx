@@ -11,6 +11,7 @@ import {
   Shield, Truck, TrendingUp, FileText, User, Activity, AlertTriangle,
   CheckCircle2, XCircle, Fuel, Gauge, Zap, Eye,
 } from 'lucide-react';
+import { DocumentChecklist } from '@/components/documents/DocumentChecklist';
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: User },
@@ -345,98 +346,9 @@ function BehaviourTab({ driverId }: { driverId: number }) {
 // Tab: Documents
 // ═══════════════════════════════════════════════════════
 function DocumentsTab({ driverId }: { driverId: number }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['driver-documents', driverId],
-    queryFn: () => driverService.getDocuments(driverId),
-  });
-
-  if (isLoading) return <div className="animate-pulse space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-16 bg-gray-100 rounded" />)}</div>;
-
-  const docs: DriverDocument[] = safeArray(data);
-  const compliance = data?.compliance;
-
   return (
-    <div className="space-y-5">
-      {/* Compliance Summary */}
-      {compliance && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div className="bg-green-50 rounded-lg p-3 text-center">
-            <p className="text-lg font-bold text-green-700">{compliance.uploaded}/{compliance.total}</p>
-            <p className="text-xs text-green-600">Uploaded</p>
-          </div>
-          <div className="bg-red-50 rounded-lg p-3 text-center">
-            <p className="text-lg font-bold text-red-700">{compliance.missing}</p>
-            <p className="text-xs text-red-600">Missing</p>
-          </div>
-          <div className="bg-amber-50 rounded-lg p-3 text-center">
-            <p className="text-lg font-bold text-amber-700">{compliance.expired}</p>
-            <p className="text-xs text-amber-600">Expired</p>
-          </div>
-          <div className="bg-blue-50 rounded-lg p-3 text-center">
-            <p className="text-lg font-bold text-blue-700">{compliance.approved}</p>
-            <p className="text-xs text-blue-600">Approved</p>
-          </div>
-          <div className="bg-purple-50 rounded-lg p-3 text-center">
-            <p className="text-lg font-bold text-purple-700">{compliance.compliance_pct}%</p>
-            <p className="text-xs text-purple-600">Compliance</p>
-          </div>
-        </div>
-      )}
-
-      {/* Document List */}
-      <div className="card overflow-hidden p-0">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="table-header">Document</th>
-              <th className="table-header">Number</th>
-              <th className="table-header">Status</th>
-              <th className="table-header">Expiry</th>
-              <th className="table-header">Approval</th>
-              <th className="table-header">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {docs.map((doc) => (
-              <tr key={doc.id} className="border-b hover:bg-gray-50">
-                <td className="table-cell">
-                  <div className="flex items-center gap-2">
-                    <FileText size={15} className="text-gray-400" />
-                    <div>
-                      <p className="text-sm font-medium">{doc.label}</p>
-                      {doc.mandatory && <span className="text-xs text-red-500">Required</span>}
-                    </div>
-                  </div>
-                </td>
-                <td className="table-cell font-mono text-sm">{doc.document_number || '—'}</td>
-                <td className="table-cell">
-                  {doc.status === 'uploaded'
-                    ? <span className="flex items-center gap-1 text-green-600 text-sm"><CheckCircle2 size={14} /> Uploaded</span>
-                    : <span className="flex items-center gap-1 text-red-500 text-sm"><XCircle size={14} /> Missing</span>}
-                </td>
-                <td className="table-cell">
-                  {doc.expiry_date ? (
-                    <span className={`text-sm ${doc.expiry_status === 'expired' ? 'text-red-600 font-medium' : doc.expiry_status === 'expiring_soon' ? 'text-amber-600' : ''}`}>
-                      {new Date(doc.expiry_date).toLocaleDateString('en-IN')}
-                      {doc.expiry_status === 'expired' && <span className="text-xs ml-1">(expired)</span>}
-                    </span>
-                  ) : <span className="text-gray-300">—</span>}
-                </td>
-                <td className="table-cell">
-                  <StatusBadge status={doc.approval_status} />
-                </td>
-                <td className="table-cell">
-                  {doc.file_url ? (
-                    <button className="text-primary-600 hover:text-primary-800 text-sm flex items-center gap-1"><Eye size={14} /> View</button>
-                  ) : (
-                    <button className="text-sm text-gray-400">Upload</button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="space-y-4">
+      <DocumentChecklist entityType="driver" entityId={driverId} />
     </div>
   );
 }
