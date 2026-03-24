@@ -61,7 +61,7 @@ async def create_banking_entry(
     """Create a new banking entry (all 6 types)."""
     try:
         entry = await banking_entry_service.create_banking_entry(db, data.model_dump(), current_user.user_id)
-        amount_fmt = f"₹{float(entry.amount or 0):,.0f}"
+        amount_fmt = f"₹{float(entry.amount_paise or 0) / 100:,.0f}"
         # Notify accountant for approval
         await notification_service.send(
             db, event_type="BANKING_ENTRY_NEEDS_APPROVAL",
