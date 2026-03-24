@@ -7,7 +7,6 @@ from typing import Optional, List, Tuple
 
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from app.models.postgres.fuel_pump import (
     DepotFuelTank, FuelIssue, FuelStockTransaction, FuelTheftAlert,

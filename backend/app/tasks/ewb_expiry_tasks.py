@@ -167,7 +167,6 @@ def trip_dispatched_ewb_check(trip_id: int, db=None) -> dict:
 
     # If called directly with a db session (from trip_service), use it
     if db is not None:
-        import asyncio
         # We're already in an async context — just await
         return _check(db)
 

@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, case, extract, literal_column
+from sqlalchemy import select, func, and_, case, extract
 
 from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user

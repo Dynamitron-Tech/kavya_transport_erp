@@ -2,7 +2,7 @@
 # Transport ERP — Phase C: Periodic score computation & behavior event capture
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from app.celery_app import celery_app
 
 logger = logging.getLogger(__name__)

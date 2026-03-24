@@ -6,7 +6,6 @@
 
 from typing import Optional
 from fastapi import Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import Select
 
 from app.core.security import get_current_user, TokenData

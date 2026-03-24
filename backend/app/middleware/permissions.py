@@ -1,10 +1,9 @@
 # Permission Middleware
 # Transport ERP - Role-Based Access Control
 
-from functools import wraps
-from typing import List, Optional, Callable, Union
+from typing import List, Union
 
-from fastapi import Depends, HTTPException, status, Request
+from fastapi import Depends, HTTPException, status
 
 from app.core.security import TokenData, get_current_user
 

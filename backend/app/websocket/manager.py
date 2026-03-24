@@ -2,8 +2,7 @@
 # Transport ERP
 
 from typing import Dict, List, Set, Optional
-from fastapi import WebSocket, WebSocketDisconnect
-import json
+from fastapi import WebSocket
 import logging
 
 from app.core.security import decode_token

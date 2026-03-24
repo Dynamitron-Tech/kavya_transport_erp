@@ -3,7 +3,7 @@
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date
 
 from app.celery_app import celery_app
 from app.db.postgres.connection import AsyncSessionLocal
