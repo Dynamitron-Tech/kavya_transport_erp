@@ -7,6 +7,7 @@ import '../../providers/search_provider.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../core/localization/locale_provider.dart';
 
 class DriverTripListScreen extends ConsumerStatefulWidget {
   const DriverTripListScreen({super.key});
@@ -39,6 +40,7 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
     // Watch search results if query exists
     final searchQuery = _searchCtrl.text.trim();
     final searchResults = ref.watch(tripSearchProvider);
+    final s = ref.watch(sProvider);
 
     // Use search results if query present, otherwise use paginated trips
     final displayTrips = searchQuery.isNotEmpty 
@@ -51,7 +53,7 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
     final filtered = _filterTrips(displayTrips);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Trips')),
+      appBar: AppBar(title: Text(s.trips)),
       body: Column(
         children: [
           // Search Bar
@@ -65,7 +67,7 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
                 setState(() {});
               },
               decoration: InputDecoration(
-                hintText: 'Search trips...',
+                hintText: s.searchTrips,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
@@ -85,11 +87,11 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
 
           // Status Filter Chips
           _TripFilterRow(
-            filters: const [
-              ('all', 'All'),
-              ('pending', 'Pending'),
-              ('in_transit', 'In Transit'),
-              ('completed', 'Completed'),
+            filters: [
+              ('all', s.all),
+              ('pending', s.pending),
+              ('in_transit', s.inTransit),
+              ('completed', s.completed),
             ],
             selected: _filterStatus,
             onSelect: (v) => setState(() => _filterStatus = v),
@@ -107,9 +109,9 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
                       children: [
                         Icon(Icons.local_shipping_outlined, size: 56, color: Colors.grey.shade400),
                         const SizedBox(height: 16),
-                        Text('No trips found', style: KTTextStyles.h3),
+                        Text(s.noTripsFound, style: KTTextStyles.h3),
                         const SizedBox(height: 8),
-                        Text('Try adjusting filters', style: const TextStyle(color: KTColors.textSecondary, fontSize: 14)),
+                        Text(s.tryAdjustingFilters, style: const TextStyle(color: KTColors.textSecondary, fontSize: 14)),
                       ],
                     ),
                   );
@@ -150,27 +152,18 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
                   ),
                 );
               },
-              loading: () => Column(
-                children: List.generate(
-                  5,
-                  (index) => Padding(
-                    padding: EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      bottom: index == 4 ? 0 : 12,
-                      top: index == 0 ? 8 : 0,
-                    ),
-                    child: Container(
-                      height: 110,
-                      decoration: BoxDecoration(
-                        color: KTColors.cardSurface,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Shimmer.fromColors(
-                        baseColor: Colors.grey,
-                        highlightColor: Colors.white,
-                        child: SizedBox.expand(),
-                      ),
+              loading: () => ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: 5,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (_, index) => Shimmer.fromColors(
+                  baseColor: Colors.grey.shade800,
+                  highlightColor: Colors.grey.shade600,
+                  child: Container(
+                    height: 110,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade800,
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
@@ -181,14 +174,14 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
                   children: [
                     Icon(Icons.error_outline, size: 56, color: KTColors.danger),
                     const SizedBox(height: 16),
-                    Text('Error loading trips', style: KTTextStyles.h3),
+                    Text(s.errorLoadingTrips, style: KTTextStyles.h3),
                     const SizedBox(height: 8),
                     Text(e.toString(), style: const TextStyle(color: KTColors.textSecondary, fontSize: 12)),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
                       onPressed: () => ref.refresh(tripsPaginatedProvider),
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
+                      label: Text(s.retry),
                     ),
                   ],
                 ),

@@ -20,14 +20,9 @@ final invoiceDetailProvider = FutureProvider.family.autoDispose<Map<String, dyna
 
 // ... existing invoicesProvider and invoiceDetailProvider ...
 
-final paymentsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async { //
-  // Data: GET /api/v1/finance/payments
-  // In a real scenario, you'd add this endpoint to ApiService.
-  // We'll mock the response structure here for the UI layout.
-  await Future.delayed(const Duration(seconds: 1)); 
-  return [
-    {'id': '1', 'client': 'Acme Transport', 'amount': 45000, 'mode': 'NEFT', 'date': '15 Mar 2026', 'ref': 'N123456789'},
-    {'id': '2', 'client': 'Global Logistics', 'amount': 12500, 'mode': 'UPI', 'date': '14 Mar 2026', 'ref': 'UPI098765'},
-    {'id': '3', 'client': 'Southern Freight', 'amount': 85000, 'mode': 'RTGS', 'date': '12 Mar 2026', 'ref': 'R112233445'},
-  ];
+final paymentsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final response = await api.get('/accountant/payments');
+  final data = response is Map ? (response['data'] ?? response['payments']) : response;
+  return data is List ? List<dynamic>.from(data as List) : [];
 });

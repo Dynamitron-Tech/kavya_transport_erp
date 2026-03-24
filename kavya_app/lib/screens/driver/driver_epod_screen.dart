@@ -9,6 +9,7 @@ import '../../providers/fleet_dashboard_provider.dart';
 import '../../providers/trip_provider.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/fireworks_overlay.dart';
+import '../../core/localization/locale_provider.dart';
 
 class DriverEpodScreen extends ConsumerStatefulWidget {
   final int tripId;
@@ -142,11 +143,12 @@ class _DriverEpodScreenState extends ConsumerState<DriverEpodScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(sProvider);
     return Scaffold(
       backgroundColor: KTColors.darkBg,
       appBar: AppBar(
         backgroundColor: KTColors.surface,
-        title: Text('Complete Delivery (ePOD)', style: KTTextStyles.h3),
+        title: Text(s.completeDeliveryEpod, style: KTTextStyles.h3),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => context.pop(),

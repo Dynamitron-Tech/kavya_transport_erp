@@ -8,7 +8,9 @@ final adminDashboardProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
   ref.onDispose(() => timer.cancel());
 
   final api = ref.read(apiServiceProvider);
-  return await api.getDashboardAdmin();
+  return Map<String, dynamic>.from(
+    (await api.get('/admin/dashboard/stats')) as Map,
+  );
 });
 
 final fleetStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {

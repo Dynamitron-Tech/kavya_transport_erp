@@ -1989,3 +1989,18 @@ export const tpmsService = {
     return unwrap(data);
   },
 };
+
+// ---- Payment Gateway ----
+export const paymentGatewayService = {
+  createLink: async (payload: {
+    amount: number;
+    description: string;
+    customer_name: string;
+    customer_phone: string;
+    customer_email: string;
+    reference_id: string;
+  }) => {
+    const data = await api.post('/finance/payment-gateway/links', payload);
+    return unwrap(data);
+  },
+};

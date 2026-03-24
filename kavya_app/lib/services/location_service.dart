@@ -49,15 +49,12 @@ class LocationService {
 
   Future<void> _sendGpsPing(String vehicleId, Position position) async {
     try {
-      await _api.post('/tracking/gps-ping', data: {
-        'vehicle_id': vehicleId,
-        'lat': position.latitude,
-        'lng': position.longitude,
-        'speed': position.speed,
-        'heading': position.heading,
-        'accuracy': position.accuracy,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
+      await _api.sendGpsPing(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        speed: position.speed * 3.6, // m/s → km/h
+        heading: position.heading,
+      );
     } catch (_) {
       // GPS ping failures are silently ignored — next ping will retry
     }

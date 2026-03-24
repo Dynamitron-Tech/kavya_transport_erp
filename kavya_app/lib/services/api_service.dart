@@ -8,7 +8,7 @@ class ApiService {
   // Base URL from environment [cite: 31]
   static const baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8001/api/v1',
+    defaultValue: 'http://10.0.2.2:8000/api/v1',
   );
 
   final Dio _dio;
@@ -467,6 +467,21 @@ class ApiService {
   Future<void> recordTyreEvent(Map<String, dynamic> data) async { // [cite: 33]
     final tyreId = data['tyre_id'];
     await _dio.post('/tyre/$tyreId/event', data: data);
+  }
+
+  /// Fetch the real integer PK for a tyre at a given vehicle+position.
+  Future<int?> getTyreId({required String vehicleId, required String position}) async {
+    final response = await _dio.get('/tyre', queryParameters: {
+      'vehicle_id': vehicleId,
+      'position': position,
+      'limit': 1,
+    });
+    final raw = response.data;
+    final list = raw is Map ? (raw['data'] as List?) : (raw as List?);
+    if (list != null && list.isNotEmpty) {
+      return (list.first as Map)['id'] as int?;
+    }
+    return null;
   }
 
   Future<List<dynamic>> getTrips({String? status}) async { // [cite: 34]

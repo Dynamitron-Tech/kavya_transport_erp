@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/kt_colors.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../core/localization/locale_provider.dart';
 
 class DriverProfileScreen extends ConsumerWidget {
   const DriverProfileScreen({super.key});
@@ -10,6 +11,7 @@ class DriverProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).user;
+    final s = ref.watch(sProvider);
     final name = user?.fullName ?? 'Driver';
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'D';
 
@@ -99,15 +101,15 @@ class DriverProfileScreen extends ConsumerWidget {
 
         // ── Personal Info ────────────────────────────────────────────────
         _SectionGroup(
-          title: 'Personal Info',
+          title: s.personalInfo,
           children: [
-            _InfoTile(Icons.person_outline, 'Full Name', user?.fullName ?? '-'),
-            _InfoTile(Icons.email_outlined, 'Email', user?.email.isNotEmpty == true ? user!.email : '-'),
-            _InfoTile(Icons.phone_outlined, 'Phone', user?.phone?.isNotEmpty == true ? user!.phone! : '-'),
+            _InfoTile(Icons.person_outline, s.fullName, user?.fullName ?? '-'),
+            _InfoTile(Icons.email_outlined, s.email, user?.email.isNotEmpty == true ? user!.email : '-'),
+            _InfoTile(Icons.phone_outlined, s.phone, user?.phone?.isNotEmpty == true ? user!.phone! : '-'),
             _InfoTile(
               Icons.badge_outlined,
-              'Status',
-              user == null ? '-' : (user.isActive ? 'Active' : 'Inactive'),
+              s.statusLabel,
+              user == null ? '-' : (user.isActive ? s.active : s.inactive),
               valueColor: user == null ? null : (user.isActive ? const Color(0xFF10B981) : const Color(0xFFEF4444)),
             ),
           ],
@@ -117,18 +119,18 @@ class DriverProfileScreen extends ConsumerWidget {
 
         // ── App ──────────────────────────────────────────────────────────
         _SectionGroup(
-          title: 'App',
+          title: s.app,
           children: [
             _ActionTile(
               icon: Icons.help_outline,
-              label: 'Help & Support',
-              subtitle: 'Contact us for assistance',
+              label: s.helpAndSupport,
+              subtitle: s.contactUsForAssistance,
               onTap: () {},
             ),
             _ActionTile(
               icon: Icons.info_outline,
-              label: 'About',
-              subtitle: 'App info & open-source licenses',
+              label: s.about,
+              subtitle: s.appInfoAndLicenses,
               onTap: () => _showAboutSheet(context),
             ),
           ],
@@ -304,28 +306,29 @@ class _LogoutButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef _) {
+    final s = ref.watch(sProvider);
     return GestureDetector(
       onTap: () => showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: const Color(0xFF111827),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Logout', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-          content: const Text(
-            'Are you sure you want to logout?',
-            style: TextStyle(color: Color(0xFF94A3B8)),
+          title: Text(s.logout, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          content: Text(
+            s.logoutConfirm,
+            style: const TextStyle(color: Color(0xFF94A3B8)),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
+              child: Text(s.cancel, style: const TextStyle(color: Color(0xFF94A3B8))),
             ),
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx);
                 ref.read(authProvider.notifier).logout();
               },
-              child: const Text('Logout', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w600)),
+              child: Text(s.logout, style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w600)),
             ),
           ],
         ),
@@ -337,12 +340,12 @@ class _LogoutButton extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFF3D1515)),
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 20),
-            SizedBox(width: 10),
-            Text('Logout', style: TextStyle(color: Color(0xFFEF4444), fontSize: 15, fontWeight: FontWeight.w600)),
+            const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 20),
+            const SizedBox(width: 10),
+            Text(s.logout, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 15, fontWeight: FontWeight.w600)),
           ],
         ),
       ),

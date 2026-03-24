@@ -8,6 +8,7 @@ import '../../core/widgets/kt_text_field.dart';
 import '../../core/widgets/photo_capture.dart';
 import '../../providers/fleet_dashboard_provider.dart'; // apiServiceProvider
 import 'pin_verification_screen.dart';
+import '../../core/localization/locale_provider.dart';
 
 class DriverAddExpenseScreen extends ConsumerStatefulWidget {
   const DriverAddExpenseScreen({super.key});
@@ -91,6 +92,7 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _submitting = true);
+    final s = ref.read(sProvider);
 
     final amount = double.tryParse(_amountCtrl.text) ?? 0;
     bool biometricVerified = false;
@@ -100,13 +102,13 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
       final proceed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Amount Mismatch'),
+          title: Text(s.amountMismatch),
           content: Text(
             'The receipt shows ₹${_ocrAmount!.toStringAsFixed(2)} but you entered ₹${amount.toStringAsFixed(2)}.\n\nDo you want to proceed anyway?',
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CORRECT AMOUNT')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('PROCEED ANYWAY')),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(s.correctAmount)),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(s.proceedAnyway)),
           ],
         ),
       );
@@ -159,15 +161,16 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
     await ref.read(expensesProvider(null).notifier).addExpense(expense, biometricVerified: biometricVerified);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense added')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.expenseAdded)));
       Navigator.of(context).pop(true); // Return true so list screen can refresh
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(sProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Expense')),
+      appBar: AppBar(title: Text(s.addExpenseTitle)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -175,7 +178,7 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Category', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              Text(s.category, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 initialValue: _category,
@@ -185,13 +188,13 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
               ),
               const SizedBox(height: 16),
               KtTextField(
-                label: 'Amount (₹)',
+                label: s.amount,
                 controller: _amountCtrl,
                 keyboardType: TextInputType.number,
                 hint: 'e.g., 500',
                 validator: (v) {
-                  if (v == null || v.isEmpty) return 'Required';
-                  if (double.tryParse(v) == null) return 'Invalid amount';
+                  if (v == null || v.isEmpty) return s.required_;
+                  if (double.tryParse(v) == null) return s.invalidAmount;
                   return null;
                 },
               ),
@@ -216,9 +219,9 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
                   ),
                 ),
               const SizedBox(height: 16),
-              KtTextField(label: 'Description', controller: _descCtrl, hint: 'Optional notes', maxLines: 2),
+              KtTextField(label: s.description, controller: _descCtrl, hint: s.optionalNotes, maxLines: 2),
               const SizedBox(height: 16),
-              const Text('Receipt Photo', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              Text(s.receiptPhoto, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
               const SizedBox(height: 6),
               PhotoCapture(onCaptured: (file) {
                 setState(() => _receipt = file);
@@ -226,18 +229,18 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
                 _runOcrVerification(file);
               }),
               if (_ocrRunning)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
                   child: Row(
                     children: [
-                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-                      SizedBox(width: 8),
-                      Text('Verifying receipt...', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                      const SizedBox(width: 8),
+                      Text(s.verifyingReceipt, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     ],
                   ),
                 ),
               const SizedBox(height: 24),
-              KtButton(label: 'Save Expense', icon: Icons.save, isLoading: _submitting, onPressed: _submit),
+              KtButton(label: s.saveExpense, icon: Icons.save, isLoading: _submitting, onPressed: _submit),
             ],
           ),
         ),

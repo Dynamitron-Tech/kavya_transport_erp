@@ -10,6 +10,7 @@ import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_button.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/widgets/section_header.dart';
+import '../../core/localization/locale_provider.dart';
 
 class DriverTripDetailScreen extends ConsumerWidget {
   final int tripId;
@@ -19,9 +20,10 @@ class DriverTripDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tripAsync = ref.watch(tripDetailProvider(tripId));
+    final s = ref.watch(sProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Trip Details')),
+      appBar: AppBar(title: Text(s.tripDetails)),
       body: tripAsync.when(
         data: (trip) => _buildContent(context, ref, trip),
         loading: () => _buildLoading(),
@@ -31,13 +33,13 @@ class DriverTripDetailScreen extends ConsumerWidget {
             children: [
               Icon(Icons.error_outline, size: 56, color: KTColors.danger),
               const SizedBox(height: 16),
-              Text('Error loading trip', style: KTTextStyles.h3),
+              Text(s.errorLoadingTrip, style: KTTextStyles.h3),
               const SizedBox(height: 8),
               Text(e.toString(), style: const TextStyle(color: KTColors.textSecondary, fontSize: 12)),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Go Back'),
+                child: Text(s.goBack),
               ),
             ],
           ),
@@ -47,6 +49,7 @@ class DriverTripDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildContent(BuildContext context, WidgetRef ref, Trip trip) {
+    final s = ref.watch(sProvider);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -102,9 +105,9 @@ class DriverTripDetailScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _infoRow(Icons.location_on_outlined, 'Origin', trip.origin ?? 'N/A'),
+                  _infoRow(Icons.location_on_outlined, s.origin, trip.origin ?? 'N/A'),
                   const Divider(height: 24),
-                  _infoRow(Icons.flag_outlined, 'Destination', trip.destination ?? 'N/A'),
+                  _infoRow(Icons.flag_outlined, s.destination, trip.destination ?? 'N/A'),
                 ],
               ),
             ),
@@ -153,7 +156,7 @@ class DriverTripDetailScreen extends ConsumerWidget {
 
           // Remarks
           if (trip.remarks != null && trip.remarks!.isNotEmpty) ...[
-            const SectionHeader(title: 'Remarks'),
+            SectionHeader(title: s.remarks),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -164,27 +167,27 @@ class DriverTripDetailScreen extends ConsumerWidget {
           ],
 
           // Actions
-          const SectionHeader(title: 'Actions'),
+          SectionHeader(title: s.actions),
           const SizedBox(height: 12),
           if (trip.isActive) ...[
             // Hide 'Update Status' when in_transit — ePOD is the only valid path to completion
             if (trip.status != 'in_transit') ...[
               KtButton(
-                label: 'Update Status',
+                label: s.updateStatus,
                 icon: Icons.edit,
                 onPressed: () => _showStatusDialog(context, ref, trip),
               ),
               const SizedBox(height: 12),
             ],
             KtButton(
-              label: 'Complete Delivery (ePOD)',
+              label: s.completeDeliveryEpod,
               icon: Icons.verified,
               onPressed: () => context.push('/driver/trip/${trip.id}/epod'),
             ),
             const SizedBox(height: 12),
           ],
           KtButton(
-            label: 'Add Expense',
+            label: s.addExpense,
             icon: Icons.receipt_long,
             outlined: true,
             onPressed: () => context.push(

@@ -6,6 +6,7 @@ import '../../providers/expense_provider.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../core/localization/locale_provider.dart';
 
 class DriverExpenseListScreen extends ConsumerStatefulWidget {
   final int? tripId;
@@ -40,9 +41,10 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
   Widget build(BuildContext context) {
     final expensesAsync = ref.watch(expensesProvider(widget.tripId));
     final expenses = expensesAsync.valueOrNull ?? [];
+    final s = ref.watch(sProvider);
     
     final filtered = _filterExpenses(expenses);
-    final title = widget.tripNumber != null ? 'Expenses — ${widget.tripNumber}' : 'Expenses';
+    final title = widget.tripNumber != null ? '${s.expenses} — ${widget.tripNumber}' : s.expenses;
 
     return Scaffold(
       appBar: AppBar(
@@ -71,7 +73,7 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
             child: TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
-                hintText: 'Search expenses...',
+                hintText: s.searchExpenses,
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -82,12 +84,12 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
 
           // Status Filters
           _SegmentedFilter(
-            filters: const [
-              ('all', 'All'),
-              ('pending', 'Pending'),
-              ('approved', 'Approved'),
-              ('paid', 'Paid'),
-              ('rejected', 'Rejected'),
+            filters: [
+              ('all', s.all),
+              ('pending', s.pending),
+              ('approved', s.approved),
+              ('paid', s.paid),
+              ('rejected', s.rejected),
             ],
             selected: _filterStatus,
             onSelect: (v) => setState(() => _filterStatus = v),
@@ -115,9 +117,9 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
                       children: [
                         Icon(Icons.receipt_long_outlined, size: 56, color: Colors.grey.shade400),
                         const SizedBox(height: 16),
-                        Text('No expenses found', style: KTTextStyles.h3),
+                        Text(s.noExpensesFound, style: KTTextStyles.h3),
                         const SizedBox(height: 8),
-                        const Text('Tap + to add your first expense', style: TextStyle(color: KTColors.textMuted, fontSize: 13)),
+                        Text(s.tapPlusToAddExpense, style: const TextStyle(color: KTColors.textMuted, fontSize: 13)),
                       ],
                     ),
                   );
@@ -160,7 +162,7 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
                   children: [
                     Icon(Icons.error_outline, size: 56, color: KTColors.danger),
                     const SizedBox(height: 16),
-                    Text('Error loading expenses', style: KTTextStyles.h3),
+                    Text(s.errorLoadingExpenses, style: KTTextStyles.h3),
                   ],
                 ),
               ),

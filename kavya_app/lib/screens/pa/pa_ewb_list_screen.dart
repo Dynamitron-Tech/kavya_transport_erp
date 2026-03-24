@@ -232,6 +232,8 @@ class _EWBRingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final status = ewb['status'] as String?;
+    final isCancelled = status == 'cancelled';
     final ringColor = _ringColor;
 
     return GestureDetector(
@@ -251,7 +253,19 @@ class _EWBRingCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Circular countdown ring
+            // Circular countdown ring or status icon
+            if (isCancelled)
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: KTColors.darkBorder.withValues(alpha: 0.3),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.cancel_outlined,
+                    color: KTColors.darkTextSecondary, size: 28),
+              )
+            else
             SizedBox(
               width: 64,
               height: 64,
@@ -271,7 +285,7 @@ class _EWBRingCard extends StatelessWidget {
                         ? const Icon(Icons.close,
                             color: KTColors.danger, size: 22)
                         : Text(
-                            countdown,
+                            countdown.isEmpty ? '—' : countdown,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: countdown.length > 4 ? 10 : 13,

@@ -21,6 +21,8 @@ import '../../services/notification_service.dart';
 
 import 'package:shimmer/shimmer.dart';
 import '../../core/widgets/section_header.dart';
+import '../../core/localization/locale_provider.dart';
+import '../../core/localization/driver_strings.dart';
 
 class DriverTodayScreen extends ConsumerStatefulWidget {
   const DriverTodayScreen({super.key});
@@ -31,6 +33,7 @@ class DriverTodayScreen extends ConsumerStatefulWidget {
 
 class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
   final Set<int> _loadingTripIds = {};
+  S get s => ref.read(sProvider);
 
   Future<void> _acceptTrip(Trip trip) async {
     setState(() => _loadingTripIds.add(trip.id));
@@ -40,7 +43,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Trip ${trip.tripNumber} accepted!'),
+            content: Text(s.tripAccepted(trip.tripNumber)),
             backgroundColor: KTColors.success,
           ),
         );
@@ -65,14 +68,14 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Decline Trip?'),
-        content: Text('Are you sure you want to decline trip ${trip.tripNumber}?'),
+        title: Text(s.declineTrip),
+        content: Text(s.declineTripConfirm(trip.tripNumber)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(s.cancel)),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: KTColors.danger),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Decline'),
+            child: Text(s.decline),
           ),
         ],
       ),
@@ -86,7 +89,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Trip ${trip.tripNumber} declined'),
+            content: Text(s.tripDeclined(trip.tripNumber)),
             backgroundColor: KTColors.warning,
           ),
         );
@@ -108,6 +111,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
     final attendanceAsync = ref.watch(attendanceProvider);
     final recentExpense = ref.watch(recentExpenseProvider);
     final user = ref.watch(authProvider).user;
+    final s = ref.watch(sProvider);
     final driverId = int.tryParse(user?.id ?? '') ?? 0;
 
     // Derive active trip, pending trips, and other trips from ONE source
@@ -125,16 +129,15 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
           // Attendance Status Card
           attendanceAsync.when(
             data: (attendance) => _attendanceCard(context, ref, attendance),
-            loading: () => Container(
-              height: 120,
-              decoration: BoxDecoration(
-                color: KTColors.cardSurface,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Shimmer.fromColors(
-                baseColor: Colors.grey,
-                highlightColor: Colors.white,
-                child: SizedBox.expand(),
+            loading: () => Shimmer.fromColors(
+              baseColor: Colors.grey.shade800,
+              highlightColor: Colors.grey.shade600,
+              child: Container(
+                height: 120,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade800,
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             error: (e, st) => Card(
@@ -217,12 +220,12 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                   children: [
                     Icon(Icons.local_shipping, color: KTColors.primary.withValues(alpha: 0.5)),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('No active trip', style: TextStyle(fontWeight: FontWeight.w600)),
-                          Text('Start a trip to see status', style: TextStyle(color: KTColors.textSecondary, fontSize: 12)),
+                          Text(s.noActiveTrip, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          Text(s.startTripToSeeStatus, style: const TextStyle(color: KTColors.textSecondary, fontSize: 12)),
                         ],
                       ),
                     ),
@@ -233,7 +236,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
           const SizedBox(height: 20),
 
           // Available Trips
-          const SectionHeader(title: 'Available Trips'),
+          SectionHeader(title: s.availableTrips),
           const SizedBox(height: 12),
           paginatedAsync.when(
             data: (paginatedData) {
@@ -253,7 +256,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                         children: [
                           Icon(Icons.assignment, color: Colors.grey.shade400, size: 48),
                           const SizedBox(height: 12),
-                          const Text('No trips available', style: TextStyle(color: KTColors.textSecondary)),
+                          Text(s.noTripsAvailable, style: const TextStyle(color: KTColors.textSecondary)),
                         ],
                       ),
                     ),
@@ -278,16 +281,15 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                 2,
                 (index) => Padding(
                   padding: EdgeInsets.only(bottom: index == 1 ? 0 : 8),
-                  child: Container(
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: KTColors.cardSurface,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Shimmer.fromColors(
-                      baseColor: Colors.grey,
-                      highlightColor: Colors.white,
-                      child: SizedBox.expand(),
+                  child: Shimmer.fromColors(
+                    baseColor: Colors.grey.shade800,
+                    highlightColor: Colors.grey.shade600,
+                    child: Container(
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade800,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
@@ -303,7 +305,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
           const SizedBox(height: 20),
 
           // Quick Actions
-          const SectionHeader(title: 'Quick Actions'),
+          SectionHeader(title: s.quickActions),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -311,7 +313,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                 child: _quickActionButton(
                   context,
                   Icons.receipt_long,
-                  'Add Expense',
+                  s.addExpense,
                   () => context.push('/driver/add-expense'),
                 ),
               ),
@@ -320,7 +322,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                 child: _quickActionButton(
                   context,
                   Icons.checklist,
-                  'Checklist',
+                  s.checklist,
                   () => context.push('/driver/checklist'),
                 ),
               ),
@@ -333,7 +335,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                 child: _quickActionButton(
                   context,
                   Icons.description,
-                  'Documents',
+                  s.documents,
                   () => context.push('/driver/documents'),
                 ),
               ),
@@ -342,7 +344,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                 child: _quickActionButton(
                   context,
                   Icons.notifications_active,
-                  'Notifications',
+                  s.notifications,
                   () => context.push('/driver/notifications'),
                 ),
               ),
@@ -355,7 +357,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                 child: _quickActionButton(
                   context,
                   Icons.account_balance_wallet,
-                  'My Earnings',
+                  s.myEarnings,
                   () => context.push('/driver/settlement'),
                 ),
               ),
@@ -364,7 +366,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                 child: _quickActionButton(
                   context,
                   Icons.local_shipping,
-                  'Vehicle',
+                  s.vehicle,
                   () => context.push('/driver/vehicle'),
                 ),
               ),
@@ -401,9 +403,10 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
     final statusColor = isCheckedIn
         ? (attendance!.status == 'late' ? KTColors.warning : KTColors.success)
         : const Color(0xFF64748B);
+    final s = ref.watch(sProvider);
     final statusLabel = isCheckedIn
-        ? (attendance!.status == 'late' ? 'Late' : 'Present')
-        : 'Not Checked In';
+        ? (attendance!.status == 'late' ? s.late_ : s.present)
+        : s.notCheckedIn;
 
     return Container(
       decoration: BoxDecoration(
@@ -456,9 +459,9 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Attendance',
-                        style: TextStyle(
+                      Text(
+                        s.attendance,
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
@@ -518,14 +521,14 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                   children: [
                     _attendanceInfoTile(
                       icon: Icons.login_rounded,
-                      label: 'Check-in Time',
+                      label: s.checkInTime,
                       value: checkInDisplay,
                       color: KTColors.success,
                     ),
                     const SizedBox(width: 12),
                     _attendanceInfoTile(
                       icon: Icons.verified_user_outlined,
-                      label: 'Status',
+                      label: s.status,
                       value: attendance!.status.toUpperCase(),
                       color: statusColor,
                     ),
@@ -577,7 +580,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () => _startCheckInFlow(context, ref),
                     icon: const Icon(Icons.camera_alt_rounded, size: 18),
-                    label: const Text('Mark Attendance'),
+                    label: Text(s.markAttendance),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: KTColors.primary,
                       foregroundColor: Colors.white,
@@ -724,6 +727,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
 
   Widget _pendingTripCard(BuildContext context, Trip trip) {
     final isLoading = _loadingTripIds.contains(trip.id);
+    final s = ref.watch(sProvider);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -759,9 +763,9 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'New Trip Assigned',
-                        style: TextStyle(
+                      Text(
+                        s.newTripAssigned,
+                        style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: KTColors.primary,
@@ -878,7 +882,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                       ),
                       icon: const Icon(Icons.close, size: 18),
                       onPressed: () => _declineTrip(trip),
-                      label: const Text('Decline', style: TextStyle(fontWeight: FontWeight.w600)),
+                      label: Text(s.decline, style: const TextStyle(fontWeight: FontWeight.w600)),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -894,7 +898,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                       ),
                       icon: const Icon(Icons.check, size: 18),
                       onPressed: () => _acceptTrip(trip),
-                      label: const Text('Accept Trip', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                      label: Text(s.acceptTrip, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                     ),
                   ),
                 ],

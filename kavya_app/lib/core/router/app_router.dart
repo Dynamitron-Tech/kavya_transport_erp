@@ -21,6 +21,7 @@ import '../../screens/driver/driver_add_expense_screen.dart';
 import '../../screens/driver/driver_profile_screen.dart';
 import '../../screens/driver/driver_gps_tracking_screen.dart';
 import '../../screens/driver/driver_epod_screen.dart';
+import '../../screens/driver/language_settings_screen.dart';
 // Fleet Manager screens
 import '../../screens/fleet/fleet_home_screen.dart';
 import '../../screens/fleet/fleet_live_map_screen.dart';
@@ -302,6 +303,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           context: context,
           state: state,
           child: const DriverNotificationsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/driver/language-settings',
+        parentNavigatorKey: appNavigatorKey,
+        pageBuilder: (context, state) => PageTransitionPreset.modal(
+          context: context,
+          state: state,
+          child: const LanguageSettingsScreen(),
         ),
       ),
       

@@ -7,6 +7,7 @@ import '../../providers/trip_provider.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/widgets/kt_button.dart';
 import '../../core/widgets/section_header.dart';
+import '../../core/localization/locale_provider.dart';
 
 class DriverChecklistScreen extends ConsumerStatefulWidget {
   final int? tripId;
@@ -45,12 +46,13 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(sProvider);
     return Scaffold(
       backgroundColor: KTColors.darkBg,
       appBar: AppBar(
         backgroundColor: KTColors.darkSurface,
         title: Text(
-          _selectedTripId == null ? 'Select Trip' : 'Checklist',
+          _selectedTripId == null ? 'Select Trip' : s.checklist,
           style: const TextStyle(color: KTColors.textPrimary),
         ),
         leading: _selectedTripId != null
@@ -214,6 +216,7 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
   }
 
   Widget _buildChecklistForm() {
+    final s = ref.watch(sProvider);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -247,25 +250,25 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
           ],
 
           // Type Selection
-          const SectionHeader(title: 'Checklist Type'),
+          SectionHeader(title: s.checklistType),
           const SizedBox(height: 12),
           _buildTypeSelector(),
           const SizedBox(height: 24),
 
           // Progress
-          const SectionHeader(title: 'Progress'),
+          SectionHeader(title: s.progress),
           const SizedBox(height: 12),
           _buildProgressCard(),
           const SizedBox(height: 24),
 
           // Checklist Items
-          const SectionHeader(title: 'Items'),
+          SectionHeader(title: s.items),
           const SizedBox(height: 12),
           ..._items.asMap().entries.map((e) => _checklistItemTile(e.key, e.value)),
           const SizedBox(height: 24),
 
           // Notes
-          const SectionHeader(title: 'Notes (Optional)'),
+          SectionHeader(title: s.notesOptional),
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
@@ -292,7 +295,7 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
             opacity: _allDone ? 1.0 : 0.45,
             duration: const Duration(milliseconds: 250),
             child: KtButton(
-              label: _allDone ? 'Complete Checklist' : 'Complete All Items to Submit',
+              label: _allDone ? s.completeChecklist : s.completeAllItems,
               icon: Icons.save_rounded,
               isLoading: _submitting,
               onPressed: _allDone ? () => _submitChecklist(ref) : null,

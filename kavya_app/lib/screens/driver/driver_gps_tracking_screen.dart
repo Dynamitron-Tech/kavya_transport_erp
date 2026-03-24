@@ -8,6 +8,7 @@ import '../../services/location_service.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_button.dart';
+import '../../core/localization/locale_provider.dart';
 
 final locationServiceProvider = Provider((ref) => LocationService());
 
@@ -91,10 +92,11 @@ class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScree
     final tripAsync = ref.watch(tripDetailProvider(widget.tripId));
     final positionAsync = ref.watch(currentPositionProvider);
     final isTracking = ref.watch(isTrackingProvider);
+    final s = ref.watch(sProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Active Trip - Live Tracking'),
+        title: Text(s.liveGpsTracking),
         elevation: 2,
       ),
       body: tripAsync.when(

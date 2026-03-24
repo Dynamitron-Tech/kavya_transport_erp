@@ -315,10 +315,10 @@ class _KPIScrollRow extends StatelessWidget {
     ];
 
     return SizedBox(
-      height: 130,
+      height: 150,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
         itemCount: kpis.length,
         itemBuilder: (context, i) {
           final k = kpis[i];

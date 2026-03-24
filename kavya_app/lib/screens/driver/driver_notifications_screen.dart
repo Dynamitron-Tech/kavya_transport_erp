@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../models/notification.dart';
 import '../../providers/notifications_provider.dart';
 import '../../core/theme/kt_colors.dart';
+import '../../core/localization/locale_provider.dart';
+import '../../core/localization/driver_strings.dart';
 
 class DriverNotificationsScreen extends ConsumerWidget {
   const DriverNotificationsScreen({super.key});
@@ -11,13 +13,14 @@ class DriverNotificationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifications = ref.watch(notificationsProvider);
+    final s = ref.watch(sProvider);
 
     return Scaffold(
       backgroundColor: KTColors.darkBg,
       appBar: AppBar(
         backgroundColor: KTColors.darkSurface,
-        title: const Text('Notifications',
-            style: TextStyle(color: KTColors.textPrimary)),
+        title: Text(s.notifications,
+            style: const TextStyle(color: KTColors.textPrimary)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: KTColors.textPrimary),
           onPressed: () => context.pop(),
@@ -29,14 +32,14 @@ class DriverNotificationsScreen extends ConsumerWidget {
                   ref.read(notificationsProvider.notifier).markAllAsRead(),
               icon: const Icon(Icons.done_all_rounded,
                   color: KTColors.primary, size: 18),
-              label: const Text('Mark all read',
-                  style: TextStyle(color: KTColors.primary, fontSize: 12)),
+              label: Text(s.markAllRead,
+                  style: const TextStyle(color: KTColors.primary, fontSize: 12)),
             ),
         ],
         elevation: 0,
       ),
       body: notifications.isEmpty
-          ? _buildEmpty()
+          ? _buildEmpty(s)
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: notifications.length,
@@ -51,7 +54,7 @@ class DriverNotificationsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmpty() {
+  Widget _buildEmpty(S s) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -67,14 +70,14 @@ class DriverNotificationsScreen extends ConsumerWidget {
                 size: 40, color: KTColors.textMuted),
           ),
           const SizedBox(height: 20),
-          const Text('All caught up!',
-              style: TextStyle(
+          Text(s.allCaughtUp,
+              style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: KTColors.textPrimary)),
           const SizedBox(height: 8),
-          const Text('Trip updates will appear here.',
-              style: TextStyle(fontSize: 14, color: KTColors.textSecondary)),
+          Text(s.tripUpdatesWillAppear,
+              style: const TextStyle(fontSize: 14, color: KTColors.textSecondary)),
         ],
       ),
     );

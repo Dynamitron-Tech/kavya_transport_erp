@@ -82,7 +82,7 @@ class ExpensesPaginationNotifier extends StateNotifier<AsyncValue<PaginatedExpen
     try {
       final tripFilter = tripId != null ? '&trip_id=$tripId' : '';
       final response = await _api.get(
-        '/expenses?page=$_currentPage&page_size=$_pageSize$tripFilter',
+        '/expenses?page=$_currentPage&limit=$_pageSize$tripFilter',
       );
       // API response: {success, data: {items: [...], total: ...}}
       final innerData = response['data'] is Map

@@ -350,6 +350,9 @@ function App() {
         <Route path="/portal/supplier" element={<SupplierLoginPage />} />
         <Route path="/portal/supplier/dashboard" element={<SupplierDashboardPage />} />
 
+        {/* Root redirect */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
         {/* Catch all */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

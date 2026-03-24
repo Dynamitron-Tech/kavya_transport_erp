@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../core/theme/kt_text_styles.dart';
+import '../../providers/live_tracking_provider.dart';
 
-class FleetLiveMapScreen extends StatefulWidget {
+class FleetLiveMapScreen extends ConsumerStatefulWidget {
   const FleetLiveMapScreen({super.key});
 
   @override
-  State<FleetLiveMapScreen> createState() => _FleetLiveMapScreenState();
+  ConsumerState<FleetLiveMapScreen> createState() => _FleetLiveMapScreenState();
 }
 
-class _FleetLiveMapScreenState extends State<FleetLiveMapScreen> {
+class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
   final LatLng _center = const LatLng(13.0827, 80.2707); // Placeholder for Chennai
   GoogleMapController? mapController;
 
@@ -58,7 +60,7 @@ class _FleetLiveMapScreenState extends State<FleetLiveMapScreen> {
       appBar: AppBar(
         title: const Text("Live tracking"), // AppBar: "Live tracking" + refresh icon [cite: 60]
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: () => ref.read(trackingProvider.notifier).refresh()),
         ],
       ),
       body: Stack(
@@ -66,14 +68,18 @@ class _FleetLiveMapScreenState extends State<FleetLiveMapScreen> {
           GoogleMap( // Google Maps widget fills screen [cite: 60]
             onMapCreated: _onMapCreated,
             initialCameraPosition: CameraPosition(target: _center, zoom: 11.0),
-            markers: {
-              Marker(
-                markerId: const MarkerId('truck_1'),
-                position: _center,
-                onTap: _showVehicleDetailsBottomSheet, // Tap marker → bottom sheet slides up [cite: 60]
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), // Color: green = moving [cite: 60]
-              )
-            },
+            markers: ref.watch(trackingProvider).filteredTrucks.map((truck) => Marker(
+              markerId: MarkerId('truck_${truck.vehicleId}'),
+              position: LatLng(truck.lat, truck.lng),
+              onTap: _showVehicleDetailsBottomSheet,
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                truck.speed > 80
+                    ? BitmapDescriptor.hueRed
+                    : truck.speed > 5
+                        ? BitmapDescriptor.hueGreen
+                        : BitmapDescriptor.hueOrange,
+              ),
+            )).toSet(),
           ),
         ],
       ),

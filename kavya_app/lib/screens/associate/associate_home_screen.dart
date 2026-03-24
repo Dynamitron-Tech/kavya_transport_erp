@@ -47,6 +47,9 @@ class _AssociateHomeScreenState extends ConsumerState<AssociateHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final dashboardState = ref.watch(associateDashboardProvider);
+    final actionCenterState = ref.watch(paActionCenterProvider);
+    final jobPipelineState = ref.watch(paJobPipelineProvider);
+    final recentActivityState = ref.watch(paRecentActivityProvider);
     final userName = ref.watch(authProvider).user?.name ?? 'Associate';
 
     return Scaffold(
@@ -136,6 +139,64 @@ class _AssociateHomeScreenState extends ConsumerState<AssociateHomeScreen> {
                     KTActionButton(icon: Icons.account_balance_wallet, label: "Banking entry", onTap: () => context.push('/pa/banking')),
                     KTActionButton(icon: Icons.list_alt, label: "All jobs", onTap: () => context.push('/pa/jobs')),
                   ],
+                ),
+                const SizedBox(height: 24),
+
+                // Section 4 — Action Centre
+                Text("Action centre", style: KTTextStyles.h3),
+                const SizedBox(height: 12),
+                actionCenterState.when(
+                  loading: () => const KTLoadingShimmer(type: ShimmerType.list),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (actions) => actions.isEmpty
+                      ? Text('No pending actions', style: KTTextStyles.bodySmall)
+                      : Column(
+                          children: actions.map<Widget>((a) => Card(
+                            child: ListTile(
+                              title: Text(a['title']?.toString() ?? a['action_type']?.toString() ?? ''),
+                              subtitle: Text(a['subtitle']?.toString() ?? a['entity']?.toString() ?? ''),
+                              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                            ),
+                          )).toList(),
+                        ),
+                ),
+                const SizedBox(height: 24),
+
+                // Section 5 — Job Pipeline
+                Text("Job pipeline", style: KTTextStyles.h3),
+                const SizedBox(height: 12),
+                jobPipelineState.when(
+                  loading: () => const KTLoadingShimmer(type: ShimmerType.list),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (jobs) => jobs.isEmpty
+                      ? Text('No active jobs', style: KTTextStyles.bodySmall)
+                      : Column(
+                          children: jobs.map<Widget>((j) => Card(
+                            child: ListTile(
+                              leading: const Icon(Icons.local_shipping),
+                              title: Text(j['job_number']?.toString() ?? j['id']?.toString() ?? ''),
+                              subtitle: Text(j['status']?.toString() ?? ''),
+                            ),
+                          )).toList(),
+                        ),
+                ),
+                const SizedBox(height: 24),
+
+                // Section 6 — Recent Activity
+                Text("Recent activity", style: KTTextStyles.h3),
+                const SizedBox(height: 12),
+                recentActivityState.when(
+                  loading: () => const KTLoadingShimmer(type: ShimmerType.list),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (items) => items.isEmpty
+                      ? Text('No recent activity', style: KTTextStyles.bodySmall)
+                      : Column(
+                          children: items.take(5).map<Widget>((item) => ListTile(
+                            leading: Icon(Icons.history, color: KTColors.primary),
+                            title: Text(item['description']?.toString() ?? item['action']?.toString() ?? ''),
+                            subtitle: Text(item['created_at']?.toString() ?? ''),
+                          )).toList(),
+                        ),
                 ),
               ],
             ),

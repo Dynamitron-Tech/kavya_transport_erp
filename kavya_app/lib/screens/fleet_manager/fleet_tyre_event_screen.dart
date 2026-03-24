@@ -35,8 +35,25 @@ class _FleetTyreEventScreenState extends ConsumerState<FleetTyreEventScreen> {
     setState(() => _isLoading = true); // [cite: 116]
 
     try {
-      final payload = { // 
-        "tyre_id": "${_selectedVehicle}_$_selectedPosition", // Mock ID creation
+      // Fetch real integer PK from backend
+      final tyreId = await ref.read(apiServiceProvider).getTyreId(
+        vehicleId: _selectedVehicle!,
+        position: _selectedPosition!,
+      );
+      if (tyreId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tyre record not found for this position'),
+              backgroundColor: KTColors.danger,
+            ),
+          );
+        }
+        setState(() => _isLoading = false);
+        return;
+      }
+      final payload = {
+        "tyre_id": tyreId,
         "event_type": _selectedEvent,
         "psi": _requiresPsi ? int.parse(_psiController.text) : null,
         "odometer_km": int.parse(_odoController.text),

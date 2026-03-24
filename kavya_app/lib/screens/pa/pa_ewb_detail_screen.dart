@@ -100,7 +100,7 @@ class _ExtendButtonState extends ConsumerState<_ExtendButton> {
     setState(() => _busy = true);
     try {
       final api = ref.read(apiServiceProvider);
-      await api.patch('/eway-bills/${widget.ewbId}/extend');
+      await api.post('/eway-bills/${widget.ewbId}/extend');
       if (mounted) {
         ref.invalidate(_ewbDetailProvider(widget.ewbId));
         ScaffoldMessenger.of(context).showSnackBar(

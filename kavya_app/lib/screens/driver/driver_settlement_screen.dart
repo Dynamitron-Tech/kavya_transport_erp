@@ -8,6 +8,8 @@ import '../../core/widgets/kt_status_badge.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
 import '../../providers/fleet_dashboard_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/localization/locale_provider.dart';
+import '../../core/localization/driver_strings.dart';
 
 // ─── Provider ───────────────────────────────────────────────────────────────
 
@@ -29,6 +31,7 @@ class DriverSettlementScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).user;
+    final s = ref.watch(sProvider);
     final driverId = int.tryParse(user?.id ?? '') ?? 0;
     final settlementsAsync = ref.watch(driverSettlementsProvider(driverId));
 
@@ -41,7 +44,7 @@ class DriverSettlementScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: Text('My Earnings', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        title: Text(s.myEarnings, style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
         centerTitle: false,
       ),
       body: settlementsAsync.when(
@@ -65,17 +68,17 @@ class DriverSettlementScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               KTButton.secondary(
                 onPressed: () => ref.invalidate(driverSettlementsProvider(driverId)),
-                label: 'Retry',
+                label: s.retry,
               ),
             ],
           ),
         ),
-        data: (settlements) => _buildBody(context, settlements),
+        data: (settlements) => _buildBody(context, settlements, s),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context, List<Map<String, dynamic>> settlements) {
+  Widget _buildBody(BuildContext context, List<Map<String, dynamic>> settlements, S s) {
     // Compute summary
     int totalPaisePending = 0;
     int totalPaiseMonth = 0;
@@ -112,7 +115,7 @@ class DriverSettlementScreen extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // ─── Settlement History ───────────────────────────────────
-          Text('Settlement History', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+          Text(s.settlementHistory, style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
           const SizedBox(height: 12),
 
           if (settlements.isEmpty)

@@ -11,7 +11,7 @@ const _kPaAccent = Color(0xFFDC4B2A);
 
 final _myBankingEntriesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final api = ref.read(apiServiceProvider);
-  final response = await api.get('/finance/banking/entries', queryParameters: {'my_entries': true});
+  final response = await api.get('/banking/entries', queryParameters: {'my_entries': true});
   if (response is Map && response['data'] is List) return response['data'] as List<dynamic>;
   if (response is List) return response;
   return [];
@@ -20,7 +20,15 @@ final _myBankingEntriesProvider = FutureProvider.autoDispose<List<dynamic>>((ref
 final _approvedBankingEntriesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final api = ref.read(apiServiceProvider);
   final response =
-      await api.get('/finance/banking/entries', queryParameters: {'status': 'approved'});
+      await api.get('/banking/entries', queryParameters: {'status': 'approved'});
+  if (response is Map && response['data'] is List) return response['data'] as List<dynamic>;
+  if (response is List) return response;
+  return [];
+});
+
+final _bankAccountsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final response = await api.get('/banking/accounts');
   if (response is Map && response['data'] is List) return response['data'] as List<dynamic>;
   if (response is List) return response;
   return [];
@@ -186,7 +194,8 @@ class _EntriesTab extends ConsumerWidget {
         // Compute totals
         double totalCredit = 0, totalDebit = 0;
         for (final e in entries) {
-          final amount = ((e as Map)['amount'] as num?)?.toDouble() ?? 0;
+          final rawAmt = (e as Map)['amount'];
+          final amount = rawAmt is num ? rawAmt.toDouble() : double.tryParse(rawAmt?.toString() ?? '') ?? 0.0;
           if (e['transaction_type'] == 'credit') {
             totalCredit += amount;
           } else {
@@ -308,7 +317,8 @@ class _BankingEntryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = entry['status'] as String?;
-    final amount = (entry['amount'] as num?)?.toDouble() ?? 0;
+    final rawAmt = entry['amount'];
+    final amount = rawAmt is num ? rawAmt.toDouble() : double.tryParse(rawAmt?.toString() ?? '') ?? 0.0;
     final type = entry['transaction_type'] as String?;
     final isCredit = type == 'credit';
     final amountColor = isCredit ? KTColors.success : KTColors.danger;
@@ -417,8 +427,19 @@ class _NewBankingEntrySheetState
   final _descCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
   final _referenceCtrl = TextEditingController();
-  String _txType = 'debit';
+  // entry_type: PAYMENT_MADE (debit) or PAYMENT_RECEIVED (credit) or CASH_DEPOSIT, etc.
+  String _entryType = 'PAYMENT_MADE';
+  int? _selectedAccountId;
   bool _saving = false;
+
+  static const _entryTypes = [
+    ('PAYMENT_MADE', 'Payment Made (Debit)'),
+    ('PAYMENT_RECEIVED', 'Payment Received (Credit)'),
+    ('CASH_DEPOSIT', 'Cash Deposit'),
+    ('CASH_WITHDRAWAL', 'Cash Withdrawal'),
+    ('BANK_TRANSFER', 'Bank Transfer'),
+    ('JOURNAL_ENTRY', 'Journal Entry'),
+  ];
 
   @override
   void dispose() {
@@ -430,14 +451,28 @@ class _NewBankingEntrySheetState
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedAccountId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please select a bank account'),
+            backgroundColor: KTColors.danger),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       final api = ref.read(apiServiceProvider);
-      await api.post('/finance/bank-transactions', data: {
+      final rupees = double.parse(_amountCtrl.text.trim());
+      final today = DateTime.now();
+      final dateStr =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      await api.post('/banking/entries', data: {
+        'account_id': _selectedAccountId,
+        'entry_date': dateStr,
+        'entry_type': _entryType,
+        'amount_paise': (rupees * 100).round(),
         'description': _descCtrl.text.trim(),
-        'amount': double.parse(_amountCtrl.text.trim()),
-        'transaction_type': _txType,
-        'reference_number': _referenceCtrl.text.trim(),
+        'reference_no': _referenceCtrl.text.trim().isEmpty ? null : _referenceCtrl.text.trim(),
       });
       widget.onSaved();
       if (mounted) {
@@ -489,14 +524,75 @@ class _NewBankingEntrySheetState
                     .copyWith(color: KTColors.darkTextPrimary)),
             const SizedBox(height: 16),
 
-            // Transaction type toggle
-            _SegmentedToggle(
-              labels: const ['Debit (Payment)', 'Credit (Receipt)'],
-              active: _txType == 'debit' ? 0 : 1,
-              onChanged: (i) =>
-                  setState(() => _txType = i == 0 ? 'debit' : 'credit'),
+            // Bank account selector
+            Consumer(builder: (context, ref, _) {
+              final accountsAsync = ref.watch(_bankAccountsProvider);
+              return accountsAsync.when(
+                loading: () => const LinearProgressIndicator(),
+                error: (e, _) => Text('Could not load accounts: $e',
+                    style: const TextStyle(color: KTColors.danger, fontSize: 12)),
+                data: (accounts) => DropdownButtonFormField<int>(
+                  initialValue: _selectedAccountId,
+                  dropdownColor: KTColors.darkSurface,
+                  style: const TextStyle(color: KTColors.darkTextPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Bank Account *',
+                    labelStyle: const TextStyle(color: KTColors.darkTextSecondary),
+                    filled: true,
+                    fillColor: KTColors.darkBg,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: KTColors.darkBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: _kPaAccent, width: 1.5),
+                    ),
+                  ),
+                  items: accounts.map<DropdownMenuItem<int>>((a) {
+                    final acc = a as Map;
+                    return DropdownMenuItem<int>(
+                      value: acc['id'] as int,
+                      child: Text(acc['account_name'] ?? '—',
+                          style: const TextStyle(color: KTColors.darkTextPrimary)),
+                    );
+                  }).toList(),
+                  onChanged: (v) => setState(() => _selectedAccountId = v),
+                  hint: const Text('Select account',
+                      style: TextStyle(color: KTColors.darkTextSecondary)),
+                ),
+              );
+            }),
+            const SizedBox(height: 10),
+
+            // Entry type dropdown
+            DropdownButtonFormField<String>(
+              initialValue: _entryType,
+              dropdownColor: KTColors.darkSurface,
+              style: const TextStyle(color: KTColors.darkTextPrimary),
+              decoration: InputDecoration(
+                labelText: 'Entry Type *',
+                labelStyle: const TextStyle(color: KTColors.darkTextSecondary),
+                filled: true,
+                fillColor: KTColors.darkBg,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: KTColors.darkBorder),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: _kPaAccent, width: 1.5),
+                ),
+              ),
+              items: _entryTypes.map((e) => DropdownMenuItem(
+                value: e.$1,
+                child: Text(e.$2, style: const TextStyle(color: KTColors.darkTextPrimary)),
+              )).toList(),
+              onChanged: (v) => setState(() => _entryType = v ?? _entryType),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
             _f('Description', _descCtrl),
             _f('Amount (₹)', _amountCtrl,

@@ -45,7 +45,7 @@ class TripsPaginationNotifier extends StateNotifier<AsyncValue<PaginatedTrips>> 
 
     try {
       final response = await _api.get(
-        '/trips?page=$_currentPage&page_size=$_pageSize',
+        '/trips?page=$_currentPage&limit=$_pageSize',
       );
       // API response: {success, data: [...trips], pagination: {total, pages}}
       final rawData = response['data'];

@@ -79,7 +79,7 @@ class _PATripClosureScreenState extends ConsumerState<PATripClosureScreen> {
     setState(() => _isClosing = true);
     try {
       final api = ref.read(apiServiceProvider);
-      await api.patch('/trips/${widget.tripId}/close', data: {
+      await api.put('/trips/${widget.tripId}/close', data: {
         'end_odometer_km': double.tryParse(_endOdometerCtrl.text) ?? 0,
         'remarks': _remarksCtrl.text.trim(),
       });

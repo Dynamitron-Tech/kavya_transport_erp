@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../providers/fleet_dashboard_provider.dart';
+import '../../core/localization/locale_provider.dart';
 
 class DriverDocumentsScreen extends ConsumerStatefulWidget {
   const DriverDocumentsScreen({super.key});
@@ -61,14 +62,15 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(sProvider);
     return Scaffold(
       backgroundColor: KTColors.darkBg,
       appBar: AppBar(
         backgroundColor: KTColors.darkSurface,
         surfaceTintColor: Colors.transparent,
-        title: const Text(
-          'Driver Documents',
-          style: TextStyle(
+        title: Text(
+          s.driverDocuments,
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: KTColors.darkTextPrimary,

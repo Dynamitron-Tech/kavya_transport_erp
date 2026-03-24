@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../providers/fleet_dashboard_provider.dart';
+import '../../core/localization/locale_provider.dart';
 
 class DriverVehicleScreen extends ConsumerStatefulWidget {
   const DriverVehicleScreen({super.key});
@@ -52,14 +53,15 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = ref.watch(sProvider);
     return Scaffold(
       backgroundColor: KTColors.darkBg,
       appBar: AppBar(
         backgroundColor: KTColors.darkSurface,
         surfaceTintColor: Colors.transparent,
-        title: const Text(
-          'My Vehicle',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: KTColors.darkTextPrimary, letterSpacing: 0.3),
+        title: Text(
+          s.myVehicle,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: KTColors.darkTextPrimary, letterSpacing: 0.3),
         ),
         iconTheme: const IconThemeData(color: KTColors.darkTextPrimary),
       ),
@@ -81,11 +83,11 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
                           _buildTripCard(),
                           const SizedBox(height: 24),
                           // Section title
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 14),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 14),
                             child: Text(
-                              'Vehicle Documents',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: KTColors.darkTextPrimary),
+                              s.vehicleDocuments,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: KTColors.darkTextPrimary),
                             ),
                           ),
                           ..._buildDocumentCards(),

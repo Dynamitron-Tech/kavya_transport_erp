@@ -6,6 +6,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/connectivity_provider.dart';
 import '../../../providers/notifications_provider.dart';
 import '../../../core/widgets/offline_banner.dart';
+import '../../core/localization/locale_provider.dart';
 
 class DriverHomeScreen extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -16,10 +17,11 @@ class DriverHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isOnline = ref.watch(connectivityProvider);
     final user = ref.watch(authProvider).user;
+    final s = ref.watch(sProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Hi, ${user?.fullName ?? 'Driver'}'),
+        title: Text(s.greeting(user?.fullName ?? 'Driver')),
         actions: [
           Consumer(
             builder: (ctx, ref, _) {
@@ -41,15 +43,28 @@ class DriverHomeScreen extends ConsumerWidget {
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
-              if (value == 'logout') {
+              if (value == 'profile') {
+                navigationShell.goBranch(3);
+              } else if (value == 'language') {
+                context.push('/driver/language-settings');
+              } else if (value == 'logout') {
                 ref.read(authProvider.notifier).logout();
               }
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(
-                  value: 'profile', child: Text('My Profile')),
-              const PopupMenuItem(
-                  value: 'logout', child: Text('Logout')),
+              PopupMenuItem(
+                  value: 'profile', child: Text(s.myProfile)),
+              PopupMenuItem(
+                  value: 'language',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.language, size: 18),
+                      const SizedBox(width: 8),
+                      Text(s.languageSettings),
+                    ],
+                  )),
+              PopupMenuItem(
+                  value: 'logout', child: Text(s.logout)),
             ],
           ),
         ],
@@ -65,23 +80,23 @@ class DriverHomeScreen extends ConsumerWidget {
         onDestinationSelected: (index) =>
             navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex),
         indicatorColor: KTColors.primary.withValues(alpha: 0.12),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard),
-              label: 'Today'),
+              icon: const Icon(Icons.dashboard_outlined),
+              selectedIcon: const Icon(Icons.dashboard),
+              label: s.today),
           NavigationDestination(
-              icon: Icon(Icons.local_shipping_outlined),
-              selectedIcon: Icon(Icons.local_shipping),
-              label: 'Trips'),
+              icon: const Icon(Icons.local_shipping_outlined),
+              selectedIcon: const Icon(Icons.local_shipping),
+              label: s.trips),
           NavigationDestination(
-              icon: Icon(Icons.receipt_long_outlined),
-              selectedIcon: Icon(Icons.receipt_long),
-              label: 'Expenses'),
+              icon: const Icon(Icons.receipt_long_outlined),
+              selectedIcon: const Icon(Icons.receipt_long),
+              label: s.expenses),
           NavigationDestination(
-              icon: Icon(Icons.person_outlined),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profile'),
+              icon: const Icon(Icons.person_outlined),
+              selectedIcon: const Icon(Icons.person),
+              label: s.profile),
         ],
       ),
     );

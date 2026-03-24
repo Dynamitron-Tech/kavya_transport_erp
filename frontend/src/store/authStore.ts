@@ -104,7 +104,7 @@ export const useAuthStore = create<AuthState>()(
       fetchUser: async () => {
         const token = get().token ?? localStorage.getItem('access_token');
         if (!token) {
-          set({ token: null, isAuthenticated: false, user: null, permissions: [] });
+          set({ token: null, isAuthenticated: false, user: null, permissions: [], isLoading: false });
           return;
         }
         if (!get().token) {

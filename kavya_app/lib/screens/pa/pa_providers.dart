@@ -46,6 +46,7 @@ final paJobListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async 
     'limit': 20,
   });
   if (response is Map && response['data'] is List) return response['data'] as List<dynamic>;
+  if (response is Map && response['items'] is List) return response['items'] as List<dynamic>;
   if (response is List) return response;
   return [];
 });
