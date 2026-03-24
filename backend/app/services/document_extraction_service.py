@@ -667,9 +667,20 @@ class DocumentExtractionService:
     MAX_TOKENS = 1024
 
     def __init__(self):
-        self.client = anthropic.AsyncAnthropic(
-            api_key=settings.ANTHROPIC_API_KEY
-        )
+        # Lazy client — actual init happens in extract() so missing key
+        # returns a clean error dict instead of crashing with 500.
+        self._client: anthropic.AsyncAnthropic | None = None
+
+    def _get_client(self) -> anthropic.AsyncAnthropic:
+        if self._client is None:
+            api_key = settings.ANTHROPIC_API_KEY or ""
+            if not api_key or api_key == "your-anthropic-api-key-here":
+                raise ValueError(
+                    "ANTHROPIC_API_KEY is not configured. "
+                    "Set it in backend/.env to enable AI document extraction."
+                )
+            self._client = anthropic.AsyncAnthropic(api_key=api_key)
+        return self._client
 
     async def extract(
         self,
@@ -703,6 +714,16 @@ class DocumentExtractionService:
                 "message": f"No extraction prompt defined for '{document_type}'.",
             }
 
+        # Check API key early — gives a 422 instead of 500
+        try:
+            client = self._get_client()
+        except ValueError as e:
+            return {
+                "extracted": False,
+                "reason": "api_key_missing",
+                "message": str(e),
+            }
+
         prompt = EXTRACTION_PROMPTS[document_type]
 
         if media_type == "application/pdf":
@@ -716,7 +737,7 @@ class DocumentExtractionService:
                 }
 
         try:
-            message = await self.client.messages.create(
+            message = await client.messages.create(
                 model=self.MODEL,
                 max_tokens=self.MAX_TOKENS,
                 messages=[
@@ -744,6 +765,12 @@ class DocumentExtractionService:
                 "extracted": False,
                 "reason": "api_error",
                 "message": f"AI service error: {str(e)}",
+            }
+        except Exception as e:
+            return {
+                "extracted": False,
+                "reason": "unexpected_error",
+                "message": f"Unexpected error during extraction: {str(e)}",
             }
 
         raw = message.content[0].text.strip()
