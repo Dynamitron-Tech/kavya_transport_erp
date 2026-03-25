@@ -20,12 +20,12 @@ export default function DashboardLayout() {
       <Sidebar />
 
       {/* Main content area */}
-      <div className={`flex flex-1 flex-col transition-all duration-300 ease-in-out ${
+      <div className={`flex flex-1 flex-col min-w-0 transition-all duration-300 ease-in-out ${
         sidebarCollapsed ? 'ml-[72px]' : 'ml-[260px]'
       }`}>
         <Header />
         <EnterpriseNav />
-        <main className="flex-1 overflow-y-auto px-6 py-5">
+        <main className="flex-1 overflow-y-auto overflow-x-auto px-6 py-5">
           <div className="max-w-[1600px] mx-auto">
             <Outlet />
           </div>

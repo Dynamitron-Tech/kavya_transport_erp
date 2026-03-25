@@ -235,12 +235,12 @@ export function KPICard({ title, value, icon, change, changeType, color, onClick
 }) {
   return (
     <div
-      className={`kpi-card ${onClick ? 'cursor-pointer' : ''}`}
+      className={`kpi-card group ${onClick ? 'cursor-pointer' : ''}`}
       onClick={onClick}
     >
       <div className="min-w-0">
-        <p className="kpi-label">{title}</p>
-        <p className="kpi-value">{value}</p>
+        <p className="kpi-label transition-colors duration-200 group-hover:text-blue-700">{title}</p>
+        <p className="kpi-value transition-colors duration-200 group-hover:text-blue-900">{value}</p>
         {change && (
           <div className={`kpi-trend ${
             changeType === 'up' ? 'text-green-600' :
@@ -251,7 +251,7 @@ export function KPICard({ title, value, icon, change, changeType, color, onClick
           </div>
         )}
       </div>
-      <div className={`kpi-icon ${color}`}>
+      <div className={`kpi-icon ${color} transition-all duration-200 group-hover:bg-blue-100 group-hover:text-blue-700 group-hover:shadow-sm`}>
         {icon}
       </div>
     </div>
@@ -283,7 +283,7 @@ export function TabPills({ tabs, activeTab, onChange }: {
   onChange: (key: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
+    <div className="tab-pills">
       {tabs.map((tab) => (
         <button
           key={tab.key}

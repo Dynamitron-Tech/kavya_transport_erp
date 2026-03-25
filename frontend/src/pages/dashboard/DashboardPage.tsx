@@ -161,7 +161,7 @@ export default function DashboardPage() {
           {isAdmin && branchList.length > 0 && (
             <button
               onClick={() => navigate('/admin/branches')}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition"
+              className="interactive-surface flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg"
             >
               <Building2 size={14} />
               {branchList.length} Branches
@@ -176,11 +176,11 @@ export default function DashboardPage() {
           <button
             key={a.label}
             onClick={() => navigate(a.path)}
-            className="card-compact flex items-center gap-3 hover:shadow-card-hover transition-all group"
+            className="card-compact interactive-surface flex items-center gap-3 group"
           >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${a.color}`}>{a.icon}</div>
-            <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900">{a.label}</span>
-            <ArrowRight size={14} className="ml-auto text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-transform" />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-200 ${a.color} group-hover:bg-blue-100 group-hover:text-blue-700`}>{a.icon}</div>
+            <span className="text-sm font-semibold text-gray-700 group-hover:text-blue-700 transition-colors duration-200">{a.label}</span>
+            <ArrowRight size={14} className="ml-auto text-gray-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all duration-200" />
           </button>
         ))}
       </div>
@@ -400,7 +400,7 @@ export default function DashboardPage() {
               time: n.created_at || 'Recently',
               icon: <Activity size={14} />,
             })).map((alert: any, i: number) => (
-              <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group">
+              <div key={i} className="interactive-surface flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer group">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                   alert.severity === 'critical' ? 'bg-red-50 text-red-500' :
                   alert.severity === 'warning' ? 'bg-amber-50 text-amber-500' : 'bg-blue-50 text-blue-500'
@@ -408,11 +408,11 @@ export default function DashboardPage() {
                   {alert.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-700 font-medium truncate">{alert.title}</p>
+                  <p className="text-sm text-gray-700 font-medium truncate group-hover:text-blue-700 transition-colors duration-200">{alert.title}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] text-gray-400 whitespace-nowrap">{alert.time}</span>
-                  <ChevronRight size={14} className="text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ChevronRight size={14} className="text-gray-300 opacity-0 group-hover:opacity-100 group-hover:text-blue-500 transition-all duration-200" />
                 </div>
               </div>
             ))}
@@ -440,7 +440,7 @@ export default function DashboardPage() {
             { label: 'Completed', count: (overview as any)?.completed_jobs || 0, status: 'completed' },
             { label: 'Trips Done', count: overview?.trips_completed_this_month || 0, status: 'completed' },
           ].map((stage) => (
-            <div key={stage.label} className="text-center p-4 rounded-xl bg-gray-50/80 hover:bg-gray-100/80 transition-colors cursor-pointer group" onClick={() => navigate('/jobs')}>
+            <div key={stage.label} className="interactive-surface text-center p-4 rounded-xl bg-gray-50/80 cursor-pointer group" onClick={() => navigate('/jobs')}>
               <p className="text-2xl font-bold text-gray-900">{stage.count}</p>
               <div className="mt-2">
                 <StatusBadge status={stage.status} />
@@ -478,7 +478,7 @@ export default function DashboardPage() {
                 {branchComparison.map((b: any) => {
                   const collectPct = b.revenue > 0 ? Math.round((b.collected / b.revenue) * 100) : 0;
                   return (
-                    <tr key={b.branch_id} className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/admin/branches/${b.branch_id}`)}>
+                    <tr key={b.branch_id} className="border-b border-gray-50 table-row-interactive cursor-pointer" onClick={() => navigate(`/admin/branches/${b.branch_id}`)}>
                       <td className="py-2.5 px-3 font-medium text-gray-900">{b.branch_name}</td>
                       <td className="py-2.5 px-3 text-right text-gray-600">{b.vehicles}</td>
                       <td className="py-2.5 px-3 text-right text-gray-600">{b.drivers}</td>

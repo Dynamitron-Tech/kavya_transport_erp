@@ -1108,11 +1108,15 @@ export const documentService = {
     return unwrap<{ items: any[] }>(data).items;
   },
   // ── Extraction helpers ──────────────────────────────────────────────────
-  extract: async (formData: FormData): Promise<{ extracted: boolean; data: Record<string, any>; entity_type?: string }> => {
+  extract: async (formData: FormData): Promise<{ extracted: boolean; data: Record<string, any>; entity_type?: string; message?: string }> => {
     const data = await api.post('/documents/extract', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return unwrap(data);
+    const result = unwrap<any>(data);
+    if (result && result.extracted === false) {
+      throw new Error(result.message || 'Extraction failed');
+    }
+    return result;
   },
   getRequirements: async (entityType: string): Promise<Record<string, any>> => {
     const data = await api.get('/documents/requirements', { params: { entity_type: entityType } });

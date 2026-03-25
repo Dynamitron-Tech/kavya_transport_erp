@@ -45,6 +45,10 @@ export default function NavItem({ group, forceClose }: NavItemProps) {
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('[data-enterprise-dropdown="true"]')) {
+        return;
+      }
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
@@ -99,33 +103,35 @@ export default function NavItem({ group, forceClose }: NavItemProps) {
         onKeyDown={onKeyDown}
         aria-haspopup={hasDropdown ? 'true' : undefined}
         aria-expanded={hasDropdown ? open : undefined}
-        className={`inline-flex items-center gap-1 px-3 py-2.5 text-[14px] font-medium rounded-md
-          transition-all duration-150 whitespace-nowrap select-none outline-none
+        className={`enterprise-nav-btn ${isActive ? 'enterprise-nav-btn-active' : ''} group inline-flex items-center gap-1 px-3 py-2.5 text-[14px] font-medium rounded-md
+          border border-transparent transition-all duration-200 transform-gpu whitespace-nowrap select-none outline-none
           focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:ring-offset-1
           ${
             isActive
-              ? 'text-primary-600'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              ? 'text-primary-900 bg-[rgba(30,64,175,0.18)] border-[rgba(30,64,175,0.5)] shadow-[0_14px_30px_-16px_rgba(30,58,138,0.62)] scale-[1.02]'
+              : 'text-gray-700 hover:text-blue-950 active:scale-[1.02]'
           }
         `}
       >
-        <span>{group.label}</span>
+        <span className={`${isActive ? 'text-primary-700' : 'group-hover:text-primary-700'} transition-colors duration-200`}>
+          {group.label}
+        </span>
         {hasDropdown && (
           <ChevronDown
             size={14}
             className={`transition-transform duration-200 ${open ? 'rotate-180' : ''} ${
-              isActive ? 'text-primary-500' : 'text-gray-400'
+              isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-primary-500'
             }`}
           />
-        )}
-        {/* Active indicator bar */}
-        {isActive && (
-          <span className="absolute bottom-0 left-3 right-3 h-[2px] bg-primary-600 rounded-full" />
         )}
       </button>
 
       {hasDropdown && open && (
-        <DropdownMenu items={group.items!} onClose={() => setOpen(false)} />
+        <DropdownMenu
+          items={group.items!}
+          anchorEl={ref.current}
+          onClose={() => setOpen(false)}
+        />
       )}
     </div>
   );

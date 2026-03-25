@@ -89,19 +89,19 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`fixed left-0 top-0 z-40 h-screen bg-sidebar-bg flex flex-col transition-all duration-300 ease-in-out ${
+      className={`fixed left-0 top-0 z-40 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out ${
         sidebarCollapsed ? 'w-[72px]' : 'w-[260px]'
       }`}
     >
       {/* Logo / Brand */}
-      <div className="flex items-center h-16 px-4 border-b border-white/[0.06] flex-shrink-0">
+      <div className="flex items-center h-16 px-4 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary-600/20">
             <Truck size={20} className="text-white" />
           </div>
           {!sidebarCollapsed && (
             <div className="animate-fade-in min-w-0">
-              <h1 className="text-white font-bold text-[15px] leading-tight tracking-tight">TransportERP</h1>
+              <h1 className="text-gray-900 font-bold text-[15px] leading-tight tracking-tight">TransportERP</h1>
               <p className="text-gray-500 text-[10px] font-medium uppercase tracking-widest">Fleet Management</p>
             </div>
           )}
@@ -117,7 +117,7 @@ export default function Sidebar() {
                 {section.label}
               </h3>
             )}
-            {sidebarCollapsed && <div className="border-t border-white/[0.04] mb-2" />}
+            {sidebarCollapsed && <div className="border-t border-gray-200 mb-2" />}
             <ul className="space-y-0.5">
               {section.items.map((item) => {
                 const isActive = bestMatch === item.route;
@@ -126,17 +126,17 @@ export default function Sidebar() {
                   <li key={item.route}>
                     <NavLink
                       to={item.route}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 group relative
+                      className={`sidebar-nav-btn flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium border border-transparent transition-all duration-200 group relative
                         ${isActive
-                          ? 'bg-primary-600/90 text-white shadow-lg shadow-primary-600/25'
-                          : 'text-gray-400 hover:bg-white/[0.06] hover:text-gray-200'
+                          ? 'sidebar-nav-btn-active text-white'
+                          : 'sidebar-nav-btn-idle text-gray-600'
                         }
                         ${sidebarCollapsed ? 'justify-center px-0 mx-1' : ''}
                       `}
                       title={sidebarCollapsed ? item.label : undefined}
                     >
                       <span className={`flex-shrink-0 transition-colors duration-150 ${
-                        isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'
+                        isActive ? 'text-white' : 'text-gray-500 group-hover:text-blue-900'
                       }`}>
                         {iconMap[item.icon] || <FileText size={20} />}
                       </span>
@@ -161,23 +161,23 @@ export default function Sidebar() {
       </nav>
 
       {/* User section */}
-      <div className="border-t border-white/[0.06] p-3 flex-shrink-0">
+      <div className="border-t border-gray-200 p-3 flex-shrink-0">
         {!sidebarCollapsed ? (
-          <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/[0.04] transition-colors">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center flex-shrink-0 ring-2 ring-white/10">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center flex-shrink-0 ring-2 ring-gray-200">
               <span className="text-white text-sm font-bold">
                 {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-medium truncate">{user?.full_name}</p>
+              <p className="text-gray-900 text-sm font-medium truncate">{user?.full_name}</p>
               <p className="text-gray-500 text-[11px] truncate capitalize">
                 {user?.roles[0]?.replace('_', ' ') || 'User'}
               </p>
             </div>
             <button
               onClick={() => logout()}
-              className="p-1.5 text-gray-500 hover:text-red-400 rounded-lg hover:bg-white/[0.06] transition-colors"
+              className="p-1.5 text-gray-500 hover:text-red-500 rounded-lg hover:bg-gray-100 transition-colors"
               title="Logout"
             >
               <LogOut size={16} />
@@ -186,7 +186,7 @@ export default function Sidebar() {
         ) : (
           <button
             onClick={() => logout()}
-            className="w-full flex items-center justify-center p-2.5 text-gray-500 hover:text-red-400 rounded-lg hover:bg-white/[0.06] transition-colors"
+            className="w-full flex items-center justify-center p-2.5 text-gray-500 hover:text-red-500 rounded-lg hover:bg-gray-100 transition-colors"
             title="Logout"
           >
             <LogOut size={18} />
