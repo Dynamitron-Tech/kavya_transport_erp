@@ -50,22 +50,23 @@ class AdminTripDetailScreen extends ConsumerWidget {
     final detail = ref.watch(_tripDetailProvider(tripId));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
+        backgroundColor: KTColors.surface,
+        elevation: 0.5,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: KTColors.textHeading),
           onPressed: () => context.pop(),
         ),
         title: Text('Trip #$tripId',
-            style: const TextStyle(color: KTColors.darkTextPrimary)),
+            style: const TextStyle(color: KTColors.textHeading)),
       ),
       body: detail.when(
         data: (d) {
           if (d.isEmpty) {
             return const Center(
                 child: Text('Trip not found',
-                    style: TextStyle(color: KTColors.darkTextSecondary)));
+                    style: TextStyle(color: KTColors.textMuted)));
           }
           return RefreshIndicator(
             onRefresh: () async {
@@ -77,10 +78,10 @@ class AdminTripDetailScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(
-            child: CircularProgressIndicator(color: KTColors.amber600)),
+            child: CircularProgressIndicator(color: KTColors.primary)),
         error: (e, _) => Center(
             child: Text('Error: $e',
-                style: const TextStyle(color: KTColors.darkTextSecondary))),
+                style: const TextStyle(color: KTColors.textMuted))),
       ),
     );
   }
@@ -140,7 +141,7 @@ class AdminTripDetailScreen extends ConsumerWidget {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text('No timeline events',
-                style: TextStyle(color: KTColors.darkTextSecondary, fontSize: 12)),
+                style: TextStyle(color: KTColors.textMuted, fontSize: 12)),
           );
         }
         return Column(
@@ -156,9 +157,9 @@ class AdminTripDetailScreen extends ConsumerWidget {
       },
       loading: () => const SizedBox(
           height: 60,
-          child: Center(child: CircularProgressIndicator(color: KTColors.amber600))),
+          child: Center(child: CircularProgressIndicator(color: KTColors.primary))),
       error: (_, __) => const Text('Could not load timeline',
-          style: TextStyle(color: KTColors.darkTextSecondary, fontSize: 12)),
+          style: TextStyle(color: KTColors.textMuted, fontSize: 12)),
     );
   }
 
@@ -175,7 +176,7 @@ class AdminTripDetailScreen extends ConsumerWidget {
               decoration: const BoxDecoration(
                   shape: BoxShape.circle, color: KTColors.amber600),
             ),
-            Container(width: 1, height: 30, color: KTColors.darkBorder),
+            Container(width: 1, height: 30, color: KTColors.borderColor),
           ]),
           const SizedBox(width: 12),
           Expanded(
@@ -184,16 +185,16 @@ class AdminTripDetailScreen extends ConsumerWidget {
               children: [
                 Text(title,
                     style: const TextStyle(
-                        color: KTColors.darkTextPrimary,
+                        color: KTColors.textHeading,
                         fontSize: 13,
                         fontWeight: FontWeight.w600)),
                 if (desc != null && desc.isNotEmpty)
                   Text(desc,
                       style: const TextStyle(
-                          color: KTColors.darkTextSecondary, fontSize: 12)),
+                          color: KTColors.textBody, fontSize: 12)),
                 Text(time,
                     style: const TextStyle(
-                        color: KTColors.darkTextSecondary, fontSize: 11)),
+                        color: KTColors.textMuted, fontSize: 11)),
               ],
             ),
           ),
@@ -212,7 +213,7 @@ class AdminTripDetailScreen extends ConsumerWidget {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text('No expenses recorded',
-                style: TextStyle(color: KTColors.darkTextSecondary, fontSize: 12)),
+                style: TextStyle(color: KTColors.textMuted, fontSize: 12)),
           );
         }
         num total = 0;
@@ -226,9 +227,9 @@ class AdminTripDetailScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(m['category'] as String? ?? m['type'] as String? ?? '—',
-                    style: const TextStyle(color: KTColors.darkTextSecondary, fontSize: 13)),
+                    style: const TextStyle(color: KTColors.textMuted, fontSize: 13)),
                 Text('₹$amt',
-                    style: const TextStyle(color: KTColors.darkTextPrimary, fontWeight: FontWeight.w700, fontSize: 14)),
+                    style: const TextStyle(color: KTColors.textHeading, fontWeight: FontWeight.w700, fontSize: 14)),
               ],
             ),
           );
@@ -236,23 +237,23 @@ class AdminTripDetailScreen extends ConsumerWidget {
 
         return _card([
           ...rows,
-          const Divider(color: KTColors.darkBorder, height: 16),
+          const Divider(color: KTColors.borderColor, height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Total',
-                  style: TextStyle(color: KTColors.darkTextPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+                  style: TextStyle(color: KTColors.textHeading, fontWeight: FontWeight.bold, fontSize: 14)),
               Text('₹$total',
-                  style: const TextStyle(color: KTColors.amber600, fontWeight: FontWeight.bold, fontSize: 14)),
+                  style: const TextStyle(color: KTColors.warning, fontWeight: FontWeight.bold, fontSize: 14)),
             ],
           ),
         ]);
       },
       loading: () => const SizedBox(
           height: 60,
-          child: Center(child: CircularProgressIndicator(color: KTColors.amber600))),
+          child: Center(child: CircularProgressIndicator(color: KTColors.primary))),
       error: (_, __) => const Text('Could not load expenses',
-          style: TextStyle(color: KTColors.darkTextSecondary, fontSize: 12)),
+          style: TextStyle(color: KTColors.textMuted, fontSize: 12)),
     );
   }
 
@@ -263,8 +264,9 @@ class AdminTripDetailScreen extends ConsumerWidget {
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: KTColors.darkSurface,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: IntrinsicHeight(
           child: Row(
@@ -279,13 +281,13 @@ class AdminTripDetailScreen extends ConsumerWidget {
                     children: [
                       Text(value,
                           style: const TextStyle(
-                              color: KTColors.darkTextPrimary,
+                              color: KTColors.textHeading,
                               fontSize: 18,
                               fontWeight: FontWeight.bold)),
                       const SizedBox(height: 2),
                       Text(label,
                           style: const TextStyle(
-                              color: KTColors.darkTextSecondary, fontSize: 11)),
+                              color: KTColors.textMuted, fontSize: 11)),
                     ],
                   ),
                 ),
@@ -301,8 +303,9 @@ class AdminTripDetailScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: KTColors.darkSurface,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,7 +321,7 @@ class AdminTripDetailScreen extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
-              style: const TextStyle(color: KTColors.darkTextSecondary, fontSize: 13)),
+              style: const TextStyle(color: KTColors.textMuted, fontSize: 13)),
           trailing,
         ],
       ),
@@ -333,11 +336,11 @@ class AdminTripDetailScreen extends ConsumerWidget {
           SizedBox(
             width: 90,
             child: Text(label,
-                style: const TextStyle(color: KTColors.darkTextSecondary, fontSize: 12)),
+                style: const TextStyle(color: KTColors.textMuted, fontSize: 12)),
           ),
           Expanded(
             child: Text(value,
-                style: const TextStyle(color: KTColors.darkTextPrimary, fontSize: 13)),
+                style: const TextStyle(color: KTColors.textBody, fontSize: 13)),
           ),
         ],
       ),
@@ -376,7 +379,7 @@ class AdminTripDetailScreen extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 8),
         child: Text(title,
             style: const TextStyle(
-                color: KTColors.darkTextSecondary,
+                color: KTColors.textMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5)),
