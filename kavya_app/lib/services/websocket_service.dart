@@ -43,6 +43,10 @@ class WebSocketService {
   late StreamController<bool> _connectionController;
   late StreamController<WebSocketMessage> _messageController;
   late StreamController<WebSocketStatus> _statusController;
+  late StreamController<Map<String, dynamic>> _vehicleTrackingController;
+  late StreamController<Map<String, dynamic>> _alertController;
+  late StreamController<Map<String, dynamic>> _geofenceBreachController;
+  late StreamController<Map<String, dynamic>> _complianceAlertController;
   
   WebSocketStatus _status = WebSocketStatus.disconnected;
   bool _connected = false;
@@ -61,6 +65,10 @@ class WebSocketService {
   Stream<bool> get connectionStatus => _connectionController.stream;
   Stream<WebSocketMessage> get messages => _messageController.stream;
   Stream<WebSocketStatus> get statusStream => _statusController.stream;
+  Stream<Map<String, dynamic>> get vehicleTrackingStream => _vehicleTrackingController.stream;
+  Stream<Map<String, dynamic>> get alertStream => _alertController.stream;
+  Stream<Map<String, dynamic>> get geofenceBreachStream => _geofenceBreachController.stream;
+  Stream<Map<String, dynamic>> get complianceAlertStream => _complianceAlertController.stream;
   
   bool get isConnected => _connected;
   WebSocketStatus get status => _status;
@@ -75,6 +83,10 @@ class WebSocketService {
     _connectionController = StreamController<bool>.broadcast();
     _messageController = StreamController<WebSocketMessage>.broadcast();
     _statusController = StreamController<WebSocketStatus>.broadcast();
+    _vehicleTrackingController = StreamController<Map<String, dynamic>>.broadcast();
+    _alertController = StreamController<Map<String, dynamic>>.broadcast();
+    _geofenceBreachController = StreamController<Map<String, dynamic>>.broadcast();
+    _complianceAlertController = StreamController<Map<String, dynamic>>.broadcast();
   }
 
   /// Derive WebSocket URL from API base URL
@@ -137,10 +149,19 @@ class WebSocketService {
               final wsMessage = WebSocketMessage.fromJson(decoded);
               _messageController.add(wsMessage);
               
-              // Handle trip updates specially
-              if (wsMessage.type == 'trip_update') {
-                // Process trip update if needed
-                debugPrint('[WebSocket] Received trip update: ${wsMessage.data}');
+              switch (wsMessage.type) {
+                case 'trip_update':
+                  debugPrint('[WebSocket] Received trip update: ${wsMessage.data}');
+                case 'vehicle_tracking':
+                  _vehicleTrackingController.add(wsMessage.data);
+                case 'alert':
+                  _alertController.add(wsMessage.data);
+                case 'geofence_breach':
+                  _geofenceBreachController.add(wsMessage.data);
+                case 'compliance_alert':
+                  _complianceAlertController.add(wsMessage.data);
+                default:
+                  break;
               }
             } catch (e) {
               debugPrint('[WebSocket] Failed to parse message: $e');
@@ -261,6 +282,13 @@ class WebSocketService {
     sendMessage(WebSocketMessage(type: type, data: data));
   }
 
+  /// Subscribe to real-time updates for specific vehicles and trips.
+  /// Call this after [connect()] completes successfully.
+  void subscribeToEntities(List<int> vehicleIds, List<int> tripIds) {
+    send('subscribe_vehicle', {'vehicle_ids': vehicleIds});
+    send('subscribe_trip', {'trip_ids': tripIds});
+  }
+
   StreamSubscription<WebSocketMessage> onMessage(
     String type,
     Function(Map<String, dynamic> data) callback,
@@ -288,6 +316,10 @@ class WebSocketService {
     await _connectionController.close();
     await _messageController.close();
     await _statusController.close();
+    await _vehicleTrackingController.close();
+    await _alertController.close();
+    await _geofenceBreachController.close();
+    await _complianceAlertController.close();
   }
 }
 
@@ -324,4 +356,28 @@ final wsConnectionStatusProvider = StreamProvider<bool>((ref) async* {
   final wsService = await ref.read(webSocketProvider.future);
   yield wsService.isConnected;
   yield* wsService.connectionStatus;
+});
+
+// Provider for vehicle tracking events (vehicle_id, latitude, longitude, speed, heading, timestamp)
+final vehicleTrackingStreamProvider = StreamProvider<Map<String, dynamic>>((ref) async* {
+  final wsService = await ref.read(webSocketProvider.future);
+  yield* wsService.vehicleTrackingStream;
+});
+
+// Provider for alert events (alert_type, message, trip_id?)
+final alertStreamProvider = StreamProvider<Map<String, dynamic>>((ref) async* {
+  final wsService = await ref.read(webSocketProvider.future);
+  yield* wsService.alertStream;
+});
+
+// Provider for geofence breach events (vehicle_id, geofence_id, breach_type)
+final geofenceBreachStreamProvider = StreamProvider<Map<String, dynamic>>((ref) async* {
+  final wsService = await ref.read(webSocketProvider.future);
+  yield* wsService.geofenceBreachStream;
+});
+
+// Provider for compliance alert events (vehicle_id, compliance_type, expiry_date)
+final complianceAlertStreamProvider = StreamProvider<Map<String, dynamic>>((ref) async* {
+  final wsService = await ref.read(webSocketProvider.future);
+  yield* wsService.complianceAlertStream;
 });

@@ -36,7 +36,7 @@ class _AccountantVouchersScreenState
     final state = ref.watch(_vouchersProvider(_typeFilter));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
         title: const Text('Vouchers'),
         actions: [
@@ -77,7 +77,7 @@ class _AccountantVouchersScreenState
                   );
                 }
                 return RefreshIndicator(
-                  color: KTColors.primary,
+                  color: KTColors.acctAccent,
                   onRefresh: () async =>
                       ref.invalidate(_vouchersProvider(_typeFilter)),
                   child: ListView.builder(
@@ -115,7 +115,7 @@ class _AccountantVouchersScreenState
     await showModalBottomSheet(
       context: ctx,
       isScrollControlled: true,
-      backgroundColor: KTColors.darkElevated,
+      backgroundColor: KTColors.surface,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx2) => StatefulBuilder(
@@ -255,9 +255,9 @@ class _VoucherTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: KTColors.darkElevated,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: KTColors.darkBorder),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Row(
         children: [
@@ -277,14 +277,14 @@ class _VoucherTile extends StatelessWidget {
               children: [
                 Text(vNo,
                     style: const TextStyle(
-                        color: KTColors.primary,
+                        color: KTColors.acctAccent,
                         fontWeight: FontWeight.w600,
                         fontFamily: 'monospace',
                         fontSize: 13)),
                 const SizedBox(height: 3),
                 Text(v['remarks'] ?? v['narration'] ?? '—',
                     style: const TextStyle(
-                        color: KTColors.textSecondary, fontSize: 12),
+                        color: KTColors.textMuted, fontSize: 12),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
                 Text(

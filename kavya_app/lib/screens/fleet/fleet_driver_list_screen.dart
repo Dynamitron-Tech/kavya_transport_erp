@@ -46,14 +46,16 @@ class _FleetDriverListScreenState extends ConsumerState<FleetDriverListScreen> {
     final driversAsync = ref.watch(fleetDriversProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.navy900,
-        foregroundColor: KTColors.darkTextPrimary,
-        title: Text('Drivers', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: KTColors.textHeading,
+        title: Text('Drivers', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: KTColors.amber500),
+            icon: const Icon(Icons.add, color: KTColors.fleetAccent),
             onPressed: () async {
               final result = await context.push('/fleet/driver/add');
               if (result == true) ref.invalidate(fleetDriversProvider);
@@ -68,26 +70,26 @@ class _FleetDriverListScreenState extends ConsumerState<FleetDriverListScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
               controller: _searchCtrl,
-              style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+              style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
               onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
               decoration: InputDecoration(
                 hintText: 'Search drivers…',
-                hintStyle: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary),
-                prefixIcon: const Icon(Icons.search, color: KTColors.amber500),
+                hintStyle: KTTextStyles.body.copyWith(color: KTColors.textMuted),
+                prefixIcon: const Icon(Icons.search, color: KTColors.fleetAccent),
                 filled: true,
-                fillColor: KTColors.navy800,
+                fillColor: KTColors.surface,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: KTColors.navy700),
+                  borderSide: const BorderSide(color: KTColors.borderColor),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: KTColors.navy700),
+                  borderSide: const BorderSide(color: KTColors.borderColor),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: KTColors.amber500),
+                  borderSide: const BorderSide(color: KTColors.fleetAccent),
                 ),
               ),
             ),
@@ -109,12 +111,12 @@ class _FleetDriverListScreenState extends ConsumerState<FleetDriverListScreen> {
                   selected: selected,
                   onSelected: (_) => setState(() => _filter = f),
                   labelStyle: KTTextStyles.label.copyWith(
-                    color: selected ? KTColors.navy900 : KTColors.darkTextSecondary,
+                    color: selected ? Colors.white : KTColors.textMuted,
                   ),
-                  selectedColor: KTColors.amber500,
-                  backgroundColor: KTColors.navy800,
+                  selectedColor: KTColors.fleetAccent,
+                  backgroundColor: KTColors.surface,
                   side: BorderSide(
-                    color: selected ? KTColors.amber500 : KTColors.navy700,
+                    color: selected ? KTColors.fleetAccent : KTColors.borderColor,
                   ),
                   showCheckmark: false,
                 );
@@ -140,7 +142,7 @@ class _FleetDriverListScreenState extends ConsumerState<FleetDriverListScreen> {
                   children: [
                     const Icon(Icons.error_outline, color: KTColors.danger, size: 48),
                     const SizedBox(height: 12),
-                    Text('Failed to load drivers', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                    Text('Failed to load drivers', style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                     const SizedBox(height: 16),
                     KTButton.secondary(
                       onPressed: () => ref.invalidate(fleetDriversProvider),
@@ -156,18 +158,18 @@ class _FleetDriverListScreenState extends ConsumerState<FleetDriverListScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.person_off, color: KTColors.darkTextSecondary, size: 64),
+                        const Icon(Icons.person_off, color: KTColors.textMuted, size: 64),
                         const SizedBox(height: 16),
-                        Text('No Drivers Found', style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                        Text('No Drivers Found', style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
                         const SizedBox(height: 8),
                         Text('Try adjusting your search or filters.',
-                            style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                            style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                       ],
                     ),
                   );
                 }
                 return RefreshIndicator(
-                  color: KTColors.amber500,
+                  color: KTColors.fleetAccent,
                   onRefresh: () async => ref.invalidate(fleetDriversProvider),
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),
@@ -229,7 +231,7 @@ class _FleetDriverListScreenState extends ConsumerState<FleetDriverListScreen> {
         statusLabel = 'On Trip';
         break;
       case 'off_duty':
-        statusColor = KTColors.darkTextSecondary;
+        statusColor = KTColors.textMuted;
         statusLabel = 'Off Duty';
         break;
       default:
@@ -237,7 +239,7 @@ class _FleetDriverListScreenState extends ConsumerState<FleetDriverListScreen> {
         statusLabel = 'Available';
     }
 
-    final scoreColor = score >= 80 ? KTColors.amber500 : (score < 60 ? KTColors.danger : KTColors.success);
+    final scoreColor = score >= 80 ? KTColors.fleetAccent : (score < 60 ? KTColors.danger : KTColors.success);
     final accent = KTColors.getRoleColor('fleet_manager');
 
     return GestureDetector(
@@ -247,9 +249,9 @@ class _FleetDriverListScreenState extends ConsumerState<FleetDriverListScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: KTColors.navy800,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: KTColors.navy700),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: Row(
           children: [
@@ -270,10 +272,10 @@ class _FleetDriverListScreenState extends ConsumerState<FleetDriverListScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(name.isNotEmpty ? name : 'Driver #$driverId',
-                      style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                      style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
                   const SizedBox(height: 2),
                   Text('$vehicleReg${lastTrip.isNotEmpty ? ' · Last: $lastTrip' : ''}',
-                      style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
+                      style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
                 ],
               ),
             ),

@@ -1,109 +1,147 @@
 import 'package:flutter/material.dart';
 
 /// Kavya Transports Design System Colors
-/// Based on brand identity: Navy (authority) + Amber (action)
+/// Light UI with green accent (admin/manager), dark navy for driver screens.
 class KTColors {
-  // ============= NAVY PALETTE (Brand Core) =============
-  static const navy950 = Color(0xFF0A0F1E);  // Darkest, sidebar background
-  static const navy900 = Color(0xFF0F172A);  // App shell, topbar
-  static const navy800 = Color(0xFF1B2A4A);  // Primary brand color, headings
-  static const navy700 = Color(0xFF1E3A5F);  // Hover states
-  static const navy600 = Color(0xFF2A4A7F);  // Active nav items
-  static const navy100 = Color(0xFFE8EDF5);  // Light backgrounds, stripes
-  static const navy50 = Color(0xFFF0F4FA);   // Page background
+  // ============= LIGHT THEME CORE =============
+  /// Page background — off-white
+  static const lightBg = Color(0xFFF7F9FC);
+  /// Card / surface — pure white
+  static const surface = Color(0xFFFFFFFF);
+  /// Primary green accent
+  static const primary = Color(0xFF3ECF6C);
+  /// Pressed / hover green
+  static const primaryDark = Color(0xFF22A350);
+  /// Near-black navy headings
+  static const textHeading = Color(0xFF0D1B2A);
+  /// Dark slate body copy
+  static const textBody = Color(0xFF3A4A5C);
+  /// Muted gray secondary text
+  static const textMuted = Color(0xFF8494A4);
+  /// Divider / border — very light blue-gray
+  static const borderColor = Color(0xFFE8EEF4);
+  /// White alias (use this, never Colors.white)
+  static const white = Color(0xFFFFFFFF);
 
-  // ============= AMBER PALETTE (Accent & Action) =============
-  static const amber600 = Color(0xFFD97706);  // Primary CTA buttons
-  static const amber500 = Color(0xFFF59E0B);  // Highlights, badges
-  static const amber400 = Color(0xFFFBBF24);  // Hover state
-  static const amber100 = Color(0xFFFEF3C7);  // Badge backgrounds
-  static const amber50 = Color(0xFFFFFBEB);   // Amber tinted surfaces
+  // ============= SEMANTIC COLORS (updated hues) =============
+  static const success = Color(0xFF3ECF6C);      // Green - active/completed
+  static const successBg = Color(0xFFEAFAF1);
 
-  // ============= SEMANTIC COLORS =============
-  static const success = Color(0xFF10B981);      // Green - completed, active
-  static const successBg = Color(0xFFECFDF5);
-  
-  static const warning = Color(0xFFF59E0B);      // Amber - pending, expiring
-  static const warningBg = Color(0xFFFFFBEB);
-  
-  static const danger = Color(0xFFEF4444);       // Red - overdue, cancelled
-  static const dangerBg = Color(0xFFFEF2F2);
-  
+  static const warning = Color(0xFFB7791F);      // Amber text
+  static const warningBg = Color(0xFFFFF3CD);
+
+  static const danger = Color(0xFFE53E3E);       // Red - alert/overdue
+  static const dangerBg = Color(0xFFFFE4E4);
+
   static const info = Color(0xFF3B82F6);         // Blue - in progress
   static const infoBg = Color(0xFFEFF6FF);
 
-  // ============= NEUTRAL GRAYS =============
+  // ============= NEUTRAL GRAYS (kept for shared widgets) =============
   static const gray900 = Color(0xFF111827);
   static const gray700 = Color(0xFF374151);
-  static const gray500 = Color(0xFF6B7280);
   static const gray600 = Color(0xFF4B5563);
+  static const gray500 = Color(0xFF6B7280);
   static const gray400 = Color(0xFF9CA3AF);
   static const gray300 = Color(0xFFD1D5DB);
   static const gray200 = Color(0xFFE5E7EB);
   static const gray100 = Color(0xFFF3F4F6);
-  
-  static const white = Color(0xFFFFFFFF);
 
-  // ============= DARK MODE (Flutter Driver App Default) =============
-  // Background:     navy950 (#0A0F1E)
-  // Surface/Card:   navy900 (#0F172A)
-  // Elevated:       navy800 (#1B2A4A)
-  // Text primary:   #F8FAFC
-  // Text secondary: #94A3B8
-  // Border:         navy700 (#1E3A5F)
+  // ============= DARK MODE (Driver screens only) =============
+  static const navy950 = Color(0xFF0A0F1E);
+  static const navy900 = Color(0xFF0F172A);
+  static const navy800 = Color(0xFF1B2A4A);
+  static const navy700 = Color(0xFF1E3A5F);
+  static const navy600 = Color(0xFF2A4A7F);
 
   static const darkBg = navy950;
   static const darkSurface = navy900;
   static const darkElevated = navy800;
+  static const darkBorder = navy700;
   static const darkTextPrimary = Color(0xFFF8FAFC);
   static const darkTextSecondary = Color(0xFF94A3B8);
-  static const darkBorder = navy700;
+
+  // ============= DRIVER LIGHT+BLUE THEME ALIASES =============
+  /// Driver screens use light background + blue accent instead of dark+green.
+  static const driverAccent     = Color(0xFF2563EB);  // Blue-600
+  static const driverAccentDark = Color(0xFF1D4ED8);  // Blue-700
+  static const driverAccentBg   = Color(0xFFEFF6FF);  // Blue-50
+
+  // ============= PROJECT ASSOCIATE LIGHT+OLIVE THEME ALIASES =============
+  /// PA screens use light background + dark olive/green accent.
+  static const paAccent     = Color(0xFF4D7C0F);  // Olive/Lime-700
+  static const paAccentDark = Color(0xFF3F6212);  // Olive/Lime-800
+  static const paAccentBg   = Color(0xFFF7FEE7);  // Lime-50 tint
+
+  // ============= PUMP OPERATOR LIGHT+ORANGE THEME ALIASES =============
+  /// Pump screens use light background + vibrant orange accent.
+  static const pumpAccent     = Color(0xFFEA580C);  // Orange-600
+  static const pumpAccentDark = Color(0xFFC2410C);  // Orange-700
+  static const pumpAccentBg   = Color(0xFFFFF7ED);  // Orange-50 tint
+
+  // ============= MANAGER LIGHT+ESPRESSO THEME ALIASES =============
+  /// Manager screens use light background + rich espresso accent.
+  static const managerAccent     = Color(0xFF4D2E1A);  // Espresso
+  static const managerAccentDark = Color(0xFF3A2213);  // Darker espresso
+  static const managerAccentBg   = Color(0xFFFDF8F5);  // Warm cream tint
+
+  // ============= FLEET MANAGER LIGHT+WARATAH THEME ALIASES =============
+  /// Fleet screens use light background + waratah red accent.
+  static const fleetAccent     = Color(0xFFB21C2B);  // Waratah
+  static const fleetAccentDark = Color(0xFF8C1520);  // Darker waratah
+  static const fleetAccentBg   = Color(0xFFFDF2F2);  // Warm red tint
+
+  // ============= ACCOUNTANT LIGHT+CRIMSON THEME ALIASES =============
+  /// Accountant screens use light background + crimson red accent.
+  static const acctAccent     = Color(0xFFDC143C);  // Crimson
+  static const acctAccentDark = Color(0xFFA50E2D);  // Dark crimson
+  static const acctAccentBg   = Color(0xFFFFF0F2);  // Soft pink tint
+
+  // ============= LEGACY AMBER (driver accent only) =============
+  /// Use `primary` in admin screens. Amber only in legacy/driver contexts.
+  static const amber600 = Color(0xFFD97706);
+  static const amber500 = Color(0xFFF59E0B);
+  static const amber400 = Color(0xFFFBBF24);
+  static const amber100 = Color(0xFFFEF3C7);
+  static const amber50 = Color(0xFFFFFBEB);
 
   // ============= ROLE-SPECIFIC ACCENT COLORS =============
-  static const roleAdmin = Color(0xFF7C3AED);        // Purple
+  static const roleAdmin = Color(0xFF7C3AED);
   static const roleAdminBg = Color(0xFFEDE9FE);
-  
-  static const roleManager = Color(0xFF2563EB);      // Blue
+
+  static const roleManager = Color(0xFF2563EB);
   static const roleManagerBg = Color(0xFFEFF6FF);
-  
-  static const roleFleetManager = Color(0xFF059669); // Green
+
+  static const roleFleetManager = Color(0xFF059669);
   static const roleFleetManagerBg = Color(0xFFECFDF5);
-  
-  static const roleAccountant = Color(0xFFD97706);   // Amber
+
+  static const roleAccountant = Color(0xFFD97706);
   static const roleAccountantBg = Color(0xFFFEF3C7);
-  
-  static const roleProjectAssociate = Color(0xFFDC4B2A); // Coral
+
+  static const roleProjectAssociate = Color(0xFFDC4B2A);
   static const roleProjectAssociateBg = Color(0xFFFEF0EC);
-  
-  static const roleDriver = Color(0xFF0D9488);       // Teal
+
+  static const roleDriver = Color(0xFF0D9488);
   static const roleDriverBg = Color(0xFFF0FDFA);
-  
+
   static const roleAuditor = Color(0xFF6366F1);      // Indigo
   static const roleAuditorBg = Color(0xFFEEF2FF);
 
-  // ============= LEGACY (kept for compatibility) =============
-  static const primary = amber500;        // Use amber500 as primary action color
-  static const primaryDark = amber600;
-  static const primaryLight = amber100;
-  
-  static const cardSurface = navy100;
-  static const cardSurfaceDark = navy900;
-  
-  // ============= ADDITIONAL COLORS (commonly used) =============
-  static const textPrimary = Color(0xFFF8FAFC);    // Primary text color
-  static const textSecondary = Color(0xFF94A3B8);  // Secondary text color
-  static const textMuted = Color(0xFF64748B);      // Muted text color
-  static const error = Color(0xFFEF4444);          // Error color (same as danger)
-  static const border = navy700;                   // Border color
-  static const borderColor = navy700;              // Alternative border color
-  static const surface = navy900;                  // Surface color
-  static const roleFleet = roleFleetManager;       // Alias for fleet manager color
-  static const roleAssociate = roleProjectAssociate; // Alias for project associate color
+  // ============= ALIASES (commonly used) =============
+  static const textPrimary = darkTextPrimary;
+  static const textSecondary = darkTextSecondary;
+  static const error = danger;
+  static const border = borderColor;
+  static const card = surface;
+  static const roleFleet = roleFleetManager;
+  static const roleAssociate = roleProjectAssociate;
 
-  // ============= MISSING ALIASES =============
-  static const card = navy100;
-  static const accent = amber500;
+  // ============= LEGACY ALIASES (do not use in new code) =============
+  static const accent = primary;
+  static const primaryLight = successBg;
+  static const cardSurface = darkElevated;       // dark card background
+  static const cardSurfaceDark = darkElevated;   // dark card background alt
   static const backgroundSecondary = gray100;
+  static const primaryLightBg = successBg;
 
   /// Get role accent color based on user role string
   static Color getRoleColor(String role) {
@@ -111,7 +149,7 @@ class KTColors {
       'admin' => roleAdmin,
       'manager' => roleManager,
       'fleet_manager' => roleFleetManager,
-      'accountant' => roleAccountant,
+      'accountant' => acctAccent,
       'project_associate' => roleProjectAssociate,
       'driver' => roleDriver,
       'auditor' => roleAuditor,

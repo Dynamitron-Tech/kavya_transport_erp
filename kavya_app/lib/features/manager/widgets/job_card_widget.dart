@@ -5,7 +5,8 @@ import '../../../core/theme/kt_text_styles.dart';
 
 class JobCardWidget extends StatelessWidget {
   final Map<String, dynamic> job;
-  const JobCardWidget({super.key, required this.job});
+  final bool useLightTheme;
+  const JobCardWidget({super.key, required this.job, this.useLightTheme = false});
 
   @override
   Widget build(BuildContext context) {
@@ -20,13 +21,21 @@ class JobCardWidget extends StatelessWidget {
     final vehicleReg = job['vehicle_reg'] ?? job['vehicle']?['registration_number'];
     final driverName = job['driver_name'] ?? job['driver']?['name'];
 
+    final cardBg = useLightTheme ? KTColors.surface : KTColors.surface;
+    final borderCol = useLightTheme ? KTColors.borderColor : KTColors.borderColor;
+    final titleCol = useLightTheme ? KTColors.textHeading : KTColors.textHeading;
+    final subCol = useLightTheme ? KTColors.textMuted : KTColors.textMuted;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KTColors.darkElevated,
+        color: cardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KTColors.darkBorder),
+        border: Border.all(color: borderCol),
+        boxShadow: useLightTheme
+            ? const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -34,17 +43,17 @@ class JobCardWidget extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(jobNumber, style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                child: Text(jobNumber, style: KTTextStyles.h3.copyWith(color: titleCol)),
               ),
               _StatusPill(status: status),
             ],
           ),
           const SizedBox(height: 4),
-          Text(clientName, style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+          Text(clientName, style: KTTextStyles.bodySmall.copyWith(color: subCol)),
           const SizedBox(height: 4),
           Text(
             '$origin → $destination · ${weightDisplay}T · ₹${_formatAmount(freight)}',
-            style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
+            style: KTTextStyles.bodySmall.copyWith(color: subCol),
           ),
           if (vehicleReg != null || driverName != null) ...[
             const SizedBox(height: 4),
@@ -54,7 +63,11 @@ class JobCardWidget extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 12),
-          _ActionButtons(job: job, status: status),
+          Row(
+            children: [
+              _ActionButtons(job: job, status: status, useLightTheme: useLightTheme),
+            ],
+          ),
         ],
       ),
     );
@@ -71,19 +84,21 @@ class JobCardWidget extends StatelessWidget {
 class _ActionButtons extends StatelessWidget {
   final Map<String, dynamic> job;
   final String status;
-  const _ActionButtons({required this.job, required this.status});
+  final bool useLightTheme;
+  const _ActionButtons({required this.job, required this.status, this.useLightTheme = false});
 
   @override
   Widget build(BuildContext context) {
     final jobId = job['id'];
+    final muteCol = useLightTheme ? KTColors.textMuted : KTColors.textMuted;
     switch (status.toUpperCase()) {
       case 'DRAFT':
       case 'PENDING_APPROVAL':
       case 'APPROVED':
         return Row(children: [
-          _ActionBtn(label: 'Assign', color: KTColors.primary, onTap: () => context.push('/manager/jobs/$jobId/assign')),
+          _ActionBtn(label: 'Assign', color: KTColors.managerAccent, onTap: () => context.push('/manager/jobs/$jobId/assign')),
           const SizedBox(width: 8),
-          _ActionBtn(label: 'Edit', color: KTColors.darkTextSecondary, onTap: () => context.push('/manager/jobs/$jobId')),
+          _ActionBtn(label: 'Edit', color: muteCol, onTap: () => context.push('/manager/jobs/$jobId')),
         ]);
       case 'IN_TRANSIT':
       case 'IN_PROGRESS':
@@ -91,7 +106,7 @@ class _ActionButtons extends StatelessWidget {
         return Row(children: [
           _ActionBtn(label: 'Track', color: KTColors.info, onTap: () => context.push('/manager/fleet')),
           const SizedBox(width: 8),
-          _ActionBtn(label: 'Details', color: KTColors.darkTextSecondary, onTap: () => context.push('/manager/jobs/$jobId')),
+          _ActionBtn(label: 'Details', color: muteCol, onTap: () => context.push('/manager/jobs/$jobId')),
         ]);
       case 'DELIVERED':
       case 'POD_UPLOADED':
@@ -99,11 +114,11 @@ class _ActionButtons extends StatelessWidget {
         return Row(children: [
           _ActionBtn(label: 'View P&L', color: KTColors.success, onTap: () => context.push('/manager/jobs/$jobId')),
           const SizedBox(width: 8),
-          _ActionBtn(label: 'Invoice', color: KTColors.darkTextSecondary, onTap: () {}),
+          _ActionBtn(label: 'Invoice', color: muteCol, onTap: () {}),
         ]);
       default:
         return Row(children: [
-          _ActionBtn(label: 'View', color: KTColors.darkTextSecondary, onTap: () => context.push('/manager/jobs/$jobId')),
+          _ActionBtn(label: 'View', color: muteCol, onTap: () => context.push('/manager/jobs/$jobId')),
         ]);
     }
   }
@@ -121,7 +136,7 @@ class _ActionBtn extends StatelessWidget {
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
         foregroundColor: color,
-        side: BorderSide(color: color.withOpacity(0.5)),
+        side: BorderSide(color: color.withValues(alpha: 0.5)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
@@ -152,24 +167,24 @@ class _StatusPill extends StatelessWidget {
       case 'DRAFT':
       case 'PENDING_APPROVAL':
       case 'APPROVED':
-        return (KTColors.primary.withOpacity(0.15), KTColors.primary, 'Unassigned');
+        return (KTColors.managerAccent.withValues(alpha: 0.15), KTColors.managerAccent, 'Unassigned');
       case 'IN_TRANSIT':
       case 'IN_PROGRESS':
       case 'STARTED':
-        return (KTColors.info.withOpacity(0.15), KTColors.info, 'In transit');
+        return (KTColors.info.withValues(alpha: 0.15), KTColors.info, 'In transit');
       case 'DELIVERED':
       case 'POD_UPLOADED':
       case 'COMPLETED':
-        return (KTColors.success.withOpacity(0.15), KTColors.success, 'Delivered');
+        return (KTColors.success.withValues(alpha: 0.15), KTColors.success, 'Delivered');
       case 'TRIP_CREATED':
       case 'DOCUMENTATION':
-        return (const Color(0xFF8B5CF6).withOpacity(0.15), const Color(0xFF8B5CF6), 'LR created');
+        return (const Color(0xFF8B5CF6).withValues(alpha: 0.15), const Color(0xFF8B5CF6), 'LR created');
       case 'CLOSED':
-        return (Colors.grey.withOpacity(0.15), Colors.grey, 'Closed');
+        return (Colors.grey.withValues(alpha: 0.15), Colors.grey, 'Closed');
       case 'CANCELLED':
-        return (KTColors.danger.withOpacity(0.15), KTColors.danger, 'Cancelled');
+        return (KTColors.danger.withValues(alpha: 0.15), KTColors.danger, 'Cancelled');
       default:
-        return (Colors.grey.withOpacity(0.15), Colors.grey, s);
+        return (Colors.grey.withValues(alpha: 0.15), Colors.grey, s);
     }
   }
 }

@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/services/fcm_service.dart'; // unreadNotificationCountProvider
 
-const _kPaAccent = Color(0xFFDC4B2A);
+const _kPaAccent = KTColors.paAccent;
 
 class PAShellScreen extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -15,7 +15,7 @@ class PAShellScreen extends ConsumerWidget {
     final unread = ref.watch(unreadNotificationCountProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       body: navigationShell,
       bottomNavigationBar: _PABottomNav(
         currentIndex: navigationShell.currentIndex,
@@ -49,7 +49,7 @@ class _PABottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: KTColors.darkSurface,
+        color: KTColors.surface,
         border: Border(
           top: BorderSide(color: _kPaAccent.withValues(alpha: 0.35), width: 1.5),
         ),
@@ -87,7 +87,7 @@ class _PABottomNav extends StatelessWidget {
                           children: [
                             Icon(
                               isSelected ? item.$1 : item.$2,
-                              color: isSelected ? _kPaAccent : KTColors.darkTextSecondary,
+                              color: isSelected ? _kPaAccent : KTColors.textMuted,
                               size: 22,
                             ),
                             if (showBadge)
@@ -123,7 +123,7 @@ class _PABottomNav extends StatelessWidget {
                                 isSelected ? FontWeight.w700 : FontWeight.w400,
                             color: isSelected
                                 ? _kPaAccent
-                                : KTColors.darkTextSecondary,
+                                : KTColors.textMuted,
                           ),
                           child: Text(item.$3),
                         ),

@@ -45,7 +45,7 @@ class _AccountantGSTScreenState extends ConsumerState<AccountantGSTScreen> {
     final state = ref.watch(_gstProvider(_selectedFY));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(title: const Text('GST Documents')),
       body: Column(
         children: [
@@ -92,7 +92,7 @@ class _AccountantGSTScreenState extends ConsumerState<AccountantGSTScreen> {
                     [];
 
                 return RefreshIndicator(
-                  color: KTColors.primary,
+                  color: KTColors.acctAccent,
                   onRefresh: () async =>
                       ref.invalidate(_gstProvider(_selectedFY)),
                   child: ListView(
@@ -139,21 +139,21 @@ class _GSTSummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KTColors.darkElevated,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KTColors.darkBorder),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         children: [
-          _row('Taxable Value', summary['total_taxable'] ?? 0, KTColors.textPrimary),
-          const Divider(color: KTColors.darkBorder, height: 20),
+          _row('Taxable Value', summary['total_taxable'] ?? 0, KTColors.textHeading),
+          const Divider(color: KTColors.borderColor, height: 20),
           _row('CGST', summary['total_cgst'] ?? 0, KTColors.info),
           const SizedBox(height: 6),
           _row('SGST', summary['total_sgst'] ?? 0, KTColors.info),
           const SizedBox(height: 6),
           _row('IGST', summary['total_igst'] ?? 0, KTColors.warning),
-          const Divider(color: KTColors.darkBorder, height: 20),
-          _row('Total GST', summary['total_gst'] ?? 0, KTColors.primary,
+          const Divider(color: KTColors.borderColor, height: 20),
+          _row('Total GST', summary['total_gst'] ?? 0, KTColors.acctAccent,
               bold: true),
           const SizedBox(height: 6),
           _row('Total Value', summary['total_value'] ?? 0, KTColors.success,
@@ -170,7 +170,7 @@ class _GSTSummaryCard extends StatelessWidget {
       children: [
         Text(label,
             style: const TextStyle(
-                color: KTColors.textSecondary, fontSize: 13)),
+                color: KTColors.textMuted, fontSize: 13)),
         Text(
           fmt.format((value as num).toDouble()),
           style: TextStyle(
@@ -194,9 +194,9 @@ class _GSTEntryTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: KTColors.darkElevated,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: KTColors.darkBorder),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,7 +206,7 @@ class _GSTEntryTile extends StatelessWidget {
             children: [
               Text(entry['invoice_number'] ?? '—',
                   style: const TextStyle(
-                      color: KTColors.primary,
+                      color: KTColors.acctAccent,
                       fontFamily: 'monospace',
                       fontWeight: FontWeight.w600)),
               _badge(entry['filing_status'] ?? 'pending'),
@@ -215,10 +215,10 @@ class _GSTEntryTile extends StatelessWidget {
           const SizedBox(height: 6),
           Text(entry['party_name'] ?? '—',
               style: const TextStyle(
-                  color: KTColors.textPrimary, fontWeight: FontWeight.w500)),
+                  color: KTColors.textHeading, fontWeight: FontWeight.w500)),
           Text('GSTIN: ${entry['party_gstin'] ?? '—'}',
               style: const TextStyle(
-                  color: KTColors.textSecondary, fontSize: 12)),
+                  color: KTColors.textMuted, fontSize: 12)),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -264,7 +264,7 @@ class _GSTEntryTile extends StatelessWidget {
           style: const TextStyle(color: KTColors.textMuted, fontSize: 10)),
       Text('₹${amount.toStringAsFixed(0)}',
           style: const TextStyle(
-              color: KTColors.textSecondary,
+              color: KTColors.textMuted,
               fontSize: 12,
               fontWeight: FontWeight.w500)),
     ]);

@@ -43,14 +43,16 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
     final tripsAsync = ref.watch(fleetTripsProvider(_dateFilter));
 
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.navy900,
-        foregroundColor: KTColors.darkTextPrimary,
-        title: Text('Trip Management', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: KTColors.textHeading,
+        title: Text('Trip Management', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: KTColors.amber500),
+            icon: const Icon(Icons.add, color: KTColors.fleetAccent),
             onPressed: () async {
               final result = await context.push('/fleet/trip/create');
               if (result == true) ref.invalidate(fleetTripsProvider(_dateFilter));
@@ -82,11 +84,11 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
                   selected: selected,
                   onSelected: (_) => setState(() => _statusFilter = f),
                   labelStyle: KTTextStyles.label.copyWith(
-                    color: selected ? KTColors.navy900 : KTColors.darkTextSecondary,
+                    color: selected ? Colors.white : KTColors.textMuted,
                   ),
-                  selectedColor: KTColors.amber500,
-                  backgroundColor: KTColors.navy800,
-                  side: BorderSide(color: selected ? KTColors.amber500 : KTColors.navy700),
+                  selectedColor: KTColors.fleetAccent,
+                  backgroundColor: KTColors.surface,
+                  side: BorderSide(color: selected ? KTColors.fleetAccent : KTColors.borderColor),
                   showCheckmark: false,
                 );
               },
@@ -111,16 +113,16 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: selected ? KTColors.navy700 : Colors.transparent,
+                      color: selected ? KTColors.borderColor : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: selected ? KTColors.amber500 : KTColors.navy700,
+                        color: selected ? KTColors.fleetAccent : KTColors.borderColor,
                       ),
                     ),
                     child: Text(
                       label,
                       style: KTTextStyles.label.copyWith(
-                        color: selected ? KTColors.amber500 : KTColors.darkTextSecondary,
+                        color: selected ? KTColors.fleetAccent : KTColors.textMuted,
                       ),
                     ),
                   ),
@@ -147,7 +149,7 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
                   children: [
                     const Icon(Icons.error_outline, color: KTColors.danger, size: 48),
                     const SizedBox(height: 12),
-                    Text('Failed to load trips', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                    Text('Failed to load trips', style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                     const SizedBox(height: 16),
                     KTButton.secondary(
                       onPressed: () => ref.invalidate(fleetTripsProvider(_dateFilter)),
@@ -163,18 +165,18 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.local_shipping_outlined, color: KTColors.darkTextSecondary, size: 64),
+                        const Icon(Icons.local_shipping_outlined, color: KTColors.textMuted, size: 64),
                         const SizedBox(height: 16),
-                        Text('No Trips Found', style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                        Text('No Trips Found', style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
                         const SizedBox(height: 8),
                         Text('Try a different filter or date.',
-                            style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                            style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                       ],
                     ),
                   );
                 }
                 return RefreshIndicator(
-                  color: KTColors.amber500,
+                  color: KTColors.fleetAccent,
                   onRefresh: () async => ref.invalidate(fleetTripsProvider(_dateFilter)),
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),
@@ -197,7 +199,7 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
     final delayed = trips.where((t) => t['is_delayed'] == true).length;
 
     return Container(
-      color: KTColors.navy900,
+      color: KTColors.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
@@ -205,7 +207,7 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
           const SizedBox(width: 16),
           _summaryChip('Completed', completed, KTColors.success),
           const SizedBox(width: 16),
-          _summaryChip('Delayed', delayed, KTColors.amber500),
+          _summaryChip('Delayed', delayed, KTColors.fleetAccent),
         ],
       ),
     );
@@ -214,7 +216,7 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
   Widget _summaryChip(String label, int count, Color color) {
     return Row(
       children: [
-        Text('$label: ', style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
+        Text('$label: ', style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
         Text('$count', style: KTTextStyles.label.copyWith(color: color, fontWeight: FontWeight.w700)),
       ],
     );
@@ -259,11 +261,11 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
         statusLabel = 'Started';
         break;
       case 'LOADING':
-        statusColor = KTColors.amber500;
+        statusColor = KTColors.fleetAccent;
         statusLabel = 'Loading';
         break;
       case 'UNLOADING':
-        statusColor = KTColors.amber500;
+        statusColor = KTColors.fleetAccent;
         statusLabel = 'Unloading';
         break;
       case 'COMPLETED':
@@ -275,7 +277,7 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
         statusLabel = 'Cancelled';
         break;
       default:
-        statusColor = KTColors.darkTextSecondary;
+        statusColor = KTColors.textMuted;
         statusLabel = status.replaceAll('_', ' ');
     }
 
@@ -284,14 +286,14 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: KTColors.navy800,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isDelayed
-                ? KTColors.amber500.withValues(alpha: 0.5)
+                ? KTColors.fleetAccent.withValues(alpha: 0.5)
                 : (isCompleted && !paymentApproved && driverPay > 0)
                     ? KTColors.success.withValues(alpha: 0.4)
-                    : KTColors.navy700,
+                    : KTColors.borderColor,
           ),
         ),
         child: Column(
@@ -302,7 +304,7 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(tripNumber,
-                    style: KTTextStyles.mono.copyWith(color: KTColors.amber500, fontWeight: FontWeight.w700)),
+                    style: KTTextStyles.mono.copyWith(color: KTColors.fleetAccent, fontWeight: FontWeight.w700)),
                 KTStatusBadge(label: statusLabel, color: statusColor),
               ],
             ),
@@ -311,14 +313,14 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
             // Row 2: Driver + Vehicle
             Row(
               children: [
-                const Icon(Icons.person_outline, size: 14, color: KTColors.darkTextSecondary),
+                const Icon(Icons.person_outline, size: 14, color: KTColors.textMuted),
                 const SizedBox(width: 4),
                 Text(driverName.isNotEmpty ? driverName : '—',
-                    style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+                    style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
                 const SizedBox(width: 16),
-                const Icon(Icons.local_shipping_outlined, size: 14, color: KTColors.darkTextSecondary),
+                const Icon(Icons.local_shipping_outlined, size: 14, color: KTColors.textMuted),
                 const SizedBox(width: 4),
-                Text(vehicleNo, style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+                Text(vehicleNo, style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
               ],
             ),
             const SizedBox(height: 8),
@@ -328,16 +330,16 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
               children: [
                 Expanded(
                   child: Text(origin,
-                      style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                      style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                       overflow: TextOverflow.ellipsis),
                 ),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8),
-                  child: Icon(Icons.arrow_forward, size: 16, color: KTColors.amber500),
+                  child: Icon(Icons.arrow_forward, size: 16, color: KTColors.fleetAccent),
                 ),
                 Expanded(
                   child: Text(destination,
-                      style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                      style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right),
                 ),
@@ -346,12 +348,12 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
             if (eta.isNotEmpty) ...[              const SizedBox(height: 6),
               Row(
                 children: [
-                  Icon(Icons.schedule, size: 13, color: isDelayed ? KTColors.amber500 : KTColors.darkTextSecondary),
+                  Icon(Icons.schedule, size: 13, color: isDelayed ? KTColors.fleetAccent : KTColors.textMuted),
                   const SizedBox(width: 4),
                   Text(
                     'ETA: $eta${isDelayed ? ' · DELAYED' : ''}',
                     style: KTTextStyles.caption.copyWith(
-                      color: isDelayed ? KTColors.amber500 : KTColors.darkTextSecondary,
+                      color: isDelayed ? KTColors.fleetAccent : KTColors.textMuted,
                       fontWeight: isDelayed ? FontWeight.w700 : FontWeight.w400,
                     ),
                   ),
@@ -397,12 +399,12 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: KTColors.darkElevated,
-        title: const Text('Approve Trip Completion', style: TextStyle(color: KTColors.textPrimary)),
+        backgroundColor: KTColors.surface,
+        title: const Text('Approve Trip Completion', style: TextStyle(color: KTColors.textHeading)),
         content: Text(
           'Approve payment of ₹${((trip['driver_pay'] as num? ?? 0)).toStringAsFixed(0)} '
           'for driver ${trip['driver_name'] ?? '—'}?\n\nThis will send the payment to the accountant queue.',
-          style: const TextStyle(color: KTColors.textSecondary),
+          style: const TextStyle(color: KTColors.textMuted),
         ),
         actions: [
           TextButton(
@@ -443,7 +445,7 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
     final tripId = trip['id'];
     showModalBottomSheet(
       context: context,
-      backgroundColor: KTColors.navy800,
+      backgroundColor: KTColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -458,7 +460,7 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: KTColors.navy700,
+                  color: KTColors.borderColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -466,12 +468,12 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
             const SizedBox(height: 16),
             Text(
               'Trip ${trip['trip_number'] ?? '#$tripId'}',
-              style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary),
+              style: KTTextStyles.h2.copyWith(color: KTColors.textHeading),
             ),
             const SizedBox(height: 4),
             Text(
               '${trip['origin'] ?? '—'} → ${trip['destination'] ?? '—'}',
-              style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary),
+              style: KTTextStyles.body.copyWith(color: KTColors.textMuted),
             ),
             const SizedBox(height: 24),
             Row(

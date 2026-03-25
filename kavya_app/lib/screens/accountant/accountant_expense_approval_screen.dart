@@ -179,7 +179,7 @@ class _AccountantExpenseApprovalScreenState
                   );
                 }
                 return RefreshIndicator(
-                  color: KTColors.primary,
+                  color: KTColors.acctAccent,
                   onRefresh: () async => _invalidateAll(),
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
@@ -230,7 +230,7 @@ class _ExpenseCard extends StatelessWidget {
       case 'rejected':
         return KTColors.danger;
       case 'paid':
-        return KTColors.primary;
+        return KTColors.acctAccent;
       default:
         return KTColors.warning;
     }
@@ -292,7 +292,7 @@ class _ExpenseCard extends StatelessWidget {
             if (date.toString().isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(date.toString().split('T').first,
-                  style: KTTextStyles.bodySmall.copyWith(color: KTColors.textSecondary)),
+                  style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
             ],
             if (tab == 'pending') ...[
               const SizedBox(height: 16),
@@ -324,7 +324,7 @@ class _ExpenseCard extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: KTColors.primary),
+                  style: ElevatedButton.styleFrom(backgroundColor: KTColors.acctAccent),
                   onPressed: onMarkPaid,
                   icon: const Icon(Icons.payment, size: 18),
                   label: const Text('Mark as Paid'),

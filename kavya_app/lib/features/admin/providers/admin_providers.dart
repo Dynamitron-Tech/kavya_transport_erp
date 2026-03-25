@@ -72,9 +72,26 @@ final adminPayablesSummaryProvider =
   return [];
 });
 
-// ─── Operations (Jobs — no role filter) ─────────────────────────────────────
+// ─── Operations (Trips) ──────────────────────────────────────────────────────
 
 final adminOpsFilterProvider = StateProvider<String?>((ref) => null);
+
+final adminOperationsTripsProvider =
+    FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final status = ref.watch(adminOpsFilterProvider);
+  final api = ref.read(apiServiceProvider);
+  final response = await api.get('/trips', queryParameters: {
+    if (status != null) 'status': status,
+    'limit': 50,
+  });
+  if (response is Map && response['data'] is List) {
+    return response['data'] as List<dynamic>;
+  }
+  if (response is List) return response;
+  return [];
+});
+
+// ─── Operations (Jobs — legacy, unused in UI) ─────────────────────────────────────
 
 final adminOperationsJobsProvider =
     FutureProvider.autoDispose<List<dynamic>>((ref) async {

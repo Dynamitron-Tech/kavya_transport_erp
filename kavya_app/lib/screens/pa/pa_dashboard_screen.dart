@@ -10,7 +10,7 @@ import '../../core/widgets/notification_bell_widget.dart';
 import '../../providers/auth_provider.dart';
 import 'pa_providers.dart';
 
-const _kPaAccent = Color(0xFFDC4B2A);
+const _kPaAccent = KTColors.paAccent;
 
 class PADashboardScreen extends ConsumerStatefulWidget {
   const PADashboardScreen({super.key});
@@ -42,10 +42,10 @@ class _PADashboardScreenState extends ConsumerState<PADashboardScreen> {
     final actionsAsync = ref.watch(paPriorityActionsProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       body: RefreshIndicator(
         color: _kPaAccent,
-        backgroundColor: KTColors.darkSurface,
+        backgroundColor: KTColors.surface,
         onRefresh: () async {
           ref.invalidate(paDashboardStatsProvider);
           ref.invalidate(paPriorityActionsProvider);
@@ -55,9 +55,9 @@ class _PADashboardScreenState extends ConsumerState<PADashboardScreen> {
           slivers: [
             // ── Collapsible header ──────────────────────────────────────
             SliverAppBar(
-              expandedHeight: 110,
+              expandedHeight: 130,
               pinned: true,
-              backgroundColor: KTColors.darkSurface,
+              backgroundColor: KTColors.surface,
               surfaceTintColor: Colors.transparent,
               flexibleSpace: FlexibleSpaceBar(
                 collapseMode: CollapseMode.pin,
@@ -66,8 +66,8 @@ class _PADashboardScreenState extends ConsumerState<PADashboardScreen> {
               actions: [
                 const NotificationBellWidget(),
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: KTColors.darkTextSecondary),
-                  color: KTColors.darkSurface,
+                  icon: const Icon(Icons.more_vert, color: KTColors.textMuted),
+                  color: KTColors.surface,
                   onSelected: (v) {
                     if (v == 'logout') ref.read(authProvider.notifier).logout();
                   },
@@ -155,7 +155,7 @@ class _PADashboardScreenState extends ConsumerState<PADashboardScreen> {
                   const SizedBox(width: 8),
                   Text('Priority Actions',
                       style: KTTextStyles.h3
-                          .copyWith(color: KTColors.darkTextPrimary)),
+                          .copyWith(color: KTColors.textHeading)),
                 ]),
               ),
             ),
@@ -182,7 +182,7 @@ class _PADashboardScreenState extends ConsumerState<PADashboardScreen> {
                           const SizedBox(height: 12),
                           Text('All caught up!',
                               style: KTTextStyles.body
-                                  .copyWith(color: KTColors.darkTextSecondary)),
+                                  .copyWith(color: KTColors.textMuted)),
                         ]),
                       ),
                     ),
@@ -211,9 +211,9 @@ class _PADashboardScreenState extends ConsumerState<PADashboardScreen> {
 
 // ── Header Banner ─────────────────────────────────────────────────────────────
 
-class _PAHeaderBanner extends StatelessWidget {
+class _PAHeaderBanner extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final now = DateTime.now();
     final months = [
       'Jan','Feb','Mar','Apr','May','Jun',
@@ -223,9 +223,13 @@ class _PAHeaderBanner extends StatelessWidget {
     final dateStr =
         '${weekdays[now.weekday - 1]} ${now.day} ${months[now.month - 1]} ${now.year}';
 
+    final user = ref.watch(authProvider).user;
+    final firstName = (user?.name ?? '').split(' ').first;
+    final greeting = firstName.isNotEmpty ? 'Welcome, $firstName 👋' : 'Welcome 👋';
+
     return Container(
       decoration: BoxDecoration(
-        color: KTColors.darkSurface,
+        color: KTColors.surface,
         border: Border(
           bottom: BorderSide(color: _kPaAccent.withValues(alpha: 0.4), width: 1.5),
         ),
@@ -239,6 +243,11 @@ class _PAHeaderBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                Text(greeting,
+                    style: KTTextStyles.bodySmall.copyWith(
+                        color: KTColors.textMuted,
+                        fontWeight: FontWeight.w500)),
+                const SizedBox(height: 2),
                 Row(children: [
                   Container(
                     width: 7,
@@ -256,7 +265,7 @@ class _PAHeaderBanner extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text('Operations Hub',
                     style: KTTextStyles.h1
-                        .copyWith(color: KTColors.darkTextPrimary)),
+                        .copyWith(color: KTColors.textHeading)),
               ],
             ),
           ),
@@ -266,7 +275,7 @@ class _PAHeaderBanner extends StatelessWidget {
             children: [
               Text(dateStr,
                   style: KTTextStyles.caption
-                      .copyWith(color: KTColors.darkTextSecondary)),
+                      .copyWith(color: KTColors.textMuted)),
             ],
           ),
         ],
@@ -329,7 +338,7 @@ class _KPIScrollRow extends StatelessWidget {
               margin: const EdgeInsets.only(right: 10),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: KTColors.darkSurface,
+                color: KTColors.surface,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: (k.$3 as Color).withValues(alpha: 0.3)),
               ),
@@ -341,7 +350,7 @@ class _KPIScrollRow extends StatelessWidget {
                   Text(
                     k.$1 as String,
                     style: KTTextStyles.kpiNumber.copyWith(
-                        color: KTColors.darkTextPrimary, fontSize: 26),
+                        color: KTColors.textHeading, fontSize: 26),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -429,7 +438,7 @@ class _TimelineActionCard extends StatelessWidget {
                   Expanded(
                     child: Container(
                         width: 1.5,
-                        color: KTColors.darkBorder),
+                        color: KTColors.borderColor),
                   ),
               ],
             ),
@@ -443,9 +452,9 @@ class _TimelineActionCard extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: KTColors.darkSurface,
+                  color: KTColors.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: KTColors.darkBorder),
+                  border: Border.all(color: KTColors.borderColor),
                 ),
                 child: Row(
                   children: [
@@ -474,7 +483,7 @@ class _TimelineActionCard extends StatelessWidget {
                               child: Text(
                                 action['job_number'] ?? '',
                                 style: KTTextStyles.bodySmall.copyWith(
-                                    color: KTColors.darkTextSecondary),
+                                    color: KTColors.textMuted),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -483,7 +492,7 @@ class _TimelineActionCard extends StatelessWidget {
                           Text(
                             action['client_name'] ?? action['lr_number'] ?? '',
                             style: KTTextStyles.body.copyWith(
-                                color: KTColors.darkTextPrimary,
+                                color: KTColors.textHeading,
                                 fontWeight: FontWeight.w600),
                           ),
                           if ((action['origin'] as String?)?.isNotEmpty == true)
@@ -492,7 +501,7 @@ class _TimelineActionCard extends StatelessWidget {
                               child: Text(
                                 '${action['origin']} → ${action['destination'] ?? ''}',
                                 style: KTTextStyles.caption.copyWith(
-                                    color: KTColors.darkTextSecondary),
+                                    color: KTColors.textMuted),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -500,7 +509,7 @@ class _TimelineActionCard extends StatelessWidget {
                       ),
                     ),
                     const Icon(Icons.chevron_right,
-                        color: KTColors.darkTextSecondary, size: 18),
+                        color: KTColors.textMuted, size: 18),
                   ],
                 ),
               ),

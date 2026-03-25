@@ -34,10 +34,10 @@ class DriverTileWidget extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: KTColors.darkElevated,
+            color: KTColors.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? KTColors.primary : KTColors.darkBorder,
+              color: isSelected ? KTColors.managerAccent : KTColors.borderColor,
               width: isSelected ? 2 : 1,
             ),
           ),
@@ -53,10 +53,10 @@ class DriverTileWidget extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                    Text(name, style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
                     Text(
                       [if (license.isNotEmpty) 'Lic: $license', if (phone.isNotEmpty) phone].join(' · '),
-                      style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
+                      style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted),
                     ),
                   ],
                 ),

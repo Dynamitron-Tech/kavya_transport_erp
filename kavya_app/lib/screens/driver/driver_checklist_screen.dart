@@ -48,9 +48,9 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
   Widget build(BuildContext context) {
     final s = ref.watch(sProvider);
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
+        backgroundColor: KTColors.surface,
         title: Text(
           _selectedTripId == null ? 'Select Trip' : s.checklist,
           style: const TextStyle(color: KTColors.textPrimary),
@@ -133,9 +133,9 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: KTColors.darkElevated,
+          color: KTColors.lightBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: KTColors.darkBorder),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: Row(
           children: [
@@ -143,11 +143,11 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: KTColors.primary.withValues(alpha: 0.12),
+                color: KTColors.driverAccent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.local_shipping_rounded,
-                  color: KTColors.primary, size: 22),
+                  color: KTColors.driverAccent, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -186,7 +186,7 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
         color = const Color(0xFF3B82F6);
         break;
       case 'started':
-        color = KTColors.primary;
+        color = KTColors.driverAccent;
         break;
       case 'loading':
         color = KTColors.warning;
@@ -227,21 +227,21 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: KTColors.primary.withValues(alpha: 0.08),
+                color: KTColors.driverAccent.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: KTColors.primary.withValues(alpha: 0.3)),
+                border: Border.all(color: KTColors.driverAccent.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
                   const Icon(Icons.local_shipping_outlined,
-                      color: KTColors.primary, size: 16),
+                      color: KTColors.driverAccent, size: 16),
                   const SizedBox(width: 8),
                   Text(
                     'Trip: $_selectedTripNumber',
                     style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: KTColors.primary),
+                        color: KTColors.driverAccent),
                   ),
                 ],
               ),
@@ -272,9 +272,9 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
-              color: KTColors.darkElevated,
+              color: KTColors.lightBg,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: KTColors.darkBorder),
+              border: Border.all(color: KTColors.borderColor),
             ),
             child: TextField(
               controller: _notesCtrl,
@@ -331,24 +331,24 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
         decoration: BoxDecoration(
-          color: selected ? KTColors.primary.withValues(alpha: 0.15) : KTColors.darkElevated,
+          color: selected ? KTColors.driverAccent.withValues(alpha: 0.15) : KTColors.lightBg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? KTColors.primary : KTColors.darkBorder,
+            color: selected ? KTColors.driverAccent : KTColors.borderColor,
             width: selected ? 2 : 1,
           ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: selected ? KTColors.primary : KTColors.textMuted, size: 30),
+            Icon(icon, color: selected ? KTColors.driverAccent : KTColors.textMuted, size: 30),
             const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: selected ? KTColors.primary : KTColors.textSecondary,
+                color: selected ? KTColors.driverAccent : KTColors.textSecondary,
                 letterSpacing: 0.3,
               ),
             ),
@@ -367,9 +367,9 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KTColors.darkElevated,
+        color: KTColors.lightBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: KTColors.darkBorder),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         children: [
@@ -382,7 +382,7 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: _allDone ? KTColors.success : KTColors.primary,
+                  color: _allDone ? KTColors.success : KTColors.driverAccent,
                 ),
               ),
             ],
@@ -393,8 +393,8 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 8,
-              backgroundColor: KTColors.navy700,
-              valueColor: AlwaysStoppedAnimation<Color>(_allDone ? KTColors.success : KTColors.primary),
+              backgroundColor: KTColors.borderColor,
+              valueColor: AlwaysStoppedAnimation<Color>(_allDone ? KTColors.success : KTColors.driverAccent),
             ),
           ),
         ],
@@ -410,10 +410,10 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
       decoration: BoxDecoration(
         color: isDone
             ? KTColors.success.withValues(alpha: 0.08)
-            : KTColors.darkElevated,
+            : KTColors.lightBg,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDone ? KTColors.success.withValues(alpha: 0.4) : KTColors.darkBorder,
+          color: isDone ? KTColors.success.withValues(alpha: 0.4) : KTColors.borderColor,
         ),
       ),
       child: Row(

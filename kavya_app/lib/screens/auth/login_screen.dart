@@ -22,10 +22,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
-  static const _bg1 = Color(0xFF060F1E);
-  static const _bg2 = Color(0xFF0D1B31);
-  static const _bg3 = Color(0xFF0A1628);
-  static const _orange = Color(0xFFE8521A);
+  static const _bg1 = Color(0xFF050D1F);
+  static const _bg2 = Color(0xFF0A1535);
+  static const _bg3 = Color(0xFF071030);
+  static const _orange = Color(0xFF60A5FA);
   static const _navy = Color(0xFF0D1F3C);
 
   late final AnimationController _entranceCtrl;
@@ -149,7 +149,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 left: -60,
                 child: _glowBlob(
                   200 + _glowPulse.value * 30,
-                  Color(0xFF3B2A6E)
+                  Color(0xFF1D4ED8)
                       .withValues(alpha: 0.22 + _glowPulse.value * 0.06),
                 ),
               ),
@@ -158,7 +158,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 right: -80,
                 child: _glowBlob(
                   160 + _glowPulse.value * 20,
-                  Color(0xFF1A3A7A)
+                  Color(0xFF1E3A8A)
                       .withValues(alpha: 0.18 + _glowPulse.value * 0.05),
                 ),
               ),
@@ -176,7 +176,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 right: -40,
                 child: _glowBlob(
                   170,
-                  const Color(0xFF0D4F6E).withValues(alpha: 0.18),
+                  const Color(0xFF1E40AF).withValues(alpha: 0.18),
                 ),
               ),
             ]),
@@ -418,7 +418,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               gradient: const LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
-                                colors: [_orange, Color(0xFFC04010)],
+                                colors: [_orange, Color(0xFF2563EB)],
                               ),
                               borderRadius: BorderRadius.circular(2),
                             ),
@@ -500,8 +500,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 decoration: BoxDecoration(
                                   gradient: const LinearGradient(
                                     colors: [
-                                      Color(0xFFE8521A),
-                                      Color(0xFFC04010)
+                                      Color(0xFF60A5FA),
+                                      Color(0xFF2563EB)
                                     ],
                                   ),
                                   borderRadius: BorderRadius.circular(6),
@@ -714,7 +714,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   height: 50,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                        colors: [Color(0xFFE8521A), Color(0xFFC04010)]),
+                        colors: [Color(0xFF60A5FA), Color(0xFF2563EB)]),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
@@ -809,7 +809,7 @@ class _RoadPainter extends CustomPainter {
       final y = (by + progress * size.height * spd * 0.12) % size.height;
       final a = (0.02 + rng.nextDouble() * 0.05) *
           (1.0 - y / size.height).clamp(0.0, 1.0);
-      pp.color = Colors.white.withValues(alpha: a);
+      pp.color = Color(0xFF93C5FD).withValues(alpha: a);
       canvas.drawCircle(Offset(bx, y), r, pp);
     }
     const dw = 18.0;
@@ -869,7 +869,7 @@ class _GlossyInputState extends State<_GlossyInput>
     with SingleTickerProviderStateMixin {
   final _focus = FocusNode();
   late final AnimationController _focusCtrl;
-  static const _orange = Color(0xFFE8521A);
+  static const _orange = Color(0xFF60A5FA);
 
   @override
   void initState() {
@@ -930,7 +930,13 @@ class _GlossyInputState extends State<_GlossyInput>
                       color: Colors.white.withValues(alpha: 0.35),
                       fontSize: 14,
                     ),
+                    filled: true,
+                    fillColor: Colors.transparent,
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
                     contentPadding:
                         const EdgeInsets.symmetric(vertical: 15),
                     errorStyle: TextStyle(

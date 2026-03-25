@@ -21,11 +21,13 @@ class ManagerApprovalsScreen extends ConsumerWidget {
     final approvalsAsync = ref.watch(managerApprovalsProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: KTColors.darkTextPrimary), onPressed: () => context.pop()),
-        title: Text('Approvals', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: KTColors.textHeading), onPressed: () => context.pop()),
+        title: Text('Approvals', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
       ),
       body: Column(
         children: [
@@ -43,9 +45,9 @@ class ManagerApprovalsScreen extends ConsumerWidget {
                   child: ChoiceChip(
                     label: Text(_typeLabels[i]),
                     selected: sel,
-                    selectedColor: KTColors.primary,
-                    backgroundColor: KTColors.darkElevated,
-                    labelStyle: TextStyle(color: sel ? Colors.white : KTColors.darkTextSecondary, fontSize: 13),
+                    selectedColor: KTColors.managerAccent,
+                    backgroundColor: KTColors.surface,
+                    labelStyle: TextStyle(color: sel ? Colors.white : KTColors.textMuted, fontSize: 13),
                     onSelected: (_) => ref.read(managerApprovalTypeProvider.notifier).state = _types[i],
                     side: BorderSide.none,
                   ),
@@ -57,8 +59,8 @@ class ManagerApprovalsScreen extends ConsumerWidget {
           // ── Approvals list ───────────────────────
           Expanded(
             child: RefreshIndicator(
-              color: KTColors.primary,
-              backgroundColor: KTColors.darkSurface,
+              color: KTColors.managerAccent,
+              backgroundColor: KTColors.surface,
               onRefresh: () async => ref.invalidate(managerApprovalsProvider),
               child: approvalsAsync.when(
                 loading: () => const KTLoadingShimmer(type: ShimmerType.list),
@@ -71,7 +73,7 @@ class ManagerApprovalsScreen extends ConsumerWidget {
                         children: [
                           const Icon(Icons.check_circle_outline, color: KTColors.success, size: 48),
                           const SizedBox(height: 12),
-                          Text('No pending approvals', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                          Text('No pending approvals', style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                         ],
                       ),
                     );
@@ -104,9 +106,9 @@ class ManagerApprovalsScreen extends ConsumerWidget {
       final type = item['type'] ?? '';
       final id = item['id'];
       if (type == 'expense') {
-        await api.patch('/expenses/$id/approve');
+        await api.patch('/expenses/$id/status', data: {'status': 'approved'});
       } else {
-        await api.patch('/banking/$id/reconcile');
+        await api.patch('/banking/entries/$id', data: {'reconciled': true});
       }
       ref.invalidate(managerApprovalsProvider);
       ref.invalidate(managerDashboardStatsProvider);
@@ -129,22 +131,22 @@ class ManagerApprovalsScreen extends ConsumerWidget {
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: KTColors.darkSurface,
-        title: Text('Reject', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        title: Text('Reject', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
         content: TextField(
           controller: reasonCtrl,
           maxLines: 3,
-          style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+          style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
           decoration: InputDecoration(
             hintText: 'Reason for rejection (required)',
-            hintStyle: TextStyle(color: KTColors.darkTextSecondary),
+            hintStyle: TextStyle(color: KTColors.textMuted),
             filled: true,
-            fillColor: KTColors.darkElevated,
+            fillColor: KTColors.surface,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: TextStyle(color: KTColors.darkTextSecondary))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: TextStyle(color: KTColors.textMuted))),
           TextButton(
             onPressed: () {
               if (reasonCtrl.text.trim().isNotEmpty) Navigator.pop(ctx, reasonCtrl.text.trim());
@@ -162,7 +164,7 @@ class ManagerApprovalsScreen extends ConsumerWidget {
         final type = item['type'] ?? '';
         final id = item['id'];
         if (type == 'expense') {
-          await api.patch('/expenses/$id/reject', data: {'reason': result});
+          await api.patch('/expenses/$id/status', data: {'status': 'rejected', 'reason': result});
         }
         ref.invalidate(managerApprovalsProvider);
         ref.invalidate(managerDashboardStatsProvider);

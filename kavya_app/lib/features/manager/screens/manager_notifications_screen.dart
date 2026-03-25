@@ -16,11 +16,13 @@ class ManagerNotificationsScreen extends ConsumerWidget {
     final notifAsync = ref.watch(managerNotificationsProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: KTColors.darkTextPrimary), onPressed: () => context.pop()),
-        title: Text('Notifications', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: KTColors.textHeading), onPressed: () => context.pop()),
+        title: Text('Notifications', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
         actions: [
           TextButton(
             onPressed: () async {
@@ -30,13 +32,13 @@ class ManagerNotificationsScreen extends ConsumerWidget {
                 ref.invalidate(managerNotificationsProvider);
               } catch (_) {}
             },
-            child: Text('Mark all read', style: TextStyle(color: KTColors.primary, fontSize: 13)),
+            child: Text('Mark all read', style: TextStyle(color: KTColors.managerAccent, fontSize: 13)),
           ),
         ],
       ),
       body: RefreshIndicator(
-        color: KTColors.primary,
-        backgroundColor: KTColors.darkSurface,
+        color: KTColors.managerAccent,
+        backgroundColor: KTColors.surface,
         onRefresh: () async => ref.invalidate(managerNotificationsProvider),
         child: notifAsync.when(
           loading: () => const KTLoadingShimmer(type: ShimmerType.list),
@@ -47,9 +49,9 @@ class ManagerNotificationsScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.notifications_none, color: KTColors.darkTextSecondary, size: 48),
+                    const Icon(Icons.notifications_none, color: KTColors.textMuted, size: 48),
                     const SizedBox(height: 12),
-                    Text('No notifications', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                    Text('No notifications', style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                   ],
                 ),
               );
@@ -122,69 +124,81 @@ class _NotificationTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: isRead ? KTColors.darkElevated : KTColors.darkElevated.withOpacity(0.8),
+            color: isRead ? KTColors.surface : KTColors.surface.withOpacity(0.8),
             borderRadius: BorderRadius.circular(12),
-            border: Border(left: BorderSide(color: borderColor, width: borderColor == Colors.transparent ? 0 : 3)),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Icon ────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: KTColors.primary.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  _iconForType(notification['type']?.toString() ?? ''),
-                  color: KTColors.primary,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 12),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(width: borderColor == Colors.transparent ? 0 : 3, color: borderColor),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Icon ────────────────────────────
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: KTColors.managerAccent.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            _iconForType(notification['type']?.toString() ?? ''),
+                            color: KTColors.managerAccent,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
 
-              // ── Content ─────────────────────────
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      notification['title'] ?? 'Notification',
-                      style: KTTextStyles.body.copyWith(
-                        color: KTColors.darkTextPrimary,
-                        fontWeight: isRead ? FontWeight.normal : FontWeight.w600,
-                      ),
-                    ),
-                    if ((notification['message'] ?? '').toString().isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        notification['message'].toString(),
-                        style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 6),
-                    Text(
-                      _timeAgo(notification['created_at']?.toString()),
-                      style: TextStyle(color: KTColors.darkTextSecondary, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
+                        // ── Content ─────────────────────────
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                notification['title'] ?? 'Notification',
+                                style: KTTextStyles.body.copyWith(
+                                  color: KTColors.textHeading,
+                                  fontWeight: isRead ? FontWeight.normal : FontWeight.w600,
+                                ),
+                              ),
+                              if ((notification['message'] ?? '').toString().isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  notification['message'].toString(),
+                                  style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                              const SizedBox(height: 6),
+                              Text(
+                                _timeAgo(notification['created_at']?.toString()),
+                                style: TextStyle(color: KTColors.textMuted, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
 
-              // ── Unread dot ──────────────────────
-              if (!isRead)
-                Container(
-                  width: 8,
-                  height: 8,
-                  margin: const EdgeInsets.only(top: 4),
-                  decoration: const BoxDecoration(color: KTColors.primary, shape: BoxShape.circle),
+                        // ── Unread dot ──────────────────────
+                        if (!isRead)
+                          Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.only(top: 4),
+                            decoration: const BoxDecoration(color: KTColors.managerAccent, shape: BoxShape.circle),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

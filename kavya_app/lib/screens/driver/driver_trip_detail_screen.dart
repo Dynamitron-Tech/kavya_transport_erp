@@ -215,12 +215,12 @@ class DriverTripDetailScreen extends ConsumerWidget {
         Container(
           height: 220,
           decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
+            color: KTColors.surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: isLiveTracking
                   ? KTColors.success.withValues(alpha: 0.4)
-                  : KTColors.primary.withValues(alpha: 0.2),
+                  : KTColors.driverAccent.withValues(alpha: 0.2),
               width: 1.5,
             ),
           ),
@@ -309,7 +309,7 @@ class DriverTripDetailScreen extends ConsumerWidget {
                           : 'Route map available with Google Maps API',
                       style: const TextStyle(
                         fontSize: 10,
-                        color: Color(0xFF94A3B8),
+                        color: KTColors.textMuted,
                       ),
                     ),
                   ),
@@ -380,7 +380,7 @@ class DriverTripDetailScreen extends ConsumerWidget {
   Widget _infoRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: KTColors.primary),
+        Icon(icon, size: 18, color: KTColors.driverAccent),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -462,7 +462,7 @@ class DriverTripDetailScreen extends ConsumerWidget {
                       showDialog(
                         context: context,
                         builder: (alertCtx) => AlertDialog(
-                          backgroundColor: KTColors.darkSurface,
+                          backgroundColor: KTColors.surface,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
                           title: Row(
@@ -494,7 +494,7 @@ class DriverTripDetailScreen extends ConsumerWidget {
                                 context.push('/driver/checklist');
                               },
                               style: ElevatedButton.styleFrom(
-                                  backgroundColor: KTColors.primary,
+                                  backgroundColor: KTColors.driverAccent,
                                   foregroundColor: Colors.black,
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8))),
@@ -538,7 +538,7 @@ class DriverTripDetailScreen extends ConsumerWidget {
       case 'ready': return KTColors.info;
       case 'pending': return KTColors.warning;
       case 'started': return const Color(0xFF3B82F6);
-      case 'in_transit': return KTColors.primary;
+      case 'in_transit': return KTColors.driverAccent;
       case 'loading': return KTColors.warning;
       case 'unloading': return const Color(0xFFF59E0B);
       case 'completed': return KTColors.success;
@@ -556,7 +556,7 @@ class _RoutePlaceholderPainter extends CustomPainter {
     final paint = Paint()
       ..color = isLive
           ? KTColors.success.withValues(alpha: 0.25)
-          : KTColors.primary.withValues(alpha: 0.15)
+          : KTColors.driverAccent.withValues(alpha: 0.15)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
@@ -590,7 +590,7 @@ class _RoutePlaceholderPainter extends CustomPainter {
 
     // Draw subtle grid dots
     final dotPaint = Paint()
-      ..color = const Color(0xFF334155).withValues(alpha: 0.3)
+      ..color = KTColors.borderColor.withValues(alpha: 0.3)
       ..style = PaintingStyle.fill;
 
     for (double x = 20; x < size.width; x += 40) {

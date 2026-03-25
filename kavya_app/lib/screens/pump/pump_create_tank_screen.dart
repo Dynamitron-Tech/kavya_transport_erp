@@ -16,12 +16,12 @@ class PumpCreateTankScreen extends ConsumerStatefulWidget {
 }
 
 class _PumpCreateTankScreenState extends ConsumerState<PumpCreateTankScreen> {
-  static const _bg = Color(0xFF0F172A);
-  static const _card = Color(0xFF334155);
-  static const _amber = Color(0xFFFBBF24);
+  static const _bg = Color(0xFFF7F9FC);
+  static const _card = Color(0xFFFFFFFF);
+  static const _amber = Color(0xFFEA580C);
   static const _emerald = Color(0xFF10B981);
-  static const _textPrimary = Color(0xFFF8FAFC);
-  static const _textSecondary = Color(0xFF94A3B8);
+  static const _textPrimary = Color(0xFF0D1B2A);
+  static const _textSecondary = Color(0xFF8494A4);
 
   final _formKey = GlobalKey<FormState>();
   final _api = ApiService();
@@ -50,11 +50,12 @@ class _PumpCreateTankScreenState extends ConsumerState<PumpCreateTankScreen> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B),
-        foregroundColor: _textPrimary,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0D1B2A),
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
         title: const Text('Create Fuel Tank',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -223,11 +224,11 @@ class _PumpCreateTankScreenState extends ConsumerState<PumpCreateTankScreen> {
         fillColor: _card,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderSide: BorderSide(color: const Color(0xFFE8EEF4)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderSide: BorderSide(color: const Color(0xFFE8EEF4)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -267,7 +268,7 @@ class _PumpCreateTankScreenState extends ConsumerState<PumpCreateTankScreen> {
                     : _card,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: selected ? color : Colors.white.withValues(alpha: 0.1),
+                  color: selected ? color : const Color(0xFFE8EEF4),
                   width: selected ? 1.5 : 1,
                 ),
               ),

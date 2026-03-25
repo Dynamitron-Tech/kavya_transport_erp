@@ -31,22 +31,23 @@ class AdminDriverDetailScreen extends ConsumerWidget {
     final detail = ref.watch(_driverDetailProvider(driverId));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
+        backgroundColor: KTColors.surface,
+        elevation: 0.5,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: KTColors.textHeading),
           onPressed: () => context.pop(),
         ),
         title: const Text('Driver detail',
-            style: TextStyle(color: KTColors.darkTextPrimary)),
+            style: TextStyle(color: KTColors.textHeading)),
       ),
       body: detail.when(
         data: (d) {
           if (d.isEmpty) {
             return const Center(
                 child: Text('Driver not found',
-                    style: TextStyle(color: KTColors.darkTextSecondary)));
+                    style: TextStyle(color: KTColors.textMuted)));
           }
           return RefreshIndicator(
             onRefresh: () async =>
@@ -55,10 +56,10 @@ class AdminDriverDetailScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(
-            child: CircularProgressIndicator(color: KTColors.amber600)),
+            child: CircularProgressIndicator(color: KTColors.primary)),
         error: (e, _) => Center(
             child: Text('Error: $e',
-                style: const TextStyle(color: KTColors.darkTextSecondary))),
+                style: const TextStyle(color: KTColors.textMuted))),
       ),
     );
   }
@@ -90,8 +91,9 @@ class AdminDriverDetailScreen extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: KTColors.darkSurface,
+            color: KTColors.surface,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: KTColors.borderColor),
           ),
           child: Column(
             children: [
@@ -111,7 +113,7 @@ class AdminDriverDetailScreen extends ConsumerWidget {
               const SizedBox(height: 10),
               Text(name,
                   style: const TextStyle(
-                      color: KTColors.darkTextPrimary,
+                      color: KTColors.textHeading,
                       fontSize: 18,
                       fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
@@ -155,28 +157,40 @@ class AdminDriverDetailScreen extends ConsumerWidget {
               if (tripId != null) context.push('/admin/trips/$tripId');
             },
             child: Container(
-              padding: const EdgeInsets.all(12),
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                color: KTColors.darkSurface,
+                color: KTColors.surface,
                 borderRadius: BorderRadius.circular(10),
-                border:
-                    const Border(left: BorderSide(color: KTColors.info, width: 3)),
+                border: Border.all(color: KTColors.borderColor),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${currentTrip['origin'] ?? '—'} → ${currentTrip['destination'] ?? '—'}',
-                    style: const TextStyle(
-                        color: KTColors.darkTextPrimary, fontSize: 13),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Vehicle: ${currentTrip['vehicle_registration'] ?? currentTrip['vehicle_number'] ?? '—'}',
-                    style: const TextStyle(
-                        color: KTColors.darkTextSecondary, fontSize: 12),
-                  ),
-                ],
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(width: 3, color: KTColors.info),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${currentTrip['origin'] ?? '—'} → ${currentTrip['destination'] ?? '—'}',
+                              style: const TextStyle(
+                                  color: KTColors.textHeading, fontSize: 13),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Vehicle: ${currentTrip['vehicle_registration'] ?? currentTrip['vehicle_number'] ?? '—'}',
+                              style: const TextStyle(
+                                  color: KTColors.textMuted, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -197,8 +211,9 @@ class AdminDriverDetailScreen extends ConsumerWidget {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: KTColors.darkSurface,
+                  color: KTColors.surface,
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: KTColors.borderColor),
                 ),
                 child: Row(
                   children: [
@@ -209,17 +224,17 @@ class AdminDriverDetailScreen extends ConsumerWidget {
                           Text(
                             '${m['origin'] ?? '—'} → ${m['destination'] ?? '—'}',
                             style: const TextStyle(
-                                color: KTColors.darkTextPrimary, fontSize: 13),
+                                color: KTColors.textHeading, fontSize: 13),
                           ),
                           Text(_fmtDate(m['start_date'] ?? m['created_at']),
                               style: const TextStyle(
-                                  color: KTColors.darkTextSecondary,
+                                  color: KTColors.textMuted,
                                   fontSize: 11)),
                         ],
                       ),
                     ),
                     const Icon(Icons.chevron_right,
-                        color: KTColors.darkTextSecondary, size: 18),
+                        color: KTColors.textMuted, size: 18),
                   ],
                 ),
               ),
@@ -251,8 +266,9 @@ class AdminDriverDetailScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: KTColors.darkSurface,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,18 +282,18 @@ class AdminDriverDetailScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, color: KTColors.darkTextSecondary, size: 16),
+          Icon(icon, color: KTColors.textMuted, size: 16),
           const SizedBox(width: 8),
           SizedBox(
             width: 100,
             child: Text(label,
                 style: const TextStyle(
-                    color: KTColors.darkTextSecondary, fontSize: 12)),
+                    color: KTColors.textMuted, fontSize: 12)),
           ),
           Expanded(
             child: Text(value,
                 style: const TextStyle(
-                    color: KTColors.darkTextPrimary, fontSize: 13)),
+                    color: KTColors.textBody, fontSize: 13)),
           ),
         ],
       ),
@@ -287,25 +303,38 @@ class AdminDriverDetailScreen extends ConsumerWidget {
   Widget _statCard(String value, String label, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(12),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: KTColors.darkSurface,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border(left: BorderSide(color: color, width: 3)),
+          border: Border.all(color: KTColors.borderColor),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value,
-                style: const TextStyle(
-                    color: KTColors.darkTextPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 2),
-            Text(label,
-                style: const TextStyle(
-                    color: KTColors.darkTextSecondary, fontSize: 11)),
-          ],
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(width: 3, color: color),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(value,
+                          style: const TextStyle(
+                              color: KTColors.textHeading,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Text(label,
+                          style: const TextStyle(
+                              color: KTColors.textMuted, fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -328,7 +357,7 @@ class AdminDriverDetailScreen extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 8),
         child: Text(title,
             style: const TextStyle(
-                color: KTColors.darkTextSecondary,
+                color: KTColors.textMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5)),

@@ -87,17 +87,17 @@ class _PANotificationsScreenState extends ConsumerState<PANotificationsScreen> {
     final notifAsync = ref.watch(_notificationsProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
+        backgroundColor: KTColors.surface,
         title: Text('Notifications',
-            style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
-        leading: const BackButton(color: KTColors.darkTextPrimary),
+            style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
+        leading: const BackButton(color: KTColors.textHeading),
         actions: [
           TextButton(
             onPressed: _markAllRead,
             child: Text('Mark all read',
-                style: KTTextStyles.bodySmall.copyWith(color: KTColors.primary)),
+                style: KTTextStyles.bodySmall.copyWith(color: KTColors.paAccent)),
           ),
         ],
       ),
@@ -113,17 +113,17 @@ class _PANotificationsScreenState extends ConsumerState<PANotificationsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.notifications_none, size: 54, color: KTColors.darkTextSecondary),
+                  const Icon(Icons.notifications_none, size: 54, color: KTColors.textMuted),
                   const SizedBox(height: 12),
                   Text('No notifications yet',
-                      style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                      style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                 ],
               ),
             );
           }
           return RefreshIndicator(
-            color: KTColors.primary,
-            backgroundColor: KTColors.darkSurface,
+            color: KTColors.paAccent,
+            backgroundColor: KTColors.surface,
             onRefresh: () async => ref.invalidate(_notificationsProvider),
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
@@ -184,10 +184,10 @@ class _NotificationTile extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isRead ? KTColors.darkSurface : KTColors.navy800,
+          color: isRead ? KTColors.surface : KTColors.lightBg,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isUrgent ? KTColors.danger.withOpacity(0.5) : KTColors.darkBorder,
+            color: isUrgent ? KTColors.danger.withOpacity(0.5) : KTColors.borderColor,
           ),
         ),
         child: Row(
@@ -197,12 +197,12 @@ class _NotificationTile extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: (isUrgent ? KTColors.danger : KTColors.primary).withOpacity(0.15),
+                color: (isUrgent ? KTColors.danger : KTColors.paAccent).withOpacity(0.15),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 _icon(notif['event_type'] as String?),
-                color: isUrgent ? KTColors.danger : KTColors.primary,
+                color: isUrgent ? KTColors.danger : KTColors.paAccent,
                 size: 18,
               ),
             ),
@@ -218,7 +218,7 @@ class _NotificationTile extends StatelessWidget {
                         child: Text(
                           notif['title'] ?? '',
                           style: KTTextStyles.body.copyWith(
-                            color: KTColors.darkTextPrimary,
+                            color: KTColors.textHeading,
                             fontWeight: isRead ? FontWeight.normal : FontWeight.w600,
                           ),
                         ),
@@ -228,7 +228,7 @@ class _NotificationTile extends StatelessWidget {
                           width: 8,
                           height: 8,
                           decoration: const BoxDecoration(
-                            color: KTColors.primary,
+                            color: KTColors.paAccent,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -237,7 +237,7 @@ class _NotificationTile extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     notif['body'] ?? '',
-                    style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
+                    style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),

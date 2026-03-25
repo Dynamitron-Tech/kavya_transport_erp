@@ -55,25 +55,25 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
   Widget build(BuildContext context) {
     final s = ref.watch(sProvider);
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
+        backgroundColor: KTColors.surface,
         surfaceTintColor: Colors.transparent,
         title: Text(
           s.myVehicle,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: KTColors.darkTextPrimary, letterSpacing: 0.3),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: KTColors.textHeading, letterSpacing: 0.3),
         ),
-        iconTheme: const IconThemeData(color: KTColors.darkTextPrimary),
+        iconTheme: const IconThemeData(color: KTColors.textHeading),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: KTColors.amber500))
+          ? const Center(child: CircularProgressIndicator(color: KTColors.driverAccent))
           : _error != null
               ? _buildError()
               : _vehicle == null
                   ? _buildNoVehicle()
                   : RefreshIndicator(
-                      color: KTColors.amber500,
-                      backgroundColor: KTColors.darkSurface,
+                      color: KTColors.driverAccent,
+                      backgroundColor: KTColors.surface,
                       onRefresh: _loadData,
                       child: ListView(
                         padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
@@ -87,7 +87,7 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
                             padding: const EdgeInsets.only(bottom: 14),
                             child: Text(
                               s.vehicleDocuments,
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: KTColors.darkTextPrimary),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: KTColors.textHeading),
                             ),
                           ),
                           ..._buildDocumentCards(),
@@ -104,13 +104,13 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
         children: [
           Icon(Icons.error_outline, size: 48, color: KTColors.danger.withAlpha(180)),
           const SizedBox(height: 12),
-          Text(_error!, style: const TextStyle(color: KTColors.darkTextSecondary, fontSize: 14)),
+          Text(_error!, style: const TextStyle(color: KTColors.textMuted, fontSize: 14)),
           const SizedBox(height: 16),
           TextButton.icon(
             onPressed: _loadData,
             icon: const Icon(Icons.refresh, size: 18),
             label: const Text('Retry'),
-            style: TextButton.styleFrom(foregroundColor: KTColors.amber500),
+            style: TextButton.styleFrom(foregroundColor: KTColors.driverAccent),
           ),
         ],
       ),
@@ -128,7 +128,7 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: KTColors.darkSurface,
+                color: KTColors.surface,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Icon(Icons.local_shipping_outlined, size: 40, color: KTColors.textMuted),
@@ -136,13 +136,13 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
             const SizedBox(height: 20),
             const Text(
               'No Vehicle Assigned',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: KTColors.darkTextPrimary),
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: KTColors.textHeading),
             ),
             const SizedBox(height: 8),
             const Text(
               'A vehicle will appear here once the admin allocates a trip to you.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13.5, color: KTColors.darkTextSecondary, height: 1.5),
+              style: TextStyle(fontSize: 13.5, color: KTColors.textMuted, height: 1.5),
             ),
           ],
         ),
@@ -166,12 +166,12 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF1B2A4A), Color(0xFF0F172A)],
+          colors: [KTColors.lightBg, KTColors.surface],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: KTColors.amber500.withAlpha(50)),
+        border: Border.all(color: KTColors.driverAccent.withAlpha(50)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -182,10 +182,10 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: KTColors.amber500.withAlpha(25),
+                color: KTColors.driverAccent.withAlpha(25),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.local_shipping_rounded, color: KTColors.amber500, size: 28),
+              child: const Icon(Icons.local_shipping_rounded, color: KTColors.driverAccent, size: 28),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -197,7 +197,7 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: KTColors.darkTextPrimary,
+                      color: KTColors.textHeading,
                       letterSpacing: 1.2,
                       fontFamily: 'monospace',
                     ),
@@ -206,7 +206,7 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(fontSize: 12.5, color: KTColors.darkTextSecondary),
+                      style: const TextStyle(fontSize: 12.5, color: KTColors.textMuted),
                     ),
                   ],
                   if (fuel.toString().isNotEmpty) ...[
@@ -242,13 +242,13 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: KTColors.darkSurface,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: KTColors.darkBorder.withAlpha(100)),
+        border: Border.all(color: KTColors.borderColor.withAlpha(100)),
       ),
       child: Row(
         children: [
-          Icon(Icons.route_outlined, size: 20, color: KTColors.amber500.withAlpha(200)),
+          Icon(Icons.route_outlined, size: 20, color: KTColors.driverAccent.withAlpha(200)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -256,12 +256,12 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
               children: [
                 Text(
                   tripNo,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KTColors.darkTextPrimary),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KTColors.textHeading),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   '$origin → $dest',
-                  style: const TextStyle(fontSize: 12, color: KTColors.darkTextSecondary),
+                  style: const TextStyle(fontSize: 12, color: KTColors.textMuted),
                 ),
               ],
             ),
@@ -330,7 +330,7 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: KTColors.darkSurface,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: !hasDoc
@@ -339,7 +339,7 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
                   ? KTColors.danger.withAlpha(60)
                   : expiryStatus == _ExpiryStatus.expiringSoon
                       ? KTColors.warning.withAlpha(60)
-                      : KTColors.darkBorder,
+                      : KTColors.borderColor,
         ),
       ),
       child: Padding(
@@ -367,7 +367,7 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: hasDoc ? KTColors.darkTextPrimary : KTColors.textMuted,
+                      color: hasDoc ? KTColors.textHeading : KTColors.textMuted,
                       letterSpacing: 0.2,
                     ),
                   ),
@@ -378,7 +378,7 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
                     if (docNumber != null && docNumber.isNotEmpty)
                       Text(
                         docNumber,
-                        style: const TextStyle(fontSize: 12, color: KTColors.darkTextSecondary, fontFamily: 'monospace'),
+                        style: const TextStyle(fontSize: 12, color: KTColors.textMuted, fontFamily: 'monospace'),
                       ),
                     if (expiryLabel.isNotEmpty) ...[
                       const SizedBox(height: 2),
@@ -436,7 +436,7 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
         icon = Icons.schedule;
         break;
       case _ExpiryStatus.valid:
-        color = verified ? KTColors.success : KTColors.amber500;
+        color = verified ? KTColors.success : KTColors.driverAccent;
         text = verified ? 'VALID' : 'PENDING';
         icon = verified ? Icons.check_circle : Icons.schedule;
         break;
@@ -469,7 +469,7 @@ class _DriverVehicleScreenState extends ConsumerState<DriverVehicleScreen> {
   Color _tripStatusColor(String status) {
     switch (status.toUpperCase()) {
       case 'STARTED': return KTColors.info;
-      case 'IN_TRANSIT': return KTColors.amber500;
+      case 'IN_TRANSIT': return KTColors.driverAccent;
       case 'LOADING': case 'UNLOADING': return KTColors.warning;
       case 'COMPLETED': return KTColors.success;
       default: return KTColors.textMuted;

@@ -145,7 +145,7 @@ class _DriverEpodScreenState extends ConsumerState<DriverEpodScreen> {
   Widget build(BuildContext context) {
     final s = ref.watch(sProvider);
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
         backgroundColor: KTColors.surface,
         title: Text(s.completeDeliveryEpod, style: KTTextStyles.h3),
@@ -195,8 +195,8 @@ class _DriverEpodScreenState extends ConsumerState<DriverEpodScreen> {
                           color: done
                               ? KTColors.success
                               : active
-                                  ? KTColors.primary
-                                  : const Color(0xFF334155),
+                                  ? KTColors.driverAccent
+                                  : KTColors.borderColor,
                         ),
                         child: Center(
                           child: done
@@ -215,7 +215,7 @@ class _DriverEpodScreenState extends ConsumerState<DriverEpodScreen> {
                         _steps[i],
                         style: TextStyle(
                           fontSize: 9,
-                          color: active ? KTColors.primary : done ? KTColors.success : KTColors.textMuted,
+                          color: active ? KTColors.driverAccent : done ? KTColors.success : KTColors.textMuted,
                           fontWeight: active ? FontWeight.w600 : FontWeight.normal,
                         ),
                         textAlign: TextAlign.center,
@@ -230,7 +230,7 @@ class _DriverEpodScreenState extends ConsumerState<DriverEpodScreen> {
                     height: 2,
                     width: 12,
                     margin: const EdgeInsets.only(bottom: 16),
-                    color: i < _currentStep ? KTColors.success : const Color(0xFF334155),
+                    color: i < _currentStep ? KTColors.success : KTColors.borderColor,
                   ),
               ],
             ),
@@ -275,10 +275,10 @@ class _DriverEpodScreenState extends ConsumerState<DriverEpodScreen> {
             decoration: BoxDecoration(
               color: _deliveryConfirmed
                   ? KTColors.success.withValues(alpha: 0.1)
-                  : const Color(0xFF1E293B),
+                  : KTColors.surface,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: _deliveryConfirmed ? KTColors.success : const Color(0xFF334155),
+                color: _deliveryConfirmed ? KTColors.success : KTColors.borderColor,
               ),
             ),
             child: Row(
@@ -336,9 +336,9 @@ class _DriverEpodScreenState extends ConsumerState<DriverEpodScreen> {
             height: 180,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
+              color: KTColors.surface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF334155), width: 1.5),
+              border: Border.all(color: KTColors.borderColor, width: 1.5),
             ),
             child: const Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -447,25 +447,25 @@ class _DriverEpodScreenState extends ConsumerState<DriverEpodScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
+            color: KTColors.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF334155)),
+            border: Border.all(color: KTColors.borderColor),
           ),
           child: Column(
             children: [
               _reviewRow(Icons.tag, 'Trip', 'Trip #${widget.tripId}'),
-              const Divider(height: 20, color: Color(0xFF334155)),
+              const Divider(height: 20, color: KTColors.borderColor),
               _reviewRow(Icons.person_outline, 'Receiver',
                   _receiverNameCtrl.text.trim().isEmpty ? 'Not provided' : _receiverNameCtrl.text.trim()),
-              const Divider(height: 20, color: Color(0xFF334155)),
+              const Divider(height: 20, color: KTColors.borderColor),
               _reviewRow(Icons.draw_outlined, 'Signature', _hasSignature ? 'Captured ✓' : 'Missing ✗',
                   valueColor: _hasSignature ? KTColors.success : KTColors.danger),
-              const Divider(height: 20, color: Color(0xFF334155)),
+              const Divider(height: 20, color: KTColors.borderColor),
               _reviewRow(Icons.photo_camera_outlined, 'Photo',
                   _photoProof != null ? 'Taken ✓' : 'Skipped',
                   valueColor: _photoProof != null ? KTColors.success : KTColors.textSecondary),
               if (_remarksCtrl.text.trim().isNotEmpty) ...[
-                const Divider(height: 20, color: Color(0xFF334155)),
+                const Divider(height: 20, color: KTColors.borderColor),
                 _reviewRow(Icons.note_outlined, 'Remarks', _remarksCtrl.text.trim()),
               ],
             ],
@@ -498,7 +498,7 @@ class _DriverEpodScreenState extends ConsumerState<DriverEpodScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       decoration: const BoxDecoration(
         color: KTColors.surface,
-        border: Border(top: BorderSide(color: Color(0xFF334155))),
+        border: Border(top: BorderSide(color: KTColors.borderColor)),
       ),
       child: Row(
         children: [
@@ -507,7 +507,7 @@ class _DriverEpodScreenState extends ConsumerState<DriverEpodScreen> {
               flex: 1,
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF334155)),
+                  side: const BorderSide(color: KTColors.borderColor),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
@@ -520,7 +520,7 @@ class _DriverEpodScreenState extends ConsumerState<DriverEpodScreen> {
             flex: 2,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: isLast ? KTColors.success : KTColors.primary,
+                backgroundColor: isLast ? KTColors.success : KTColors.driverAccent,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -557,18 +557,18 @@ class _DriverEpodScreenState extends ConsumerState<DriverEpodScreen> {
         labelStyle: const TextStyle(color: KTColors.textSecondary),
         prefixIcon: Icon(icon, color: KTColors.textSecondary),
         filled: true,
-        fillColor: const Color(0xFF1E293B),
+        fillColor: KTColors.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF334155)),
+          borderSide: const BorderSide(color: KTColors.borderColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF334155)),
+          borderSide: const BorderSide(color: KTColors.borderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: KTColors.primary),
+          borderSide: BorderSide(color: KTColors.driverAccent),
         ),
       ),
     );
@@ -581,15 +581,15 @@ class _DriverEpodScreenState extends ConsumerState<DriverEpodScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: primary ? KTColors.primary.withValues(alpha: 0.1) : const Color(0xFF1E293B),
+          color: primary ? KTColors.driverAccent.withValues(alpha: 0.1) : KTColors.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: primary ? KTColors.primary.withValues(alpha: 0.4) : const Color(0xFF334155)),
+          border: Border.all(color: primary ? KTColors.driverAccent.withValues(alpha: 0.4) : KTColors.borderColor),
         ),
         child: Column(
           children: [
-            Icon(icon, color: primary ? KTColors.primary : KTColors.textSecondary),
+            Icon(icon, color: primary ? KTColors.driverAccent : KTColors.textSecondary),
             const SizedBox(height: 4),
-            Text(label, style: TextStyle(fontSize: 12, color: primary ? KTColors.primary : KTColors.textSecondary)),
+            Text(label, style: TextStyle(fontSize: 12, color: primary ? KTColors.driverAccent : KTColors.textSecondary)),
           ],
         ),
       ),

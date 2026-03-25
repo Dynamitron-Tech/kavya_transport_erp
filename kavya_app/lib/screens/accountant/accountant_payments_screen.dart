@@ -53,14 +53,14 @@ class _AccountantPaymentsScreenState extends ConsumerState<AccountantPaymentsScr
   Widget build(BuildContext context) {
     final state = ref.watch(_driverPaymentsProvider);
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
         title: const Text('Driver Payments'),
         bottom: TabBar(
           controller: _tabs,
-          indicatorColor: KTColors.primary,
-          labelColor: KTColors.primary,
-          unselectedLabelColor: KTColors.textSecondary,
+          indicatorColor: KTColors.acctAccent,
+          labelColor: KTColors.acctAccent,
+          unselectedLabelColor: KTColors.textMuted,
           tabs: const [Tab(text: 'Pending'), Tab(text: 'History')],
         ),
       ),
@@ -92,7 +92,7 @@ class _AccountantPaymentsScreenState extends ConsumerState<AccountantPaymentsScr
       );
     }
     return RefreshIndicator(
-      color: KTColors.primary,
+      color: KTColors.acctAccent,
       onRefresh: () async => ref.invalidate(_driverPaymentsProvider),
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -114,7 +114,7 @@ class _AccountantPaymentsScreenState extends ConsumerState<AccountantPaymentsScr
       );
     }
     return RefreshIndicator(
-      color: KTColors.primary,
+      color: KTColors.acctAccent,
       onRefresh: () async => ref.invalidate(_driverPaymentsProvider),
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -137,7 +137,7 @@ class _AccountantPaymentsScreenState extends ConsumerState<AccountantPaymentsScr
       ),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(color: KTColors.textSecondary, fontSize: 12)),
+          Text(label, style: const TextStyle(color: KTColors.textMuted, fontSize: 12)),
           const SizedBox(height: 4),
           Text(_inr.format(amount),
               style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.bold)),
@@ -155,7 +155,7 @@ class _AccountantPaymentsScreenState extends ConsumerState<AccountantPaymentsScr
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: KTColors.darkElevated,
+      backgroundColor: KTColors.surface,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => _PaySheet(
@@ -208,7 +208,7 @@ class _PaymentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isTripPay = (payment['kind'] as String? ?? '') == 'trip_pay';
     final amount = (payment['amount'] as num? ?? 0).toDouble();
-    final kindColor = isTripPay ? KTColors.primary : KTColors.info;
+    final kindColor = isTripPay ? KTColors.acctAccent : KTColors.info;
     final kindIcon = isTripPay ? Icons.local_shipping_outlined : Icons.receipt_long_outlined;
     final kindLabel = payment['kind_label']?.toString() ??
         (isTripPay ? 'Trip Payment' : 'Expense Reimbursement');
@@ -221,10 +221,10 @@ class _PaymentCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: KTColors.darkElevated,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-            color: isHistory ? KTColors.darkBorder : kindColor.withOpacity(0.3)),
+            color: isHistory ? KTColors.borderColor : kindColor.withOpacity(0.3)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Header
@@ -241,7 +241,7 @@ class _PaymentCard extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(kindLabel,
                   style: const TextStyle(
-                      color: KTColors.textPrimary,
+                      color: KTColors.textHeading,
                       fontWeight: FontWeight.w600,
                       fontSize: 14)),
               Text(sourceRef,
@@ -274,8 +274,8 @@ class _PaymentCard extends StatelessWidget {
               icon: const Icon(Icons.send_outlined, size: 16),
               label: const Text('Pay Now'),
               style: FilledButton.styleFrom(
-                  backgroundColor: KTColors.primary,
-                  foregroundColor: KTColors.darkBg,
+                  backgroundColor: KTColors.acctAccent,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   textStyle:
                       const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
@@ -303,7 +303,7 @@ class _PaymentCard extends StatelessWidget {
           const SizedBox(width: 5),
           Expanded(
               child: Text(text,
-                  style: const TextStyle(color: KTColors.textSecondary, fontSize: 12),
+                  style: const TextStyle(color: KTColors.textMuted, fontSize: 12),
                   overflow: TextOverflow.ellipsis)),
         ]),
       );
@@ -358,38 +358,38 @@ class _PaySheetState extends State<_PaySheet> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: KTColors.darkBorder,
+                    color: KTColors.borderColor,
                     borderRadius: BorderRadius.circular(2)))),
         const SizedBox(height: 16),
-        Text('Record Payment', style: KTTextStyles.h3.copyWith(color: KTColors.textPrimary)),
+        Text('Record Payment', style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
         const SizedBox(height: 4),
         Text(
             '${widget.payment['kind_label'] ?? 'Payment'}  ·  ${widget.inr.format(amount)}',
-            style: const TextStyle(color: KTColors.textSecondary, fontSize: 13)),
+            style: const TextStyle(color: KTColors.textMuted, fontSize: 13)),
         const SizedBox(height: 20),
         // Payment Method
         DropdownButtonFormField<String>(
           initialValue: _method,
-          dropdownColor: KTColors.darkElevated,
-          style: const TextStyle(color: KTColors.textPrimary),
+          dropdownColor: KTColors.surface,
+          style: const TextStyle(color: KTColors.textHeading),
           decoration: const InputDecoration(
               labelText: 'Payment Method',
-              labelStyle: TextStyle(color: KTColors.textSecondary)),
+              labelStyle: TextStyle(color: KTColors.textMuted)),
           items: _methods
               .map((m) => DropdownMenuItem(
                   value: m.$1,
                   child: Text(m.$2,
-                      style: const TextStyle(color: KTColors.textPrimary))))
+                      style: const TextStyle(color: KTColors.textHeading))))
               .toList(),
           onChanged: (v) => setState(() => _method = v ?? _method),
         ),
         const SizedBox(height: 12),
         TextField(
           controller: _refCtrl,
-          style: const TextStyle(color: KTColors.textPrimary),
+          style: const TextStyle(color: KTColors.textHeading),
           decoration: const InputDecoration(
               labelText: 'UTR / Transaction Reference',
-              labelStyle: TextStyle(color: KTColors.textSecondary)),
+              labelStyle: TextStyle(color: KTColors.textMuted)),
         ),
         const SizedBox(height: 16),
         SizedBox(

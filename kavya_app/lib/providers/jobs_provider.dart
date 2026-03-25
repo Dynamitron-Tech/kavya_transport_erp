@@ -19,5 +19,5 @@ final jobsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async { //
 
 final tripsReadyToCloseProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final api = ref.read(apiServiceProvider);
-  return await api.getTrips(status: 'trips_ready_to_close'); // Data: GET /api/v1/trips?status=trips_ready_to_close
+  return await api.getTrips(status: 'in_transit'); // in_transit = trips ready to close
 });

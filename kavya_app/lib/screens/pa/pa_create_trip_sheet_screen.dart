@@ -40,7 +40,7 @@ class _PATripSheetScreenState extends ConsumerState<PATripSheetScreen> {
       lastDate: DateTime.now().add(const Duration(days: 30)),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.dark(primary: KTColors.primary),
+          colorScheme: const ColorScheme.light(primary: KTColors.paAccent),
         ),
         child: child!,
       ),
@@ -52,7 +52,7 @@ class _PATripSheetScreenState extends ConsumerState<PATripSheetScreen> {
       initialTime: TimeOfDay.now(),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.dark(primary: KTColors.primary),
+          colorScheme: const ColorScheme.light(primary: KTColors.paAccent),
         ),
         child: child!,
       ),
@@ -119,11 +119,11 @@ class _PATripSheetScreenState extends ConsumerState<PATripSheetScreen> {
         : 'Tap to select';
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        title: Text('Trip Sheet', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
-        leading: const BackButton(color: KTColors.darkTextPrimary),
+        backgroundColor: KTColors.surface,
+        title: Text('Trip Sheet', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
+        leading: const BackButton(color: KTColors.textHeading),
       ),
       body: Form(
         key: _formKey,
@@ -147,25 +147,25 @@ class _PATripSheetScreenState extends ConsumerState<PATripSheetScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: KTColors.darkSurface,
+                      color: KTColors.surface,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: KTColors.darkBorder),
+                      border: Border.all(color: KTColors.borderColor),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text('Scheduled Departure',
-                              style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+                              style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
                           const SizedBox(height: 4),
                           Text(depLabel,
                               style: KTTextStyles.body.copyWith(
                                 color: _scheduledDeparture != null
-                                    ? KTColors.darkTextPrimary
-                                    : KTColors.darkTextSecondary,
+                                    ? KTColors.textHeading
+                                    : KTColors.textMuted,
                               )),
                         ]),
-                        const Icon(Icons.calendar_today, color: KTColors.primary, size: 20),
+                        const Icon(Icons.calendar_today, color: KTColors.paAccent, size: 20),
                       ],
                     ),
                   ),
@@ -179,7 +179,7 @@ class _PATripSheetScreenState extends ConsumerState<PATripSheetScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: KTColors.primary,
+                    backgroundColor: KTColors.paAccent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -215,18 +215,18 @@ class _PATripSheetScreenState extends ConsumerState<PATripSheetScreen> {
         controller: ctrl,
         keyboardType: keyboardType,
         maxLines: maxLines,
-        style: const TextStyle(color: KTColors.darkTextPrimary),
+        style: const TextStyle(color: KTColors.textHeading),
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
-          hintStyle: const TextStyle(color: KTColors.darkTextSecondary, fontSize: 12),
-          labelStyle: const TextStyle(color: KTColors.darkTextSecondary),
+          hintStyle: const TextStyle(color: KTColors.textMuted, fontSize: 12),
+          labelStyle: const TextStyle(color: KTColors.textMuted),
           filled: true,
-          fillColor: KTColors.darkSurface,
+          fillColor: KTColors.surface,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: KTColors.darkBorder),
+            borderSide: const BorderSide(color: KTColors.borderColor),
           ),
         ),
         validator: required ? (v) => (v == null || v.trim().isEmpty) ? '$label is required' : null : null,

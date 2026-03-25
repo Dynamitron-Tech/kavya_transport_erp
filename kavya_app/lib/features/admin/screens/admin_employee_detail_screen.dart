@@ -27,59 +27,73 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
     final detail = ref.watch(_employeeDetailProvider(userId));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
-      appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text('Employee',
-            style: TextStyle(color: KTColors.darkTextPrimary)),
-        actions: [
-          detail.whenOrNull(
-            data: (d) {
-              final isActive = d['is_active'] == true;
-              return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: (isActive ? KTColors.success : KTColors.danger).withAlpha(20),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      isActive ? 'Active' : 'Inactive',
-                      style: TextStyle(
-                        color: isActive ? KTColors.success : KTColors.danger,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+      backgroundColor: KTColors.lightBg,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: Container(
+          color: KTColors.surface,
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: KTColors.borderColor)),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded, color: KTColors.textHeading, size: 22),
+                    onPressed: () => context.pop(),
                   ),
-                ),
-              );
-            },
-          ) ?? const SizedBox.shrink(),
-        ],
+                  const Expanded(
+                    child: Text('Employee',
+                        style: TextStyle(color: KTColors.textHeading, fontSize: 17, fontWeight: FontWeight.w600)),
+                  ),
+                  detail.whenOrNull(
+                    data: (d) {
+                      final isActive = d['is_active'] == true;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: (isActive ? KTColors.success : KTColors.danger).withAlpha(20),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            isActive ? 'Active' : 'Inactive',
+                            style: TextStyle(
+                              color: isActive ? KTColors.success : KTColors.danger,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ) ?? const SizedBox.shrink(),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       body: detail.when(
         data: (d) {
           if (d.isEmpty) {
             return const Center(
                 child: Text('Employee not found',
-                    style: TextStyle(color: KTColors.darkTextSecondary)));
+                    style: TextStyle(color: KTColors.textMuted)));
           }
           return _buildBody(context, ref, d);
         },
         loading: () => const Center(
-            child:
-                CircularProgressIndicator(color: KTColors.amber600)),
+            child: CircularProgressIndicator(color: KTColors.primary)),
         error: (e, _) => Center(
             child: Text('Error: $e',
                 style:
-                    const TextStyle(color: KTColors.darkTextSecondary))),
+                    const TextStyle(color: KTColors.textMuted))),
       ),
     );
   }
@@ -101,8 +115,9 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: KTColors.darkSurface,
+            color: KTColors.surface,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: KTColors.borderColor),
           ),
           child: Column(
             children: [
@@ -122,13 +137,13 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               Text(name,
                   style: const TextStyle(
-                      color: KTColors.darkTextPrimary,
+                      color: KTColors.textHeading,
                       fontSize: 18,
                       fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               Text(role,
                   style: const TextStyle(
-                      color: KTColors.darkTextSecondary, fontSize: 13)),
+                      color: KTColors.textMuted, fontSize: 13)),
               const SizedBox(height: 12),
               _infoRow(Icons.email_outlined, email),
               _infoRow(Icons.phone_outlined, phone),
@@ -185,11 +200,11 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, color: KTColors.darkTextSecondary, size: 16),
+          Icon(icon, color: KTColors.textMuted, size: 16),
           const SizedBox(width: 8),
           Text(text,
               style: const TextStyle(
-                  color: KTColors.darkTextSecondary, fontSize: 13)),
+                  color: KTColors.textMuted, fontSize: 13)),
         ],
       ),
     );
@@ -229,16 +244,16 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: KTColors.darkSurface,
+        backgroundColor: KTColors.surface,
         title: Text(
           isActive ? 'Deactivate $name?' : 'Reactivate $name?',
-          style: const TextStyle(color: KTColors.darkTextPrimary),
+          style: const TextStyle(color: KTColors.textHeading),
         ),
         content: Text(
           isActive
               ? 'They will be logged out immediately.'
               : 'They will regain access.',
-          style: const TextStyle(color: KTColors.darkTextSecondary),
+          style: const TextStyle(color: KTColors.textMuted),
         ),
         actions: [
           TextButton(
@@ -250,10 +265,7 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
               Navigator.pop(ctx);
               final api = ref.read(apiServiceProvider);
               try {
-                final endpoint = isActive
-                    ? '/users/$userId/deactivate'
-                    : '/users/$userId/activate';
-                await api.patch(endpoint);
+                await api.put('/users/$userId', data: {'is_active': !isActive});
                 ref.invalidate(_employeeDetailProvider(userId));
                 ref.invalidate(adminEmployeesProvider);
                 if (context.mounted) {
@@ -326,7 +338,7 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
       children: [
         const Text('ACTIVITY',
             style: TextStyle(
-                color: KTColors.darkTextSecondary,
+                color: KTColors.textMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5)),
@@ -336,26 +348,38 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
             return Expanded(
               child: Container(
                 margin: const EdgeInsets.only(right: 10),
-                padding: const EdgeInsets.all(12),
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
-                  color: KTColors.darkSurface,
+                  color: KTColors.surface,
                   borderRadius: BorderRadius.circular(10),
-                  border: const Border(
-                      left: BorderSide(color: KTColors.amber600, width: 3)),
+                  border: Border.all(color: KTColors.borderColor),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${s.value}',
-                        style: const TextStyle(
-                            color: KTColors.darkTextPrimary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 2),
-                    Text(s.label,
-                        style: const TextStyle(
-                            color: KTColors.darkTextSecondary, fontSize: 11)),
-                  ],
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(width: 3, color: KTColors.amber600),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${s.value}',
+                                  style: const TextStyle(
+                                      color: KTColors.textHeading,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 2),
+                              Text(s.label,
+                                  style: const TextStyle(
+                                      color: KTColors.textMuted, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -372,7 +396,7 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: KTColors.darkSurface,
+      backgroundColor: KTColors.surface,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) => StatefulBuilder(
@@ -385,17 +409,17 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
               children: [
                 const Text('Change role',
                     style: TextStyle(
-                        color: KTColors.darkTextPrimary,
+                        color: KTColors.textHeading,
                         fontSize: 16,
                         fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 ...roles.map((r) => RadioListTile<String>(
                       title: Text(r,
                           style: const TextStyle(
-                              color: KTColors.darkTextPrimary, fontSize: 14)),
+                              color: KTColors.textHeading, fontSize: 14)),
                       value: r,
                       groupValue: selected,
-                      activeColor: KTColors.amber600,
+                      activeColor: KTColors.primary,
                       onChanged: (v) => setState(() => selected = v!),
                     )),
                 const SizedBox(height: 12),
@@ -403,7 +427,7 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: KTColors.amber600,
+                      backgroundColor: KTColors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10)),
@@ -412,7 +436,7 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
                       Navigator.pop(ctx);
                       final api = ref.read(apiServiceProvider);
                       try {
-                        await api.patch('/users/$userId', data: {'role': selected});
+                        await api.put('/users/$userId', data: {'role': selected});
                         ref.invalidate(_employeeDetailProvider(userId));
                         ref.invalidate(adminEmployeesProvider);
                         if (context.mounted) {

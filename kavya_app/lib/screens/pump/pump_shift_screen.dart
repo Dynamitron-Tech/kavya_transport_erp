@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/kt_colors.dart';
@@ -14,7 +15,7 @@ final activeShiftProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((r
   try {
     final api = ref.read(apiServiceProvider);
     final res = await api.get('/fuel-pump/shifts/active');
-    final data = res['data'] ?? res;
+    final data = res['data'];
     if (data == null || data == '' || (data is Map && data.isEmpty)) return null;
     return data as Map<String, dynamic>;
   } catch (_) {
@@ -40,18 +41,21 @@ class PumpShiftScreen extends ConsumerWidget {
     final shiftAsync = ref.watch(activeShiftProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.navy900,
-        foregroundColor: KTColors.darkTextPrimary,
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: KTColors.textHeading,
+        iconTheme: const IconThemeData(color: KTColors.textHeading),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: KTColors.textHeading),
           onPressed: () => context.pop(),
         ),
-        title: Text('Shift', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        title: const Text('Shift', style: TextStyle(color: KTColors.textHeading, fontWeight: FontWeight.w600, fontSize: 18)),
       ),
       body: shiftAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: KTColors.amber500)),
+        loading: () => const Center(child: CircularProgressIndicator(color: KTColors.pumpAccent)),
         error: (_, __) => _OpenShiftView(onShiftStarted: () => ref.invalidate(activeShiftProvider)),
         data: (activeShift) {
           if (activeShift == null) {
@@ -153,19 +157,19 @@ class _OpenShiftViewState extends ConsumerState<_OpenShiftView> {
         children: [
           // Title
           Text('Start Your Shift',
-              style: KTTextStyles.h1.copyWith(color: KTColors.amber500)),
+              style: KTTextStyles.h1.copyWith(color: KTColors.pumpAccent)),
           const SizedBox(height: 4),
-          Text(dateStr, style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
+          Text(dateStr, style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
           const SizedBox(height: 24),
 
           // Shift type selector
-          Text('Shift Type', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+          Text('Shift Type', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              color: KTColors.navy800,
+              color: KTColors.surface,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: KTColors.navy700),
+              border: Border.all(color: KTColors.borderColor),
             ),
             child: Column(
               children: _shiftTypes.entries.map((e) {
@@ -173,8 +177,8 @@ class _OpenShiftViewState extends ConsumerState<_OpenShiftView> {
                   value: e.key,
                   groupValue: _shiftType,
                   onChanged: (v) => setState(() => _shiftType = v ?? _shiftType),
-                  title: Text(e.value, style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary)),
-                  activeColor: KTColors.amber500,
+                  title: Text(e.value, style: KTTextStyles.body.copyWith(color: KTColors.textHeading)),
+                  activeColor: KTColors.pumpAccent,
                 );
               }).toList(),
             ),
@@ -213,12 +217,12 @@ class _OpenShiftViewState extends ConsumerState<_OpenShiftView> {
           const SizedBox(height: 16),
 
           // Notes
-          Text('Notes (optional)', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+          Text('Notes (optional)', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
           const SizedBox(height: 8),
           TextFormField(
             controller: _notesCtrl,
             maxLines: 2,
-            style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+            style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
             decoration: _inputDec('Any remarks for this shift…'),
           ),
           const SizedBox(height: 24),
@@ -243,14 +247,14 @@ class _OpenShiftViewState extends ConsumerState<_OpenShiftView> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KTColors.navy800,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KTColors.navy700),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(tankName, style: KTTextStyles.h3.copyWith(color: KTColors.amber500)),
+          Text(tankName, style: KTTextStyles.h3.copyWith(color: KTColors.pumpAccent)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -258,12 +262,12 @@ class _OpenShiftViewState extends ConsumerState<_OpenShiftView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Opening Dip (L)', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+                    Text('Opening Dip (L)', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _dipCtrls[tankId],
                       keyboardType: TextInputType.number,
-                      style: KTTextStyles.mono.copyWith(color: KTColors.darkTextPrimary),
+                      style: KTTextStyles.mono.copyWith(color: KTColors.textHeading),
                       decoration: _inputDec('0', suffix: 'L'),
                     ),
                   ],
@@ -274,12 +278,12 @@ class _OpenShiftViewState extends ConsumerState<_OpenShiftView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Opening Meter', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+                    Text('Opening Meter', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _meterCtrls[tankId],
                       keyboardType: TextInputType.number,
-                      style: KTTextStyles.mono.copyWith(color: KTColors.darkTextPrimary),
+                      style: KTTextStyles.mono.copyWith(color: KTColors.textHeading),
                       decoration: _inputDec('0'),
                     ),
                   ],
@@ -295,15 +299,15 @@ class _OpenShiftViewState extends ConsumerState<_OpenShiftView> {
   InputDecoration _inputDec(String hint, {String? suffix}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary),
+      hintStyle: KTTextStyles.label.copyWith(color: KTColors.textMuted),
       suffixText: suffix,
-      suffixStyle: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary),
+      suffixStyle: KTTextStyles.label.copyWith(color: KTColors.textMuted),
       filled: true,
-      fillColor: KTColors.navy900,
+      fillColor: KTColors.lightBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.navy700)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.navy700)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.amber500)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.borderColor)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.borderColor)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.pumpAccent)),
     );
   }
 }
@@ -356,10 +360,34 @@ class _CloseShiftViewState extends ConsumerState<_CloseShiftView> {
           const SnackBar(content: Text('Shift closed successfully'), backgroundColor: KTColors.success),
         );
       }
+    } on DioException catch (e) {
+      if (mounted) {
+        final statusCode = e.response?.statusCode;
+        final detail = e.response?.data is Map
+            ? e.response?.data['detail']?.toString()
+            : null;
+        // 404 means the shift no longer exists (server restarted) — treat as already closed
+        if (statusCode == 404 || statusCode == 422) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Shift session expired. Returning to dashboard.'),
+              backgroundColor: KTColors.warning,
+            ),
+          );
+          widget.onShiftClosed(); // dismiss back to home
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(detail ?? 'Failed to close shift. Please try again.'),
+              backgroundColor: KTColors.danger,
+            ),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to close shift: $e'), backgroundColor: KTColors.danger),
+          SnackBar(content: Text('Failed to close shift. Please try again.'), backgroundColor: KTColors.danger),
         );
       }
     } finally {
@@ -374,12 +402,16 @@ class _CloseShiftViewState extends ConsumerState<_CloseShiftView> {
     final shiftType = widget.shift['shift_type']?.toString() ?? '—';
     final totalDispensed = widget.shift['total_dispensed_litres']?.toString() ?? '—';
 
-    // Parse and display start time
-    String startDisplay = startedAt;
-    try {
-      final dt = DateTime.parse(startedAt);
-      startDisplay = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (_) {}
+    // Parse and display start time in local timezone
+    String startDisplay = '—';
+    if (startedAt.isNotEmpty) {
+      try {
+        final dt = DateTime.parse(startedAt).toLocal();
+        startDisplay = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      } catch (_) {
+        startDisplay = '—';
+      }
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -390,7 +422,7 @@ class _CloseShiftViewState extends ConsumerState<_CloseShiftView> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: KTColors.navy800,
+              color: KTColors.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: KTColors.success.withOpacity(0.4)),
             ),
@@ -423,10 +455,10 @@ class _CloseShiftViewState extends ConsumerState<_CloseShiftView> {
           ),
           const SizedBox(height: 24),
 
-          Text('Close Shift', style: KTTextStyles.h1.copyWith(color: KTColors.darkTextPrimary)),
+          Text('Close Shift', style: KTTextStyles.h1.copyWith(color: KTColors.textHeading)),
           const SizedBox(height: 4),
           Text('Enter closing readings for each tank.',
-              style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+              style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
           const SizedBox(height: 16),
 
           // Tank close readings
@@ -468,8 +500,8 @@ class _CloseShiftViewState extends ConsumerState<_CloseShiftView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
-        Text(value, style: KTTextStyles.label.copyWith(color: KTColors.darkTextPrimary, fontWeight: FontWeight.w700)),
+        Text(label, style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
+        Text(value, style: KTTextStyles.label.copyWith(color: KTColors.textHeading, fontWeight: FontWeight.w700)),
       ],
     );
   }
@@ -485,19 +517,19 @@ class _CloseShiftViewState extends ConsumerState<_CloseShiftView> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KTColors.navy800,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: hasVariance ? KTColors.warning.withOpacity(0.6) : KTColors.navy700,
+          color: hasVariance ? KTColors.warning.withOpacity(0.6) : KTColors.borderColor,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(tankName, style: KTTextStyles.h3.copyWith(color: KTColors.amber500)),
+          Text(tankName, style: KTTextStyles.h3.copyWith(color: KTColors.pumpAccent)),
           const SizedBox(height: 4),
           Text('Expected remaining: ${expectedRemainingLitres}L',
-              style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
+              style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -505,12 +537,12 @@ class _CloseShiftViewState extends ConsumerState<_CloseShiftView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Closing Dip (L)', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+                    Text('Closing Dip (L)', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _closeDipCtrls[tankId],
                       keyboardType: TextInputType.number,
-                      style: KTTextStyles.mono.copyWith(color: KTColors.darkTextPrimary),
+                      style: KTTextStyles.mono.copyWith(color: KTColors.textHeading),
                       onChanged: (_) => setState(() {}),
                       decoration: _inputDec('0', suffix: 'L'),
                     ),
@@ -522,12 +554,12 @@ class _CloseShiftViewState extends ConsumerState<_CloseShiftView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Closing Meter', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+                    Text('Closing Meter', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _closeMeterCtrls[tankId],
                       keyboardType: TextInputType.number,
-                      style: KTTextStyles.mono.copyWith(color: KTColors.darkTextPrimary),
+                      style: KTTextStyles.mono.copyWith(color: KTColors.textHeading),
                       decoration: _inputDec('0'),
                     ),
                   ],
@@ -564,15 +596,15 @@ class _CloseShiftViewState extends ConsumerState<_CloseShiftView> {
   InputDecoration _inputDec(String hint, {String? suffix}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary),
+      hintStyle: KTTextStyles.label.copyWith(color: KTColors.textMuted),
       suffixText: suffix,
-      suffixStyle: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary),
+      suffixStyle: KTTextStyles.label.copyWith(color: KTColors.textMuted),
       filled: true,
-      fillColor: KTColors.navy900,
+      fillColor: KTColors.lightBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.navy700)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.navy700)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.amber500)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.borderColor)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.borderColor)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.pumpAccent)),
     );
   }
 }

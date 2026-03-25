@@ -35,6 +35,8 @@ import '../../screens/fleet/fleet_edit_vehicle_screen.dart';
 import '../../screens/fleet/fleet_driver_detail_screen.dart';
 import '../../screens/fleet/fleet_add_driver_screen.dart';
 import '../../screens/fleet/fleet_create_trip_screen.dart';
+import '../../screens/fleet/fleet_service_log_screen.dart';
+import '../../screens/fleet/fleet_tyre_event_screen.dart';
 // Accountant screens
 import '../../screens/accountant/accountant_home_screen.dart';
 import '../../screens/accountant/accountant_shell_screen.dart';
@@ -96,6 +98,10 @@ import '../../features/admin/screens/admin_vehicle_detail_screen.dart';
 import '../../features/admin/screens/admin_driver_detail_screen.dart';
 import '../../features/admin/screens/admin_invoice_detail_screen.dart';
 import '../../features/admin/screens/admin_compliance_detail_screen.dart';
+import '../../features/admin/screens/admin_create_lr_screen.dart';
+import '../../features/admin/screens/admin_create_trip_screen.dart';
+import '../../features/admin/screens/admin_upload_doc_screen.dart';
+import '../../features/admin/screens/admin_reports_screen.dart';
 // Pump Operator screens
 import '../../screens/pump/pump_home_screen.dart';
 import '../../screens/pump/pump_dashboard_screen.dart';
@@ -345,8 +351,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/fleet/trip/create', builder: (context, state) => const FleetCreateTripScreen()),
       GoRoute(path: '/fleet/expenses', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/fleet/service/new', builder: (context, state) => const Scaffold()),
-      GoRoute(path: '/fleet/tyre/new', builder: (context, state) => const Scaffold()),
+      GoRoute(path: '/fleet/service/new', builder: (context, state) => const FleetServiceLogScreen()),
+      GoRoute(path: '/fleet/tyre/new', builder: (context, state) => const FleetTyreEventScreen()),
       
       // --- Accountant Routes --- (Stateful shell with bottom nav)
       StatefulShellRoute.indexedStack(
@@ -674,6 +680,31 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => AdminComplianceDetailScreen(
           alertId: state.pathParameters['alertId'] ?? '0',
         ),
+      ),
+      GoRoute(
+        path: '/admin/lr/create',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const AdminCreateLRScreen(),
+      ),
+      GoRoute(
+        path: '/admin/trip/create',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const AdminCreateTripScreen(),
+      ),
+      GoRoute(
+        path: '/admin/upload-doc',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const AdminUploadDocScreen(),
+      ),
+      GoRoute(
+        path: '/admin/ewb',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const PAEWBListScreen(),
+      ),
+      GoRoute(
+        path: '/admin/reports',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const AdminReportsScreen(),
       ),
 
       // --- Pump Operator Routes --- (Stateful shell with bottom nav)

@@ -21,6 +21,8 @@ class DriverHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: KTColors.driverAccent,
+        foregroundColor: KTColors.white,
         title: Text(s.greeting(user?.fullName ?? 'Driver')),
         actions: [
           Consumer(
@@ -79,7 +81,10 @@ class DriverHomeScreen extends ConsumerWidget {
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (index) =>
             navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex),
-        indicatorColor: KTColors.primary.withValues(alpha: 0.12),
+        indicatorColor: KTColors.driverAccent.withValues(alpha: 0.15),
+        backgroundColor: KTColors.surface,
+        surfaceTintColor: Colors.transparent,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: [
           NavigationDestination(
               icon: const Icon(Icons.dashboard_outlined),

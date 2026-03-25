@@ -15,11 +15,11 @@ class PumpTankRefillScreen extends ConsumerStatefulWidget {
 }
 
 class _PumpTankRefillScreenState extends ConsumerState<PumpTankRefillScreen> {
-  static const _bg = Color(0xFF0F172A);
-  static const _card = Color(0xFF334155);
-  static const _amber = Color(0xFFFBBF24);
-  static const _textPrimary = Color(0xFFF8FAFC);
-  static const _textSecondary = Color(0xFF94A3B8);
+  static const _bg = Color(0xFFF7F9FC);
+  static const _card = Color(0xFFFFFFFF);
+  static const _amber = Color(0xFFEA580C);
+  static const _textPrimary = Color(0xFF0D1B2A);
+  static const _textSecondary = Color(0xFF8494A4);
 
   final _formKey = GlobalKey<FormState>();
   final _api = ApiService();
@@ -56,8 +56,10 @@ class _PumpTankRefillScreenState extends ConsumerState<PumpTankRefillScreen> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B),
-        foregroundColor: _textPrimary,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0D1B2A),
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -207,9 +209,9 @@ class _PumpTankRefillScreenState extends ConsumerState<PumpTankRefillScreen> {
                     lastDate: DateTime.now().add(const Duration(days: 1)),
                     builder: (ctx, child) => Theme(
                       data: Theme.of(ctx).copyWith(
-                        colorScheme: const ColorScheme.dark(
+                        colorScheme: const ColorScheme.light(
                           primary: _amber,
-                          surface: Color(0xFF1E293B),
+                          surface: Color(0xFFF7F9FC),
                         ),
                       ),
                       child: child!,
@@ -363,7 +365,7 @@ class _PumpTankRefillScreenState extends ConsumerState<PumpTankRefillScreen> {
         style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: _textSecondary));
+            color: Color(0xFF0D1B2A)));
   }
 
   InputDecoration _inputDecoration(String hint) {

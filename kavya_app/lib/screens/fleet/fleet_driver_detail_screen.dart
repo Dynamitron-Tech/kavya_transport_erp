@@ -24,14 +24,14 @@ class FleetDriverDetailScreen extends ConsumerWidget {
     final accent = KTColors.getRoleColor('fleet_manager');
 
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.navy900,
-        foregroundColor: KTColors.darkTextPrimary,
+        backgroundColor: KTColors.surface,
+        foregroundColor: KTColors.textHeading,
         elevation: 0,
         title: Text('Driver Details',
             style: KTTextStyles.h2.copyWith(
-                color: KTColors.darkTextPrimary,
+                color: KTColors.textHeading,
                 decoration: TextDecoration.none)),
       ),
       body: driverAsync.when(
@@ -46,7 +46,7 @@ class FleetDriverDetailScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               Text('Failed to load driver',
                   style: KTTextStyles.body
-                      .copyWith(color: KTColors.darkTextSecondary)),
+                      .copyWith(color: KTColors.textMuted)),
               const SizedBox(height: 8),
               Text('$e',
                   style: KTTextStyles.bodySmall
@@ -57,8 +57,8 @@ class FleetDriverDetailScreen extends ConsumerWidget {
                 onPressed: () =>
                     ref.invalidate(_driverDetailProvider(driverId)),
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: KTColors.amber500,
-                    foregroundColor: KTColors.navy900),
+                    backgroundColor: KTColors.fleetAccent,
+                    foregroundColor: Colors.white),
                 child: const Text('Retry'),
               ),
             ],
@@ -106,7 +106,7 @@ class FleetDriverDetailScreen extends ConsumerWidget {
               statusLabel = 'Suspended';
               break;
             case 'inactive':
-              statusColor = KTColors.darkTextSecondary;
+              statusColor = KTColors.textMuted;
               statusLabel = 'Inactive';
               break;
             default:
@@ -115,7 +115,7 @@ class FleetDriverDetailScreen extends ConsumerWidget {
           }
 
           return RefreshIndicator(
-            color: KTColors.amber500,
+            color: KTColors.fleetAccent,
             onRefresh: () async =>
                 ref.invalidate(_driverDetailProvider(driverId)),
             child: SingleChildScrollView(
@@ -136,7 +136,7 @@ class FleetDriverDetailScreen extends ConsumerWidget {
                   Text(
                       name.isNotEmpty ? name : 'Driver #$driverId',
                       style: KTTextStyles.h2.copyWith(
-                          color: KTColors.darkTextPrimary,
+                          color: KTColors.textHeading,
                           decoration: TextDecoration.none)),
                   const SizedBox(height: 6),
                   Container(
@@ -214,9 +214,9 @@ class FleetDriverDetailScreen extends ConsumerWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: KTColors.navy800,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KTColors.navy700),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,11 +226,11 @@ class FleetDriverDetailScreen extends ConsumerWidget {
                 const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: Text(title,
                 style: KTTextStyles.h3.copyWith(
-                    color: KTColors.amber500,
+                    color: KTColors.fleetAccent,
                     fontSize: 13,
                     decoration: TextDecoration.none)),
           ),
-          const Divider(color: KTColors.navy700),
+          const Divider(color: KTColors.borderColor),
           ...rows,
           const SizedBox(height: 8),
         ],
@@ -247,12 +247,12 @@ class FleetDriverDetailScreen extends ConsumerWidget {
         children: [
           Text(label,
               style: KTTextStyles.body.copyWith(
-                  color: KTColors.darkTextSecondary,
+                  color: KTColors.textMuted,
                   decoration: TextDecoration.none)),
           Flexible(
             child: Text(value,
                 style: KTTextStyles.body.copyWith(
-                    color: KTColors.darkTextPrimary,
+                    color: KTColors.textHeading,
                     fontWeight: FontWeight.w600,
                     decoration: TextDecoration.none),
                 textAlign: TextAlign.right),

@@ -17,13 +17,15 @@ class ManagerClientsScreen extends ConsumerWidget {
     final clientsAsync = ref.watch(managerClientListProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        title: Text('Clients', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: Text('Clients', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: KTColors.primary),
+            icon: const Icon(Icons.add, color: KTColors.managerAccent),
             onPressed: () => context.push('/manager/clients/create'),
           ),
         ],
@@ -35,13 +37,13 @@ class ManagerClientsScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             child: TextField(
               onChanged: (v) => ref.read(managerClientSearchProvider.notifier).state = v,
-              style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+              style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
               decoration: InputDecoration(
                 hintText: 'Search clients...',
-                hintStyle: TextStyle(color: KTColors.darkTextSecondary),
-                prefixIcon: const Icon(Icons.search, color: KTColors.darkTextSecondary),
+                hintStyle: TextStyle(color: KTColors.textMuted),
+                prefixIcon: const Icon(Icons.search, color: KTColors.textMuted),
                 filled: true,
-                fillColor: KTColors.darkElevated,
+                fillColor: KTColors.surface,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
@@ -51,8 +53,8 @@ class ManagerClientsScreen extends ConsumerWidget {
           // ── Client list ──────────────────────────
           Expanded(
             child: RefreshIndicator(
-              color: KTColors.primary,
-              backgroundColor: KTColors.darkSurface,
+              color: KTColors.managerAccent,
+              backgroundColor: KTColors.surface,
               onRefresh: () async => ref.invalidate(managerClientListProvider),
               child: clientsAsync.when(
                 loading: () => const KTLoadingShimmer(type: ShimmerType.list),
@@ -63,10 +65,10 @@ class ManagerClientsScreen extends ConsumerWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.people_outline, color: KTColors.darkTextSecondary, size: 48),
+                          const Icon(Icons.people_outline, color: KTColors.textMuted, size: 48),
                           const SizedBox(height: 12),
                           Text(search.isEmpty ? 'No clients yet' : 'No results for "$search"',
-                              style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                              style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                         ],
                       ),
                     );

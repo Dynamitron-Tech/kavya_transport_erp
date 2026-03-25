@@ -12,10 +12,18 @@ final branchTripsProvider =
     FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>(
   (ref, date) async {
     final api = ref.read(apiServiceProvider);
-    final res = await api.get('/trips/', queryParameters: {'date': date});
+    final res = await api.get('/trips/');
     final payload = res['data'] ?? res;
-    if (payload is List) return payload.cast<Map<String, dynamic>>();
-    return [];
+    final List<dynamic> rawList = payload is List ? payload : [];
+    final allTrips = rawList.cast<Map<String, dynamic>>();
+    if (date == 'this_week') {
+      return allTrips;
+    }
+    // 'today' — filter client-side by scheduled_date
+    final todayStr = DateTime.now().toIso8601String().split('T').first;
+    return allTrips
+        .where((t) => (t['scheduled_date'] as String? ?? '').startsWith(todayStr))
+        .toList();
   },
 );
 

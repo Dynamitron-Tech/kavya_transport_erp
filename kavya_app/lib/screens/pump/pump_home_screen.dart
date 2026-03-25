@@ -18,16 +18,18 @@ class PumpHomeScreen extends ConsumerWidget {
     final user = ref.watch(authProvider).user;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1E293B), // dark slate
+      backgroundColor: const Color(0xFFF7F9FC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
         title: Text(
           'Hi, ${user?.fullName ?? 'Operator'}',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          style: const TextStyle(color: Color(0xFF0D1B2A), fontWeight: FontWeight.w600),
         ),
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
+            icon: const Icon(Icons.more_vert, color: Color(0xFF0D1B2A)),
             onSelected: (value) {
               if (value == 'logout') {
                 ref.read(authProvider.notifier).logout();
@@ -46,8 +48,9 @@ class PumpHomeScreen extends ConsumerWidget {
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: const Color(0xFF0F172A),
-        indicatorColor: const Color(0xFFFBBF24).withValues(alpha: 0.15),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: const Color(0xFFEA580C).withValues(alpha: 0.12),
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (index) => navigationShell.goBranch(
           index,
@@ -55,23 +58,23 @@ class PumpHomeScreen extends ConsumerWidget {
         ),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined, color: Colors.white70),
-            selectedIcon: Icon(Icons.dashboard, color: Color(0xFFFBBF24)),
+            icon: Icon(Icons.dashboard_outlined, color: Color(0xFF8494A4)),
+            selectedIcon: Icon(Icons.dashboard, color: Color(0xFFEA580C)),
             label: 'Dashboard',
           ),
           NavigationDestination(
-            icon: Icon(Icons.local_gas_station_outlined, color: Colors.white70),
-            selectedIcon: Icon(Icons.local_gas_station, color: Color(0xFFFBBF24)),
+            icon: Icon(Icons.local_gas_station_outlined, color: Color(0xFF8494A4)),
+            selectedIcon: Icon(Icons.local_gas_station, color: Color(0xFFEA580C)),
             label: 'Dispense',
           ),
           NavigationDestination(
-            icon: Icon(Icons.list_alt_outlined, color: Colors.white70),
-            selectedIcon: Icon(Icons.list_alt, color: Color(0xFFFBBF24)),
+            icon: Icon(Icons.list_alt_outlined, color: Color(0xFF8494A4)),
+            selectedIcon: Icon(Icons.list_alt, color: Color(0xFFEA580C)),
             label: 'Log',
           ),
           NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined, color: Colors.white70),
-            selectedIcon: Icon(Icons.bar_chart, color: Color(0xFFFBBF24)),
+            icon: Icon(Icons.bar_chart_outlined, color: Color(0xFF8494A4)),
+            selectedIcon: Icon(Icons.bar_chart, color: Color(0xFFEA580C)),
             label: 'Reports',
           ),
         ],

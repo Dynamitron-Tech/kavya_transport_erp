@@ -21,13 +21,15 @@ class ManagerJobListScreen extends ConsumerWidget {
     final currentStatus = currentFilter.status;
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        title: Text('Jobs', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: Text('Jobs', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: KTColors.primary),
+            icon: const Icon(Icons.add, color: KTColors.managerAccent),
             onPressed: () => context.push('/manager/jobs/create'),
           ),
         ],
@@ -49,9 +51,9 @@ class ManagerJobListScreen extends ConsumerWidget {
                   child: ChoiceChip(
                     label: Text(_filterLabels[i]),
                     selected: sel,
-                    selectedColor: KTColors.primary,
-                    backgroundColor: KTColors.darkElevated,
-                    labelStyle: TextStyle(color: sel ? Colors.white : KTColors.darkTextSecondary, fontSize: 13),
+                    selectedColor: KTColors.managerAccent,
+                    backgroundColor: KTColors.surface,
+                    labelStyle: TextStyle(color: sel ? Colors.white : KTColors.textMuted, fontSize: 13),
                     onSelected: (_) => ref.read(managerJobFilterProvider.notifier).state = ManagerJobFilter(status: filterStatus),
                     side: BorderSide.none,
                   ),
@@ -63,8 +65,8 @@ class ManagerJobListScreen extends ConsumerWidget {
           // ── Job list ─────────────────────────────────
           Expanded(
             child: RefreshIndicator(
-              color: KTColors.primary,
-              backgroundColor: KTColors.darkSurface,
+              color: KTColors.managerAccent,
+              backgroundColor: KTColors.surface,
               onRefresh: () async => ref.invalidate(managerJobListProvider),
               child: jobsAsync.when(
                 loading: () => const KTLoadingShimmer(type: ShimmerType.list),
@@ -75,9 +77,9 @@ class ManagerJobListScreen extends ConsumerWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.inbox_outlined, color: KTColors.darkTextSecondary, size: 48),
+                          const Icon(Icons.inbox_outlined, color: KTColors.textMuted, size: 48),
                           const SizedBox(height: 12),
-                          Text('No jobs found', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                          Text('No jobs found', style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                         ],
                       ),
                     );
@@ -86,7 +88,7 @@ class ManagerJobListScreen extends ConsumerWidget {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemCount: jobs.length,
-                    itemBuilder: (_, i) => JobCardWidget(job: Map<String, dynamic>.from(jobs[i] as Map)),
+                    itemBuilder: (_, i) => JobCardWidget(job: Map<String, dynamic>.from(jobs[i] as Map), useLightTheme: true),
                   );
                 },
               ),

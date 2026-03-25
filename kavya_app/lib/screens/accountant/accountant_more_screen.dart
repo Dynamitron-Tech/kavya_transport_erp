@@ -14,20 +14,20 @@ class AccountantMoreScreen extends StatelessWidget {
       _MenuItem(Icons.money_off_outlined, 'Payables', '/accountant/payables', KTColors.danger),
       _MenuItem(Icons.receipt_long_outlined, 'GST', '/accountant/gst', KTColors.warning),
       _MenuItem(Icons.note_alt_outlined, 'Vouchers', '/accountant/vouchers', KTColors.roleProjectAssociate),
-      _MenuItem(Icons.task_alt_outlined, 'Expense Approvals', '/accountant/approvals', KTColors.roleAccountant),
+      _MenuItem(Icons.task_alt_outlined, 'Expense Approvals', '/accountant/approvals', KTColors.acctAccent),
       _MenuItem(Icons.people_outlined, 'Settlements', '/accountant/settlements', KTColors.roleManager),
       _MenuItem(Icons.account_balance_outlined, 'Banking', '/accountant/banking', KTColors.roleFleetManager),
     ];
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Modules', style: KTTextStyles.h2.copyWith(color: KTColors.textPrimary)),
+              Text('Modules', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
               const SizedBox(height: 16),
               Expanded(
                 child: GridView.count(
@@ -65,9 +65,9 @@ class _MenuCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
-          color: KTColors.darkElevated,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: KTColors.darkBorder),
+          border: Border.all(color: KTColors.borderColor),
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -78,7 +78,7 @@ class _MenuCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(item.label,
                 style: TextStyle(
-                    color: KTColors.textPrimary,
+                    color: KTColors.textHeading,
                     fontSize: 13,
                     fontWeight: FontWeight.w600)),
           ],

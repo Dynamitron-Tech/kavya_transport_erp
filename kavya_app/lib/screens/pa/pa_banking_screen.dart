@@ -7,11 +7,12 @@ import '../../core/widgets/kt_error_state.dart';
 import '../../core/widgets/notification_bell_widget.dart';
 import '../../providers/fleet_dashboard_provider.dart'; // apiServiceProvider
 
-const _kPaAccent = Color(0xFFDC4B2A);
+const _kPaAccent = KTColors.paAccent;
 
 final _myBankingEntriesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final api = ref.read(apiServiceProvider);
-  final response = await api.get('/banking/entries', queryParameters: {'my_entries': true});
+  // Fetch all banking entries visible to the PA role
+  final response = await api.get('/banking/entries');
   if (response is Map && response['data'] is List) return response['data'] as List<dynamic>;
   if (response is List) return response;
   return [];
@@ -47,15 +48,15 @@ class _PABankingScreenState extends ConsumerState<PABankingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       body: NestedScrollView(
         headerSliverBuilder: (context, _) => [
           SliverAppBar(
             pinned: true,
-            backgroundColor: KTColors.darkSurface,
+            backgroundColor: KTColors.surface,
             surfaceTintColor: Colors.transparent,
             title: Text('Banking',
-                style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+                style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
             actions: const [NotificationBellWidget()],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(58),
@@ -93,7 +94,7 @@ class _PABankingScreenState extends ConsumerState<PABankingScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: KTColors.darkSurface,
+      backgroundColor: KTColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -126,7 +127,7 @@ class _SegmentedToggle extends StatelessWidget {
       height: 38,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: KTColors.darkBg,
+        color: KTColors.lightBg,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -145,7 +146,7 @@ class _SegmentedToggle extends StatelessWidget {
                 child: Text(
                   labels[i],
                   style: TextStyle(
-                    color: isActive ? Colors.white : KTColors.darkTextSecondary,
+                    color: isActive ? Colors.white : KTColors.textMuted,
                     fontSize: 13,
                     fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
                   ),
@@ -181,11 +182,11 @@ class _EntriesTab extends ConsumerWidget {
               children: [
                 Icon(Icons.account_balance_outlined,
                     size: 52,
-                    color: KTColors.darkTextSecondary.withValues(alpha: 0.4)),
+                    color: KTColors.textMuted.withValues(alpha: 0.4)),
                 const SizedBox(height: 12),
                 Text('No entries found',
                     style: KTTextStyles.body
-                        .copyWith(color: KTColors.darkTextSecondary)),
+                        .copyWith(color: KTColors.textMuted)),
               ],
             ),
           );
@@ -205,7 +206,7 @@ class _EntriesTab extends ConsumerWidget {
 
         return RefreshIndicator(
           color: _kPaAccent,
-          backgroundColor: KTColors.darkSurface,
+          backgroundColor: KTColors.surface,
           onRefresh: () async => ref.invalidate(provider),
           child: CustomScrollView(
             slivers: [
@@ -215,9 +216,9 @@ class _EntriesTab extends ConsumerWidget {
                   margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: KTColors.darkSurface,
+                    color: KTColors.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: KTColors.darkBorder),
+                    border: Border.all(color: KTColors.borderColor),
                   ),
                   child: Row(
                     children: [
@@ -228,7 +229,7 @@ class _EntriesTab extends ConsumerWidget {
                             color: KTColors.success),
                       ),
                       Container(
-                          width: 1, height: 36, color: KTColors.darkBorder),
+                          width: 1, height: 36, color: KTColors.borderColor),
                       Expanded(
                         child: _SummaryCell(
                             label: 'Total Debit',
@@ -236,7 +237,7 @@ class _EntriesTab extends ConsumerWidget {
                             color: KTColors.danger),
                       ),
                       Container(
-                          width: 1, height: 36, color: KTColors.darkBorder),
+                          width: 1, height: 36, color: KTColors.borderColor),
                       Expanded(
                         child: _SummaryCell(
                           label: 'Net',
@@ -293,7 +294,7 @@ class _SummaryCell extends StatelessWidget {
         const SizedBox(height: 2),
         Text(label,
             style: KTTextStyles.caption
-                .copyWith(color: KTColors.darkTextSecondary)),
+                .copyWith(color: KTColors.textMuted)),
       ],
     );
   }
@@ -310,7 +311,7 @@ class _BankingEntryCard extends StatelessWidget {
       case 'approved': return KTColors.success;
       case 'pending': return KTColors.warning;
       case 'rejected': return KTColors.danger;
-      default: return KTColors.darkTextSecondary;
+      default: return KTColors.textMuted;
     }
   }
 
@@ -327,9 +328,9 @@ class _BankingEntryCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: KTColors.darkSurface,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: KTColors.darkBorder),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Row(
         children: [
@@ -358,7 +359,7 @@ class _BankingEntryCard extends StatelessWidget {
                       entry['reference_number'] ??
                       '—',
                   style: KTTextStyles.body.copyWith(
-                      color: KTColors.darkTextPrimary,
+                      color: KTColors.textHeading,
                       fontWeight: FontWeight.w600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -369,7 +370,7 @@ class _BankingEntryCard extends StatelessWidget {
                       entry['reference_number'] ??
                       '',
                   style: KTTextStyles.caption.copyWith(
-                      color: KTColors.darkTextSecondary),
+                      color: KTColors.textMuted),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -513,7 +514,7 @@ class _NewBankingEntrySheetState
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: KTColors.darkBorder,
+                  color: KTColors.borderColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -521,7 +522,7 @@ class _NewBankingEntrySheetState
             const SizedBox(height: 16),
             Text('New Banking Entry',
                 style: KTTextStyles.h2
-                    .copyWith(color: KTColors.darkTextPrimary)),
+                    .copyWith(color: KTColors.textHeading)),
             const SizedBox(height: 16),
 
             // Bank account selector
@@ -533,17 +534,17 @@ class _NewBankingEntrySheetState
                     style: const TextStyle(color: KTColors.danger, fontSize: 12)),
                 data: (accounts) => DropdownButtonFormField<int>(
                   initialValue: _selectedAccountId,
-                  dropdownColor: KTColors.darkSurface,
-                  style: const TextStyle(color: KTColors.darkTextPrimary),
+                  dropdownColor: KTColors.surface,
+                  style: const TextStyle(color: KTColors.textHeading),
                   decoration: InputDecoration(
                     labelText: 'Bank Account *',
-                    labelStyle: const TextStyle(color: KTColors.darkTextSecondary),
+                    labelStyle: const TextStyle(color: KTColors.textMuted),
                     filled: true,
-                    fillColor: KTColors.darkBg,
+                    fillColor: KTColors.lightBg,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: KTColors.darkBorder),
+                      borderSide: const BorderSide(color: KTColors.borderColor),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -555,12 +556,12 @@ class _NewBankingEntrySheetState
                     return DropdownMenuItem<int>(
                       value: acc['id'] as int,
                       child: Text(acc['account_name'] ?? '—',
-                          style: const TextStyle(color: KTColors.darkTextPrimary)),
+                          style: const TextStyle(color: KTColors.textHeading)),
                     );
                   }).toList(),
                   onChanged: (v) => setState(() => _selectedAccountId = v),
                   hint: const Text('Select account',
-                      style: TextStyle(color: KTColors.darkTextSecondary)),
+                      style: TextStyle(color: KTColors.textMuted)),
                 ),
               );
             }),
@@ -569,17 +570,17 @@ class _NewBankingEntrySheetState
             // Entry type dropdown
             DropdownButtonFormField<String>(
               initialValue: _entryType,
-              dropdownColor: KTColors.darkSurface,
-              style: const TextStyle(color: KTColors.darkTextPrimary),
+              dropdownColor: KTColors.surface,
+              style: const TextStyle(color: KTColors.textHeading),
               decoration: InputDecoration(
                 labelText: 'Entry Type *',
-                labelStyle: const TextStyle(color: KTColors.darkTextSecondary),
+                labelStyle: const TextStyle(color: KTColors.textMuted),
                 filled: true,
-                fillColor: KTColors.darkBg,
+                fillColor: KTColors.lightBg,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: KTColors.darkBorder),
+                  borderSide: const BorderSide(color: KTColors.borderColor),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -588,7 +589,7 @@ class _NewBankingEntrySheetState
               ),
               items: _entryTypes.map((e) => DropdownMenuItem(
                 value: e.$1,
-                child: Text(e.$2, style: const TextStyle(color: KTColors.darkTextPrimary)),
+                child: Text(e.$2, style: const TextStyle(color: KTColors.textHeading)),
               )).toList(),
               onChanged: (v) => setState(() => _entryType = v ?? _entryType),
             ),
@@ -645,18 +646,18 @@ class _NewBankingEntrySheetState
         child: TextFormField(
           controller: ctrl,
           keyboardType: keyboardType,
-          style: const TextStyle(color: KTColors.darkTextPrimary),
+          style: const TextStyle(color: KTColors.textHeading),
           decoration: InputDecoration(
             labelText: label,
             labelStyle:
-                const TextStyle(color: KTColors.darkTextSecondary),
+                const TextStyle(color: KTColors.textMuted),
             filled: true,
-            fillColor: KTColors.darkBg,
+            fillColor: KTColors.lightBg,
             border:
                 OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: KTColors.darkBorder),
+              borderSide: const BorderSide(color: KTColors.borderColor),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),

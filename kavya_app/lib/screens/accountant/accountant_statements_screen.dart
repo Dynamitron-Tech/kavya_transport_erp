@@ -37,7 +37,7 @@ class _AccountantStatementsScreenState
     final state = ref.watch(_statementsProvider(_period));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(title: const Text('Financial Statements')),
       body: Column(
         children: [
@@ -69,7 +69,7 @@ class _AccountantStatementsScreenState
                 final endDate = data['end_date'] ?? '';
 
                 return RefreshIndicator(
-                  color: KTColors.primary,
+                  color: KTColors.acctAccent,
                   onRefresh: () async =>
                       ref.invalidate(_statementsProvider(_period)),
                   child: ListView(
@@ -80,20 +80,20 @@ class _AccountantStatementsScreenState
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          color: KTColors.darkElevated,
+                          color: KTColors.surface,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: KTColors.darkBorder),
+                          border: Border.all(color: KTColors.borderColor),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text('Period',
                                 style: const TextStyle(
-                                    color: KTColors.textSecondary,
+                                    color: KTColors.textMuted,
                                     fontSize: 12)),
                             Text('$startDate → $endDate',
                                 style: const TextStyle(
-                                    color: KTColors.textPrimary,
+                                    color: KTColors.textHeading,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 12)),
                           ],
@@ -170,7 +170,7 @@ class _AccountantStatementsScreenState
         children: [
           Text(label,
               style: TextStyle(
-                  color: KTColors.textSecondary,
+                  color: KTColors.textMuted,
                   fontSize: bold ? 14 : 13)),
           Text(
             fmt.format(doubleVal),
@@ -185,7 +185,7 @@ class _AccountantStatementsScreenState
   }
 
   Widget _divider() =>
-      const Divider(color: KTColors.darkBorder, height: 1);
+      const Divider(color: KTColors.borderColor, height: 1);
 }
 
 class _StatementCard extends StatelessWidget {
@@ -197,9 +197,9 @@ class _StatementCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KTColors.darkElevated,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KTColors.darkBorder),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(children: children),
     );

@@ -218,7 +218,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Icon(Icons.local_shipping, color: KTColors.primary.withValues(alpha: 0.5)),
+                    Icon(Icons.local_shipping, color: KTColors.driverAccent.withValues(alpha: 0.5)),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -402,7 +402,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
 
     final statusColor = isCheckedIn
         ? (attendance!.status == 'late' ? KTColors.warning : KTColors.success)
-        : const Color(0xFF64748B);
+        : KTColors.textMuted;
     final s = ref.watch(sProvider);
     final statusLabel = isCheckedIn
         ? (attendance!.status == 'late' ? s.late_ : s.present)
@@ -414,14 +414,14 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: isCheckedIn
-              ? [const Color(0xFF0F2A1E), const Color(0xFF1A3A2A)]
-              : [const Color(0xFF0F172A), const Color(0xFF1E293B)],
+              ? [KTColors.successBg, KTColors.successBg]
+              : [KTColors.surface, KTColors.surface],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isCheckedIn
               ? KTColors.success.withValues(alpha: 0.4)
-              : const Color(0xFF334155),
+              : KTColors.borderColor,
           width: 1.5,
         ),
         boxShadow: [
@@ -471,7 +471,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                         dateLabel,
                         style: const TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF94A3B8),
+                          color: KTColors.textMuted,
                         ),
                       ),
                     ],
@@ -511,7 +511,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
             ),
 
             const SizedBox(height: 16),
-            const Divider(color: Color(0xFF334155), height: 1),
+            const Divider(color: KTColors.borderColor, height: 1),
             const SizedBox(height: 16),
 
             if (isCheckedIn) ...
@@ -548,10 +548,10 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                               width: 52,
                               height: 52,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1E293B),
+                                color: KTColors.surface,
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.photo, color: Color(0xFF64748B), size: 20),
+                              child: const Icon(Icons.photo, color: KTColors.textMuted, size: 20),
                             ),
                           ),
                         ),
@@ -564,12 +564,12 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                 // Not checked in — show CTA
                 Row(
                   children: [
-                    const Icon(Icons.info_outline, color: Color(0xFF64748B), size: 16),
+                    const Icon(Icons.info_outline, color: KTColors.textMuted, size: 16),
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
                         'Take a selfie to mark your attendance for today.',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                        style: TextStyle(fontSize: 12, color: KTColors.textMuted),
                       ),
                     ),
                   ],
@@ -582,7 +582,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                     icon: const Icon(Icons.camera_alt_rounded, size: 18),
                     label: Text(s.markAttendance),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: KTColors.primary,
+                      backgroundColor: KTColors.driverAccent,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
@@ -621,7 +621,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
           children: [
             Icon(icon, color: color, size: 16),
             const SizedBox(height: 4),
-            Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+            Text(label, style: const TextStyle(fontSize: 10, color: KTColors.textMuted)),
             const SizedBox(height: 2),
             Text(value,
                 style: TextStyle(
@@ -648,7 +648,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: KTColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -665,7 +665,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
   Widget _activeTripCard(BuildContext context, Trip trip) {
     final progress = _getProgressPercentage(trip.status);
     return Card(
-      color: KTColors.primary.withValues(alpha: 0.05),
+      color: KTColors.driverAccent.withValues(alpha: 0.05),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -678,7 +678,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: KTColors.primary,
+                    color: KTColors.driverAccent,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -691,7 +691,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.location_on_outlined, color: KTColors.primary, size: 16),
+                Icon(Icons.location_on_outlined, color: KTColors.driverAccent, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -736,11 +736,11 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            KTColors.primary.withValues(alpha: 0.12),
-            KTColors.primary.withValues(alpha: 0.04),
+            KTColors.driverAccent.withValues(alpha: 0.12),
+            KTColors.driverAccent.withValues(alpha: 0.04),
           ],
         ),
-        border: Border.all(color: KTColors.primary.withValues(alpha: 0.3), width: 1.5),
+        border: Border.all(color: KTColors.driverAccent.withValues(alpha: 0.3), width: 1.5),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -753,10 +753,10 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: KTColors.primary.withValues(alpha: 0.15),
+                    color: KTColors.driverAccent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.local_shipping, color: KTColors.primary, size: 24),
+                  child: const Icon(Icons.local_shipping, color: KTColors.driverAccent, size: 24),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -768,7 +768,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: KTColors.primary,
+                          color: KTColors.driverAccent,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -912,7 +912,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
   Widget _tripCard(BuildContext context, Trip trip) {
     return Card(
       child: ListTile(
-        leading: Icon(Icons.local_shipping_outlined, color: KTColors.primary),
+        leading: Icon(Icons.local_shipping_outlined, color: KTColors.driverAccent),
         title: Text(trip.tripNumber, style: KTTextStyles.label),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -950,7 +950,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: KTColors.primary, size: 28),
+              Icon(icon, color: KTColors.driverAccent, size: 28),
               const SizedBox(height: 8),
               Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
             ],
@@ -989,7 +989,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
       case 'driver_assigned': return KTColors.warning;
       case 'ready': return KTColors.info;
       case 'started': return KTColors.info;
-      case 'in_transit': return KTColors.primary;
+      case 'in_transit': return KTColors.driverAccent;
       case 'completed': return KTColors.success;
       default: return KTColors.textMuted;
     }
@@ -1010,7 +1010,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
             tierColor = KTColors.success;
             tierIcon = Icons.star;
           case 'good':
-            tierColor = KTColors.primary;
+            tierColor = KTColors.driverAccent;
             tierIcon = Icons.thumb_up;
           case 'needs_attention':
             tierColor = KTColors.warning;
@@ -1490,7 +1490,7 @@ class _AttendanceConfirmSheetState extends State<_AttendanceConfirmSheet> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: const Color(0xFF334155),
+              color: KTColors.borderColor,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -1511,7 +1511,7 @@ class _AttendanceConfirmSheetState extends State<_AttendanceConfirmSheet> {
                 const SizedBox(height: 4),
                 const Text(
                   'Review your selfie and location before submitting.',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  style: TextStyle(fontSize: 12, color: KTColors.textMuted),
                 ),
                 const SizedBox(height: 16),
 
@@ -1531,15 +1531,15 @@ class _AttendanceConfirmSheetState extends State<_AttendanceConfirmSheet> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
+                    color: KTColors.surface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF334155)),
+                    border: Border.all(color: KTColors.borderColor),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         _position != null ? Icons.location_on : Icons.location_searching,
-                        color: _position != null ? KTColors.primary : const Color(0xFF64748B),
+                        color: _position != null ? KTColors.driverAccent : KTColors.textMuted,
                         size: 18,
                       ),
                       const SizedBox(width: 10),
@@ -1549,7 +1549,7 @@ class _AttendanceConfirmSheetState extends State<_AttendanceConfirmSheet> {
                           children: [
                             const Text(
                               'Location',
-                              style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                              style: TextStyle(fontSize: 11, color: KTColors.textMuted),
                             ),
                             Text(
                               locationText,
@@ -1596,7 +1596,7 @@ class _AttendanceConfirmSheetState extends State<_AttendanceConfirmSheet> {
                             : const Icon(Icons.check_rounded, size: 18),
                         label: Text(_loading ? 'Submitting...' : 'Submit Attendance'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: KTColors.primary,
+                          backgroundColor: KTColors.driverAccent,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

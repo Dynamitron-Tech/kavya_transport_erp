@@ -16,11 +16,13 @@ class ManagerJobDetailScreen extends ConsumerWidget {
     final jobAsync = ref.watch(_jobDetailProvider(jobId));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: KTColors.darkTextPrimary), onPressed: () => context.pop()),
-        title: Text('Job Details', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: KTColors.textHeading), onPressed: () => context.pop()),
+        title: Text('Job Details', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
       ),
       body: jobAsync.when(
         loading: () => const KTLoadingShimmer(type: ShimmerType.list),
@@ -33,7 +35,7 @@ class ManagerJobDetailScreen extends ConsumerWidget {
               // ── Header ─────────────────────────────
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: KTColors.darkElevated, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: KTColors.surface, borderRadius: BorderRadius.circular(12)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -41,7 +43,7 @@ class ManagerJobDetailScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: Text(job['job_number'] ?? '#${job['id']}',
-                              style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+                              style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
                         ),
                         _StatusPill(status: status),
                       ],
@@ -56,9 +58,9 @@ class ManagerJobDetailScreen extends ConsumerWidget {
                     _infoRow(Icons.payment, 'Payment terms', job['payment_terms'] ?? '-'),
                     if ((job['notes'] ?? '').toString().isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      Text('Notes', style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+                      Text('Notes', style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
                       const SizedBox(height: 4),
-                      Text(job['notes'].toString(), style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary)),
+                      Text(job['notes'].toString(), style: KTTextStyles.body.copyWith(color: KTColors.textHeading)),
                     ],
                   ],
                 ),
@@ -69,11 +71,11 @@ class ManagerJobDetailScreen extends ConsumerWidget {
               if (job['vehicle'] != null || job['driver'] != null)
                 Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: KTColors.darkElevated, borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: KTColors.surface, borderRadius: BorderRadius.circular(12)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Assignment', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary, fontWeight: FontWeight.w600)),
+                      Text('Assignment', style: KTTextStyles.body.copyWith(color: KTColors.textMuted, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 10),
                       if (job['vehicle'] != null)
                         _infoRow(Icons.local_shipping, 'Vehicle', job['vehicle']['registration_number'] ?? '-'),
@@ -93,7 +95,7 @@ class ManagerJobDetailScreen extends ConsumerWidget {
                     icon: const Icon(Icons.assignment_ind),
                     label: const Text('Assign Vehicle & Driver'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: KTColors.primary,
+                      backgroundColor: KTColors.managerAccent,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -112,10 +114,10 @@ class ManagerJobDetailScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: KTColors.darkTextSecondary),
+          Icon(icon, size: 16, color: KTColors.textMuted),
           const SizedBox(width: 8),
-          Text('$label: ', style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
-          Expanded(child: Text(value, style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary))),
+          Text('$label: ', style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
+          Expanded(child: Text(value, style: KTTextStyles.body.copyWith(color: KTColors.textHeading))),
         ],
       ),
     );
@@ -146,7 +148,7 @@ class _StatusPill extends StatelessWidget {
         color = KTColors.danger;
         break;
       default:
-        color = KTColors.darkTextSecondary;
+        color = KTColors.textMuted;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

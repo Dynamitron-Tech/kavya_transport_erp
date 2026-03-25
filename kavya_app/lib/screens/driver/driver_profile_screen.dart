@@ -24,7 +24,7 @@ class DriverProfileScreen extends ConsumerWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF0F1A2E), Color(0xFF1A2744)],
+              colors: [KTColors.driverAccentDark, KTColors.driverAccent],
             ),
           ),
           padding: const EdgeInsets.fromLTRB(16, 28, 16, 36),
@@ -45,7 +45,7 @@ class DriverProfileScreen extends ConsumerWidget {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: KTColors.primary.withValues(alpha: 0.45),
+                          color: KTColors.driverAccent.withValues(alpha: 0.45),
                           blurRadius: 18,
                           offset: const Offset(0, 5),
                         ),
@@ -64,7 +64,7 @@ class DriverProfileScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: const Color(0xFF10B981),
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF0F1A2E), width: 2),
+                      border: Border.all(color: KTColors.driverAccentDark, width: 2),
                     ),
                     child: const Icon(Icons.check, size: 12, color: Colors.white),
                   ),
@@ -79,14 +79,14 @@ class DriverProfileScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                 decoration: BoxDecoration(
-                  color: KTColors.primary.withValues(alpha: 0.15),
+                  color: KTColors.driverAccent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: KTColors.primary.withValues(alpha: 0.35)),
+                  border: Border.all(color: KTColors.driverAccent.withValues(alpha: 0.35)),
                 ),
                 child: Text(
                   (user?.role ?? 'driver').toUpperCase(),
                   style: const TextStyle(
-                    color: KTColors.primary,
+                    color: KTColors.driverAccent,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.3,
@@ -188,16 +188,16 @@ class _SectionGroup extends StatelessWidget {
           ),
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF111827),
+              color: KTColors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF1E2D45)),
+              border: Border.all(color: KTColors.borderColor),
             ),
             child: Column(
               children: List.generate(children.length, (i) => Column(
                 children: [
                   children[i],
                   if (i < children.length - 1)
-                    Divider(height: 1, indent: 56, color: const Color(0xFF1E2D45)),
+                    Divider(height: 1, indent: 56, color: KTColors.borderColor),
                 ],
               )),
             ),
@@ -228,10 +228,10 @@ class _InfoTile extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: KTColors.primary.withValues(alpha: 0.12),
+              color: KTColors.driverAccent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: KTColors.primary, size: 18),
+            child: Icon(icon, color: KTColors.driverAccent, size: 18),
           ),
           const SizedBox(width: 14),
           Column(
@@ -241,7 +241,7 @@ class _InfoTile extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 value,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: valueColor ?? Colors.white),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: valueColor ?? KTColors.textHeading),
               ),
             ],
           ),
@@ -274,22 +274,22 @@ class _ActionTile extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: KTColors.primary.withValues(alpha: 0.12),
+                color: KTColors.driverAccent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: KTColors.primary, size: 18),
+              child: Icon(icon, color: KTColors.driverAccent, size: 18),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+                  Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: KTColors.textHeading)),
                   Text(subtitle, style: const TextStyle(fontSize: 11, color: KTColors.textMuted)),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: Color(0xFF4B5563), size: 20),
+            const Icon(Icons.chevron_right, color: KTColors.textMuted, size: 20),
           ],
         ),
       ),
@@ -311,17 +311,17 @@ class _LogoutButton extends ConsumerWidget {
       onTap: () => showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: const Color(0xFF111827),
+          backgroundColor: KTColors.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(s.logout, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          title: Text(s.logout, style: const TextStyle(color: KTColors.textHeading, fontWeight: FontWeight.w700)),
           content: Text(
             s.logoutConfirm,
-            style: const TextStyle(color: Color(0xFF94A3B8)),
+            style: const TextStyle(color: KTColors.textMuted),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text(s.cancel, style: const TextStyle(color: Color(0xFF94A3B8))),
+              child: Text(s.cancel, style: const TextStyle(color: KTColors.textMuted)),
             ),
             TextButton(
               onPressed: () {
@@ -336,9 +336,9 @@ class _LogoutButton extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A0A0A),
+          color: KTColors.dangerBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF3D1515)),
+          border: Border.all(color: KTColors.danger.withValues(alpha: 0.25)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -362,7 +362,7 @@ class _AboutSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF0D1424),
+        color: KTColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
@@ -377,7 +377,7 @@ class _AboutSheet extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF334155),
+                  color: KTColors.borderColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -394,12 +394,12 @@ class _AboutSheet extends StatelessWidget {
                       gradient: const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [Color(0xFFFF8C00), Color(0xFFFFB347)],
+                        colors: [KTColors.driverAccent, KTColors.driverAccentDark],
                       ),
                       borderRadius: BorderRadius.circular(22),
                       boxShadow: [
                         BoxShadow(
-                          color: KTColors.primary.withValues(alpha: 0.45),
+                          color: KTColors.driverAccent.withValues(alpha: 0.35),
                           blurRadius: 22,
                           offset: const Offset(0, 6),
                         ),
@@ -410,19 +410,19 @@ class _AboutSheet extends StatelessWidget {
                   const SizedBox(height: 16),
                   const Text(
                     'KT Driver App',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: KTColors.textHeading),
                   ),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E2D45),
+                      color: KTColors.driverAccentBg,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF334155)),
+                      border: Border.all(color: KTColors.driverAccent.withValues(alpha: 0.3)),
                     ),
                     child: const Text(
                       'Version 1.0.0',
-                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12, fontWeight: FontWeight.w600),
+                      style: TextStyle(color: KTColors.textMuted, fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -446,8 +446,8 @@ class _AboutSheet extends StatelessWidget {
                       icon: const Icon(Icons.article_outlined, size: 16),
                       label: const Text('View Open Source Licenses'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF94A3B8),
-                        side: const BorderSide(color: Color(0xFF334155)),
+                        foregroundColor: KTColors.textMuted,
+                        side: const BorderSide(color: KTColors.borderColor),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
@@ -459,7 +459,7 @@ class _AboutSheet extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: () => Navigator.pop(context),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: KTColors.primary,
+                        backgroundColor: KTColors.driverAccent,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -492,17 +492,17 @@ class _AboutInfoRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       decoration: BoxDecoration(
-        color: const Color(0xFF111827),
+        color: KTColors.lightBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1E2D45)),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Row(
         children: [
-          Icon(icon, color: KTColors.primary, size: 18),
+          Icon(icon, color: KTColors.driverAccent, size: 18),
           const SizedBox(width: 12),
-          Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w500)),
+          Text(label, style: const TextStyle(color: KTColors.textMuted, fontSize: 13, fontWeight: FontWeight.w500)),
           const Spacer(),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+          Text(value, style: const TextStyle(color: KTColors.textHeading, fontSize: 13, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -613,9 +613,9 @@ class _CustomLicensesScreenState extends State<_CustomLicensesScreen> {
                 .toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0F1E),
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D1424),
+        backgroundColor: KTColors.driverAccentDark,
         foregroundColor: Colors.white,
         elevation: 0,
         title: const Text(
@@ -631,8 +631,8 @@ class _CustomLicensesScreenState extends State<_CustomLicensesScreen> {
               style: const TextStyle(color: Colors.white, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Search packages…',
-                hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
-                prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF64748B), size: 18),
+                hintStyle: const TextStyle(color: KTColors.textMuted, fontSize: 14),
+                prefixIcon: const Icon(Icons.search_rounded, color: KTColors.textMuted, size: 18),
                 filled: true,
                 fillColor: const Color(0xFF111827),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -660,7 +660,7 @@ class _CustomLicensesScreenState extends State<_CustomLicensesScreen> {
                 children: [
                   CircularProgressIndicator(color: Color(0xFFFF8C00)),
                   SizedBox(height: 16),
-                  Text('Loading licenses…', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14)),
+                  Text('Loading licenses…', style: TextStyle(color: KTColors.textMuted, fontSize: 14)),
                 ],
               ),
             )
@@ -668,7 +668,7 @@ class _CustomLicensesScreenState extends State<_CustomLicensesScreen> {
               ? Center(
                   child: Text(
                     'No packages match "$_search"',
-                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                    style: const TextStyle(color: KTColors.textMuted, fontSize: 14),
                   ),
                 )
               : Column(
@@ -680,7 +680,7 @@ class _CustomLicensesScreenState extends State<_CustomLicensesScreen> {
                           Text(
                             '${filtered.length} package${filtered.length == 1 ? '' : 's'}',
                             style: const TextStyle(
-                              color: Color(0xFF94A3B8),
+                              color: KTColors.textMuted,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -777,7 +777,7 @@ class _LicenseCardState extends State<_LicenseCard> {
                           Text(
                             licenseType,
                             style: const TextStyle(
-                              color: Color(0xFF94A3B8),
+                              color: KTColors.textMuted,
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
                             ),
@@ -788,7 +788,7 @@ class _LicenseCardState extends State<_LicenseCard> {
                   ),
                   Icon(
                     _expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                    color: const Color(0xFF64748B),
+                    color: KTColors.textMuted,
                     size: 20,
                   ),
                 ],
@@ -808,7 +808,7 @@ class _LicenseCardState extends State<_LicenseCard> {
                           child: Text(
                             p,
                             style: const TextStyle(
-                              color: Color(0xFF94A3B8),
+                              color: KTColors.textMuted,
                               fontSize: 12,
                               height: 1.7,
                               fontFamily: 'monospace',

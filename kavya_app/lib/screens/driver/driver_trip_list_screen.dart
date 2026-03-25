@@ -241,7 +241,7 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.location_on_outlined, size: 16, color: KTColors.primary),
+                  Icon(Icons.location_on_outlined, size: 16, color: KTColors.driverAccent),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -294,7 +294,7 @@ class _DriverTripListScreenState extends ConsumerState<DriverTripListScreen> {
     switch (status) {
       case 'pending': return KTColors.warning;
       case 'started': return KTColors.info;
-      case 'in_transit': return KTColors.primary;
+      case 'in_transit': return KTColors.driverAccent;
       case 'loading': return KTColors.warning;
       case 'completed': return KTColors.success;
       default: return KTColors.textMuted;
@@ -330,14 +330,14 @@ class _TripFilterRow extends StatelessWidget {
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: isSelected ? KTColors.primary : const Color(0xFF1E293B),
+                  color: isSelected ? KTColors.driverAccent : KTColors.surface,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSelected ? KTColors.primary : const Color(0xFF334155),
+                    color: isSelected ? KTColors.driverAccent : KTColors.borderColor,
                     width: 1.5,
                   ),
                   boxShadow: isSelected
-                      ? [BoxShadow(color: KTColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+                      ? [BoxShadow(color: KTColors.driverAccent.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
                       : [],
                 ),
                 child: Text(
@@ -345,7 +345,7 @@ class _TripFilterRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+                    color: isSelected ? Colors.white : KTColors.textMuted,
                     letterSpacing: 0.2,
                   ),
                 ),

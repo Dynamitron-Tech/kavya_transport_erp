@@ -13,12 +13,12 @@ import 'pump_shift_screen.dart';
 class PumpDashboardScreen extends ConsumerWidget {
   const PumpDashboardScreen({super.key});
 
-  static const _cardColor = Color(0xFF334155);
-  static const _amber = Color(0xFFFBBF24);
+  static const _cardColor = Color(0xFFFFFFFF);
+  static const _amber = Color(0xFFEA580C);
   static const _red = Color(0xFFEF4444);
   static const _green = Color(0xFF10B981);
-  static const _textPrimary = Color(0xFFF8FAFC);
-  static const _textSecondary = Color(0xFF94A3B8);
+  static const _textPrimary = Color(0xFF0D1B2A);
+  static const _textSecondary = Color(0xFF8494A4);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -48,8 +48,8 @@ class PumpDashboardScreen extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: shift == null
-                        ? const Color(0xFF7F1D1D).withValues(alpha: 0.4)
-                        : const Color(0xFF14532D).withValues(alpha: 0.4),
+                        ? const Color(0xFFFFE4E4)
+                        : const Color(0xFFEAFAF1),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: shift == null ? _red : _green,
@@ -311,7 +311,7 @@ class PumpDashboardScreen extends ConsumerWidget {
             child: LinearProgressIndicator(
               value: pct / 100,
               minHeight: 24,
-              backgroundColor: const Color(0xFF475569),
+              backgroundColor: const Color(0xFFE8EEF4),
               color: barColor,
             ),
           ),
@@ -647,11 +647,11 @@ class _UpdateRateSheet extends StatefulWidget {
 }
 
 class _UpdateRateSheetState extends State<_UpdateRateSheet> {
-  static const _bg = Color(0xFF1E293B);
-  static const _card = Color(0xFF334155);
-  static const _amber = Color(0xFFFBBF24);
-  static const _textPrimary = Color(0xFFF8FAFC);
-  static const _textSecondary = Color(0xFF94A3B8);
+  static const _bg = Color(0xFFF7F9FC);
+  static const _card = Color(0xFFFFFFFF);
+  static const _amber = Color(0xFFEA580C);
+  static const _textPrimary = Color(0xFF0D1B2A);
+  static const _textSecondary = Color(0xFF8494A4);
 
   final _rateCtrl = TextEditingController(text: '93.21');
 
@@ -680,7 +680,7 @@ class _UpdateRateSheetState extends State<_UpdateRateSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white24,
+                  color: const Color(0xFFE8EEF4),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

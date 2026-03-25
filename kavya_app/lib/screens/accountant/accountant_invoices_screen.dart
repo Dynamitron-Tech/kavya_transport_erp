@@ -60,7 +60,7 @@ class _AccountantInvoicesScreenState extends ConsumerState<AccountantInvoicesScr
                 }
 
                 return RefreshIndicator(
-                  color: KTColors.primary,
+                  color: KTColors.acctAccent,
                   onRefresh: () async => ref.invalidate(invoicesProvider), // [cite: 118]
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),

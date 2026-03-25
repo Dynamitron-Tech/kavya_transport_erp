@@ -44,69 +44,84 @@ class ComplianceAlertCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: KTColors.darkSurface,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border(left: BorderSide(color: color, width: 3)),
+        border: Border.all(color: KTColors.borderColor),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  alert['title'] as String? ?? '',
-                  style: const TextStyle(
-                    color: KTColors.darkTextPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(width: 3, color: color),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            alert['title'] as String? ?? '',
+                            style: const TextStyle(
+                              color: KTColors.textHeading,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: color.withAlpha(25),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            severity,
+                            style: TextStyle(
+                                color: color,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      alert['description'] as String? ?? '',
+                      style: const TextStyle(
+                          color: KTColors.textMuted, fontSize: 12),
+                    ),
+                    if (days < 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Expired ${-days} days ago',
+                          style: const TextStyle(
+                              color: KTColors.danger, fontSize: 11),
+                        ),
+                      ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _ActionBtn(label: _actionLabel(), onTap: onAction),
+                        if (cat.startsWith('VEHICLE_') ||
+                            cat == 'DRIVER_LICENSE') ...[
+                          const SizedBox(width: 8),
+                          _ActionBtn(label: 'Details', onTap: onDetail),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: color.withAlpha(25),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  severity,
-                  style: TextStyle(
-                      color: color,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            alert['description'] as String? ?? '',
-            style: const TextStyle(
-                color: KTColors.darkTextSecondary, fontSize: 12),
-          ),
-          if (days < 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                'Expired ${-days} days ago',
-                style: const TextStyle(color: KTColors.danger, fontSize: 11),
               ),
             ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _ActionBtn(label: _actionLabel(), onTap: onAction),
-              if (cat.startsWith('VEHICLE_') || cat == 'DRIVER_LICENSE') ...[
-                const SizedBox(width: 8),
-                _ActionBtn(label: 'Details', onTap: onDetail),
-              ],
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -124,13 +139,13 @@ class _ActionBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: KTColors.darkElevated,
+          color: KTColors.lightBg,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: KTColors.darkBorder, width: 0.5),
+          border: Border.all(color: KTColors.borderColor, width: 0.5),
         ),
         child: Text(label,
             style: const TextStyle(
-                color: KTColors.darkTextPrimary,
+                color: KTColors.textHeading,
                 fontSize: 12,
                 fontWeight: FontWeight.w600)),
       ),

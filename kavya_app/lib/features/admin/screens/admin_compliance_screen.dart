@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/kt_colors.dart';
+import '../../../core/theme/kt_text_styles.dart';
 import '../../../providers/fleet_dashboard_provider.dart';
 import '../providers/admin_providers.dart';
 import '../widgets/compliance_alert_card.dart';
@@ -42,37 +43,59 @@ class _AdminComplianceScreenState
     });
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
-      appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
-        ),
-        title: Row(
-          children: [
-            const Text('Compliance alerts',
-                style: TextStyle(color: KTColors.darkTextPrimary)),
-            const SizedBox(width: 8),
-            alerts.when(
-              data: (list) => Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: KTColors.success.withAlpha(30),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text('${list.length}',
-                    style: const TextStyle(
-                        color: KTColors.success, fontSize: 12)),
+      backgroundColor: KTColors.lightBg,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: Container(
+          color: KTColors.surface,
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: KTColors.borderColor)),
               ),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded,
+                        color: KTColors.textHeading, size: 22),
+                    onPressed: () => context.pop(),
+                  ),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Text('Compliance alerts',
+                            style: KTTextStyles.h1
+                                .copyWith(color: KTColors.textHeading)),
+                        const SizedBox(width: 8),
+                        alerts.when(
+                          data: (list) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: KTColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text('${list.length}',
+                                style: TextStyle(
+                                    color: KTColors.primary, fontSize: 12, fontWeight: FontWeight.w700)),
+                          ),
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, __) => const SizedBox.shrink(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
       body: RefreshIndicator(
+        color: KTColors.primary,
         onRefresh: () async {
           ref.invalidate(adminComplianceAlertsProvider);
         },
@@ -85,21 +108,32 @@ class _AdminComplianceScreenState
               runSpacing: 6,
               children: List.generate(_severities.length, (i) {
                 final active = _severityFilter == _severities[i];
-                return ChoiceChip(
-                  label: Text(_sevLabels[i]),
-                  selected: active,
-                  selectedColor: KTColors.amber600,
-                  backgroundColor: KTColors.darkSurface,
-                  labelStyle: TextStyle(
-                    color:
-                        active ? Colors.white : KTColors.darkTextSecondary,
-                    fontSize: 12,
-                  ),
-                  onSelected: (_) {
+                return GestureDetector(
+                  onTap: () {
                     setState(() => _severityFilter = _severities[i]);
                     ref.read(adminComplianceSeverityFilter.notifier).state =
                         _severities[i];
                   },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: active ? KTColors.amber500 : KTColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: active
+                            ? KTColors.amber500
+                            : KTColors.borderColor,
+                      ),
+                    ),
+                    child: Text(
+                      _sevLabels[i],
+                      style: KTTextStyles.caption.copyWith(
+                        color: active ? KTColors.white : KTColors.textBody,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 );
               }),
             ),
@@ -110,21 +144,31 @@ class _AdminComplianceScreenState
               runSpacing: 6,
               children: List.generate(_categories.length, (i) {
                 final active = _categoryFilter == _categories[i];
-                return ChoiceChip(
-                  label: Text(_catLabels[i]),
-                  selected: active,
-                  selectedColor: KTColors.info,
-                  backgroundColor: KTColors.darkSurface,
-                  labelStyle: TextStyle(
-                    color:
-                        active ? Colors.white : KTColors.darkTextSecondary,
-                    fontSize: 12,
-                  ),
-                  onSelected: (_) {
+                return GestureDetector(
+                  onTap: () {
                     setState(() => _categoryFilter = _categories[i]);
                     ref.read(adminComplianceCategoryFilter.notifier).state =
                         _categories[i];
                   },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: active ? KTColors.info : KTColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color:
+                            active ? KTColors.info : KTColors.borderColor,
+                      ),
+                    ),
+                    child: Text(
+                      _catLabels[i],
+                      style: KTTextStyles.caption.copyWith(
+                        color: active ? KTColors.white : KTColors.textBody,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 );
               }),
             ),
@@ -139,11 +183,11 @@ class _AdminComplianceScreenState
                     child: Column(
                       children: [
                         Icon(Icons.check_circle_outline,
-                            color: KTColors.success, size: 48),
+                            color: KTColors.primary, size: 48),
                         const SizedBox(height: 12),
-                        const Text('All compliance up to date',
-                            style: TextStyle(
-                                color: KTColors.darkTextSecondary)),
+                        Text('All compliance up to date',
+                            style: KTTextStyles.body
+                                .copyWith(color: KTColors.textMuted)),
                       ],
                     ),
                   );
@@ -175,12 +219,10 @@ class _AdminComplianceScreenState
               loading: () => const SizedBox(
                   height: 120,
                   child: Center(
-                      child: CircularProgressIndicator(
-                          color: KTColors.amber600))),
+                      child: CircularProgressIndicator(color: KTColors.primary))),
               error: (e, _) => Center(
                   child: Text('Failed to load: $e',
-                      style:
-                          const TextStyle(color: KTColors.darkTextSecondary))),
+                      style: TextStyle(color: KTColors.danger))),
             ),
             const SizedBox(height: 30),
           ],
@@ -192,11 +234,7 @@ class _AdminComplianceScreenState
   Widget _sectionHead(String title) => Padding(
         padding: const EdgeInsets.only(bottom: 8, top: 8),
         child: Text(title,
-            style: const TextStyle(
-                color: KTColors.darkTextSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.5)),
+            style: KTTextStyles.labelCaps.copyWith(color: KTColors.textMuted)),
       );
 
   Widget _alertCard(

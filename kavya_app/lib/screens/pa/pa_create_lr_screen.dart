@@ -69,21 +69,26 @@ class _PACreateLRScreenState extends ConsumerState<PACreateLRScreen> {
         'remarks': _remarksCtrl.text.trim(),
       };
 
-      final lrResponse = await api.post('/lr', data: lrData);
-      final lrId = lrResponse['data']?['id'] ?? lrResponse['id'];
-
-      if (_autoGenerateEwb && lrId != null && mounted) {
-        await api.post('/eway-bills', data: {'lr_id': lrId});
-      }
+      await api.post('/lr', data: lrData);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_autoGenerateEwb ? 'LR created + EWB generated' : 'LR created'),
-            backgroundColor: KTColors.success,
-          ),
-        );
-        context.pop();
+        if (_autoGenerateEwb) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('LR created — open EWBs to generate the e-way bill'),
+              backgroundColor: KTColors.success,
+            ),
+          );
+          context.push('/pa/ewbs');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('LR created'),
+              backgroundColor: KTColors.success,
+            ),
+          );
+          context.pop();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -99,11 +104,11 @@ class _PACreateLRScreenState extends ConsumerState<PACreateLRScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        title: Text('Create LR', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
-        leading: const BackButton(color: KTColors.darkTextPrimary),
+        backgroundColor: KTColors.surface,
+        title: Text('Create LR', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
+        leading: const BackButton(color: KTColors.textHeading),
       ),
       body: Form(
         key: _formKey,
@@ -172,22 +177,22 @@ class _PACreateLRScreenState extends ConsumerState<PACreateLRScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                 decoration: BoxDecoration(
-                  color: KTColors.darkSurface,
+                  color: KTColors.surface,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: KTColors.darkBorder),
+                  border: Border.all(color: KTColors.borderColor),
                 ),
                 child: SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(
                     'Also generate EWB',
-                    style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                    style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                   ),
                   subtitle: Text(
                     'Auto-creates an e-Way Bill for this LR',
-                    style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
+                    style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted),
                   ),
                   value: _autoGenerateEwb,
-                  activeThumbColor: KTColors.primary,
+                  activeThumbColor: KTColors.paAccent,
                   onChanged: (v) => setState(() => _autoGenerateEwb = v),
                 ),
               ),
@@ -198,7 +203,7 @@ class _PACreateLRScreenState extends ConsumerState<PACreateLRScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: KTColors.primary,
+                    backgroundColor: KTColors.paAccent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -236,7 +241,7 @@ class _SectionHeader extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 10),
         child: Text(
           title,
-          style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary),
+          style: KTTextStyles.h3.copyWith(color: KTColors.textHeading),
         ),
       );
 }
@@ -258,21 +263,21 @@ class _FormField extends StatelessWidget {
       child: TextFormField(
         controller: controller,
         maxLines: maxLines,
-        style: const TextStyle(color: KTColors.darkTextPrimary),
+        style: const TextStyle(color: KTColors.textHeading),
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
-          hintStyle: const TextStyle(color: KTColors.darkTextSecondary, fontSize: 12),
-          labelStyle: const TextStyle(color: KTColors.darkTextSecondary),
+          hintStyle: const TextStyle(color: KTColors.textMuted, fontSize: 12),
+          labelStyle: const TextStyle(color: KTColors.textMuted),
           filled: true,
-          fillColor: KTColors.darkSurface,
+          fillColor: KTColors.surface,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: KTColors.darkBorder),
+            borderSide: const BorderSide(color: KTColors.borderColor),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: KTColors.darkBorder),
+            borderSide: const BorderSide(color: KTColors.borderColor),
           ),
         ),
         validator: required
@@ -297,20 +302,20 @@ class _GstinField extends StatelessWidget {
       child: TextFormField(
         controller: controller,
         textCapitalization: TextCapitalization.characters,
-        style: const TextStyle(color: KTColors.darkTextPrimary, letterSpacing: 1.2),
+        style: const TextStyle(color: KTColors.textHeading, letterSpacing: 1.2),
         maxLength: 15,
         decoration: InputDecoration(
           labelText: label,
           hintText: '22AAAAA0000A1Z5',
           counterText: '',
-          hintStyle: const TextStyle(color: KTColors.darkTextSecondary, fontSize: 12),
-          labelStyle: const TextStyle(color: KTColors.darkTextSecondary),
+          hintStyle: const TextStyle(color: KTColors.textMuted, fontSize: 12),
+          labelStyle: const TextStyle(color: KTColors.textMuted),
           filled: true,
-          fillColor: KTColors.darkSurface,
+          fillColor: KTColors.surface,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: KTColors.darkBorder),
+            borderSide: const BorderSide(color: KTColors.borderColor),
           ),
         ),
         validator: validator,
@@ -331,16 +336,16 @@ class _NumField extends StatelessWidget {
       child: TextFormField(
         controller: controller,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        style: const TextStyle(color: KTColors.darkTextPrimary),
+        style: const TextStyle(color: KTColors.textHeading),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: KTColors.darkTextSecondary),
+          labelStyle: const TextStyle(color: KTColors.textMuted),
           filled: true,
-          fillColor: KTColors.darkSurface,
+          fillColor: KTColors.surface,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: KTColors.darkBorder),
+            borderSide: const BorderSide(color: KTColors.borderColor),
           ),
         ),
         validator: (v) {

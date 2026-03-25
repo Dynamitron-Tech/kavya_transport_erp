@@ -23,11 +23,13 @@ class ManagerClientDetailScreen extends ConsumerWidget {
     final clientAsync = ref.watch(_clientDetailProvider(clientId));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: KTColors.darkTextPrimary), onPressed: () => context.pop()),
-        title: Text('Client Details', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: KTColors.textHeading), onPressed: () => context.pop()),
+        title: Text('Client Details', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
       ),
       body: clientAsync.when(
         loading: () => const KTLoadingShimmer(type: ShimmerType.list),
@@ -42,23 +44,23 @@ class ManagerClientDetailScreen extends ConsumerWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: KTColors.darkElevated, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: KTColors.surface, borderRadius: BorderRadius.circular(12)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
                       CircleAvatar(
                         radius: 24,
-                        backgroundColor: KTColors.primary.withOpacity(0.2),
+                        backgroundColor: KTColors.managerAccent.withOpacity(0.2),
                         child: Text((c['name'] ?? '?')[0].toUpperCase(),
-                            style: const TextStyle(color: KTColors.primary, fontSize: 20, fontWeight: FontWeight.bold)),
+                            style: const TextStyle(color: KTColors.managerAccent, fontSize: 20, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(c['name'] ?? '-', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+                          Text(c['name'] ?? '-', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
                           if ((c['gstin'] ?? '').toString().isNotEmpty)
-                            Text('GSTIN: ${c['gstin']}', style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+                            Text('GSTIN: ${c['gstin']}', style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
                         ]),
                       ),
                       Container(
@@ -83,15 +85,15 @@ class ManagerClientDetailScreen extends ConsumerWidget {
               // ── Credit Info ────────────────────────
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: KTColors.darkElevated, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: KTColors.surface, borderRadius: BorderRadius.circular(12)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Credit', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary, fontWeight: FontWeight.w600)),
+                    Text('Credit', style: KTTextStyles.body.copyWith(color: KTColors.textMuted, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 12),
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text('Limit: ₹${creditLimit.toStringAsFixed(0)}', style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary)),
-                      Text('Outstanding: ₹${outstanding.toStringAsFixed(0)}', style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary)),
+                      Text('Limit: ₹${creditLimit.toStringAsFixed(0)}', style: KTTextStyles.body.copyWith(color: KTColors.textHeading)),
+                      Text('Outstanding: ₹${outstanding.toStringAsFixed(0)}', style: KTTextStyles.body.copyWith(color: KTColors.textHeading)),
                     ]),
                     const SizedBox(height: 8),
                     ClipRRect(
@@ -99,7 +101,7 @@ class ManagerClientDetailScreen extends ConsumerWidget {
                       child: LinearProgressIndicator(
                         value: utilization,
                         minHeight: 8,
-                        backgroundColor: Colors.white10,
+                        backgroundColor: KTColors.borderColor,
                         valueColor: AlwaysStoppedAnimation(
                           utilization > 0.9 ? KTColors.danger : utilization > 0.7 ? KTColors.warning : KTColors.success,
                         ),
@@ -109,7 +111,7 @@ class ManagerClientDetailScreen extends ConsumerWidget {
                     Align(
                       alignment: Alignment.centerRight,
                       child: Text('${(utilization * 100).toStringAsFixed(0)}% used',
-                          style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+                          style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
                     ),
                   ],
                 ),
@@ -127,8 +129,8 @@ class ManagerClientDetailScreen extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 80, child: Text(label, style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary))),
-          Expanded(child: Text(value, style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary))),
+          SizedBox(width: 80, child: Text(label, style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted))),
+          Expanded(child: Text(value, style: KTTextStyles.body.copyWith(color: KTColors.textHeading))),
         ],
       ),
     );

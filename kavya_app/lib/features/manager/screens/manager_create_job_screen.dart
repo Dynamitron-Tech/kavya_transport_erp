@@ -104,11 +104,33 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
     final clientsAsync = ref.watch(managerClientListProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
-      appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        leading: IconButton(icon: const Icon(Icons.close, color: KTColors.darkTextPrimary), onPressed: () => context.pop()),
-        title: Text('Create Job', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+      backgroundColor: KTColors.lightBg,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: Container(
+          color: KTColors.surface,
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: KTColors.borderColor)),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: KTColors.textHeading, size: 22),
+                    onPressed: () => context.pop(),
+                  ),
+                  Expanded(
+                    child: Text('Create Job', style: KTTextStyles.h1.copyWith(color: KTColors.textHeading)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -122,13 +144,13 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
               error: (_, __) => const Text('Could not load clients', style: TextStyle(color: KTColors.danger)),
               data: (clients) => Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(color: KTColors.darkElevated, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: KTColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: KTColors.borderColor)),
                 child: DropdownButtonFormField<String>(
                   initialValue: _selectedClientId,
-                  dropdownColor: KTColors.darkElevated,
+                  dropdownColor: KTColors.surface,
                   decoration: const InputDecoration(border: InputBorder.none),
-                  hint: Text('Select client', style: TextStyle(color: KTColors.darkTextSecondary)),
-                  style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                  hint: Text('Select client', style: TextStyle(color: KTColors.textMuted)),
+                  style: KTTextStyles.body.copyWith(color: KTColors.textBody),
                   validator: (v) => v == null ? 'Required' : null,
                   items: clients.map<DropdownMenuItem<String>>((c) {
                     final m = c as Map<String, dynamic>;
@@ -154,31 +176,31 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: KTColors.darkBg,
+                  color: KTColors.lightBg,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: KTColors.success.withOpacity(0.4)),
+                  border: Border.all(color: KTColors.success.withValues(alpha: 0.4)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
-                      Text('GSTIN: ', style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+                      Text('GSTIN: ', style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
                       Text(
                         (_selectedClient!['gstin'] as String?)?.isNotEmpty == true
                             ? _selectedClient!['gstin'] as String
                             : 'Not set',
-                        style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextPrimary),
+                        style: KTTextStyles.bodySmall.copyWith(color: KTColors.textHeading),
                       ),
                     ]),
                     const SizedBox(height: 2),
                     Row(children: [
-                      Text('Credit limit: ', style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+                      Text('Credit limit: ', style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
                       Text(
                         _fmtAmount((_selectedClient!['credit_limit'])),
-                        style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextPrimary),
+                        style: KTTextStyles.bodySmall.copyWith(color: KTColors.textHeading),
                       ),
                       const SizedBox(width: 12),
-                      Text('Outstanding: ', style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+                      Text('Outstanding: ', style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
                       Text(
                         _fmtAmount((_selectedClient!['outstanding_amount'])),
                         style: KTTextStyles.bodySmall.copyWith(
@@ -224,9 +246,9 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
                   child: ChoiceChip(
                     label: Text(t[0].toUpperCase() + t.substring(1)),
                     selected: sel,
-                    selectedColor: KTColors.primary,
-                    backgroundColor: KTColors.darkElevated,
-                    labelStyle: TextStyle(color: sel ? Colors.white : KTColors.darkTextSecondary),
+                    selectedColor: KTColors.managerAccent,
+                    backgroundColor: KTColors.lightBg,
+                    labelStyle: TextStyle(color: sel ? Colors.white : KTColors.textMuted),
                     onSelected: (_) => setState(() => _vehicleType = t),
                     side: BorderSide.none,
                   ),
@@ -253,14 +275,14 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                decoration: BoxDecoration(color: KTColors.darkElevated, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: KTColors.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: KTColors.borderColor)),
                 child: Row(
                   children: [
-                    const Icon(Icons.calendar_today, color: KTColors.darkTextSecondary, size: 18),
+                    const Icon(Icons.calendar_today, color: KTColors.textMuted, size: 18),
                     const SizedBox(width: 10),
                     Text(
                       '${_pickupDate.day}/${_pickupDate.month}/${_pickupDate.year}',
-                      style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                      style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                     ),
                   ],
                 ),
@@ -279,9 +301,9 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
                   child: ChoiceChip(
                     label: Text(label[0].toUpperCase() + label.substring(1)),
                     selected: sel,
-                    selectedColor: KTColors.primary,
-                    backgroundColor: KTColors.darkElevated,
-                    labelStyle: TextStyle(color: sel ? Colors.white : KTColors.darkTextSecondary),
+                    selectedColor: KTColors.managerAccent,
+                    backgroundColor: KTColors.lightBg,
+                    labelStyle: TextStyle(color: sel ? Colors.white : KTColors.textMuted),
                     onSelected: (_) => setState(() => _paymentTerms = t),
                     side: BorderSide.none,
                   ),
@@ -301,11 +323,11 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
                   child: OutlinedButton(
                     onPressed: _submitting ? null : () => _submit(draft: true),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: KTColors.darkTextSecondary),
+                      side: const BorderSide(color: KTColors.borderColor),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: Text('Save Draft', style: TextStyle(color: KTColors.darkTextSecondary)),
+                    child: Text('Save Draft', style: TextStyle(color: KTColors.textMuted)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -313,7 +335,7 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
                   child: ElevatedButton(
                     onPressed: _submitting ? null : _submit,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: KTColors.primary,
+                      backgroundColor: KTColors.managerAccent,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -334,7 +356,7 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
 
   Widget _label(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text, style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary, fontWeight: FontWeight.w600)),
+        child: Text(text, style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted, fontWeight: FontWeight.w600)),
       );
 
   Widget _textField(String hint, TextEditingController ctrl, {bool required = false, TextInputType? inputType, int maxLines = 1}) {
@@ -342,13 +364,13 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
       controller: ctrl,
       keyboardType: inputType,
       maxLines: maxLines,
-      style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+      style: KTTextStyles.body.copyWith(color: KTColors.textBody),
       validator: required ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null : null,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: KTColors.darkTextSecondary),
+        hintStyle: TextStyle(color: KTColors.textMuted),
         filled: true,
-        fillColor: KTColors.darkElevated,
+        fillColor: KTColors.lightBg,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       ),

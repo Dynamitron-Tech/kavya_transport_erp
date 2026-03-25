@@ -35,15 +35,34 @@ class _AdminComplianceDetailScreenState
     final alerts = ref.watch(adminComplianceAlertsProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
-      appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
+      backgroundColor: KTColors.lightBg,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: Container(
+          color: KTColors.surface,
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: KTColors.borderColor)),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded, color: KTColors.textHeading, size: 22),
+                    onPressed: () => context.pop(),
+                  ),
+                  const Expanded(
+                    child: Text('Compliance detail',
+                        style: TextStyle(color: KTColors.textHeading, fontSize: 17, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        title: const Text('Compliance detail',
-            style: TextStyle(color: KTColors.darkTextPrimary)),
       ),
       body: alerts.when(
         data: (list) {
@@ -51,15 +70,15 @@ class _AdminComplianceDetailScreenState
           if (alert == null) {
             return const Center(
                 child: Text('Alert not found',
-                    style: TextStyle(color: KTColors.darkTextSecondary)));
+                    style: TextStyle(color: KTColors.textMuted)));
           }
           return _body(context, alert);
         },
         loading: () => const Center(
-            child: CircularProgressIndicator(color: KTColors.amber600)),
+            child: CircularProgressIndicator(color: KTColors.primary)),
         error: (e, _) => Center(
             child: Text('Error: $e',
-                style: const TextStyle(color: KTColors.darkTextSecondary))),
+                style: const TextStyle(color: KTColors.textMuted))),
       ),
     );
   }
@@ -92,42 +111,53 @@ class _AdminComplianceDetailScreenState
       children: [
         // ── Alert header ──
         Container(
-          padding: const EdgeInsets.all(16),
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: KTColors.darkSurface,
             borderRadius: BorderRadius.circular(12),
-            border: Border(
-              left: BorderSide(color: _severityColor(severity), width: 4),
-            ),
+            border: Border.all(color: KTColors.borderColor),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                _severityPill(severity),
-                const Spacer(),
-                Text(category.replaceAll('_', ' '),
-                    style: const TextStyle(
-                        color: KTColors.darkTextSecondary, fontSize: 12)),
-              ]),
-              const SizedBox(height: 10),
-              Text(message.isNotEmpty ? message : '$category expired for $entityName',
-                  style: const TextStyle(
-                      color: KTColors.darkTextPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              if (expiryRaw != null)
-                Text('Expired: ${_fmtDate(expiryRaw)}',
-                    style: const TextStyle(
-                        color: KTColors.danger, fontSize: 12)),
-              if (daysExpired > 0)
-                Text('$daysExpired days overdue',
-                    style: const TextStyle(
-                        color: KTColors.danger,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600)),
-            ],
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(width: 4, color: _severityColor(severity)),
+                Expanded(
+                  child: Container(
+                    color: KTColors.surface,
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          _severityPill(severity),
+                          const Spacer(),
+                          Text(category.replaceAll('_', ' '),
+                              style: const TextStyle(
+                                  color: KTColors.textMuted, fontSize: 12)),
+                        ]),
+                        const SizedBox(height: 10),
+                        Text(message.isNotEmpty ? message : '$category expired for $entityName',
+                            style: const TextStyle(
+                                color: KTColors.textHeading,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 8),
+                        if (expiryRaw != null)
+                          Text('Expired: ${_fmtDate(expiryRaw)}',
+                              style: const TextStyle(
+                                  color: KTColors.danger, fontSize: 12)),
+                        if (daysExpired > 0)
+                          Text('$daysExpired days overdue',
+                              style: const TextStyle(
+                                  color: KTColors.danger,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -137,8 +167,9 @@ class _AdminComplianceDetailScreenState
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: KTColors.darkSurface,
+            color: KTColors.surface,
             borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: KTColors.borderColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,8 +188,9 @@ class _AdminComplianceDetailScreenState
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: KTColors.darkSurface,
+              color: KTColors.surface,
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: KTColors.borderColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,12 +201,12 @@ class _AdminComplianceDetailScreenState
                 const SizedBox(height: 12),
                 TextField(
                   controller: _certCtrl,
-                  style: const TextStyle(color: KTColors.darkTextPrimary),
+                  style: const TextStyle(color: KTColors.textHeading),
                   decoration: InputDecoration(
                     labelText: 'Certificate number (optional)',
-                    labelStyle: const TextStyle(color: KTColors.darkTextSecondary),
+                    labelStyle: const TextStyle(color: KTColors.textMuted),
                     filled: true,
-                    fillColor: KTColors.darkElevated,
+                    fillColor: KTColors.lightBg,
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide.none),
@@ -286,8 +318,8 @@ class _AdminComplianceDetailScreenState
           firstDate: DateTime(2020),
           lastDate: DateTime(2035),
           builder: (ctx, child) => Theme(
-            data: ThemeData.dark().copyWith(
-              colorScheme: const ColorScheme.dark(primary: KTColors.amber600),
+            data: ThemeData.light().copyWith(
+              colorScheme: const ColorScheme.light(primary: KTColors.primary),
             ),
             child: child!,
           ),
@@ -297,8 +329,9 @@ class _AdminComplianceDetailScreenState
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: KTColors.darkElevated,
+          color: KTColors.lightBg,
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: Row(
           children: [
@@ -307,14 +340,14 @@ class _AdminComplianceDetailScreenState
                 value != null ? DateFormat('dd MMM yyyy').format(value) : label,
                 style: TextStyle(
                   color: value != null
-                      ? KTColors.darkTextPrimary
-                      : KTColors.darkTextSecondary,
+                      ? KTColors.textHeading
+                      : KTColors.textMuted,
                   fontSize: 14,
                 ),
               ),
             ),
             const Icon(Icons.calendar_today,
-                color: KTColors.darkTextSecondary, size: 18),
+                color: KTColors.textMuted, size: 18),
           ],
         ),
       ),
@@ -330,12 +363,12 @@ class _AdminComplianceDetailScreenState
             width: 80,
             child: Text(label,
                 style: const TextStyle(
-                    color: KTColors.darkTextSecondary, fontSize: 12)),
+                    color: KTColors.textMuted, fontSize: 12)),
           ),
           Expanded(
             child: Text(value,
                 style: const TextStyle(
-                    color: KTColors.darkTextPrimary, fontSize: 13)),
+                    color: KTColors.textHeading, fontSize: 13)),
           ),
         ],
       ),
@@ -373,7 +406,7 @@ class _AdminComplianceDetailScreenState
         padding: const EdgeInsets.only(bottom: 8),
         child: Text(title,
             style: const TextStyle(
-                color: KTColors.darkTextSecondary,
+                color: KTColors.textMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5)),

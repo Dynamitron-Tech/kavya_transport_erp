@@ -58,15 +58,17 @@ class _AccountantSettlementScreenState extends ConsumerState<AccountantSettlemen
     final accent = KTColors.getRoleColor('accountant');
 
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.navy900,
-        foregroundColor: KTColors.darkTextPrimary,
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: KTColors.textHeading,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: Text('Settlements', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        title: Text('Settlements', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
         actions: [
           Container(
             margin: const EdgeInsets.only(right: 12),
@@ -81,9 +83,9 @@ class _AccountantSettlementScreenState extends ConsumerState<AccountantSettlemen
         ],
         bottom: TabBar(
           controller: _tabCtrl,
-          indicatorColor: KTColors.amber500,
-          labelColor: KTColors.amber500,
-          unselectedLabelColor: KTColors.darkTextSecondary,
+          indicatorColor: KTColors.acctAccent,
+          labelColor: KTColors.acctAccent,
+          unselectedLabelColor: KTColors.textMuted,
           tabs: _tabs.map((t) => Tab(text: t.$2)).toList(),
         ),
       ),
@@ -121,7 +123,7 @@ class _SettlementTab extends ConsumerWidget {
             const Icon(Icons.error_outline, color: KTColors.danger, size: 48),
             const SizedBox(height: 12),
             Text('Failed to load settlements',
-                style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
             const SizedBox(height: 16),
             KTButton.secondary(
               onPressed: () => ref.invalidate(accountantSettlementsProvider(tabKey)),
@@ -136,10 +138,10 @@ class _SettlementTab extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.receipt_long_outlined, color: KTColors.darkTextSecondary, size: 64),
+                const Icon(Icons.receipt_long_outlined, color: KTColors.textMuted, size: 64),
                 const SizedBox(height: 16),
                 Text('No ${tabKey.toUpperCase()} Settlements',
-                    style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                    style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
               ],
             ),
           );
@@ -155,24 +157,24 @@ class _SettlementTab extends ConsumerWidget {
           children: [
             // Summary header
             Container(
-              color: KTColors.navy900,
+              color: KTColors.surface,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  Text('Total: ', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+                  Text('Total: ', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
                   Text(
                     '₹${(totalPaise / 100).toStringAsFixed(2)}',
-                    style: KTTextStyles.kpiNumber.copyWith(color: KTColors.amber500, fontSize: 18),
+                    style: KTTextStyles.kpiNumber.copyWith(color: KTColors.acctAccent, fontSize: 18),
                   ),
                   const Spacer(),
                   Text('${settlements.length} settlements',
-                      style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
+                      style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
                 ],
               ),
             ),
             Expanded(
               child: RefreshIndicator(
-                color: KTColors.amber500,
+                color: KTColors.acctAccent,
                 onRefresh: () async => ref.invalidate(accountantSettlementsProvider(tabKey)),
                 child: ListView.separated(
                   padding: const EdgeInsets.all(16),
@@ -225,9 +227,9 @@ class _SettlementCardState extends ConsumerState<_SettlementCard> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KTColors.navy800,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KTColors.navy700),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,9 +248,9 @@ class _SettlementCardState extends ConsumerState<_SettlementCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(driverName.isNotEmpty ? driverName : 'Driver',
-                        style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                        style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
                     Text('Trip #$tripId · $dateRange',
-                        style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
+                        style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
                   ],
                 ),
               ),
@@ -260,10 +262,10 @@ class _SettlementCardState extends ConsumerState<_SettlementCard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _breakdownItem('Gross', grossPaise, KTColors.darkTextSecondary),
+              _breakdownItem('Gross', grossPaise, KTColors.textMuted),
               _breakdownItem('Advance', -advancePaise, KTColors.danger),
               _breakdownItem('Expenses', -expensesPaise, KTColors.danger),
-              _breakdownItem('Net', netPaise, KTColors.amber500, bold: true),
+              _breakdownItem('Net', netPaise, KTColors.acctAccent, bold: true),
             ],
           ),
           const SizedBox(height: 12),
@@ -319,7 +321,7 @@ class _SettlementCardState extends ConsumerState<_SettlementCard> {
               ? KTTextStyles.label.copyWith(color: color, fontWeight: FontWeight.w700, fontSize: 14)
               : KTTextStyles.label.copyWith(color: color),
         ),
-        Text(label, style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
+        Text(label, style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
       ],
     );
   }
@@ -349,14 +351,14 @@ class _SettlementCardState extends ConsumerState<_SettlementCard> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: KTColors.navy800,
-        title: Text('Reject Settlement?', style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        title: Text('Reject Settlement?', style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
         content: Text('This action cannot be undone.',
-            style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+            style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+            child: Text('Cancel', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -393,7 +395,7 @@ class _SettlementCardState extends ConsumerState<_SettlementCard> {
     String method = 'NEFT';
     await showModalBottomSheet(
       context: context,
-      backgroundColor: KTColors.navy800,
+      backgroundColor: KTColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -404,15 +406,15 @@ class _SettlementCardState extends ConsumerState<_SettlementCard> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Payment Method', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+              Text('Payment Method', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
               const SizedBox(height: 16),
               ...['NEFT', 'IMPS', 'UPI', 'Cash', 'Cheque'].map(
                 (m) => RadioListTile<String>(
                   value: m,
                   groupValue: method,
                   onChanged: (v) => setModal(() => method = v ?? method),
-                  title: Text(m, style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary)),
-                  activeColor: KTColors.amber500,
+                  title: Text(m, style: KTTextStyles.body.copyWith(color: KTColors.textHeading)),
+                  activeColor: KTColors.acctAccent,
                 ),
               ),
               const SizedBox(height: 16),
@@ -479,12 +481,12 @@ class _SettlementCardState extends ConsumerState<_SettlementCard> {
                       final confirmed = await showDialog<bool>(
                         context: context,
                         builder: (_) => AlertDialog(
-                          backgroundColor: KTColors.navy800,
+                          backgroundColor: KTColors.surface,
                           title: Text('Confirm Payment',
-                              style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                              style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
                           content: Text(
                             'Did you complete payment of ₹${(netPaise / 100).toStringAsFixed(0)} via UPI to $driverName?',
-                            style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary),
+                            style: KTTextStyles.body.copyWith(color: KTColors.textMuted),
                           ),
                           actions: [
                             TextButton(

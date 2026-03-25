@@ -40,14 +40,16 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
     final vehiclesAsync = ref.watch(fleetVehiclesProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.navy900,
-        foregroundColor: KTColors.darkTextPrimary,
-        title: Text('Fleet Vehicles', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: KTColors.textHeading,
+        title: Text('Fleet Vehicles', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: KTColors.amber500),
+            icon: const Icon(Icons.add, color: KTColors.fleetAccent),
             onPressed: () async {
               final result = await context.push('/fleet/vehicle/add');
               if (result == true) ref.invalidate(fleetVehiclesProvider);
@@ -62,26 +64,26 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
               controller: _searchCtrl,
-              style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+              style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
               onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
               decoration: InputDecoration(
                 hintText: 'Search by reg. no., driver, or model…',
-                hintStyle: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary),
-                prefixIcon: const Icon(Icons.search, color: KTColors.amber500),
+                hintStyle: KTTextStyles.body.copyWith(color: KTColors.textMuted),
+                prefixIcon: const Icon(Icons.search, color: KTColors.fleetAccent),
                 filled: true,
-                fillColor: KTColors.navy800,
+                fillColor: KTColors.surface,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: KTColors.navy700),
+                  borderSide: const BorderSide(color: KTColors.borderColor),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: KTColors.navy700),
+                  borderSide: const BorderSide(color: KTColors.borderColor),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: KTColors.amber500),
+                  borderSide: const BorderSide(color: KTColors.fleetAccent),
                 ),
               ),
             ),
@@ -103,11 +105,11 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
                   selected: selected,
                   onSelected: (_) => setState(() => _statusFilter = f),
                   labelStyle: KTTextStyles.label.copyWith(
-                    color: selected ? KTColors.navy900 : KTColors.darkTextSecondary,
+                    color: selected ? Colors.white : KTColors.textMuted,
                   ),
-                  selectedColor: KTColors.amber500,
-                  backgroundColor: KTColors.navy800,
-                  side: BorderSide(color: selected ? KTColors.amber500 : KTColors.navy700),
+                  selectedColor: KTColors.fleetAccent,
+                  backgroundColor: KTColors.surface,
+                  side: BorderSide(color: selected ? KTColors.fleetAccent : KTColors.borderColor),
                   showCheckmark: false,
                 );
               },
@@ -119,7 +121,7 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
           Expanded(
             child: vehiclesAsync.when(
               loading: () => const Center(
-                child: CircularProgressIndicator(color: KTColors.amber500),
+                child: CircularProgressIndicator(color: KTColors.fleetAccent),
               ),
               error: (e, _) => Center(
                 child: Column(
@@ -128,13 +130,13 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
                     const Icon(Icons.error_outline, color: KTColors.danger, size: 48),
                     const SizedBox(height: 12),
                     Text('Failed to load vehicles',
-                        style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                        style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () => ref.invalidate(fleetVehiclesProvider),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: KTColors.amber500,
-                        foregroundColor: KTColors.navy900,
+                        backgroundColor: KTColors.fleetAccent,
+                        foregroundColor: Colors.white,
                       ),
                       child: const Text('Retry'),
                     ),
@@ -149,10 +151,10 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(Icons.directions_car_outlined,
-                            size: 56, color: KTColors.darkTextSecondary),
+                            size: 56, color: KTColors.textMuted),
                         const SizedBox(height: 12),
                         Text('No vehicles found',
-                            style: KTTextStyles.h3.copyWith(color: KTColors.darkTextSecondary)),
+                            style: KTTextStyles.h3.copyWith(color: KTColors.textMuted)),
                         const SizedBox(height: 4),
                         Text('Try adjusting the search or filter',
                             style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
@@ -161,7 +163,7 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
                   );
                 }
                 return RefreshIndicator(
-                  color: KTColors.amber500,
+                  color: KTColors.fleetAccent,
                   onRefresh: () async => ref.invalidate(fleetVehiclesProvider),
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -215,9 +217,9 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: KTColors.navy800,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: KTColors.navy700),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,7 +235,7 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
                       Text(
                         regNumber,
                         style: KTTextStyles.h3.copyWith(
-                          color: KTColors.amber500,
+                          color: KTColors.fleetAccent,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -241,7 +243,7 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
                       Text(
                         modelStr.isNotEmpty ? modelStr : '—',
                         style: KTTextStyles.bodySmall.copyWith(
-                          color: KTColors.darkTextSecondary,
+                          color: KTColors.textMuted,
                         ),
                       ),
                     ],
@@ -269,7 +271,7 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: KTColors.navy900,
+                color: KTColors.surface,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -286,7 +288,7 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                _actionBtn(context, Icons.edit_outlined, 'Edit', KTColors.amber500, () async {
+                _actionBtn(context, Icons.edit_outlined, 'Edit', KTColors.fleetAccent, () async {
                   final result = await context.push('/fleet/vehicle/$id/edit');
                   if (result == true) ref.invalidate(fleetVehiclesProvider);
                 }),
@@ -348,7 +350,7 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
           value,
           style: KTTextStyles.bodySmall.copyWith(
             fontWeight: FontWeight.w600,
-            color: KTColors.darkTextPrimary,
+            color: KTColors.textHeading,
           ),
         ),
       ],
@@ -368,7 +370,7 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
       case 'inactive':
         return KTColors.danger;
       default:
-        return KTColors.textSecondary;
+        return KTColors.textMuted;
     }
   }
 }

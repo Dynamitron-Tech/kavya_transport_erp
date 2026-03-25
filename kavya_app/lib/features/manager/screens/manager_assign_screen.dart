@@ -28,7 +28,7 @@ class _ManagerAssignScreenState extends ConsumerState<ManagerAssignScreen> {
     setState(() => _submitting = true);
     try {
       final api = ref.read(apiServiceProvider);
-      await api.patch('/jobs/${widget.jobId}/assign', data: {
+      await api.put('/jobs/${widget.jobId}/assign', data: {
         'vehicle_id': _selectedVehicleId,
         'driver_id': _selectedDriverId,
       });
@@ -58,11 +58,13 @@ class _ManagerAssignScreenState extends ConsumerState<ManagerAssignScreen> {
     final driversAsync = ref.watch(managerAvailableDriversProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: KTColors.darkTextPrimary), onPressed: () => context.pop()),
-        title: Text('Assign Vehicle & Driver', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: KTColors.textHeading), onPressed: () => context.pop()),
+        title: Text('Assign Vehicle & Driver', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
@@ -72,10 +74,10 @@ class _ManagerAssignScreenState extends ConsumerState<ManagerAssignScreen> {
                 ? _confirmAssignment
                 : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: KTColors.primary,
+              backgroundColor: KTColors.managerAccent,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: KTColors.darkElevated,
-              disabledForegroundColor: KTColors.darkTextSecondary,
+              disabledBackgroundColor: KTColors.surface,
+              disabledForegroundColor: KTColors.textMuted,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
@@ -89,14 +91,14 @@ class _ManagerAssignScreenState extends ConsumerState<ManagerAssignScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           // ── Select Vehicle ───────────────────────
-          Text("SELECT VEHICLE", style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary, fontWeight: FontWeight.w700, letterSpacing: 1)),
+          Text("SELECT VEHICLE", style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted, fontWeight: FontWeight.w700, letterSpacing: 1)),
           const SizedBox(height: 12),
           vehiclesAsync.when(
             loading: () => const KTLoadingShimmer(type: ShimmerType.list),
             error: (e, _) => KTErrorState(message: e.toString(), onRetry: () => ref.invalidate(managerAvailableVehiclesProvider)),
             data: (vehicles) {
               if (vehicles.isEmpty) {
-                return Center(child: Text('No available vehicles', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)));
+                return Center(child: Text('No available vehicles', style: KTTextStyles.body.copyWith(color: KTColors.textMuted)));
               }
               return Column(
                 children: vehicles.map<Widget>((v) {
@@ -114,14 +116,14 @@ class _ManagerAssignScreenState extends ConsumerState<ManagerAssignScreen> {
           const SizedBox(height: 24),
 
           // ── Select Driver ────────────────────────
-          Text("SELECT DRIVER", style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary, fontWeight: FontWeight.w700, letterSpacing: 1)),
+          Text("SELECT DRIVER", style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted, fontWeight: FontWeight.w700, letterSpacing: 1)),
           const SizedBox(height: 12),
           driversAsync.when(
             loading: () => const KTLoadingShimmer(type: ShimmerType.list),
             error: (e, _) => KTErrorState(message: e.toString(), onRetry: () => ref.invalidate(managerAvailableDriversProvider)),
             data: (drivers) {
               if (drivers.isEmpty) {
-                return Center(child: Text('No available drivers', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)));
+                return Center(child: Text('No available drivers', style: KTTextStyles.body.copyWith(color: KTColors.textMuted)));
               }
               return Column(
                 children: drivers.map<Widget>((d) {

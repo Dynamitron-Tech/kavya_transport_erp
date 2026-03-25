@@ -36,15 +36,15 @@ class DriverSettlementScreen extends ConsumerWidget {
     final settlementsAsync = ref.watch(driverSettlementsProvider(driverId));
 
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.navy900,
-        foregroundColor: KTColors.darkTextPrimary,
+        backgroundColor: KTColors.surface,
+        foregroundColor: KTColors.textHeading,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: Text(s.myEarnings, style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        title: Text(s.myEarnings, style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
         centerTitle: false,
       ),
       body: settlementsAsync.when(
@@ -64,7 +64,7 @@ class DriverSettlementScreen extends ConsumerWidget {
             children: [
               const Icon(Icons.error_outline, color: KTColors.danger, size: 48),
               const SizedBox(height: 12),
-              Text('Failed to load settlements', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+              Text('Failed to load settlements', style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
               const SizedBox(height: 16),
               KTButton.secondary(
                 onPressed: () => ref.invalidate(driverSettlementsProvider(driverId)),
@@ -99,7 +99,7 @@ class DriverSettlementScreen extends ConsumerWidget {
     }
 
     return RefreshIndicator(
-      color: KTColors.amber500,
+      color: KTColors.driverAccent,
       onRefresh: () async {},
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -107,7 +107,7 @@ class DriverSettlementScreen extends ConsumerWidget {
           // ─── Summary Cards ───────────────────────────────────────
           Row(
             children: [
-              Expanded(child: _summaryCard('This Month', totalPaiseMonth, Icons.account_balance_wallet, KTColors.amber500)),
+              Expanded(child: _summaryCard('This Month', totalPaiseMonth, Icons.account_balance_wallet, KTColors.driverAccent)),
               const SizedBox(width: 12),
               Expanded(child: _summaryCard('Pending', totalPaisePending, Icons.pending_outlined, KTColors.warning)),
             ],
@@ -115,7 +115,7 @@ class DriverSettlementScreen extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // ─── Settlement History ───────────────────────────────────
-          Text(s.settlementHistory, style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+          Text(s.settlementHistory, style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
           const SizedBox(height: 12),
 
           if (settlements.isEmpty)
@@ -132,9 +132,9 @@ class DriverSettlementScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KTColors.navy800,
+        color: KTColors.lightBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KTColors.navy700),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,7 +143,7 @@ class DriverSettlementScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           Text(amount, style: KTTextStyles.kpiNumber.copyWith(color: accent, fontSize: 20)),
           const SizedBox(height: 4),
-          Text(label, style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
+          Text(label, style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
         ],
       ),
     );
@@ -180,9 +180,9 @@ class DriverSettlementScreen extends ConsumerWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: KTColors.navy800,
+          color: KTColors.lightBg,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: KTColors.navy700),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,20 +190,20 @@ class DriverSettlementScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(tripDate, style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
+                Text(tripDate, style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
                 KTStatusBadge(label: statusLabel, color: statusColor),
               ],
             ),
             const SizedBox(height: 8),
-            Text(route, style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary)),
+            Text(route, style: KTTextStyles.body.copyWith(color: KTColors.textHeading)),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _amountChip('Gross', grossPaise, KTColors.darkTextSecondary),
+                _amountChip('Gross', grossPaise, KTColors.textMuted),
                 _amountChip('Advance', -advancePaise, KTColors.danger),
                 _amountChip('Expenses', -expensesPaise, KTColors.danger),
-                _amountChip('Net', netPaise, KTColors.amber500, isHighlight: true),
+                _amountChip('Net', netPaise, KTColors.driverAccent, isHighlight: true),
               ],
             ),
           ],
@@ -223,7 +223,7 @@ class DriverSettlementScreen extends ConsumerWidget {
               ? KTTextStyles.kpiNumber.copyWith(color: color, fontSize: 16)
               : KTTextStyles.label.copyWith(color: color, fontWeight: FontWeight.w600),
         ),
-        Text(label, style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
+        Text(label, style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
       ],
     );
   }
@@ -233,13 +233,13 @@ class DriverSettlementScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 48),
       child: Column(
         children: [
-          const Icon(Icons.receipt_long, color: KTColors.darkTextSecondary, size: 64),
+          const Icon(Icons.receipt_long, color: KTColors.textMuted, size: 64),
           const SizedBox(height: 16),
-          Text('No Settlements Yet', style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+          Text('No Settlements Yet', style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
           const SizedBox(height: 8),
           Text(
             'Your settlement history will appear here after trips are completed.',
-            style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary),
+            style: KTTextStyles.body.copyWith(color: KTColors.textMuted),
             textAlign: TextAlign.center,
           ),
         ],
@@ -250,7 +250,7 @@ class DriverSettlementScreen extends ConsumerWidget {
   void _showDetail(BuildContext context, Map<String, dynamic> settlement) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: KTColors.navy800,
+      backgroundColor: KTColors.lightBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -285,22 +285,22 @@ class _SettlementDetailSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: KTColors.navy700,
+                color: KTColors.borderColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
           const SizedBox(height: 20),
-          Text('Settlement Breakdown', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+          Text('Settlement Breakdown', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
           const SizedBox(height: 4),
           Text('Trip #$tripId · Status: ${status.toUpperCase()}',
-              style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
-          const Divider(color: KTColors.navy700, height: 24),
+              style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
+          const Divider(color: KTColors.borderColor, height: 24),
           _row('Gross Earnings', grossPaise, KTColors.success),
           _row('Advance Taken', -advancePaise, KTColors.danger),
           _row('Trip Expenses', -expensesPaise, KTColors.danger),
-          const Divider(color: KTColors.navy700, height: 24),
-          _row('Net Payable', netPaise, KTColors.amber500, isTotal: true),
+          const Divider(color: KTColors.borderColor, height: 24),
+          _row('Net Payable', netPaise, KTColors.driverAccent, isTotal: true),
           const SizedBox(height: 24),
         ],
       ),
@@ -317,8 +317,8 @@ class _SettlementDetailSheet extends StatelessWidget {
         children: [
           Text(label,
               style: isTotal
-                  ? KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)
-                  : KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                  ? KTTextStyles.h3.copyWith(color: KTColors.textHeading)
+                  : KTTextStyles.body.copyWith(color: KTColors.textMuted)),
           Text(amount,
               style: isTotal
                   ? KTTextStyles.kpiNumber.copyWith(color: color, fontSize: 20)

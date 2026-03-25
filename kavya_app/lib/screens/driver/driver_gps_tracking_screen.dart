@@ -166,7 +166,7 @@ class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScree
               Polyline(
                 polylineId: const PolylineId('route'),
                 points: [originLocation, currentLocation, destLocation],
-                color: KTColors.primary,
+                color: KTColors.driverAccent,
                 width: 3,
               ),
             },
@@ -424,7 +424,7 @@ class _DriverGpsTrackingScreenState extends ConsumerState<DriverGpsTrackingScree
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: KTColors.primary),
+              Icon(icon, size: 16, color: KTColors.driverAccent),
               const SizedBox(width: 6),
               Text(
                 label,

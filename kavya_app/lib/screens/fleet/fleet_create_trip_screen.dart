@@ -116,14 +116,14 @@ class _FleetCreateTripScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.navy900,
-        foregroundColor: KTColors.darkTextPrimary,
+        backgroundColor: KTColors.surface,
+        foregroundColor: KTColors.textHeading,
         elevation: 0,
         title: Text('Create Trip',
             style: KTTextStyles.h2.copyWith(
-                color: KTColors.darkTextPrimary,
+                color: KTColors.textHeading,
                 decoration: TextDecoration.none)),
       ),
       body: Form(
@@ -155,10 +155,10 @@ class _FleetCreateTripScreenState
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
-                  color: KTColors.navy800,
+                  color: KTColors.surface,
                   borderRadius: BorderRadius.circular(10),
                   border:
-                      Border.all(color: KTColors.navy700),
+                      Border.all(color: KTColors.borderColor),
                 ),
                 child: Row(
                   mainAxisAlignment:
@@ -167,11 +167,11 @@ class _FleetCreateTripScreenState
                     Text(
                       '${_tripDate.year}-${_tripDate.month.toString().padLeft(2, '0')}-${_tripDate.day.toString().padLeft(2, '0')}',
                       style: KTTextStyles.body.copyWith(
-                          color: KTColors.darkTextPrimary),
+                          color: KTColors.textHeading),
                     ),
                     const Icon(Icons.calendar_today,
                         size: 18,
-                        color: KTColors.amber500),
+                        color: KTColors.fleetAccent),
                   ],
                 ),
               ),
@@ -182,12 +182,12 @@ class _FleetCreateTripScreenState
             // Vehicle picker
             DropdownButtonFormField<int>(
               initialValue: _selectedVehicleId,
-              dropdownColor: KTColors.navy800,
+              dropdownColor: KTColors.surface,
               style: KTTextStyles.body
-                  .copyWith(color: KTColors.darkTextPrimary),
+                  .copyWith(color: KTColors.textHeading),
               hint: Text('Select Vehicle',
                   style: KTTextStyles.body.copyWith(
-                      color: KTColors.darkTextSecondary)),
+                      color: KTColors.textMuted)),
               decoration: _dropDecor('Vehicle *'),
               items: _vehicles.map((v) {
                 final reg = v['registration_number'] ??
@@ -208,12 +208,12 @@ class _FleetCreateTripScreenState
             // Driver picker
             DropdownButtonFormField<int>(
               initialValue: _selectedDriverId,
-              dropdownColor: KTColors.navy800,
+              dropdownColor: KTColors.surface,
               style: KTTextStyles.body
-                  .copyWith(color: KTColors.darkTextPrimary),
+                  .copyWith(color: KTColors.textHeading),
               hint: Text('Select Driver',
                   style: KTTextStyles.body.copyWith(
-                      color: KTColors.darkTextSecondary)),
+                      color: KTColors.textMuted)),
               decoration: _dropDecor('Driver *'),
               items: _drivers.map((d) {
                 final name =
@@ -236,8 +236,8 @@ class _FleetCreateTripScreenState
               child: ElevatedButton(
                 onPressed: _saving ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: KTColors.amber500,
-                  foregroundColor: KTColors.navy900,
+                  backgroundColor: KTColors.fleetAccent,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
                 ),
@@ -247,11 +247,11 @@ class _FleetCreateTripScreenState
                         height: 20,
                         child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: KTColors.navy900))
+                            color: KTColors.surface))
                     : Text('Create Trip',
                         style: KTTextStyles.body.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: KTColors.navy900)),
+                            color: Colors.white)),
               ),
             ),
             const SizedBox(height: 24),
@@ -264,7 +264,7 @@ class _FleetCreateTripScreenState
   Widget _sectionLabel(String text) {
     return Text(text,
         style: KTTextStyles.h3.copyWith(
-            color: KTColors.amber500,
+            color: KTColors.fleetAccent,
             decoration: TextDecoration.none));
   }
 
@@ -272,22 +272,22 @@ class _FleetCreateTripScreenState
     return InputDecoration(
       labelText: label,
       labelStyle: KTTextStyles.label
-          .copyWith(color: KTColors.darkTextSecondary),
+          .copyWith(color: KTColors.textMuted),
       filled: true,
-      fillColor: KTColors.navy800,
+      fillColor: KTColors.surface,
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: KTColors.navy700),
+        borderSide: const BorderSide(color: KTColors.borderColor),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: KTColors.navy700),
+        borderSide: const BorderSide(color: KTColors.borderColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: KTColors.amber500),
+        borderSide: const BorderSide(color: KTColors.fleetAccent),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -306,26 +306,26 @@ class _FleetCreateTripScreenState
         keyboardType: keyboardType,
         validator: validator,
         style: KTTextStyles.body
-            .copyWith(color: KTColors.darkTextPrimary),
+            .copyWith(color: KTColors.textHeading),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: KTTextStyles.label
-              .copyWith(color: KTColors.darkTextSecondary),
+              .copyWith(color: KTColors.textMuted),
           filled: true,
-          fillColor: KTColors.navy800,
+          fillColor: KTColors.surface,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: KTColors.navy700),
+            borderSide: const BorderSide(color: KTColors.borderColor),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: KTColors.navy700),
+            borderSide: const BorderSide(color: KTColors.borderColor),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: KTColors.amber500),
+            borderSide: const BorderSide(color: KTColors.fleetAccent),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),

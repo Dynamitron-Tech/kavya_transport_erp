@@ -40,14 +40,14 @@ class PADocumentsScreen extends ConsumerWidget {
     final docsAsync = ref.watch(_tripDocsProvider(tripId));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        title: Text('Documents', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
-        leading: const BackButton(color: KTColors.darkTextPrimary),
+        backgroundColor: KTColors.surface,
+        title: Text('Documents', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
+        leading: const BackButton(color: KTColors.textHeading),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: KTColors.darkTextPrimary),
+            icon: const Icon(Icons.refresh, color: KTColors.textHeading),
             onPressed: () => ref.invalidate(_tripDocsProvider(tripId)),
           ),
         ],
@@ -75,13 +75,13 @@ class PADocumentsScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: KTColors.primary.withOpacity(0.1),
+                  color: KTColors.paAccent.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: KTColors.primary.withOpacity(0.4), style: BorderStyle.none),
+                  border: Border.all(color: KTColors.paAccent.withOpacity(0.4), style: BorderStyle.none),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.cloud_upload_outlined, color: KTColors.primary, size: 28),
+                    const Icon(Icons.cloud_upload_outlined, color: KTColors.paAccent, size: 28),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -89,11 +89,11 @@ class PADocumentsScreen extends ConsumerWidget {
                         children: [
                           Text('Upload Trip Documents',
                               style: KTTextStyles.body.copyWith(
-                                color: KTColors.darkTextPrimary,
+                                color: KTColors.textHeading,
                                 fontWeight: FontWeight.w600,
                               )),
                           Text('Tap on any document below to upload / replace',
-                              style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+                              style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
                         ],
                       ),
                     ),
@@ -187,15 +187,15 @@ class _DocItemTileState extends State<_DocItemTile> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: KTColors.darkSurface,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: KTColors.darkBorder),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Row(
         children: [
           Icon(
             widget.isUploaded ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: widget.isUploaded ? KTColors.success : KTColors.darkTextSecondary,
+            color: widget.isUploaded ? KTColors.success : KTColors.textMuted,
             size: 22,
           ),
           const SizedBox(width: 12),
@@ -204,7 +204,7 @@ class _DocItemTileState extends State<_DocItemTile> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(widget.label,
-                    style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary)),
+                    style: KTTextStyles.body.copyWith(color: KTColors.textHeading)),
                 Text(
                   widget.isUploaded ? 'Uploaded' : 'Missing',
                   style: KTTextStyles.bodySmall.copyWith(
@@ -217,13 +217,13 @@ class _DocItemTileState extends State<_DocItemTile> {
           if (_uploading)
             const SizedBox(
               height: 20, width: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: KTColors.primary),
+              child: CircularProgressIndicator(strokeWidth: 2, color: KTColors.paAccent),
             )
           else
             IconButton(
               icon: Icon(
                 widget.isUploaded ? Icons.upload : Icons.upload,
-                color: KTColors.primary,
+                color: KTColors.paAccent,
                 size: 20,
               ),
               tooltip: widget.isUploaded ? 'Replace' : 'Upload',

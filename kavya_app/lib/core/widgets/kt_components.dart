@@ -281,9 +281,9 @@ class KTInfoCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: backgroundColor ?? KTColors.navy100,
+          color: backgroundColor ?? KTColors.gray100,
           border: Border.all(
-            color: borderColor ?? KTColors.navy100.withOpacity(0.5),
+            color: borderColor ?? KTColors.borderColor,
             width: 1,
           ),
           borderRadius: BorderRadius.circular(12),

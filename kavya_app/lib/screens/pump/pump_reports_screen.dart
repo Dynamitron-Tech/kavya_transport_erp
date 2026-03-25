@@ -9,10 +9,10 @@ import '../../utils/indian_format.dart';
 class PumpReportsScreen extends ConsumerWidget {
   const PumpReportsScreen({super.key});
 
-  static const _amber = Color(0xFFFBBF24);
-  static const _cardColor = Color(0xFF334155);
-  static const _textPrimary = Color(0xFFF8FAFC);
-  static const _textSecondary = Color(0xFF94A3B8);
+  static const _amber = Color(0xFFEA580C);
+  static const _cardColor = Color(0xFFFFFFFF);
+  static const _textPrimary = Color(0xFF0D1B2A);
+  static const _textSecondary = Color(0xFF8494A4);
   static const _green = Color(0xFF10B981);
 
   @override
@@ -230,7 +230,7 @@ class PumpReportsScreen extends ConsumerWidget {
                       child: LinearProgressIndicator(
                         value: pct,
                         minHeight: 8,
-                        backgroundColor: Colors.white12,
+                        backgroundColor: const Color(0xFFE8EEF4),
                         valueColor: const AlwaysStoppedAnimation<Color>(_amber),
                       ),
                     ),

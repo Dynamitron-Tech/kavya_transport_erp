@@ -259,7 +259,7 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
               children: [
                 Text(
                   '₹${expense.amount.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: KTColors.primary),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: KTColors.driverAccent),
                 ),
                 const SizedBox(height: 4),
                 if (expense.status != null)
@@ -288,7 +288,7 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
 
   Color _getCategoryColor(String category) {
     const colors = {
-      'fuel': KTColors.primary,
+      'fuel': KTColors.driverAccent,
       'toll': KTColors.info,
       'food': KTColors.warning,
       'maintenance': KTColors.danger,
@@ -319,7 +319,7 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
       case 'pending': return KTColors.warning;
       case 'submitted': return KTColors.info;
       case 'approved': return KTColors.success;
-      case 'paid': return KTColors.primary;
+      case 'paid': return KTColors.driverAccent;
       case 'rejected': return KTColors.danger;
       default: return KTColors.textMuted;
     }
@@ -379,7 +379,7 @@ class _SegmentedFilter extends StatelessWidget {
                 curve: Curves.easeOut,
                 padding: const EdgeInsets.symmetric(vertical: 9),
                 decoration: BoxDecoration(
-                  color: isSelected ? KTColors.primary : Colors.transparent,
+                  color: isSelected ? KTColors.driverAccent : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 alignment: Alignment.center,
@@ -388,7 +388,7 @@ class _SegmentedFilter extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    color: isSelected ? Colors.white : const Color(0xFF64748B),
+                    color: isSelected ? Colors.white : KTColors.textMuted,
                   ),
                 ),
               ),
@@ -430,13 +430,13 @@ class _ChipFilter extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? KTColors.primary.withValues(alpha: 0.15)
+                      ? KTColors.driverAccent.withValues(alpha: 0.15)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isSelected
-                        ? KTColors.primary.withValues(alpha: 0.5)
-                        : const Color(0xFF1E293B),
+                        ? KTColors.driverAccent.withValues(alpha: 0.5)
+                        : KTColors.surface,
                     width: 1,
                   ),
                 ),
@@ -445,7 +445,7 @@ class _ChipFilter extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    color: isSelected ? KTColors.primary : const Color(0xFF64748B),
+                    color: isSelected ? KTColors.driverAccent : KTColors.textMuted,
                   ),
                 ),
               ),

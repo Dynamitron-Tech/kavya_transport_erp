@@ -22,7 +22,7 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
   static const _docTypes = [
     _DocMeta(key: 'driving_license', label: 'Driving License', icon: Icons.badge_outlined, color: KTColors.info),
     _DocMeta(key: 'aadhaar_card', label: 'Aadhaar Card', icon: Icons.credit_card_outlined, color: KTColors.success),
-    _DocMeta(key: 'driver_badge', label: 'Driver Badge', icon: Icons.verified_user_outlined, color: KTColors.amber500),
+    _DocMeta(key: 'driver_badge', label: 'Driver Badge', icon: Icons.verified_user_outlined, color: KTColors.driverAccent),
     _DocMeta(key: 'medical_fitness', label: 'Medical Fitness', icon: Icons.health_and_safety_outlined, color: KTColors.danger),
   ];
 
@@ -64,28 +64,28 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
   Widget build(BuildContext context) {
     final s = ref.watch(sProvider);
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
+        backgroundColor: KTColors.surface,
         surfaceTintColor: Colors.transparent,
         title: Text(
           s.driverDocuments,
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            color: KTColors.darkTextPrimary,
+            color: KTColors.textHeading,
             letterSpacing: 0.3,
           ),
         ),
-        iconTheme: const IconThemeData(color: KTColors.darkTextPrimary),
+        iconTheme: const IconThemeData(color: KTColors.textHeading),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: KTColors.amber500))
+          ? const Center(child: CircularProgressIndicator(color: KTColors.driverAccent))
           : _error != null
               ? _buildError()
               : RefreshIndicator(
-                  color: KTColors.amber500,
-                  backgroundColor: KTColors.darkSurface,
+                  color: KTColors.driverAccent,
+                  backgroundColor: KTColors.surface,
                   onRefresh: _loadDocuments,
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
@@ -94,18 +94,18 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: KTColors.amber500.withAlpha(18),
+                          color: KTColors.driverAccent.withAlpha(18),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: KTColors.amber500.withAlpha(40)),
+                          border: Border.all(color: KTColors.driverAccent.withAlpha(40)),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.info_outline, size: 18, color: KTColors.amber500.withAlpha(200)),
+                            Icon(Icons.info_outline, size: 18, color: KTColors.driverAccent.withAlpha(200)),
                             const SizedBox(width: 10),
                             const Expanded(
                               child: Text(
                                 'Upload all required documents for verification. Accepted formats: JPG, PNG.',
-                                style: TextStyle(fontSize: 12.5, color: KTColors.darkTextSecondary, height: 1.4),
+                                style: TextStyle(fontSize: 12.5, color: KTColors.textMuted, height: 1.4),
                               ),
                             ),
                           ],
@@ -128,13 +128,13 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
         children: [
           Icon(Icons.error_outline, size: 48, color: KTColors.danger.withAlpha(180)),
           const SizedBox(height: 12),
-          Text(_error!, style: const TextStyle(color: KTColors.darkTextSecondary, fontSize: 14)),
+          Text(_error!, style: const TextStyle(color: KTColors.textMuted, fontSize: 14)),
           const SizedBox(height: 16),
           TextButton.icon(
             onPressed: _loadDocuments,
             icon: const Icon(Icons.refresh, size: 18),
             label: const Text('Retry'),
-            style: TextButton.styleFrom(foregroundColor: KTColors.amber500),
+            style: TextButton.styleFrom(foregroundColor: KTColors.driverAccent),
           ),
         ],
       ),
@@ -148,12 +148,12 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: KTColors.darkSurface,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: uploaded
-              ? (verified ? KTColors.success.withAlpha(60) : KTColors.darkBorder)
-              : KTColors.darkBorder.withAlpha(120),
+              ? (verified ? KTColors.success.withAlpha(60) : KTColors.borderColor)
+              : KTColors.borderColor.withAlpha(120),
         ),
       ),
       child: Padding(
@@ -183,7 +183,7 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
                         style: const TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w600,
-                          color: KTColors.darkTextPrimary,
+                          color: KTColors.textHeading,
                           letterSpacing: 0.2,
                         ),
                       ),
@@ -191,14 +191,14 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
                       if (uploaded && doc.documentNumber != null && doc.documentNumber!.isNotEmpty)
                         Text(
                           doc.documentNumber!,
-                          style: const TextStyle(fontSize: 12, color: KTColors.darkTextSecondary),
+                          style: const TextStyle(fontSize: 12, color: KTColors.textMuted),
                         )
                       else
                         Text(
                           uploaded ? 'Uploaded' : 'Not uploaded',
                           style: TextStyle(
                             fontSize: 12,
-                            color: uploaded ? KTColors.darkTextSecondary : KTColors.textMuted,
+                            color: uploaded ? KTColors.textMuted : KTColors.textMuted,
                           ),
                         ),
                     ],
@@ -209,14 +209,14 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
             ),
             const SizedBox(height: 14),
             // Divider
-            Container(height: 1, color: KTColors.darkBorder.withAlpha(80)),
+            Container(height: 1, color: KTColors.borderColor.withAlpha(80)),
             const SizedBox(height: 14),
             // Action buttons
             if (!uploaded) ...[
               _actionButton(
                 label: 'Upload Document',
                 icon: Icons.cloud_upload_outlined,
-                color: KTColors.amber500,
+                color: KTColors.driverAccent,
                 filled: true,
                 onTap: () => _handleUpload(meta),
               ),
@@ -237,7 +237,7 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
                     child: _actionButton(
                       label: 'Update',
                       icon: Icons.refresh_outlined,
-                      color: KTColors.amber500,
+                      color: KTColors.driverAccent,
                       filled: false,
                       onTap: () => _handleUpdate(meta, doc),
                     ),
@@ -288,17 +288,17 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: KTColors.amber500.withAlpha(25),
+        color: KTColors.driverAccent.withAlpha(25),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.schedule, size: 12, color: KTColors.amber500.withAlpha(220)),
+          Icon(Icons.schedule, size: 12, color: KTColors.driverAccent.withAlpha(220)),
           const SizedBox(width: 4),
           const Text(
             'PENDING',
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: KTColors.amber500, letterSpacing: 0.5),
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: KTColors.driverAccent, letterSpacing: 0.5),
           ),
         ],
       ),
@@ -349,7 +349,7 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
     final numberController = TextEditingController();
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
-      backgroundColor: KTColors.darkSurface,
+      backgroundColor: KTColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -393,7 +393,7 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
     final numberController = TextEditingController(text: doc.documentNumber ?? '');
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
-      backgroundColor: KTColors.darkSurface,
+      backgroundColor: KTColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -437,7 +437,7 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: KTColors.darkSurface,
+        backgroundColor: KTColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -459,7 +459,7 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: KTColors.darkTextPrimary,
+                        color: KTColors.textHeading,
                       ),
                     ),
                   ),
@@ -472,13 +472,13 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
               Container(
                 constraints: const BoxConstraints(maxHeight: 300),
                 width: double.infinity,
-                color: KTColors.darkBg,
+                color: KTColors.lightBg,
                 child: Image.network(
                   doc.fileUrl!,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Container(
                     height: 180,
-                    color: KTColors.darkBg,
+                    color: KTColors.lightBg,
                     child: const Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -493,7 +493,7 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
             else
               Container(
                 height: 180,
-                color: KTColors.darkBg,
+                color: KTColors.lightBg,
                 child: const Center(
                   child: Icon(Icons.description_outlined, size: 56, color: KTColors.textMuted),
                 ),
@@ -519,7 +519,7 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
                 child: TextButton(
                   onPressed: () => Navigator.pop(ctx),
                   style: TextButton.styleFrom(
-                    foregroundColor: KTColors.darkTextSecondary,
+                    foregroundColor: KTColors.textMuted,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: const Text('Close', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
@@ -538,8 +538,8 @@ class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: KTColors.darkTextSecondary)),
-          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: KTColors.darkTextPrimary)),
+          Text(label, style: const TextStyle(fontSize: 13, color: KTColors.textMuted)),
+          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: KTColors.textHeading)),
         ],
       ),
     );
@@ -594,7 +594,7 @@ class _UploadSheetState extends State<_UploadSheet> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: KTColors.darkBorder,
+                color: KTColors.borderColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -603,26 +603,26 @@ class _UploadSheetState extends State<_UploadSheet> {
           // Title
           Text(
             widget.isUpdate ? 'Update ${widget.meta.label}' : 'Upload ${widget.meta.label}',
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: KTColors.darkTextPrimary),
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: KTColors.textHeading),
           ),
           const SizedBox(height: 20),
           // Document number
           TextField(
             controller: widget.numberController,
-            style: const TextStyle(color: KTColors.darkTextPrimary, fontSize: 14),
+            style: const TextStyle(color: KTColors.textHeading, fontSize: 14),
             decoration: InputDecoration(
               labelText: 'Document Number (optional)',
-              labelStyle: const TextStyle(color: KTColors.darkTextSecondary, fontSize: 13),
+              labelStyle: const TextStyle(color: KTColors.textMuted, fontSize: 13),
               filled: true,
-              fillColor: KTColors.darkBg,
+              fillColor: KTColors.lightBg,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: KTColors.darkBorder.withAlpha(120)),
+                borderSide: BorderSide(color: KTColors.borderColor.withAlpha(120)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: KTColors.amber500),
+                borderSide: const BorderSide(color: KTColors.driverAccent),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
@@ -635,10 +635,10 @@ class _UploadSheetState extends State<_UploadSheet> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 28),
               decoration: BoxDecoration(
-                color: KTColors.darkBg,
+                color: KTColors.lightBg,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: _selectedFile != null ? KTColors.success.withAlpha(100) : KTColors.darkBorder.withAlpha(120),
+                  color: _selectedFile != null ? KTColors.success.withAlpha(100) : KTColors.borderColor.withAlpha(120),
                   style: _selectedFile != null ? BorderStyle.solid : BorderStyle.solid,
                 ),
               ),
@@ -647,7 +647,7 @@ class _UploadSheetState extends State<_UploadSheet> {
                   Icon(
                     _selectedFile != null ? Icons.check_circle_outline : Icons.add_photo_alternate_outlined,
                     size: 36,
-                    color: _selectedFile != null ? KTColors.success : KTColors.darkTextSecondary,
+                    color: _selectedFile != null ? KTColors.success : KTColors.textMuted,
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -656,7 +656,7 @@ class _UploadSheetState extends State<_UploadSheet> {
                         : 'Tap to select image',
                     style: TextStyle(
                       fontSize: 13,
-                      color: _selectedFile != null ? KTColors.darkTextPrimary : KTColors.darkTextSecondary,
+                      color: _selectedFile != null ? KTColors.textHeading : KTColors.textMuted,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -671,8 +671,8 @@ class _UploadSheetState extends State<_UploadSheet> {
             child: ElevatedButton(
               onPressed: _selectedFile != null ? _submit : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: KTColors.amber500,
-                disabledBackgroundColor: KTColors.amber500.withAlpha(60),
+                backgroundColor: KTColors.driverAccent,
+                disabledBackgroundColor: KTColors.driverAccent.withAlpha(60),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 padding: const EdgeInsets.symmetric(vertical: 14),

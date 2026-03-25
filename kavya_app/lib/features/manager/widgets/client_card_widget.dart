@@ -32,9 +32,9 @@ class ClientCardWidget extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: KTColors.darkElevated,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: KTColors.darkBorder),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,12 +53,12 @@ class ClientCardWidget extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Expanded(child: Text(name, style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary))),
+                          Expanded(child: Text(name, style: KTTextStyles.h3.copyWith(color: KTColors.textHeading))),
                           _ClientStatusPill(status: status.toString()),
                         ],
                       ),
                       if (gstin.isNotEmpty)
-                        Text(gstin, style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+                        Text(gstin, style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
                     ],
                   ),
                 ),
@@ -67,7 +67,7 @@ class ClientCardWidget extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Credit limit: ₹${_fmt(creditLimit)} · Used: ₹${_fmt(outstanding)}',
-              style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
+              style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted),
             ),
             const SizedBox(height: 8),
             ClipRRect(
@@ -75,7 +75,7 @@ class ClientCardWidget extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: utilisation,
                 minHeight: 6,
-                backgroundColor: KTColors.darkBorder,
+                backgroundColor: KTColors.borderColor,
                 valueColor: AlwaysStoppedAnimation(
                   utilisation > 0.8 ? KTColors.danger : (utilisation > 0.5 ? KTColors.warning : KTColors.success),
                 ),
@@ -102,8 +102,8 @@ class ClientCardWidget extends StatelessWidget {
                 OutlinedButton(
                   onPressed: () {},
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: KTColors.darkTextSecondary,
-                    side: BorderSide(color: KTColors.darkBorder),
+                    foregroundColor: KTColors.textMuted,
+                    side: BorderSide(color: KTColors.borderColor),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),

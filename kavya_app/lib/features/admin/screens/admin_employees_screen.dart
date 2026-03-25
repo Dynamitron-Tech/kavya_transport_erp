@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/kt_colors.dart';
+import '../../../core/theme/kt_text_styles.dart';
 import '../providers/admin_providers.dart';
 import '../widgets/admin_shell_screen.dart';
 
@@ -42,44 +43,57 @@ class _AdminEmployeesScreenState
     final activeRole = ref.watch(adminEmployeeRoleFilter);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
-      appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        title: Row(
-          children: [
-            const Text('Employees',
-                style: TextStyle(color: KTColors.darkTextPrimary)),
-            const SizedBox(width: 8),
-            employees.when(
-              data: (list) => Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: KTColors.info.withAlpha(30),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text('${list.length}',
-                    style:
-                        const TextStyle(color: KTColors.info, fontSize: 12)),
+      backgroundColor: KTColors.lightBg,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: Container(
+          color: KTColors.surface,
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: KTColors.borderColor, width: 1)),
               ),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded, color: KTColors.textHeading, size: 22),
+                    onPressed: () => context.go('/admin/dashboard'),
+                  ),
+                  Expanded(
+                    child: Row(children: [
+                      Text('Employees', style: KTTextStyles.h1.copyWith(color: KTColors.textHeading)),
+                      const SizedBox(width: 8),
+                      employees.when(
+                        data: (list) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: KTColors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text('${list.length}',
+                              style: KTTextStyles.caption.copyWith(color: KTColors.primary, fontWeight: FontWeight.w600)),
+                        ),
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                      ),
+                    ]),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_rounded, color: KTColors.textHeading, size: 22),
+                    onPressed: () => context.push('/admin/employees/create'),
+                  ),
+                  const ComplianceBellButton(),
+                ],
+              ),
             ),
-          ],
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.go('/admin/dashboard'),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add, color: Colors.white),
-            onPressed: () => context.push('/admin/employees/create'),
           ),
-          const ComplianceBellButton(),
-        ],
+        ),
       ),
       body: RefreshIndicator(
+        color: KTColors.primary,
         onRefresh: () async => ref.invalidate(adminEmployeesProvider),
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -88,40 +102,47 @@ class _AdminEmployeesScreenState
             TextField(
               controller: _searchCtrl,
               onChanged: _onSearch,
-              style: const TextStyle(color: KTColors.darkTextPrimary),
+              style: KTTextStyles.body.copyWith(color: KTColors.textBody),
               decoration: InputDecoration(
                 hintText: 'Search employees…',
-                hintStyle: const TextStyle(color: KTColors.darkTextSecondary),
-                prefixIcon:
-                    const Icon(Icons.search, color: KTColors.darkTextSecondary),
+                hintStyle: KTTextStyles.body.copyWith(color: KTColors.textMuted),
+                prefixIcon: const Icon(Icons.search_rounded, color: KTColors.textMuted, size: 18),
+                fillColor: KTColors.lightBg,
                 filled: true,
-                fillColor: KTColors.darkSurface,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none),
+                    borderSide: const BorderSide(color: KTColors.borderColor)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: KTColors.borderColor)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: KTColors.primary, width: 1.5)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
             ),
             const SizedBox(height: 12),
 
-            // ── Role chips ──
+            // ── Role filter chips ──
             Wrap(
               spacing: 8,
               runSpacing: 6,
               children: List.generate(_roles.length, (i) {
                 final active = activeRole == _roles[i];
-                return ChoiceChip(
-                  label: Text(_labels[i]),
-                  selected: active,
-                  selectedColor: KTColors.amber600,
-                  backgroundColor: KTColors.darkSurface,
-                  labelStyle: TextStyle(
-                    color:
-                        active ? Colors.white : KTColors.darkTextSecondary,
-                    fontSize: 12,
+                return GestureDetector(
+                  onTap: () => ref.read(adminEmployeeRoleFilter.notifier).state = _roles[i],
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: active ? KTColors.primary : KTColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: active ? KTColors.primary : KTColors.borderColor),
+                    ),
+                    child: Text(_labels[i],
+                        style: KTTextStyles.caption.copyWith(
+                            color: active ? KTColors.white : KTColors.textBody,
+                            fontWeight: FontWeight.w500)),
                   ),
-                  onSelected: (_) =>
-                      ref.read(adminEmployeeRoleFilter.notifier).state =
-                          _roles[i],
                 );
               }),
             ),
@@ -131,12 +152,16 @@ class _AdminEmployeesScreenState
             employees.when(
               data: (list) {
                 if (list.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.only(top: 40),
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 48),
                     child: Center(
-                        child: Text('No employees found',
-                            style: TextStyle(
-                                color: KTColors.darkTextSecondary))),
+                      child: Column(children: [
+                        Icon(Icons.people_outline_rounded, size: 48, color: KTColors.borderColor),
+                        const SizedBox(height: 12),
+                        Text('No employees found',
+                            style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
+                      ]),
+                    ),
                   );
                 }
                 return Column(
@@ -148,11 +173,9 @@ class _AdminEmployeesScreenState
               },
               loading: () => const SizedBox(
                   height: 120,
-                  child: Center(
-                      child: CircularProgressIndicator(
-                          color: KTColors.amber600))),
+                  child: Center(child: CircularProgressIndicator(color: KTColors.primary))),
               error: (e, _) => Text('Error: $e',
-                  style: const TextStyle(color: KTColors.danger)),
+                  style: KTTextStyles.body.copyWith(color: KTColors.danger)),
             ),
 
             // ── Add employee button ──
@@ -163,17 +186,14 @@ class _AdminEmployeesScreenState
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
-                  color: KTColors.darkSurface,
-                  borderRadius: BorderRadius.circular(10),
-                  border:
-                      Border.all(color: KTColors.darkBorder, width: 0.5),
+                  color: KTColors.primary,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Center(
-                    child: Text('+ Add employee',
-                        style: TextStyle(
-                            color: KTColors.darkTextPrimary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15))),
+                child: Center(
+                  child: Text('+ Add employee',
+                      style: KTTextStyles.label.copyWith(
+                          color: KTColors.white, fontWeight: FontWeight.w600)),
+                ),
               ),
             ),
             const SizedBox(height: 30),
@@ -189,62 +209,60 @@ class _AdminEmployeesScreenState
     final roleDisplay = _roleLabel(role);
     final isActive = m['is_active'] == true;
     final roleColor = _roleColor(role);
+    final initials = name.isNotEmpty
+        ? name.substring(0, name.length.clamp(0, 2)).toUpperCase()
+        : '?';
 
     return GestureDetector(
       onTap: () => context.push('/admin/employees/${m['id']}'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: KTColors.darkSurface,
-          borderRadius: BorderRadius.circular(10),
+          color: KTColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: KTColors.borderColor),
+          boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 4, offset: Offset(0, 1))],
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: roleColor.withAlpha(30),
-              child: Text(
-                name.isNotEmpty
-                    ? name.substring(0, name.length.clamp(0, 2)).toUpperCase()
-                    : '?',
-                style: TextStyle(
-                    color: roleColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: roleColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(initials,
+                    style: TextStyle(
+                        color: roleColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13)),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(name.isNotEmpty ? name : 'Unknown',
-                      style: const TextStyle(
-                          color: KTColors.darkTextPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14)),
+                      style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
                   Text(roleDisplay,
-                      style: const TextStyle(
-                          color: KTColors.darkTextSecondary, fontSize: 12)),
+                      style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
                 ],
               ),
             ),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: isActive
-                    ? KTColors.success.withAlpha(20)
-                    : Colors.grey.withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
+                color: (isActive ? KTColors.success : KTColors.gray400).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 isActive ? 'Active' : 'Inactive',
-                style: TextStyle(
-                    color: isActive ? KTColors.success : Colors.grey,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600),
+                style: KTTextStyles.labelCaps.copyWith(
+                    color: isActive ? KTColors.success : KTColors.gray400),
               ),
             ),
           ],

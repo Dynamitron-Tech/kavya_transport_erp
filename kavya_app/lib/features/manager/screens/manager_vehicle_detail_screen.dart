@@ -16,11 +16,13 @@ class ManagerVehicleDetailScreen extends ConsumerWidget {
     final vehicleAsync = ref.watch(_vehicleDetailProvider(vehicleId));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: KTColors.darkTextPrimary), onPressed: () => context.pop()),
-        title: Text('Vehicle Details', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: KTColors.textHeading), onPressed: () => context.pop()),
+        title: Text('Vehicle Details', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
       ),
       body: vehicleAsync.when(
         loading: () => const KTLoadingShimmer(type: ShimmerType.list),
@@ -39,7 +41,7 @@ class ManagerVehicleDetailScreen extends ConsumerWidget {
               statusColor = KTColors.warning;
               break;
             default:
-              statusColor = KTColors.darkTextSecondary;
+              statusColor = KTColors.textMuted;
           }
 
           return ListView(
@@ -47,14 +49,14 @@ class ManagerVehicleDetailScreen extends ConsumerWidget {
             children: [
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: KTColors.darkElevated, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: KTColors.surface, borderRadius: BorderRadius.circular(12)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
                       Expanded(
                         child: Text(v['registration_number'] ?? '-',
-                            style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+                            style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -71,7 +73,7 @@ class ManagerVehicleDetailScreen extends ConsumerWidget {
                     if (v['current_driver'] != null) _row('Current Driver', v['current_driver']['name'] ?? '-'),
                     if (v['current_trip'] != null) ...[
                       const SizedBox(height: 12),
-                      Text('Current Trip', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary, fontWeight: FontWeight.w600)),
+                      Text('Current Trip', style: KTTextStyles.body.copyWith(color: KTColors.textMuted, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
                       _row('Route', '${v['current_trip']['origin_city'] ?? '-'} → ${v['current_trip']['destination_city'] ?? '-'}'),
                       _row('Status', v['current_trip']['status'] ?? '-'),
@@ -92,8 +94,8 @@ class ManagerVehicleDetailScreen extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 100, child: Text(label, style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary))),
-          Expanded(child: Text(value, style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary))),
+          SizedBox(width: 100, child: Text(label, style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted))),
+          Expanded(child: Text(value, style: KTTextStyles.body.copyWith(color: KTColors.textHeading))),
         ],
       ),
     );

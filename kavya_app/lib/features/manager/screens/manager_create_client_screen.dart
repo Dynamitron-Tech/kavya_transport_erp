@@ -68,11 +68,13 @@ class _ManagerCreateClientScreenState extends ConsumerState<ManagerCreateClientS
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        leading: IconButton(icon: const Icon(Icons.close, color: KTColors.darkTextPrimary), onPressed: () => context.pop()),
-        title: Text('Add Client', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(icon: const Icon(Icons.close, color: KTColors.textHeading), onPressed: () => context.pop()),
+        title: Text('Add Client', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
       ),
       body: Form(
         key: _formKey,
@@ -96,7 +98,7 @@ class _ManagerCreateClientScreenState extends ConsumerState<ManagerCreateClientS
             ElevatedButton(
               onPressed: _submitting ? null : _submit,
               style: ElevatedButton.styleFrom(
-                backgroundColor: KTColors.primary,
+                backgroundColor: KTColors.managerAccent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -116,13 +118,13 @@ class _ManagerCreateClientScreenState extends ConsumerState<ManagerCreateClientS
       controller: ctrl,
       keyboardType: inputType,
       maxLines: maxLines,
-      style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+      style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
       validator: required ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null : null,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: KTColors.darkTextSecondary),
+        hintStyle: TextStyle(color: KTColors.textMuted),
         filled: true,
-        fillColor: KTColors.darkElevated,
+        fillColor: KTColors.surface,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       ),

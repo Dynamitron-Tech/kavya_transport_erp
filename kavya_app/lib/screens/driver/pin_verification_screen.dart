@@ -122,7 +122,7 @@ class _PinVerificationScreenState extends State<PinVerificationScreen>
               height: 72,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: accentColor.withOpacity(0.15),
+                color: accentColor.withValues(alpha: 0.15),
               ),
               child: const Icon(Icons.lock_outline, color: accentColor, size: 36),
             ),

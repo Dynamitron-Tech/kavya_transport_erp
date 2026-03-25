@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/kt_colors.dart';
+import '../../../core/theme/kt_text_styles.dart';
 import '../../../providers/auth_provider.dart';
 import '../providers/admin_providers.dart';
 
@@ -13,28 +15,49 @@ class AdminSettingsScreen extends ConsumerWidget {
     final user = ref.watch(authProvider).user;
     final branches = ref.watch(adminBranchesProvider);
 
-    return Scaffold(
-      backgroundColor: KTColors.darkBg,
-      appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        title: const Text('Settings',
-            style: TextStyle(color: KTColors.darkTextPrimary)),
-        automaticallyImplyLeading: false,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        statusBarColor: KTColors.surface,
+      ),
+      child: Scaffold(
+      backgroundColor: KTColors.lightBg,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: Container(
+          color: KTColors.surface,
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: KTColors.borderColor, width: 1)),
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Settings',
+                    style: KTTextStyles.h1.copyWith(color: KTColors.textHeading)),
+              ),
+            ),
+          ),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // ── Company Info ──
-          _sectionLabel('Company'),
-          _tile(Icons.business, 'Kavya Transports', subtitle: 'Company Name'),
-          _tile(Icons.pin, 'GSTIN', subtitle: 'Company GST Number'),
+          _sectionLabel('COMPANY'),
+          const SizedBox(height: 8),
+          _tile(Icons.business_outlined, 'Kavya Transports', subtitle: 'Company Name'),
+          _tile(Icons.pin_outlined, 'GSTIN', subtitle: 'Company GST Number'),
           _tile(Icons.phone_outlined, 'Phone'),
           _tile(Icons.email_outlined, 'Email'),
           _tile(Icons.location_on_outlined, 'State'),
           const SizedBox(height: 20),
 
           // ── Branches ──
-          _sectionLabel('Branches'),
+          _sectionLabel('BRANCHES'),
+          const SizedBox(height: 8),
           branches.when(
             data: (list) {
               if (list.isEmpty) {
@@ -50,19 +73,14 @@ class AdminSettingsScreen extends ConsumerWidget {
                     name,
                     subtitle: city,
                     trailing: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: (active ? KTColors.success : KTColors.danger)
-                            .withAlpha(25),
-                        borderRadius: BorderRadius.circular(6),
+                        color: (active ? KTColors.success : KTColors.danger).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(active ? 'Active' : 'Inactive',
-                          style: TextStyle(
-                              color: active
-                                  ? KTColors.success
-                                  : KTColors.danger,
-                              fontSize: 11)),
+                          style: KTTextStyles.labelCaps.copyWith(
+                              color: active ? KTColors.success : KTColors.danger)),
                     ),
                     onTap: () => context.push('/admin/branches'),
                   );
@@ -71,19 +89,18 @@ class AdminSettingsScreen extends ConsumerWidget {
             },
             loading: () => const Padding(
                 padding: EdgeInsets.all(16),
-                child: Center(
-                    child: CircularProgressIndicator(
-                        color: KTColors.amber600))),
+                child: Center(child: CircularProgressIndicator(color: KTColors.primary))),
             error: (_, __) => _emptyTile('Could not load branches'),
           ),
           const SizedBox(height: 20),
 
           // ── Profile ──
-          _sectionLabel('Profile'),
-          _tile(Icons.person_outline, user?.name ?? ''),
+          _sectionLabel('PROFILE'),
+          const SizedBox(height: 8),
+          _tile(Icons.person_outline_rounded, user?.name ?? '—'),
           _tile(Icons.email_outlined, user?.email ?? '—'),
           _tile(Icons.badge_outlined, 'Admin', subtitle: 'Role'),
-          const SizedBox(height: 30),
+          const SizedBox(height: 28),
 
           // ── Logout ──
           GestureDetector(
@@ -91,19 +108,18 @@ class AdminSettingsScreen extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
-                color: KTColors.danger.withAlpha(15),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: KTColors.danger.withAlpha(40)),
+                color: KTColors.dangerBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: KTColors.danger.withValues(alpha: 0.4)),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.logout, color: KTColors.danger, size: 18),
-                  SizedBox(width: 8),
+                  const Icon(Icons.logout_rounded, color: KTColors.danger, size: 18),
+                  const SizedBox(width: 8),
                   Text('Log out',
-                      style: TextStyle(
-                          color: KTColors.danger,
-                          fontWeight: FontWeight.w600)),
+                      style: KTTextStyles.label.copyWith(
+                          color: KTColors.danger, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
@@ -111,16 +127,14 @@ class AdminSettingsScreen extends ConsumerWidget {
           const SizedBox(height: 40),
         ],
       ),
+    ),
     );
   }
 
   Widget _sectionLabel(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.only(bottom: 4),
         child: Text(text,
-            style: const TextStyle(
-                color: KTColors.amber600,
-                fontSize: 13,
-                fontWeight: FontWeight.w600)),
+            style: KTTextStyles.labelCaps.copyWith(color: KTColors.textMuted)),
       );
 
   Widget _tile(IconData icon, String title,
@@ -129,30 +143,35 @@ class AdminSettingsScreen extends ConsumerWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         decoration: BoxDecoration(
-          color: KTColors.darkSurface,
-          borderRadius: BorderRadius.circular(10),
+          color: KTColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: Row(
           children: [
-            Icon(icon, color: KTColors.darkTextSecondary, size: 18),
+            Icon(icon, color: KTColors.textMuted, size: 18),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title,
-                      style: const TextStyle(
-                          color: KTColors.darkTextPrimary, fontSize: 14)),
+                      style: KTTextStyles.body.copyWith(
+                          color: KTColors.textHeading,
+                          fontWeight: FontWeight.w500)),
                   if (subtitle != null)
                     Text(subtitle,
-                        style: const TextStyle(
-                            color: KTColors.darkTextSecondary, fontSize: 11)),
+                        style: KTTextStyles.caption.copyWith(
+                            color: KTColors.textMuted)),
                 ],
               ),
             ),
             if (trailing != null) trailing,
+            if (onTap != null)
+              const Icon(Icons.chevron_right_rounded,
+                  color: KTColors.textMuted, size: 18),
           ],
         ),
       ),
@@ -162,36 +181,39 @@ class AdminSettingsScreen extends ConsumerWidget {
   Widget _emptyTile(String text) => Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: KTColors.darkSurface,
-          borderRadius: BorderRadius.circular(10),
+          color: KTColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: Center(
             child: Text(text,
-                style: const TextStyle(
-                    color: KTColors.darkTextSecondary, fontSize: 13))),
+                style: KTTextStyles.body.copyWith(color: KTColors.textMuted))),
       );
 
   void _logout(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: KTColors.darkSurface,
-        title: const Text('Log out',
-            style: TextStyle(color: KTColors.darkTextPrimary)),
-        content: const Text('Are you sure you want to log out?',
-            style: TextStyle(color: KTColors.darkTextSecondary)),
+        backgroundColor: KTColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Log out',
+            style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
+        content: Text('Are you sure you want to log out?',
+            style: KTTextStyles.body.copyWith(color: KTColors.textBody)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              child: Text('Cancel',
+                  style: KTTextStyles.label.copyWith(color: KTColors.textMuted))),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               ref.read(authProvider.notifier).logout();
               context.go('/login');
             },
-            child: const Text('Log out',
-                style: TextStyle(color: KTColors.danger)),
+            child: Text('Log out',
+                style: KTTextStyles.label.copyWith(
+                    color: KTColors.danger, fontWeight: FontWeight.w600)),
           ),
         ],
       ),

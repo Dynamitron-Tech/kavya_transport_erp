@@ -8,7 +8,7 @@ import '../../core/widgets/kt_error_state.dart';
 import '../../core/widgets/notification_bell_widget.dart';
 import 'pa_providers.dart';
 
-const _kPaAccent = Color(0xFFDC4B2A);
+const _kPaAccent = KTColors.paAccent;
 
 class PAJobListScreen extends ConsumerWidget {
   const PAJobListScreen({super.key});
@@ -27,10 +27,10 @@ class PAJobListScreen extends ConsumerWidget {
     final jobsAsync = ref.watch(paJobListProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        title: Text('Jobs', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        title: Text('Jobs', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
         actions: const [NotificationBellWidget()],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),
@@ -54,14 +54,14 @@ class PAJobListScreen extends ConsumerWidget {
                         color: isActive ? _kPaAccent : Colors.transparent,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isActive ? _kPaAccent : KTColors.darkBorder,
+                          color: isActive ? _kPaAccent : KTColors.borderColor,
                         ),
                       ),
                       child: Text(
                         f.$1,
                         style: TextStyle(
                           color:
-                              isActive ? Colors.white : KTColors.darkTextSecondary,
+                              isActive ? Colors.white : KTColors.textMuted,
                           fontSize: 12,
                           fontWeight:
                               isActive ? FontWeight.w700 : FontWeight.w400,
@@ -89,18 +89,18 @@ class PAJobListScreen extends ConsumerWidget {
                 children: [
                   Icon(Icons.work_off_outlined,
                       size: 52,
-                      color: KTColors.darkTextSecondary.withValues(alpha: 0.4)),
+                      color: KTColors.textMuted.withValues(alpha: 0.4)),
                   const SizedBox(height: 12),
                   Text('No jobs found',
                       style: KTTextStyles.body
-                          .copyWith(color: KTColors.darkTextSecondary)),
+                          .copyWith(color: KTColors.textMuted)),
                 ],
               ),
             );
           }
           return RefreshIndicator(
             color: _kPaAccent,
-            backgroundColor: KTColors.darkSurface,
+            backgroundColor: KTColors.surface,
             onRefresh: () async => ref.invalidate(paJobListProvider),
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -127,7 +127,7 @@ class _JobCard extends StatelessWidget {
       case 'TRIP_CREATED': return KTColors.info;
       case 'IN_TRANSIT': return KTColors.success;
       case 'COMPLETED': return const Color(0xFF64748B);
-      default: return KTColors.darkTextSecondary;
+      default: return KTColors.textMuted;
     }
   }
 
@@ -153,9 +153,9 @@ class _JobCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: KTColors.darkSurface,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: KTColors.darkBorder),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -207,7 +207,7 @@ class _JobCard extends StatelessWidget {
                     Text(
                       (job['client_name'] as String?) ?? '',
                       style: KTTextStyles.body.copyWith(
-                          color: KTColors.darkTextPrimary,
+                          color: KTColors.textHeading,
                           fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 4),
@@ -215,13 +215,13 @@ class _JobCard extends StatelessWidget {
                       Expanded(
                         child: Row(children: [
                           const Icon(Icons.location_on_outlined,
-                              size: 12, color: KTColors.darkTextSecondary),
+                              size: 12, color: KTColors.textMuted),
                           const SizedBox(width: 3),
                           Expanded(
                             child: Text(
                               job['origin'] ?? '',
                               style: KTTextStyles.caption.copyWith(
-                                  color: KTColors.darkTextSecondary),
+                                  color: KTColors.textMuted),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -230,13 +230,13 @@ class _JobCard extends StatelessWidget {
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 6),
                         child: Icon(Icons.arrow_forward,
-                            size: 12, color: KTColors.darkTextSecondary),
+                            size: 12, color: KTColors.textMuted),
                       ),
                       Expanded(
                         child: Text(
                           job['destination'] ?? '',
                           style: KTTextStyles.caption.copyWith(
-                              color: KTColors.darkTextSecondary),
+                              color: KTColors.textMuted),
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.right,
                         ),

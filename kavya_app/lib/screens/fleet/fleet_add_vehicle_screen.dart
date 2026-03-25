@@ -103,14 +103,14 @@ class _FleetAddVehicleScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.navy900,
-        foregroundColor: KTColors.darkTextPrimary,
+        backgroundColor: KTColors.surface,
+        foregroundColor: KTColors.textHeading,
         elevation: 0,
         title: Text('Add Vehicle',
             style: KTTextStyles.h2.copyWith(
-                color: KTColors.darkTextPrimary,
+                color: KTColors.textHeading,
                 decoration: TextDecoration.none)),
       ),
       body: Form(
@@ -155,8 +155,8 @@ class _FleetAddVehicleScreenState
               child: ElevatedButton(
                 onPressed: _saving ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: KTColors.amber500,
-                  foregroundColor: KTColors.navy900,
+                  backgroundColor: KTColors.fleetAccent,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
                 ),
@@ -165,11 +165,11 @@ class _FleetAddVehicleScreenState
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: KTColors.navy900))
+                            strokeWidth: 2, color: Colors.white))
                     : Text('Add Vehicle',
                         style: KTTextStyles.body.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: KTColors.navy900)),
+                            color: Colors.white)),
               ),
             ),
             const SizedBox(height: 24),
@@ -182,7 +182,7 @@ class _FleetAddVehicleScreenState
   Widget _sectionLabel(String text) {
     return Text(text,
         style: KTTextStyles.h3.copyWith(
-            color: KTColors.amber500, decoration: TextDecoration.none));
+            color: KTColors.fleetAccent, decoration: TextDecoration.none));
   }
 
   Widget _field(String label, TextEditingController ctrl,
@@ -195,26 +195,26 @@ class _FleetAddVehicleScreenState
         keyboardType: keyboardType,
         validator: validator,
         style:
-            KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+            KTTextStyles.body.copyWith(color: KTColors.textHeading),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: KTTextStyles.label
-              .copyWith(color: KTColors.darkTextSecondary),
+              .copyWith(color: KTColors.textMuted),
           filled: true,
-          fillColor: KTColors.navy800,
+          fillColor: KTColors.surface,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: KTColors.navy700),
+            borderSide: const BorderSide(color: KTColors.borderColor),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: KTColors.navy700),
+            borderSide: const BorderSide(color: KTColors.borderColor),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: KTColors.amber500),
+            borderSide: const BorderSide(color: KTColors.fleetAccent),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
@@ -231,27 +231,27 @@ class _FleetAddVehicleScreenState
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
         initialValue: current,
-        dropdownColor: KTColors.navy800,
-        style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+        dropdownColor: KTColors.surface,
+        style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
         decoration: InputDecoration(
           labelText: label,
           labelStyle:
-              KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary),
+              KTTextStyles.label.copyWith(color: KTColors.textMuted),
           filled: true,
-          fillColor: KTColors.navy800,
+          fillColor: KTColors.surface,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: KTColors.navy700),
+            borderSide: const BorderSide(color: KTColors.borderColor),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: KTColors.navy700),
+            borderSide: const BorderSide(color: KTColors.borderColor),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: KTColors.amber500),
+            borderSide: const BorderSide(color: KTColors.fleetAccent),
           ),
         ),
         items: options

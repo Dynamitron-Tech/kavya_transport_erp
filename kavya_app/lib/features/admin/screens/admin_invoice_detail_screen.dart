@@ -30,22 +30,41 @@ class AdminInvoiceDetailScreen extends ConsumerWidget {
     final detail = ref.watch(_invoiceDetailProvider(invoiceId));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
-      appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
+      backgroundColor: KTColors.lightBg,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: Container(
+          color: KTColors.surface,
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: KTColors.borderColor)),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded, color: KTColors.textHeading, size: 22),
+                    onPressed: () => context.pop(),
+                  ),
+                  const Expanded(
+                    child: Text('Invoice detail',
+                        style: TextStyle(color: KTColors.textHeading, fontSize: 17, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        title: const Text('Invoice detail',
-            style: TextStyle(color: KTColors.darkTextPrimary)),
       ),
       body: detail.when(
         data: (d) {
           if (d.isEmpty) {
             return const Center(
                 child: Text('Invoice not found',
-                    style: TextStyle(color: KTColors.darkTextSecondary)));
+                    style: TextStyle(color: KTColors.textMuted)));
           }
           return RefreshIndicator(
             onRefresh: () async =>
@@ -54,10 +73,10 @@ class AdminInvoiceDetailScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(
-            child: CircularProgressIndicator(color: KTColors.amber600)),
+            child: CircularProgressIndicator(color: KTColors.primary)),
         error: (e, _) => Center(
             child: Text('Error: $e',
-                style: const TextStyle(color: KTColors.darkTextSecondary))),
+                style: const TextStyle(color: KTColors.textMuted))),
       ),
     );
   }
@@ -90,8 +109,9 @@ class AdminInvoiceDetailScreen extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: KTColors.darkSurface,
+            color: KTColors.surface,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: KTColors.borderColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,7 +121,7 @@ class AdminInvoiceDetailScreen extends ConsumerWidget {
                   Expanded(
                     child: Text(invNumber,
                         style: const TextStyle(
-                            color: KTColors.darkTextPrimary,
+                            color: KTColors.textHeading,
                             fontSize: 18,
                             fontWeight: FontWeight.bold)),
                   ),
@@ -116,13 +136,13 @@ class AdminInvoiceDetailScreen extends ConsumerWidget {
               _headerRow('Client', clientName),
               _headerRow('Issue date', issueDate),
               _headerRow('Due date', dueDate),
-              const Divider(color: KTColors.darkBorder, height: 20),
+              const Divider(color: KTColors.borderColor, height: 20),
               _headerRow('Subtotal', _fmtAmt(subtotal)),
               _headerRow('GST', _fmtAmt(gst)),
               _headerRow('Total', _fmtAmt(total),
-                  bold: true, color: KTColors.darkTextPrimary),
+                  bold: true, color: KTColors.textHeading),
               if (!isPaid) ...[
-                const Divider(color: KTColors.darkBorder, height: 20),
+                const Divider(color: KTColors.borderColor, height: 20),
                 _headerRow('Paid', _fmtAmt(paidAmount),
                     color: KTColors.success),
                 _headerRow('Balance', _fmtAmt(balance),
@@ -139,8 +159,9 @@ class AdminInvoiceDetailScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: KTColors.darkSurface,
+              color: KTColors.surface,
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: KTColors.borderColor),
             ),
             child: Column(
               children: lineItems.map<Widget>((item) {
@@ -156,17 +177,17 @@ class AdminInvoiceDetailScreen extends ConsumerWidget {
                     children: [
                       Text(desc,
                           style: const TextStyle(
-                              color: KTColors.darkTextPrimary, fontSize: 13)),
+                              color: KTColors.textHeading, fontSize: 13)),
                       Row(
                         children: [
                           Text('${qty.toStringAsFixed(0)} × ${_fmtAmt(rate)}',
                               style: const TextStyle(
-                                  color: KTColors.darkTextSecondary,
+                                  color: KTColors.textMuted,
                                   fontSize: 12)),
                           const Spacer(),
                           Text(_fmtAmt(amt),
                               style: const TextStyle(
-                                  color: KTColors.darkTextPrimary,
+                                  color: KTColors.textHeading,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13)),
                         ],
@@ -186,8 +207,9 @@ class AdminInvoiceDetailScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: KTColors.darkSurface,
+              color: KTColors.surface,
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: KTColors.borderColor),
             ),
             child: Column(
               children: payments.map<Widget>((p) {
@@ -208,11 +230,11 @@ class AdminInvoiceDetailScreen extends ConsumerWidget {
                           children: [
                             Text('$amt via $method',
                                 style: const TextStyle(
-                                    color: KTColors.darkTextPrimary,
+                                    color: KTColors.textHeading,
                                     fontSize: 13)),
                             Text(date,
                                 style: const TextStyle(
-                                    color: KTColors.darkTextSecondary,
+                                    color: KTColors.textMuted,
                                     fontSize: 11)),
                           ],
                         ),
@@ -267,7 +289,7 @@ class AdminInvoiceDetailScreen extends ConsumerWidget {
     final amtCtrl = TextEditingController(text: balance.toStringAsFixed(0));
     showModalBottomSheet(
       context: context,
-      backgroundColor: KTColors.darkSurface,
+      backgroundColor: KTColors.surface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
@@ -284,20 +306,20 @@ class AdminInvoiceDetailScreen extends ConsumerWidget {
           children: [
             const Text('Record payment',
                 style: TextStyle(
-                    color: KTColors.darkTextPrimary,
+                    color: KTColors.textHeading,
                     fontSize: 16,
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             TextField(
               controller: amtCtrl,
               keyboardType: TextInputType.number,
-              style: const TextStyle(color: KTColors.darkTextPrimary),
+              style: const TextStyle(color: KTColors.textHeading),
               decoration: InputDecoration(
                 labelText: 'Amount (₹)',
                 labelStyle:
-                    const TextStyle(color: KTColors.darkTextSecondary),
+                    const TextStyle(color: KTColors.textMuted),
                 filled: true,
-                fillColor: KTColors.darkElevated,
+                fillColor: KTColors.lightBg,
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none),
@@ -363,10 +385,10 @@ class AdminInvoiceDetailScreen extends ConsumerWidget {
         children: [
           Text(label,
               style: const TextStyle(
-                  color: KTColors.darkTextSecondary, fontSize: 13)),
+                  color: KTColors.textMuted, fontSize: 13)),
           Text(value,
               style: TextStyle(
-                  color: color ?? KTColors.darkTextSecondary,
+                  color: color ?? KTColors.textMuted,
                   fontWeight: bold ? FontWeight.bold : FontWeight.w500,
                   fontSize: 13)),
         ],
@@ -391,7 +413,7 @@ class AdminInvoiceDetailScreen extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 8),
         child: Text(title,
             style: const TextStyle(
-                color: KTColors.darkTextSecondary,
+                color: KTColors.textMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5)),

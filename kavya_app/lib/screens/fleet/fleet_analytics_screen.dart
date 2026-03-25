@@ -25,21 +25,21 @@ class FleetAnalyticsScreen extends ConsumerWidget {
     final analyticsAsync = ref.watch(fleetAnalyticsProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.navy900,
-        foregroundColor: KTColors.darkTextPrimary,
+        backgroundColor: KTColors.surface,
+        foregroundColor: KTColors.textHeading,
         elevation: 0,
         title: Text('Fleet Analytics',
             style: KTTextStyles.h2.copyWith(
-                color: KTColors.darkTextPrimary,
+                color: KTColors.textHeading,
                 decoration: TextDecoration.none)),
       ),
       body: DefaultTextStyle(
         style: const TextStyle(decoration: TextDecoration.none),
         child: analyticsAsync.when(
           loading: () => const Center(
-            child: CircularProgressIndicator(color: KTColors.amber500),
+            child: CircularProgressIndicator(color: KTColors.fleetAccent),
           ),
           error: (e, _) => Center(
             child: Column(
@@ -48,13 +48,13 @@ class FleetAnalyticsScreen extends ConsumerWidget {
                 const Icon(Icons.error_outline, color: KTColors.danger, size: 48),
                 const SizedBox(height: 12),
                 Text('Failed to load analytics',
-                    style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                    style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () => ref.invalidate(fleetAnalyticsProvider),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: KTColors.amber500,
-                    foregroundColor: KTColors.navy900,
+                    backgroundColor: KTColors.fleetAccent,
+                    foregroundColor: Colors.white,
                   ),
                   child: const Text('Retry'),
                 ),
@@ -93,7 +93,7 @@ class FleetAnalyticsScreen extends ConsumerWidget {
         : 0;
 
     return RefreshIndicator(
-      color: KTColors.amber500,
+      color: KTColors.fleetAccent,
       onRefresh: () async => ref.invalidate(fleetAnalyticsProvider),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -124,7 +124,7 @@ class FleetAnalyticsScreen extends ConsumerWidget {
                   _MetricTile(
                       label: 'On Trip',
                       value: '$onTripVehicles',
-                      color: KTColors.amber500),
+                      color: KTColors.fleetAccent),
                   _MetricTile(
                       label: 'Utilization',
                       value: '$utilization%',
@@ -153,7 +153,7 @@ class FleetAnalyticsScreen extends ConsumerWidget {
                   _MetricTile(
                       label: 'Active',
                       value: '$activeTripsCount',
-                      color: KTColors.amber500),
+                      color: KTColors.fleetAccent),
                   _MetricTile(
                       label: 'Completed',
                       value: '$completedTrips',
@@ -245,7 +245,7 @@ class FleetAnalyticsScreen extends ConsumerWidget {
                 child: Text(labels[idx],
                     style: const TextStyle(
                         fontSize: 10,
-                        color: KTColors.darkTextSecondary)),
+                        color: KTColors.textMuted)),
               );
             },
           ),
@@ -271,7 +271,7 @@ class FleetAnalyticsScreen extends ConsumerWidget {
         drawVerticalLine: false,
         horizontalInterval: 1,
         getDrawingHorizontalLine: (_) =>
-            FlLine(color: KTColors.navy700, strokeWidth: 1),
+            FlLine(color: KTColors.borderColor, strokeWidth: 1),
       ),
     );
   }
@@ -291,9 +291,9 @@ class _Section extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: KTColors.navy800,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KTColors.navy700),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -302,16 +302,16 @@ class _Section extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
             child: Row(
               children: [
-                Icon(icon, color: KTColors.amber500, size: 18),
+                Icon(icon, color: KTColors.fleetAccent, size: 18),
                 const SizedBox(width: 8),
                 Text(title,
                     style: KTTextStyles.h3.copyWith(
-                        color: KTColors.darkTextPrimary,
+                        color: KTColors.textHeading,
                         decoration: TextDecoration.none)),
               ],
             ),
           ),
-          const Divider(color: KTColors.navy700, height: 20),
+          const Divider(color: KTColors.borderColor, height: 20),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
             child: child,
@@ -334,7 +334,7 @@ class _MetricTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: KTColors.navy900,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
@@ -347,7 +347,7 @@ class _MetricTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(label,
               style: KTTextStyles.label.copyWith(
-                  color: KTColors.darkTextSecondary,
+                  color: KTColors.textMuted,
                   decoration: TextDecoration.none),
               textAlign: TextAlign.center),
         ],
@@ -377,13 +377,13 @@ class _StatusRow extends StatelessWidget {
             const SizedBox(width: 8),
             Text(label,
                 style: KTTextStyles.body.copyWith(
-                    color: KTColors.darkTextSecondary,
+                    color: KTColors.textMuted,
                     decoration: TextDecoration.none)),
           ],
         ),
         Text(value,
             style: KTTextStyles.body.copyWith(
-                color: KTColors.darkTextPrimary,
+                color: KTColors.textHeading,
                 fontWeight: FontWeight.w600,
                 decoration: TextDecoration.none)),
       ],

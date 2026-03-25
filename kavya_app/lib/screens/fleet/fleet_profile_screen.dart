@@ -14,14 +14,14 @@ class FleetProfileScreen extends ConsumerWidget {
     final accent = KTColors.getRoleColor('fleet_manager');
 
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.navy900,
-        foregroundColor: KTColors.darkTextPrimary,
+        backgroundColor: KTColors.surface,
+        foregroundColor: KTColors.textHeading,
         elevation: 0,
         title: Text('My Profile',
             style: KTTextStyles.h2
-                .copyWith(color: KTColors.darkTextPrimary, decoration: TextDecoration.none)),
+                .copyWith(color: KTColors.textHeading, decoration: TextDecoration.none)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -44,7 +44,7 @@ class FleetProfileScreen extends ConsumerWidget {
             Text(
               user?.fullName ?? 'Fleet Manager',
               style: KTTextStyles.h2.copyWith(
-                color: KTColors.darkTextPrimary,
+                color: KTColors.textHeading,
                 decoration: TextDecoration.none,
               ),
             ),
@@ -122,17 +122,17 @@ class FleetProfileScreen extends ConsumerWidget {
                   showDialog(
                     context: context,
                     builder: (_) => AlertDialog(
-                      backgroundColor: KTColors.navy800,
+                      backgroundColor: KTColors.surface,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       title: Text('Logout',
-                          style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                          style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
                       content: Text('Are you sure you want to logout?',
-                          style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                          style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context),
                           child: Text('Cancel',
-                              style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                              style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                         ),
                         TextButton(
                           onPressed: () {
@@ -166,14 +166,14 @@ class FleetProfileScreen extends ConsumerWidget {
   Widget _infoCard(List<_InfoRow> rows) {
     return Container(
       decoration: BoxDecoration(
-        color: KTColors.navy800,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KTColors.navy700),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         children: [
           for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0) const Divider(color: KTColors.navy700, height: 1),
+            if (i > 0) const Divider(color: KTColors.borderColor, height: 1),
             rows[i],
           ],
         ],
@@ -205,11 +205,11 @@ class _InfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          Icon(icon, color: KTColors.darkTextSecondary, size: 18),
+          Icon(icon, color: KTColors.textMuted, size: 18),
           const SizedBox(width: 12),
           Text(label,
               style: KTTextStyles.body
-                  .copyWith(color: KTColors.darkTextSecondary, decoration: TextDecoration.none)),
+                  .copyWith(color: KTColors.textMuted, decoration: TextDecoration.none)),
           const Spacer(),
           if (trailing != null)
             trailing!
@@ -217,7 +217,7 @@ class _InfoRow extends StatelessWidget {
             Text(
               value,
               style: KTTextStyles.body.copyWith(
-                color: valueColor ?? KTColors.darkTextPrimary,
+                color: valueColor ?? KTColors.textHeading,
                 fontWeight: FontWeight.w600,
                 decoration: TextDecoration.none,
               ),

@@ -16,9 +16,9 @@ class DriverNotificationsScreen extends ConsumerWidget {
     final s = ref.watch(sProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
+        backgroundColor: KTColors.surface,
         title: Text(s.notifications,
             style: const TextStyle(color: KTColors.textPrimary)),
         leading: IconButton(
@@ -31,9 +31,9 @@ class DriverNotificationsScreen extends ConsumerWidget {
               onPressed: () =>
                   ref.read(notificationsProvider.notifier).markAllAsRead(),
               icon: const Icon(Icons.done_all_rounded,
-                  color: KTColors.primary, size: 18),
+                  color: KTColors.driverAccent, size: 18),
               label: Text(s.markAllRead,
-                  style: const TextStyle(color: KTColors.primary, fontSize: 12)),
+                  style: const TextStyle(color: KTColors.driverAccent, fontSize: 12)),
             ),
         ],
         elevation: 0,
@@ -63,7 +63,7 @@ class DriverNotificationsScreen extends ConsumerWidget {
             width: 80,
             height: 80,
             decoration: const BoxDecoration(
-              color: KTColors.darkElevated,
+              color: KTColors.lightBg,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.notifications_off_outlined,
@@ -101,12 +101,12 @@ class _NotifCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: notif.read
-              ? KTColors.darkElevated
+              ? KTColors.lightBg
               : color.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: notif.read
-                ? KTColors.darkBorder
+                ? KTColors.borderColor
                 : color.withValues(alpha: 0.35),
           ),
         ),
@@ -180,7 +180,7 @@ class _NotifCard extends StatelessWidget {
   Color _color(String? type) {
     switch (type) {
       case 'trip_event':
-        return KTColors.primary;
+        return KTColors.driverAccent;
       case 'expense_approved':
         return KTColors.success;
       case 'expense_rejected':
@@ -190,7 +190,7 @@ class _NotifCard extends StatelessWidget {
       case 'trip_assigned':
         return const Color(0xFF60A5FA);
       default:
-        return KTColors.primary;
+        return KTColors.driverAccent;
     }
   }
 

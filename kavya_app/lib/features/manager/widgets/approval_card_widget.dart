@@ -28,9 +28,9 @@ class ApprovalCardWidget extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KTColors.darkElevated,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KTColors.darkBorder),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,17 +38,17 @@ class ApprovalCardWidget extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(title, style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                child: Text(title, style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: KTColors.primary.withOpacity(0.15),
+                  color: KTColors.managerAccent.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '₹${amount.toStringAsFixed(0)}',
-                  style: TextStyle(color: KTColors.primary, fontSize: 13, fontWeight: FontWeight.w700),
+                  style: TextStyle(color: KTColors.managerAccent, fontSize: 13, fontWeight: FontWeight.w700),
                 ),
               ),
             ],
@@ -56,13 +56,13 @@ class ApprovalCardWidget extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             [submitter, if (tripNumber != null) tripNumber].join(' · '),
-            style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
+            style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted),
           ),
           if (description.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
               '$description · $date',
-              style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
+              style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted),
             ),
           ],
           if (receiptUrl != null) ...[
@@ -70,12 +70,13 @@ class ApprovalCardWidget extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFF0A1628),
+                color: KTColors.lightBg,
                 borderRadius: BorderRadius.circular(8),
+                border: Border(bottom: BorderSide(color: KTColors.borderColor)),
               ),
               child: Text(
                 'Receipt attached',
-                style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary),
+                style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted),
               ),
             ),
           ],

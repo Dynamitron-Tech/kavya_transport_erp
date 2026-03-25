@@ -24,7 +24,7 @@ class AccountantPayablesScreen extends ConsumerWidget {
         NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(title: const Text('Payables')),
       body: state.when(
         loading: () => const KTLoadingShimmer(type: ShimmerType.list),
@@ -45,7 +45,7 @@ class AccountantPayablesScreen extends ConsumerWidget {
               0, (sum, p) => sum + ((p['total_outstanding'] as num? ?? 0).toDouble()));
 
           return RefreshIndicator(
-            color: KTColors.primary,
+            color: KTColors.acctAccent,
             onRefresh: () async => ref.invalidate(_payablesProvider),
             child: ListView(
               padding: const EdgeInsets.all(16),
@@ -72,7 +72,7 @@ class AccountantPayablesScreen extends ConsumerWidget {
                         children: [
                           const Text('Total Payables',
                               style: TextStyle(
-                                  color: KTColors.textSecondary, fontSize: 13)),
+                                  color: KTColors.textMuted, fontSize: 13)),
                           const SizedBox(height: 4),
                           Text(
                             currencyFmt.format(totalOutstanding),
@@ -135,12 +135,12 @@ class _PayableTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: KTColors.darkElevated,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
             color: isOverdue
                 ? KTColors.danger.withOpacity(0.4)
-                : KTColors.darkBorder),
+                : KTColors.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,7 +153,7 @@ class _PayableTile extends StatelessWidget {
                 children: [
                   Text(payable['vendor_name'] ?? '—',
                       style: const TextStyle(
-                          color: KTColors.textPrimary,
+                          color: KTColors.textHeading,
                           fontWeight: FontWeight.w600,
                           fontSize: 14)),
                   Text(

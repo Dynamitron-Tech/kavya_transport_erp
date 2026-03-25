@@ -51,15 +51,17 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
     final accent = KTColors.getRoleColor('accountant');
 
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.navy900,
-        foregroundColor: KTColors.darkTextPrimary,
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: KTColors.textHeading,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
-        title: Text('Banking', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+        title: Text('Banking', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
         actions: [
           Container(
             margin: const EdgeInsets.only(right: 12),
@@ -74,8 +76,8 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: KTColors.amber500,
-        foregroundColor: KTColors.navy900,
+        backgroundColor: KTColors.acctAccent,
+        foregroundColor: Colors.white,
         onPressed: () => _showCreateEntrySheet(context),
         child: const Icon(Icons.add),
       ),
@@ -109,11 +111,11 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
                   selected: selected,
                   onSelected: (_) => setState(() => _typeFilter = f),
                   labelStyle: KTTextStyles.label.copyWith(
-                    color: selected ? KTColors.navy900 : KTColors.darkTextSecondary,
+                    color: selected ? KTColors.surface : KTColors.textMuted,
                   ),
-                  selectedColor: KTColors.amber500,
-                  backgroundColor: KTColors.navy800,
-                  side: BorderSide(color: selected ? KTColors.amber500 : KTColors.navy700),
+                  selectedColor: KTColors.acctAccent,
+                  backgroundColor: KTColors.surface,
+                  side: BorderSide(color: selected ? KTColors.acctAccent : KTColors.borderColor),
                   showCheckmark: false,
                 );
               },
@@ -138,7 +140,7 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
                   children: [
                     const Icon(Icons.error_outline, color: KTColors.danger, size: 48),
                     const SizedBox(height: 12),
-                    Text('Failed to load entries', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                    Text('Failed to load entries', style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                     const SizedBox(height: 16),
                     KTButton.secondary(
                       onPressed: () => ref.invalidate(bankingEntriesProvider(_typeFilter)),
@@ -153,18 +155,18 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.account_balance_outlined, color: KTColors.darkTextSecondary, size: 64),
+                        const Icon(Icons.account_balance_outlined, color: KTColors.textMuted, size: 64),
                         const SizedBox(height: 16),
-                        Text('No Banking Entries', style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                        Text('No Banking Entries', style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
                         const SizedBox(height: 8),
                         Text('Tap + to add a banking entry.',
-                            style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                            style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                       ],
                     ),
                   );
                 }
                 return RefreshIndicator(
-                  color: KTColors.amber500,
+                  color: KTColors.acctAccent,
                   onRefresh: () async => ref.invalidate(bankingEntriesProvider(_typeFilter)),
                   child: ListView.separated(
                     padding: const EdgeInsets.all(16),
@@ -185,9 +187,9 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KTColors.navy800,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KTColors.navy700),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Row(
         children: [
@@ -204,8 +206,8 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('—', style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary, fontSize: 18)),
-                Text(label, style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
+                Text('—', style: KTTextStyles.h3.copyWith(color: KTColors.textHeading, fontSize: 18)),
+                Text(label, style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
               ],
             ),
           ),
@@ -242,15 +244,15 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
         typeBadgeColor = KTColors.info;
         break;
       default:
-        typeBadgeColor = KTColors.darkTextSecondary;
+        typeBadgeColor = KTColors.textMuted;
     }
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KTColors.navy800,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KTColors.navy700),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,17 +260,17 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
           // Row 1: Entry no + type + date
           Row(
             children: [
-              Text(entryNo, style: KTTextStyles.mono.copyWith(color: KTColors.amber500)),
+              Text(entryNo, style: KTTextStyles.mono.copyWith(color: KTColors.acctAccent)),
               const SizedBox(width: 8),
               KTStatusBadge(label: type, color: typeBadgeColor),
               const Spacer(),
-              Text(date, style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
+              Text(date, style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
             ],
           ),
           const SizedBox(height: 8),
 
           // Row 2: Description
-          Text(description, style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary)),
+          Text(description, style: KTTextStyles.body.copyWith(color: KTColors.textHeading)),
           const SizedBox(height: 8),
 
           // Row 3: Amount + Account + Reconciled
@@ -280,7 +282,7 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
                 children: [
                   Text(amountDisplay,
                       style: KTTextStyles.h3.copyWith(color: amountColor, fontWeight: FontWeight.w700)),
-                  Text(accountName, style: KTTextStyles.caption.copyWith(color: KTColors.darkTextSecondary)),
+                  Text(accountName, style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
                 ],
               ),
               if (isReconciled)
@@ -295,7 +297,7 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
   void _showCreateEntrySheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: KTColors.navy900,
+      backgroundColor: KTColors.surface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -430,27 +432,27 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
               Center(
                 child: Container(
                   width: 40, height: 4,
-                  decoration: BoxDecoration(color: KTColors.navy700, borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(color: KTColors.borderColor, borderRadius: BorderRadius.circular(2)),
                 ),
               ),
               const SizedBox(height: 16),
-              Text('New Banking Entry', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+              Text('New Banking Entry', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
               const SizedBox(height: 16),
 
               // Entry type
-              Text('Entry Type', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+              Text('Entry Type', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 initialValue: _entryType,
-                dropdownColor: KTColors.navy800,
-                style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                dropdownColor: KTColors.surface,
+                style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                 decoration: _inputDec('Select type'),
                 items: _entryTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                 onChanged: (v) => setState(() => _entryType = v ?? _entryType),
               ),
               const SizedBox(height: 12),
 
-              Text('Bank Account', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+              Text('Bank Account', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
               const SizedBox(height: 6),
               _loadingAccounts
                   ? const SizedBox(
@@ -461,7 +463,7 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
                       ? Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: KTColors.navy800,
+                            color: KTColors.surface,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: KTColors.danger),
                           ),
@@ -472,8 +474,8 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
                         )
                       : DropdownButtonFormField<int>(
                           initialValue: _selectedAccountId,
-                          dropdownColor: KTColors.navy800,
-                          style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                          dropdownColor: KTColors.surface,
+                          style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                           decoration: _inputDec('Select account'),
                           items: _accounts.map((a) => DropdownMenuItem<int>(
                             value: a['id'] as int,
@@ -484,11 +486,11 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
                         ),
               const SizedBox(height: 12),
 
-              Text('Amount (₹)', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+              Text('Amount (₹)', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _amountCtrl,
-                style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: _inputDec('0.00', prefix: '₹'),
                 validator: (v) {
@@ -499,32 +501,32 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
               ),
               const SizedBox(height: 12),
 
-              Text('Payment Method', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+              Text('Payment Method', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 initialValue: _paymentMethod,
-                dropdownColor: KTColors.navy800,
-                style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                dropdownColor: KTColors.surface,
+                style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                 decoration: _inputDec('Select method'),
                 items: _paymentMethods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
                 onChanged: (v) => setState(() => _paymentMethod = v ?? _paymentMethod),
               ),
               const SizedBox(height: 12),
 
-              Text('Reference Number', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+              Text('Reference Number', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _referenceCtrl,
-                style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                 decoration: _inputDec('UTR / Cheque no.'),
               ),
               const SizedBox(height: 12),
 
-              Text('Description', style: KTTextStyles.label.copyWith(color: KTColors.darkTextSecondary)),
+              Text('Description', style: KTTextStyles.label.copyWith(color: KTColors.textMuted)),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _descriptionCtrl,
-                style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                 maxLines: 2,
                 decoration: _inputDec('Details…'),
                 validator: (v) => v == null || v.isEmpty ? 'Required' : null,
@@ -546,15 +548,15 @@ class _CreateEntrySheetState extends ConsumerState<_CreateEntrySheet> {
   InputDecoration _inputDec(String hint, {String? prefix}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary),
+      hintStyle: KTTextStyles.body.copyWith(color: KTColors.textMuted),
       prefixText: prefix,
-      prefixStyle: KTTextStyles.body.copyWith(color: KTColors.amber500),
+      prefixStyle: KTTextStyles.body.copyWith(color: KTColors.acctAccent),
       filled: true,
-      fillColor: KTColors.navy800,
+      fillColor: KTColors.surface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.navy700)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.navy700)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.amber500)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.borderColor)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.borderColor)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: KTColors.acctAccent)),
     );
   }
 }

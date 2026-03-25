@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/kt_colors.dart';
+import '../../../core/theme/kt_text_styles.dart';
 
-/// Role health card used on admin dashboard.
+/// Role health card used on admin dashboard (light theme).
 class RoleHealthTile extends StatelessWidget {
   final String role;
   final String label;
@@ -29,13 +30,13 @@ class RoleHealthTile extends StatelessWidget {
       case 'MANAGER':
         return KTColors.info;
       case 'PROJECT_ASSOCIATE':
-        return KTColors.amber600;
+        return KTColors.amber500;
       case 'FLEET_MANAGER':
-        return KTColors.success;
+        return KTColors.primary;
       case 'ACCOUNTANT':
         return const Color(0xFF7C3AED);
       case 'DRIVER':
-        return Colors.grey;
+        return KTColors.gray500;
       default:
         return KTColors.info;
     }
@@ -47,20 +48,34 @@ class RoleHealthTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: KTColors.darkSurface,
-        borderRadius: BorderRadius.circular(10),
+        color: KTColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: KTColors.borderColor),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 8,
+              offset: Offset(0, 2)),
+        ],
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: _avatarColor.withAlpha(40),
-            child: Text(
-              _initials,
-              style: TextStyle(
-                color: _avatarColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _avatarColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Text(
+                _initials,
+                style: TextStyle(
+                  color: _avatarColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  fontFamily: 'Poppins',
+                ),
               ),
             ),
           ),
@@ -70,29 +85,24 @@ class RoleHealthTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style: const TextStyle(
-                        color: KTColors.darkTextPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14)),
+                    style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
                 const SizedBox(height: 2),
                 Text(detailText,
-                    style: const TextStyle(
-                        color: KTColors.darkTextSecondary, fontSize: 12)),
+                    style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: statusColor.withAlpha(25),
-              borderRadius: BorderRadius.circular(12),
+              color: statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               statusLabel,
-              style: TextStyle(
+              style: KTTextStyles.labelCaps.copyWith(
                 color: statusColor,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
               ),
             ),
           ),

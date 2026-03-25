@@ -8,12 +8,12 @@ import '../../utils/indian_format.dart';
 class PumpFuelLogScreen extends ConsumerWidget {
   const PumpFuelLogScreen({super.key});
 
-  static const _cardColor = Color(0xFF334155);
-  static const _amber = Color(0xFFFBBF24);
+  static const _cardColor = Color(0xFFFFFFFF);
+  static const _amber = Color(0xFFEA580C);
   static const _red = Color(0xFFEF4444);
   static const _green = Color(0xFF10B981);
-  static const _textPrimary = Color(0xFFF8FAFC);
-  static const _textSecondary = Color(0xFF94A3B8);
+  static const _textPrimary = Color(0xFF0D1B2A);
+  static const _textSecondary = Color(0xFF8494A4);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -122,7 +122,7 @@ class PumpFuelLogScreen extends ConsumerWidget {
   }
 
   Widget _divider() {
-    return Container(width: 1, height: 32, color: const Color(0xFF475569));
+    return Container(width: 1, height: 32, color: const Color(0xFFE8EEF4));
   }
 
   Widget _logCard(FuelIssue issue) {

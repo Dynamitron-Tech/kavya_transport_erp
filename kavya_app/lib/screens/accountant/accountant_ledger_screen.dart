@@ -40,7 +40,7 @@ class _AccountantLedgerScreenState
     final state = ref.watch(_ledgerProvider(typeKey));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
         title: const Text('Ledger'),
         actions: [
@@ -79,7 +79,7 @@ class _AccountantLedgerScreenState
                   );
                 }
                 return RefreshIndicator(
-                  color: KTColors.primary,
+                  color: KTColors.acctAccent,
                   onRefresh: () async =>
                       ref.invalidate(_ledgerProvider(typeKey)),
                   child: ListView.builder(
@@ -125,7 +125,7 @@ class _AccountantLedgerScreenState
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: KTColors.darkElevated,
+      backgroundColor: KTColors.surface,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) => StatefulBuilder(
@@ -209,9 +209,9 @@ class _LedgerTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: KTColors.darkElevated,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: KTColors.darkBorder),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Row(
         children: [
@@ -236,13 +236,13 @@ class _LedgerTile extends StatelessWidget {
               children: [
                 Text(entry['account_name'] ?? '—',
                     style: const TextStyle(
-                        color: KTColors.textPrimary,
+                        color: KTColors.textHeading,
                         fontWeight: FontWeight.w600,
                         fontSize: 14)),
                 const SizedBox(height: 2),
                 Text(entry['narration'] ?? '',
                     style: const TextStyle(
-                        color: KTColors.textSecondary, fontSize: 12)),
+                        color: KTColors.textMuted, fontSize: 12)),
                 Text(entry['entry_date']?.toString().substring(0, 10) ?? '',
                     style: const TextStyle(
                         color: KTColors.textMuted, fontSize: 11)),

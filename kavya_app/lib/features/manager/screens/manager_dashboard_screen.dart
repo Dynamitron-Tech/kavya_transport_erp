@@ -28,25 +28,27 @@ class ManagerDashboardScreen extends ConsumerWidget {
     final user = ref.watch(authProvider).user;
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
+        backgroundColor: KTColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${_greeting()}, ${user?.name ?? 'Manager'}',
-                style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+                style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.approval, color: KTColors.darkTextSecondary),
+            icon: const Icon(Icons.approval, color: KTColors.textMuted),
             onPressed: () => context.push('/manager/approvals'),
           ),
           const NotificationBellWidget(),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: KTColors.darkTextSecondary),
-            color: KTColors.darkSurface,
+            icon: const Icon(Icons.more_vert, color: KTColors.textMuted),
+            color: KTColors.surface,
             onSelected: (v) { if (v == 'logout') ref.read(authProvider.notifier).logout(); },
             itemBuilder: (_) => [
               PopupMenuItem(value: 'logout', child: Row(children: [
@@ -59,8 +61,8 @@ class ManagerDashboardScreen extends ConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        color: KTColors.primary,
-        backgroundColor: KTColors.darkSurface,
+        color: KTColors.managerAccent,
+        backgroundColor: KTColors.surface,
         onRefresh: () async {
           ref.invalidate(managerDashboardStatsProvider);
           ref.invalidate(managerSparklineProvider);
@@ -86,9 +88,9 @@ class ManagerDashboardScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(14),
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0A1628),
+                    color: KTColors.managerAccentBg,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: KTColors.primary.withOpacity(0.5)),
+                    border: Border.all(color: KTColors.managerAccent.withOpacity(0.4)),
                   ),
                   child: InkWell(
                     onTap: () => context.go('/manager/fleet'),
@@ -99,16 +101,16 @@ class ManagerDashboardScreen extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             '${stats['overdue_service_vehicle'] ?? 'Vehicle'} overdue service',
-                            style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary),
+                            style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                           ),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: KTColors.primary.withOpacity(0.2),
+                            color: KTColors.managerAccent.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Text('Alert', style: TextStyle(color: KTColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                          child: Text('Alert', style: TextStyle(color: KTColors.managerAccent, fontSize: 12, fontWeight: FontWeight.w600)),
                         ),
                       ],
                     ),
@@ -119,7 +121,7 @@ class ManagerDashboardScreen extends ConsumerWidget {
             }).value ?? const SizedBox.shrink(),
 
             // ── Sparkline ──────────────────────────────
-            Text("TODAY'S OPERATIONS", style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary, fontWeight: FontWeight.w700, letterSpacing: 1)),
+            Text("TODAY'S OPERATIONS", style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted, fontWeight: FontWeight.w700, letterSpacing: 1)),
             const SizedBox(height: 12),
             sparkAsync.when(
               loading: () => const SizedBox(height: 100, child: Center(child: CircularProgressIndicator(strokeWidth: 2))),
@@ -129,7 +131,7 @@ class ManagerDashboardScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // ── Unassigned Jobs ────────────────────────
-            Text("JOBS NEEDING ASSIGNMENT", style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary, fontWeight: FontWeight.w700, letterSpacing: 1)),
+            Text("JOBS NEEDING ASSIGNMENT", style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted, fontWeight: FontWeight.w700, letterSpacing: 1)),
             const SizedBox(height: 12),
             jobsAsync.when(
               loading: () => const KTLoadingShimmer(type: ShimmerType.list),
@@ -143,13 +145,13 @@ class ManagerDashboardScreen extends ConsumerWidget {
                       children: [
                         const Icon(Icons.check_circle_outline, color: KTColors.success, size: 40),
                         const SizedBox(height: 8),
-                        Text('All jobs assigned — great work!', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+                        Text('All jobs assigned — great work!', style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                       ],
                     ),
                   );
                 }
                 return Column(
-                  children: jobs.map((j) => JobCardWidget(job: Map<String, dynamic>.from(j as Map))).toList(),
+                  children: jobs.map((j) => JobCardWidget(job: Map<String, dynamic>.from(j as Map), useLightTheme: true)).toList(),
                 );
               },
             ),
@@ -162,7 +164,7 @@ class ManagerDashboardScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: KTColors.darkSurface,
+                  color: KTColors.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFF0EA5E9), width: 1),
                 ),
@@ -177,9 +179,9 @@ class ManagerDashboardScreen extends ConsumerWidget {
                       child: const Icon(Icons.location_on_rounded, color: Color(0xFF0EA5E9), size: 20),
                     ),
                     const SizedBox(width: 12),
-                    Text('Live Vehicle Tracking', style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary, fontWeight: FontWeight.w600)),
+                    Text('Live Vehicle Tracking', style: KTTextStyles.body.copyWith(color: KTColors.textHeading, fontWeight: FontWeight.w600)),
                     const Spacer(),
-                    const Icon(Icons.chevron_right, color: KTColors.darkTextSecondary, size: 20),
+                    const Icon(Icons.chevron_right, color: KTColors.textMuted, size: 20),
                   ],
                 ),
               ),
@@ -193,7 +195,7 @@ class ManagerDashboardScreen extends ConsumerWidget {
                 icon: const Icon(Icons.add),
                 label: const Text('Create new job'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: KTColors.primary,
+                  backgroundColor: KTColors.managerAccent,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -231,7 +233,7 @@ class _KPIGrid extends StatelessWidget {
         _KPICard(
           value: '${stats['pending_assignment'] ?? 0}',
           label: 'Pending assignment',
-          borderColor: KTColors.primary,
+          borderColor: KTColors.managerAccent,
           onTap: () => context.go('/manager/jobs'),
         ),
         _KPICard(
@@ -271,20 +273,32 @@ class _KPICard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: KTColors.darkElevated,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border(left: BorderSide(color: borderColor, width: 3)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(value, style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
-            const SizedBox(height: 4),
-            Text(label, style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
-          ],
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(width: 3, color: borderColor),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(value, style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
+                      const SizedBox(height: 4),
+                      Text(label, style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -309,14 +323,14 @@ class _SparklineChart extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KTColors.darkElevated,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
           Row(
             children: [
-              Text('Weekly revenue trend', style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary)),
+              Text('Weekly revenue trend', style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
               const Spacer(),
               Text(
                 '${pct >= 0 ? '+' : ''}$pct% vs last week',
@@ -346,7 +360,7 @@ class _SparklineChart extends StatelessWidget {
                         Container(
                           height: 50 * heightFrac + 4,
                           decoration: BoxDecoration(
-                            color: isToday ? KTColors.primary : KTColors.info,
+                            color: isToday ? KTColors.managerAccent : KTColors.info,
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -354,7 +368,7 @@ class _SparklineChart extends StatelessWidget {
                         Text(
                           d['day'] ?? '',
                           style: TextStyle(
-                            color: isToday ? KTColors.primary : KTColors.darkTextSecondary,
+                            color: isToday ? KTColors.managerAccent : KTColors.textMuted,
                             fontSize: 10,
                             fontWeight: isToday ? FontWeight.w700 : FontWeight.normal,
                           ),

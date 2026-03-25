@@ -9,7 +9,7 @@ import '../../core/widgets/kt_error_state.dart';
 import '../../core/widgets/notification_bell_widget.dart';
 import 'pa_providers.dart';
 
-const _kPaAccent = Color(0xFFDC4B2A);
+const _kPaAccent = KTColors.paAccent;
 
 class PAEWBListScreen extends ConsumerStatefulWidget {
   const PAEWBListScreen({super.key});
@@ -79,11 +79,11 @@ class _PAEWBListScreenState extends ConsumerState<PAEWBListScreen> {
     final ewbAsync = ref.watch(paEWBListProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
+        backgroundColor: KTColors.surface,
         title: Text('E-Way Bills',
-            style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+            style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
         actions: const [NotificationBellWidget()],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),
@@ -110,14 +110,14 @@ class _PAEWBListScreenState extends ConsumerState<PAEWBListScreen> {
                         border: Border.all(
                             color: isActive
                                 ? _kPaAccent
-                                : KTColors.darkBorder),
+                                : KTColors.borderColor),
                       ),
                       child: Text(
                         f.$1,
                         style: TextStyle(
                           color: isActive
                               ? Colors.white
-                              : KTColors.darkTextSecondary,
+                              : KTColors.textMuted,
                           fontSize: 12,
                           fontWeight: isActive
                               ? FontWeight.w700
@@ -146,11 +146,11 @@ class _PAEWBListScreenState extends ConsumerState<PAEWBListScreen> {
                 children: [
                   Icon(Icons.timer_off_outlined,
                       size: 52,
-                      color: KTColors.darkTextSecondary.withValues(alpha: 0.4)),
+                      color: KTColors.textMuted.withValues(alpha: 0.4)),
                   const SizedBox(height: 12),
                   Text('No e-Way Bills found',
                       style: KTTextStyles.body.copyWith(
-                          color: KTColors.darkTextSecondary)),
+                          color: KTColors.textMuted)),
                 ],
               ),
             );
@@ -169,7 +169,7 @@ class _PAEWBListScreenState extends ConsumerState<PAEWBListScreen> {
 
           return RefreshIndicator(
             color: _kPaAccent,
-            backgroundColor: KTColors.darkSurface,
+            backgroundColor: KTColors.surface,
             onRefresh: () async => ref.invalidate(paEWBListProvider),
             child: ListView.builder(
               padding:
@@ -242,12 +242,12 @@ class _EWBRingCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: KTColors.darkSurface,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isUrgent
                 ? KTColors.danger.withValues(alpha: 0.6)
-                : KTColors.darkBorder,
+                : KTColors.borderColor,
             width: isUrgent ? 1.5 : 1,
           ),
         ),
@@ -259,11 +259,11 @@ class _EWBRingCard extends StatelessWidget {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: KTColors.darkBorder.withValues(alpha: 0.3),
+                  color: KTColors.borderColor.withValues(alpha: 0.3),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.cancel_outlined,
-                    color: KTColors.darkTextSecondary, size: 28),
+                    color: KTColors.textMuted, size: 28),
               )
             else
             SizedBox(
@@ -276,7 +276,7 @@ class _EWBRingCard extends StatelessWidget {
                     value: progress,
                     strokeWidth: 5,
                     backgroundColor:
-                        KTColors.darkBorder.withValues(alpha: 0.5),
+                        KTColors.borderColor.withValues(alpha: 0.5),
                     valueColor: AlwaysStoppedAnimation<Color>(ringColor),
                     strokeCap: StrokeCap.round,
                   ),
@@ -312,21 +312,21 @@ class _EWBRingCard extends StatelessWidget {
                               ewb['id']?.toString() ??
                               '—',
                           style: KTTextStyles.body.copyWith(
-                            color: KTColors.darkTextPrimary,
+                            color: KTColors.textHeading,
                             fontWeight: FontWeight.bold,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const Icon(Icons.chevron_right,
-                          color: KTColors.darkTextSecondary, size: 18),
+                          color: KTColors.textMuted, size: 18),
                     ],
                   ),
                   const SizedBox(height: 3),
                   Text(
                     ewb['lr_number'] ?? ewb['lr_no'] ?? '',
                     style: KTTextStyles.bodySmall
-                        .copyWith(color: KTColors.darkTextSecondary),
+                        .copyWith(color: KTColors.textMuted),
                   ),
                   const SizedBox(height: 6),
                   Row(children: [

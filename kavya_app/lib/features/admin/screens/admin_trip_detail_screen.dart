@@ -261,25 +261,37 @@ class AdminTripDetailScreen extends ConsumerWidget {
   Widget _statCard(String value, String label, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(12),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: KTColors.darkSurface,
           borderRadius: BorderRadius.circular(10),
-          border: Border(left: BorderSide(color: color, width: 3)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value,
-                style: const TextStyle(
-                    color: KTColors.darkTextPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold)),
-            const SizedBox(height: 2),
-            Text(label,
-                style: const TextStyle(
-                    color: KTColors.darkTextSecondary, fontSize: 11)),
-          ],
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(width: 3, color: color),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(value,
+                          style: const TextStyle(
+                              color: KTColors.darkTextPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Text(label,
+                          style: const TextStyle(
+                              color: KTColors.darkTextSecondary, fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

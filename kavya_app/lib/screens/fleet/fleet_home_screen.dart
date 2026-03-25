@@ -3,7 +3,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
+import '../../core/widgets/kt_loading_shimmer.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/fleet_dashboard_provider.dart';
+
+final fleetHomeStatsProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final response = await api.get('/fleet/dashboard');
+  // Backend returns: { data: { fleet_summary: {...}, active_trips: [...], ... } }
+  final payload = response['data'] ?? response;
+  if (payload is Map<String, dynamic>) {
+    final summary = (payload['fleet_summary'] as Map<String, dynamic>?) ?? {};
+    if (summary.isNotEmpty) return summary;
+    return payload;
+  }
+  return {};
+});
 
 class FleetHomeScreen extends ConsumerWidget {
   const FleetHomeScreen({super.key});
@@ -11,19 +27,11 @@ class FleetHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).user;
-
-    // Mock data — TODO: connect to fleet providers
-    const totalVehicles = 24;
-    const activeVehicles = 18;
-    const maintenancePending = 3;
-    const driversOnDuty = 16;
-    const tripsInProgress = 12;
-    const tripsCompleted = 156;
-
+    final statsAsync = ref.watch(fleetHomeStatsProvider);
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.navy900,
+        backgroundColor: KTColors.surface,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         title: Column(
@@ -33,7 +41,7 @@ class FleetHomeScreen extends ConsumerWidget {
             Text(
               'Fleet Dashboard',
               style: KTTextStyles.h3.copyWith(
-                color: KTColors.darkTextPrimary,
+                color: KTColors.textHeading,
                 decoration: TextDecoration.none,
               ),
             ),
@@ -42,7 +50,7 @@ class FleetHomeScreen extends ConsumerWidget {
                   ? 'Welcome back, ${user!.fullName}'
                   : 'Manage vehicles & operations',
               style: KTTextStyles.labelSmall.copyWith(
-                color: KTColors.darkTextSecondary,
+                color: KTColors.textMuted,
                 decoration: TextDecoration.none,
               ),
             ),
@@ -50,12 +58,12 @@ class FleetHomeScreen extends ConsumerWidget {
         ),
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: KTColors.darkTextPrimary),
-            color: KTColors.navy800,
+            icon: const Icon(Icons.more_vert, color: KTColors.textHeading),
+            color: KTColors.surface,
             elevation: 4,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
-              side: const BorderSide(color: KTColors.navy700),
+              side: const BorderSide(color: KTColors.borderColor),
             ),
             onSelected: (value) {
               if (value == 'profile') {
@@ -70,12 +78,12 @@ class FleetHomeScreen extends ConsumerWidget {
                 child: Row(
                   children: [
                     const Icon(Icons.person_outline_rounded,
-                        color: KTColors.darkTextSecondary, size: 18),
+                        color: KTColors.textMuted, size: 18),
                     const SizedBox(width: 10),
                     Text(
                       'My Profile',
                       style: KTTextStyles.body.copyWith(
-                        color: KTColors.darkTextPrimary,
+                        color: KTColors.textHeading,
                         decoration: TextDecoration.none,
                       ),
                     ),
@@ -115,23 +123,40 @@ class FleetHomeScreen extends ConsumerWidget {
               _Section(
                 title: 'Fleet Overview',
                 icon: Icons.directions_car_outlined,
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  shrinkWrap: true,
-                  childAspectRatio: 1.55,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    _StatTile('Total Vehicles', '$totalVehicles',
-                        Icons.directions_car_filled, KTColors.primary),
-                    _StatTile('Active Today', '$activeVehicles',
-                        Icons.check_circle_outline, KTColors.success),
-                    _StatTile('Maintenance Due', '$maintenancePending',
-                        Icons.build_circle_outlined, KTColors.warning),
-                    _StatTile('Drivers on Duty', '$driversOnDuty',
-                        Icons.people_alt_outlined, KTColors.info),
-                  ],
+                child: statsAsync.when(
+                  loading: () => const KTLoadingShimmer(type: ShimmerType.card),
+                  error: (_, __) => GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    shrinkWrap: true,
+                    childAspectRatio: 1.55,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: const [
+                      _StatTile('Total Vehicles', '--', Icons.directions_car_filled, KTColors.primary),
+                      _StatTile('On Trip', '--', Icons.check_circle_outline, KTColors.success),
+                      _StatTile('Maintenance Due', '--', Icons.build_circle_outlined, KTColors.warning),
+                      _StatTile('Drivers on Duty', '--', Icons.people_alt_outlined, KTColors.info),
+                    ],
+                  ),
+                  data: (data) => GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    shrinkWrap: true,
+                    childAspectRatio: 1.55,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _StatTile('Total Vehicles', '${data['total_vehicles'] ?? 0}',
+                          Icons.directions_car_filled, KTColors.primary),
+                      _StatTile('On Trip', '${data['on_trip'] ?? 0}',
+                          Icons.check_circle_outline, KTColors.success),
+                      _StatTile('Maintenance Due', '${data['maintenance'] ?? 0}',
+                          Icons.build_circle_outlined, KTColors.warning),
+                      _StatTile('Available', '${data['available'] ?? 0}',
+                          Icons.people_alt_outlined, KTColors.info),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -140,18 +165,28 @@ class FleetHomeScreen extends ConsumerWidget {
               _Section(
                 title: 'Trip Status',
                 icon: Icons.local_shipping_outlined,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _TripTile('In Progress', '$tripsInProgress',
-                          Icons.local_shipping, KTColors.warning),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _TripTile('Completed Today', '$tripsCompleted',
-                          Icons.check_circle, KTColors.success),
-                    ),
-                  ],
+                child: statsAsync.when(
+                  loading: () => const KTLoadingShimmer(type: ShimmerType.card),
+                  error: (_, __) => const Row(
+                    children: [
+                      Expanded(child: _TripTile('In Progress', '--', Icons.local_shipping, KTColors.warning)),
+                      SizedBox(width: 10),
+                      Expanded(child: _TripTile('Available', '--', Icons.check_circle, KTColors.success)),
+                    ],
+                  ),
+                  data: (data) => Row(
+                    children: [
+                      Expanded(
+                        child: _TripTile('In Progress', '${data['on_trip'] ?? 0}',
+                            Icons.local_shipping, KTColors.warning),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _TripTile('Available', '${data['available'] ?? 0}',
+                            Icons.check_circle, KTColors.success),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -262,21 +297,21 @@ class _Section extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: KTColors.navy800,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: KTColors.navy700),
+        border: Border.all(color: KTColors.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: KTColors.amber500, size: 15),
+              Icon(icon, color: KTColors.fleetAccent, size: 15),
               const SizedBox(width: 7),
               Text(
                 title,
                 style: KTTextStyles.h3.copyWith(
-                  color: KTColors.darkTextPrimary,
+                  color: KTColors.textHeading,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.3,
@@ -286,7 +321,7 @@ class _Section extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          const Divider(color: KTColors.navy700, height: 1, thickness: 1),
+          const Divider(color: KTColors.borderColor, height: 1, thickness: 1),
           const SizedBox(height: 14),
           child,
         ],
@@ -309,7 +344,7 @@ class _StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: KTColors.navy900,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
@@ -340,7 +375,7 @@ class _StatTile extends StatelessWidget {
                 Text(
                   label,
                   style: KTTextStyles.labelSmall.copyWith(
-                    color: KTColors.darkTextSecondary,
+                    color: KTColors.textMuted,
                     decoration: TextDecoration.none,
                   ),
                   maxLines: 1,
@@ -369,7 +404,7 @@ class _TripTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: KTColors.navy900,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
@@ -384,7 +419,7 @@ class _TripTile extends StatelessWidget {
                 child: Text(
                   label,
                   style: KTTextStyles.labelSmall.copyWith(
-                    color: KTColors.darkTextSecondary,
+                    color: KTColors.textMuted,
                     decoration: TextDecoration.none,
                   ),
                 ),
@@ -428,9 +463,9 @@ class _ActionTile extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: KTColors.navy900,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: KTColors.navy700),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -447,7 +482,7 @@ class _ActionTile extends StatelessWidget {
             Text(
               label,
               style: KTTextStyles.label.copyWith(
-                color: KTColors.darkTextPrimary,
+                color: KTColors.textHeading,
                 fontWeight: FontWeight.w600,
                 decoration: TextDecoration.none,
               ),
@@ -495,7 +530,7 @@ class _ActivityRow extends StatelessWidget {
               Text(
                 title,
                 style: KTTextStyles.body.copyWith(
-                  color: KTColors.darkTextPrimary,
+                  color: KTColors.textHeading,
                   fontWeight: FontWeight.w600,
                   decoration: TextDecoration.none,
                 ),
@@ -503,7 +538,7 @@ class _ActivityRow extends StatelessWidget {
               Text(
                 subtitle,
                 style: KTTextStyles.bodySmall.copyWith(
-                  color: KTColors.darkTextSecondary,
+                  color: KTColors.textMuted,
                   decoration: TextDecoration.none,
                 ),
                 maxLines: 1,

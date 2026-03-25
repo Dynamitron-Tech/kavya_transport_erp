@@ -14,11 +14,11 @@ class LanguageSettingsScreen extends ConsumerWidget {
     final s = ref.watch(sProvider);
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
+        backgroundColor: KTColors.surface,
         title: Text(s.languageSettings,
-            style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
+            style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
@@ -27,7 +27,7 @@ class LanguageSettingsScreen extends ConsumerWidget {
           children: [
             Text(s.choosePreferredLanguage,
                 style: KTTextStyles.body
-                    .copyWith(color: KTColors.darkTextSecondary)),
+                    .copyWith(color: KTColors.textMuted)),
             const SizedBox(height: 16),
             Expanded(
               child: ListView.separated(
@@ -96,8 +96,8 @@ class _LocaleTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: isSelected
-          ? KTColors.primary.withValues(alpha: 0.12)
-          : KTColors.darkSurface,
+          ? KTColors.driverAccent.withValues(alpha: 0.12)
+          : KTColors.surface,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -107,7 +107,7 @@ class _LocaleTile extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isSelected ? KTColors.primary : KTColors.darkBorder,
+              color: isSelected ? KTColors.driverAccent : KTColors.borderColor,
               width: isSelected ? 1.6 : 1,
             ),
           ),
@@ -122,20 +122,20 @@ class _LocaleTile extends StatelessWidget {
                     Text(
                       localeLabels[locale] ?? locale.name,
                       style: KTTextStyles.body.copyWith(
-                        color: KTColors.darkTextPrimary,
+                        color: KTColors.textHeading,
                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       ),
                     ),
                     Text(
                       _englishNames[locale] ?? '',
                       style: KTTextStyles.caption
-                          .copyWith(color: KTColors.darkTextSecondary),
+                          .copyWith(color: KTColors.textMuted),
                     ),
                   ],
                 ),
               ),
               if (isSelected)
-                const Icon(Icons.check_circle, color: KTColors.primary, size: 24),
+                const Icon(Icons.check_circle, color: KTColors.driverAccent, size: 24),
             ],
           ),
         ),

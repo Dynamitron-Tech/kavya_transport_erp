@@ -43,11 +43,29 @@ class AccountantShellScreen extends ConsumerWidget {
         ],
       ),
       body: navigationShell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (i) =>
-            navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex),
-        indicatorColor: KTColors.roleAccountant.withValues(alpha: 0.15),
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          indicatorColor: KTColors.acctAccent.withValues(alpha: 0.15),
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const IconThemeData(color: KTColors.acctAccent, size: 20);
+            }
+            return const IconThemeData(color: KTColors.textMuted, size: 20);
+          }),
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const TextStyle(
+                  color: KTColors.acctAccent,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 10);
+            }
+            return const TextStyle(color: KTColors.textMuted, fontSize: 10);
+          }),
+        ),
+        child: NavigationBar(
+          selectedIndex: navigationShell.currentIndex,
+          onDestinationSelected: (i) =>
+              navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex),
         destinations: const [
           NavigationDestination(
               icon: Icon(Icons.dashboard_outlined),
@@ -70,6 +88,7 @@ class AccountantShellScreen extends ConsumerWidget {
               selectedIcon: Icon(Icons.apps),
               label: 'More'),
         ],
+        ),
       ),
     );
   }

@@ -16,10 +16,10 @@ class PumpDispenseScreen extends ConsumerStatefulWidget {
 }
 
 class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
-  static const _cardColor = Color(0xFF334155);
-  static const _amber = Color(0xFFFBBF24);
-  static const _textPrimary = Color(0xFFF8FAFC);
-  static const _textSecondary = Color(0xFF94A3B8);
+  static const _cardColor = Color(0xFFFFFFFF);
+  static const _amber = Color(0xFFEA580C);
+  static const _textPrimary = Color(0xFF0D1B2A);
+  static const _textSecondary = Color(0xFF8494A4);
 
   final _formKey = GlobalKey<FormState>();
   int? _selectedTankId;
@@ -495,11 +495,11 @@ class _FuelReceiptSheet extends StatelessWidget {
   final bool isOffline;
   final VoidCallback onNewEntry;
 
-  static const _bg = Color(0xFF1E293B);
-  static const _card = Color(0xFF334155);
-  static const _amber = Color(0xFFFBBF24);
-  static const _textPrimary = Color(0xFFF8FAFC);
-  static const _textSecondary = Color(0xFF94A3B8);
+  static const _bg = Color(0xFFF7F9FC);
+  static const _card = Color(0xFFFFFFFF);
+  static const _amber = Color(0xFFEA580C);
+  static const _textPrimary = Color(0xFF0D1B2A);
+  static const _textSecondary = Color(0xFF8494A4);
 
   double get _total => litres * rate;
 
@@ -538,7 +538,7 @@ ${isOffline ? '⚠ Saved offline — will sync when online' : '✓ Recorded Succ
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white24,
+              color: const Color(0xFFE8EEF4),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -627,10 +627,10 @@ ${isOffline ? '⚠ Saved offline — will sync when online' : '✓ Recorded Succ
                 _receiptRow('Vehicle', vehicleReg),
                 _receiptRow('Tank', tankName),
                 if (driver != null) _receiptRow('Driver', driver!),
-                const Divider(color: Colors.white12, height: 20),
+                const Divider(color: Color(0xFFE8EEF4), height: 20),
                 _receiptRow('Quantity', '${litres.toStringAsFixed(2)} L'),
                 _receiptRow('Rate', '₹${rate.toStringAsFixed(2)}/L'),
-                const Divider(color: Colors.white12, height: 20),
+                const Divider(color: Color(0xFFE8EEF4), height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

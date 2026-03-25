@@ -64,7 +64,7 @@ class _AccountantReceivablesScreenState extends ConsumerState<AccountantReceivab
           if (receivables.isEmpty) return const KTEmptyState(title: "No receivables", subtitle: "All invoices are paid.", lottieAsset: 'assets/lottie/done.json'); // [cite: 114-115]
 
           return RefreshIndicator(
-            color: KTColors.primary,
+            color: KTColors.acctAccent,
             onRefresh: () async => ref.invalidate(receivablesProvider),
             child: ListView.builder(
               padding: const EdgeInsets.all(16),

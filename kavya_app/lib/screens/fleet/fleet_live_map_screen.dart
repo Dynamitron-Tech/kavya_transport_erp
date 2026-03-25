@@ -89,7 +89,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.85),
+                color: KTColors.textHeading.withValues(alpha: 0.85),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -113,7 +113,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
   void _showTruckDetail(BuildContext context, TruckLocation truck) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: KTColors.navy800,
+      backgroundColor: KTColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -149,7 +149,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
     final filtered = state.filteredTrucks;
 
     return Scaffold(
-      backgroundColor: KTColors.navy950,
+      backgroundColor: KTColors.lightBg,
       body: Stack(
         children: [
           // ── Full-screen Map ────────────────────────────────────────────
@@ -202,8 +202,8 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
                     right: 12,
                     bottom: 14,
                   ),
-                  decoration: const BoxDecoration(
-                    color: Color(0xD00F172A),
+                  decoration: BoxDecoration(
+                    color: KTColors.textHeading.withValues(alpha: 0.82),
                     borderRadius: BorderRadius.only(
                       bottomLeft: Radius.circular(24),
                       bottomRight: Radius.circular(24),
@@ -255,7 +255,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
                       _AnimatedStatusChip(
                         count: state.onBreakCount,
                         label: 'Break',
-                        color: const Color(0xFFF59E0B),
+                        color: KTColors.fleetAccent,
                         icon: Icons.pause_circle_filled,
                       ),
                       const SizedBox(width: 6),
@@ -319,7 +319,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
                   filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A).withValues(alpha: 0.92),
+                      color: KTColors.textHeading.withValues(alpha: 0.92),
                       borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(28)),
                       border: Border.all(
@@ -396,7 +396,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
                               _FilterChip(
                                 label: '${state.onBreakCount} Break',
                                 selected: state.filter == 'on_break',
-                                color: const Color(0xFFF59E0B),
+                                color: KTColors.fleetAccent,
                                 onTap: () => notifier.setFilter('on_break'),
                               ),
                               const SizedBox(width: 8),
@@ -420,7 +420,7 @@ class _FleetLiveMapScreenState extends ConsumerState<FleetLiveMapScreen> {
                                     height: 120,
                                     child: Center(
                                       child: CircularProgressIndicator(
-                                          color: Color(0xFFF59E0B)),
+                                          color: KTColors.fleetAccent),
                                     ),
                                   ),
                                 )
@@ -715,14 +715,14 @@ class _SpinRefreshButtonState extends State<_SpinRefreshButton>
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+          color: KTColors.fleetAccent.withValues(alpha: 0.15),
           shape: BoxShape.circle,
           border: Border.all(
-              color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+              color: KTColors.fleetAccent.withValues(alpha: 0.4)),
         ),
         child: RotationTransition(
           turns: _ctrl,
-          child: const Icon(Icons.refresh, color: Color(0xFFF59E0B), size: 18),
+          child: const Icon(Icons.refresh, color: KTColors.fleetAccent, size: 18),
         ),
       ),
     );
@@ -805,18 +805,18 @@ class _GlassMapButton extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isPrimary
-                  ? const Color(0xFFF59E0B).withValues(alpha: 0.85)
-                  : const Color(0xFF0F172A).withValues(alpha: 0.75),
+                  ? KTColors.fleetAccent.withValues(alpha: 0.85)
+                  : KTColors.textHeading.withValues(alpha: 0.75),
               border: Border.all(
                 color: isPrimary
-                    ? const Color(0xFFF59E0B)
+                    ? KTColors.fleetAccent
                     : Colors.white.withValues(alpha: 0.15),
                 width: 1,
               ),
             ),
             child: Icon(
               icon,
-              color: isPrimary ? const Color(0xFF0F172A) : Colors.white,
+              color: isPrimary ? KTColors.textHeading : Colors.white,
               size: 20,
             ),
           ),
@@ -1067,7 +1067,7 @@ class _TruckDetailSheet extends StatelessWidget {
               width: 36,
               height: 4,
               margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(color: KTColors.navy700, borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(color: KTColors.borderColor, borderRadius: BorderRadius.circular(2)),
             ),
           ),
 
@@ -1086,9 +1086,9 @@ class _TruckDetailSheet extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(truck.registrationNo,
-                        style: TextStyle(color: KTColors.darkTextPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
+                        style: TextStyle(color: KTColors.textHeading, fontSize: 18, fontWeight: FontWeight.w800)),
                     if (truck.driverName != null)
-                      Text(truck.driverName!, style: TextStyle(color: KTColors.darkTextSecondary, fontSize: 13)),
+                      Text(truck.driverName!, style: TextStyle(color: KTColors.textMuted, fontSize: 13)),
                   ],
                 ),
               ),
@@ -1132,22 +1132,22 @@ class _TruckDetailSheet extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: KTColors.navy800,
+                color: KTColors.surface,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
+                border: Border.all(color: KTColors.fleetAccent.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.route, color: Color(0xFFF59E0B), size: 18),
+                  const Icon(Icons.route, color: KTColors.fleetAccent, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       '${truck.tripOrigin} → ${truck.tripDestination}',
-                      style: TextStyle(color: KTColors.darkTextPrimary, fontWeight: FontWeight.w600, fontSize: 13),
+                      style: TextStyle(color: KTColors.textHeading, fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                   ),
                   if (truck.tripId != null)
-                    Text('#${truck.tripId}', style: TextStyle(color: KTColors.darkTextSecondary, fontSize: 11)),
+                    Text('#${truck.tripId}', style: TextStyle(color: KTColors.textMuted, fontSize: 11)),
                 ],
               ),
             ),
@@ -1157,14 +1157,14 @@ class _TruckDetailSheet extends StatelessWidget {
           const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: KTColors.navy800, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: KTColors.surface, borderRadius: BorderRadius.circular(8)),
             child: Row(
               children: [
                 const Icon(Icons.location_on_outlined, color: Color(0xFF3B82F6), size: 16),
                 const SizedBox(width: 6),
                 Text(
                   '${truck.lat.toStringAsFixed(5)}°N, ${truck.lng.toStringAsFixed(5)}°E',
-                  style: TextStyle(color: KTColors.darkTextSecondary, fontFamily: 'monospace', fontSize: 12),
+                  style: TextStyle(color: KTColors.textMuted, fontFamily: 'monospace', fontSize: 12),
                 ),
               ],
             ),
@@ -1188,18 +1188,18 @@ class _StatCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
         decoration: BoxDecoration(
-          color: KTColors.navy800,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: KTColors.navy700),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(color: KTColors.darkTextSecondary, fontSize: 10)),
+            Text(label, style: TextStyle(color: KTColors.textMuted, fontSize: 10)),
             const SizedBox(height: 3),
             Text(value,
                 style: TextStyle(
-                  color: valueColor ?? KTColors.darkTextPrimary,
+                  color: valueColor ?? KTColors.textHeading,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 )),

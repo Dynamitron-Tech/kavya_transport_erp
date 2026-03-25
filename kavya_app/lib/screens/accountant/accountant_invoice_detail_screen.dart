@@ -119,7 +119,7 @@ class AccountantInvoiceDetailScreen extends ConsumerWidget {
             },
             icon: const Icon(Icons.payment),
             label: const Text("Record Payment"),
-            backgroundColor: KTColors.primary,
+            backgroundColor: KTColors.acctAccent,
           ),
         );
       },

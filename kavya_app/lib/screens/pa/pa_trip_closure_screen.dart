@@ -53,20 +53,20 @@ class _PATripClosureScreenState extends ConsumerState<PATripClosureScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: KTColors.darkSurface,
-        title: Text('Close Trip', style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+        backgroundColor: KTColors.surface,
+        title: Text('Close Trip', style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
         content: Text(
           'This will mark the trip as completed '
           'and generate an invoice. Proceed?',
-          style: KTTextStyles.body.copyWith(color: KTColors.darkTextSecondary),
+          style: KTTextStyles.body.copyWith(color: KTColors.textMuted),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: TextStyle(color: KTColors.darkTextSecondary)),
+            child: Text('Cancel', style: TextStyle(color: KTColors.textMuted)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: KTColors.primary),
+            style: ElevatedButton.styleFrom(backgroundColor: KTColors.paAccent),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Close Trip', style: TextStyle(color: Colors.white)),
           ),
@@ -108,11 +108,11 @@ class _PATripClosureScreenState extends ConsumerState<PATripClosureScreen> {
     final tripAsync = ref.watch(_tripForClosureProvider(widget.tripId));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        title: Text('Close Trip', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
-        leading: const BackButton(color: KTColors.darkTextPrimary),
+        backgroundColor: KTColors.surface,
+        title: Text('Close Trip', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
+        leading: const BackButton(color: KTColors.textHeading),
       ),
       body: tripAsync.when(
         loading: () => const KTLoadingShimmer(type: ShimmerType.card),
@@ -131,7 +131,7 @@ class _PATripClosureScreenState extends ConsumerState<PATripClosureScreen> {
 
               // ── Checklist ────────────────────────────────────────────
               Text('Closure Checklist',
-                  style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                  style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
               const SizedBox(height: 8),
               _CheckItem(
                 label: 'POD / Delivery receipt uploaded',
@@ -171,7 +171,7 @@ class _PATripClosureScreenState extends ConsumerState<PATripClosureScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _allChecked ? KTColors.danger : KTColors.darkBorder,
+                    backgroundColor: _allChecked ? KTColors.danger : KTColors.borderColor,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -210,16 +210,16 @@ class _PATripClosureScreenState extends ConsumerState<PATripClosureScreen> {
           controller: ctrl,
           keyboardType: keyboardType,
           maxLines: maxLines,
-          style: const TextStyle(color: KTColors.darkTextPrimary),
+          style: const TextStyle(color: KTColors.textHeading),
           decoration: InputDecoration(
             labelText: label,
-            labelStyle: const TextStyle(color: KTColors.darkTextSecondary),
+            labelStyle: const TextStyle(color: KTColors.textMuted),
             filled: true,
-            fillColor: KTColors.darkSurface,
+            fillColor: KTColors.surface,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: KTColors.darkBorder),
+              borderSide: const BorderSide(color: KTColors.borderColor),
             ),
           ),
         ),
@@ -237,17 +237,17 @@ class _CheckItem extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          color: KTColors.darkSurface,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: checked ? KTColors.success : KTColors.darkBorder,
+            color: checked ? KTColors.success : KTColors.borderColor,
           ),
         ),
         child: CheckboxListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 14),
           title: Text(label,
               style: KTTextStyles.body.copyWith(
-                color: checked ? KTColors.success : KTColors.darkTextPrimary,
+                color: checked ? KTColors.success : KTColors.textHeading,
               )),
           value: checked,
           activeColor: KTColors.success,
@@ -265,15 +265,15 @@ class _TripSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: KTColors.darkSurface,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: KTColors.darkBorder),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Trip Summary',
-                style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+                style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
             const SizedBox(height: 8),
             _R('Vehicle', trip['vehicle_reg_number'] ?? '—'),
             _R('Driver', trip['driver_name'] ?? '—'),
@@ -299,24 +299,24 @@ class _PLCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: KTColors.darkSurface,
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: KTColors.primary.withOpacity(0.4)),
+        border: Border.all(color: KTColors.paAccent.withOpacity(0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Profit & Loss (Estimate)',
-              style: KTTextStyles.h3.copyWith(color: KTColors.primary)),
+              style: KTTextStyles.h3.copyWith(color: KTColors.paAccent)),
           const SizedBox(height: 8),
           _R('Freight', '₹${freight.toStringAsFixed(0)}'),
           _R('Driver Advance', '- ₹${advance.toStringAsFixed(0)}'),
           _R('Trip Expenses', '- ₹${expenses.toStringAsFixed(0)}'),
-          const Divider(color: KTColors.darkBorder, height: 16),
+          const Divider(color: KTColors.borderColor, height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Net', style: KTTextStyles.body.copyWith(color: KTColors.darkTextPrimary, fontWeight: FontWeight.bold)),
+              Text('Net', style: KTTextStyles.body.copyWith(color: KTColors.textHeading, fontWeight: FontWeight.bold)),
               Text(
                 '₹${net.toStringAsFixed(0)}',
                 style: KTTextStyles.body.copyWith(
@@ -343,8 +343,8 @@ class _R extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
-            Text(value, style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextPrimary)),
+            Text(label, style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
+            Text(value, style: KTTextStyles.bodySmall.copyWith(color: KTColors.textHeading)),
           ],
         ),
       );

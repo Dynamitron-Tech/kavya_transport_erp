@@ -26,11 +26,11 @@ class PAEWBDetailScreen extends ConsumerWidget {
     final ewbAsync = ref.watch(_ewbDetailProvider(ewbId));
 
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       appBar: AppBar(
-        backgroundColor: KTColors.darkSurface,
-        title: Text('EWB Detail', style: KTTextStyles.h2.copyWith(color: KTColors.darkTextPrimary)),
-        leading: const BackButton(color: KTColors.darkTextPrimary),
+        backgroundColor: KTColors.surface,
+        title: Text('EWB Detail', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
+        leading: const BackButton(color: KTColors.textHeading),
       ),
       body: ewbAsync.when(
         loading: () => const KTLoadingShimmer(type: ShimmerType.card),
@@ -51,7 +51,7 @@ class PAEWBDetailScreen extends ConsumerWidget {
                 _Row('Valid Until', _fmt(ewb['valid_until'])),
               ]),
               const SizedBox(height: 14),
-              Text('Route', style: KTTextStyles.h3.copyWith(color: KTColors.darkTextPrimary)),
+              Text('Route', style: KTTextStyles.h3.copyWith(color: KTColors.textHeading)),
               const SizedBox(height: 8),
               _DetailCard(children: [
                 _Row('From', ewb['from_gstin'] ?? ewb['from_address'] ?? '—'),
@@ -144,9 +144,9 @@ class _DetailCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: KTColors.darkSurface,
+          color: KTColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: KTColors.darkBorder),
+          border: Border.all(color: KTColors.borderColor),
         ),
         child: Column(children: children),
       );
@@ -163,11 +163,11 @@ class _Row extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextSecondary)),
+            Text(label, style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
             Flexible(
               child: Text(
                 value,
-                style: KTTextStyles.bodySmall.copyWith(color: KTColors.darkTextPrimary),
+                style: KTTextStyles.bodySmall.copyWith(color: KTColors.textHeading),
                 textAlign: TextAlign.end,
               ),
             ),

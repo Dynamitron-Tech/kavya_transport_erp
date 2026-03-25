@@ -10,11 +10,13 @@ class ManagerShellScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: KTColors.darkBg,
+      backgroundColor: KTColors.lightBg,
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
-        backgroundColor: KTColors.darkSurface,
-        indicatorColor: KTColors.primary.withOpacity(0.2),
+        backgroundColor: KTColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        indicatorColor: KTColors.managerAccent.withOpacity(0.18),
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (i) =>
             navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex),
@@ -22,27 +24,27 @@ class ManagerShellScreen extends ConsumerWidget {
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home, color: KTColors.primary),
+            selectedIcon: Icon(Icons.home, color: KTColors.managerAccent),
             label: 'Home',
           ),
           NavigationDestination(
             icon: Icon(Icons.work_outline),
-            selectedIcon: Icon(Icons.work, color: KTColors.primary),
+            selectedIcon: Icon(Icons.work, color: KTColors.managerAccent),
             label: 'Jobs',
           ),
           NavigationDestination(
             icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people, color: KTColors.primary),
+            selectedIcon: Icon(Icons.people, color: KTColors.managerAccent),
             label: 'Clients',
           ),
           NavigationDestination(
             icon: Icon(Icons.local_shipping_outlined),
-            selectedIcon: Icon(Icons.local_shipping, color: KTColors.primary),
+            selectedIcon: Icon(Icons.local_shipping, color: KTColors.managerAccent),
             label: 'Fleet',
           ),
           NavigationDestination(
             icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart, color: KTColors.primary),
+            selectedIcon: Icon(Icons.bar_chart, color: KTColors.managerAccent),
             label: 'Reports',
           ),
         ],

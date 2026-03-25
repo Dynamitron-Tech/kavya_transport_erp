@@ -39,7 +39,7 @@ class DriverExpenseTripsScreen extends ConsumerWidget {
             );
           }
           return RefreshIndicator(
-            color: KTColors.primary,
+            color: KTColors.driverAccent,
             onRefresh: () async => ref.invalidate(tripsProvider),
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
@@ -113,7 +113,7 @@ class _TripExpenseCard extends StatelessWidget {
       case 'in_transit':
       case 'loading':
       case 'unloading':
-        return KTColors.primary;
+        return KTColors.driverAccent;
       case 'started':
       case 'ready':
         return KTColors.info;
@@ -131,7 +131,7 @@ class _TripExpenseCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: const Color(0xFF1E293B),
+        color: KTColors.surface,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: onTap,

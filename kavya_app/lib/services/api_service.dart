@@ -28,6 +28,12 @@ class ApiService {
         // Response interceptor: on 401 -> calls refresh token endpoint [cite: 32]
         onError: (DioException e, handler) async {
           if (e.response?.statusCode == 401) {
+            // Don't intercept 401s on the login endpoint itself — let them propagate
+            final isLoginRequest = e.requestOptions.path.contains('/auth/login');
+            if (isLoginRequest) {
+              return handler.next(e);
+            }
+
             final refreshToken = await _storage.read(key: 'refresh_token');
             if (refreshToken != null) {
               try {
@@ -50,7 +56,7 @@ class ApiService {
                 if (ctx != null && ctx.mounted) {
                   ctx.go('/login');
                 }
-                return;
+                return handler.reject(e);
               }
             } else {
               await _storage.deleteAll();
@@ -58,7 +64,7 @@ class ApiService {
               if (ctx != null && ctx.mounted) {
                 ctx.go('/login');
               }
-              return;
+              return handler.reject(e);
             }
           }
           return handler.next(e);
@@ -257,7 +263,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> generateEWB(Map<String, dynamic> data) async { // [cite: 33]
-    final response = await _dio.post('/eway-bills/generate', data: data);
+    final response = await _dio.post('/eway-bills/api/generate', data: data);
     return response.data;
   }
 

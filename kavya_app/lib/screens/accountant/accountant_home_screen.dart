@@ -28,8 +28,8 @@ class AccountantHomeScreen extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.only(right: 16.0),
               child: Chip(
-                label: Text(today, style: const TextStyle(color: KTColors.primaryDark, fontWeight: FontWeight.bold)), // date chip [cite: 73]
-                backgroundColor: KTColors.primaryLight,
+                label: Text(today, style: const TextStyle(color: KTColors.acctAccentDark, fontWeight: FontWeight.bold)), // date chip [cite: 73]
+                backgroundColor: KTColors.acctAccentBg,
                 side: BorderSide.none,
               ),
             ),
@@ -40,7 +40,7 @@ class AccountantHomeScreen extends ConsumerWidget {
         loading: () => const KTLoadingShimmer(type: ShimmerType.card), // [cite: 109-110]
         error: (err, stack) => KTErrorState(message: err.toString(), onRetry: () => ref.invalidate(accountantDashboardProvider)), // [cite: 111-113]
         data: (data) => RefreshIndicator(
-          color: KTColors.primary,
+          color: KTColors.acctAccent,
           onRefresh: () async => ref.invalidate(accountantDashboardProvider), // [cite: 118]
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -77,7 +77,7 @@ class AccountantHomeScreen extends ConsumerWidget {
                         Flexible(flex: 40, child: Container(color: KTColors.success)),
                         Flexible(flex: 30, child: Container(color: Colors.yellow.shade700)),
                         Flexible(flex: 15, child: Container(color: Colors.orange)),
-                        Flexible(flex: 10, child: Container(color: KTColors.primary)),
+                        Flexible(flex: 10, child: Container(color: KTColors.acctAccent)),
                         Flexible(flex: 5, child: Container(color: KTColors.danger)),
                       ],
                     ),
@@ -90,7 +90,7 @@ class AccountantHomeScreen extends ConsumerWidget {
                     Text("Current", style: KTTextStyles.bodySmall.copyWith(color: KTColors.success)),
                     Text("0-30", style: KTTextStyles.bodySmall.copyWith(color: Colors.yellow.shade800)),
                     Text("31-60", style: KTTextStyles.bodySmall.copyWith(color: Colors.orange)),
-                    Text("61-90", style: KTTextStyles.bodySmall.copyWith(color: KTColors.primary)),
+                    Text("61-90", style: KTTextStyles.bodySmall.copyWith(color: KTColors.acctAccent)),
                     Text("90+", style: KTTextStyles.bodySmall.copyWith(color: KTColors.danger, fontWeight: FontWeight.bold)),
                   ],
                 ),
@@ -109,11 +109,14 @@ class AccountantHomeScreen extends ConsumerWidget {
                 // Section 4 — Pending expense approvals count [cite: 74-75]
                 Card(
                   child: ListTile(
-                    leading: const Icon(Icons.receipt_long, color: KTColors.roleAccountant),
+                    leading: const Icon(Icons.receipt_long, color: KTColors.acctAccent),
                     title: const Text("Pending expense approvals"),
                     trailing: ElevatedButton(
                       onPressed: () => context.push('/accountant/expenses'),
-                      style: ElevatedButton.styleFrom(minimumSize: const Size(80, 36)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: KTColors.acctAccent,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(80, 36)),
                       child: const Text("Review"),
                     ),
                   ),
@@ -125,9 +128,9 @@ class AccountantHomeScreen extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Container(
                   decoration: BoxDecoration(
-                    color: KTColors.darkElevated,
+                    color: KTColors.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: KTColors.darkBorder),
+                    border: Border.all(color: KTColors.borderColor),
                   ),
                   child: Column(
                     children: List.generate(3, (index) => Padding(
@@ -140,7 +143,7 @@ class AccountantHomeScreen extends ConsumerWidget {
                               children: [
                                 Text("Acme Corp", style: KTTextStyles.label),
                                 const SizedBox(height: 2),
-                                Text("15 Mar 2026", style: KTTextStyles.bodySmall.copyWith(color: KTColors.textSecondary)),
+                                Text("15 Mar 2026", style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
                               ],
                             ),
                           ),
@@ -153,10 +156,10 @@ class AccountantHomeScreen extends ConsumerWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: KTColors.success.withOpacity(0.15),
+                                  color: KTColors.acctAccent.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: const Text("NEFT", style: TextStyle(fontSize: 10, color: KTColors.success, fontWeight: FontWeight.w600)),
+                                child: const Text("NEFT", style: TextStyle(fontSize: 10, color: KTColors.acctAccent, fontWeight: FontWeight.w600)),
                               ),
                             ],
                           ),
@@ -172,13 +175,13 @@ class AccountantHomeScreen extends ConsumerWidget {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      SizedBox(width: 120, child: KTActionButton(icon: Icons.payment, label: "Record payment", onTap: () => context.push('/accountant/receivables'))),
+                      SizedBox(width: 120, child: KTActionButton(icon: Icons.payment, label: "Record payment", onTap: () => context.push('/accountant/receivables'), iconColor: KTColors.acctAccent, bgColor: KTColors.acctAccentBg)),
                       const SizedBox(width: 12),
-                      SizedBox(width: 120, child: KTActionButton(icon: Icons.description, label: "Generate invoice", onTap: () => context.push('/accountant/invoices'))),
+                      SizedBox(width: 120, child: KTActionButton(icon: Icons.description, label: "Generate invoice", onTap: () => context.push('/accountant/invoices'), iconColor: KTColors.acctAccent, bgColor: KTColors.acctAccentBg)),
                       const SizedBox(width: 12),
-                      SizedBox(width: 120, child: KTActionButton(icon: Icons.account_balance, label: "GST view", onTap: () => context.push('/accountant/gst'))),
+                      SizedBox(width: 120, child: KTActionButton(icon: Icons.account_balance, label: "GST view", onTap: () => context.push('/accountant/gst'), iconColor: KTColors.acctAccent, bgColor: KTColors.acctAccentBg)),
                       const SizedBox(width: 12),
-                      SizedBox(width: 120, child: KTActionButton(icon: Icons.book, label: "Full ledger", onTap: () => context.push('/accountant/ledger'))),
+                      SizedBox(width: 120, child: KTActionButton(icon: Icons.book, label: "Full ledger", onTap: () => context.push('/accountant/ledger'), iconColor: KTColors.acctAccent, bgColor: KTColors.acctAccentBg)),
                     ],
                   ),
                 )
