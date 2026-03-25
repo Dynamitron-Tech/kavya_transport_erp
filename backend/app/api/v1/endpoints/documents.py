@@ -76,11 +76,11 @@ async def extract_document(
         media_type=file.content_type,
     )
 
-    if not result["extracted"] and result.get("reason") not in ("system_generated",):
-        raise HTTPException(
-            status_code=422,
-            detail=result.get("message", "Extraction failed."),
-        )
+    extraction_message = (
+        "Extraction complete. Review the fields below before saving."
+        if result.get("extracted")
+        else result.get("message", "Extraction unavailable. You can continue with manual entry.")
+    )
 
     return APIResponse(
         success=True,
@@ -88,7 +88,7 @@ async def extract_document(
             **result,
             "entity_type": entity_type,
         },
-        message="Extraction complete. Review the fields below before saving.",
+        message=extraction_message,
     )
 
 

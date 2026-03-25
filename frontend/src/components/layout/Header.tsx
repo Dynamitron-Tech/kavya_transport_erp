@@ -143,6 +143,15 @@ export default function Header() {
   const userRole = resolveRole((user as any)?.role || user?.roles?.[0]);
   const sections = NAV_CONFIG[userRole]?.sections ?? [];
 
+  const handleSectionClick = (label: string, route?: string, hasDropdown?: boolean) => {
+    if (hasDropdown && route) {
+      navigate(route);
+      setOpenTab(null);
+      return;
+    }
+    setOpenTab(openTab === label ? null : label);
+  };
+
   return (
     <header className="bg-white border-b border-gray-200/80 flex-shrink-0 overflow-visible relative z-40">
       <style>{`nav[aria-label="Main navigation"]{display:none!important;}`}</style>
@@ -311,19 +320,36 @@ export default function Header() {
         <div ref={navRef} className="h-full flex items-center gap-1 overflow-visible relative z-40">
           {sections.map((section, sectionIndex) => (
             <div key={`section-${sectionIndex}-${section.label}`} className="relative">
+              {(() => {
+                const singleItem = section.items.length === 1 ? section.items[0] : undefined;
+                const hasDropdown = section.items.length > 1;
+                return (
               <button
                 type="button"
-                onClick={() => setOpenTab(openTab === section.label ? null : section.label)}
-                className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  openTab === section.label ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                onClick={() => handleSectionClick(section.label, singleItem?.route, !hasDropdown)}
+                className={`header-nav-tab group inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md border border-transparent transform-gpu transition-all duration-200 ${
+                  openTab === section.label
+                    ? 'header-nav-tab-open text-blue-700'
+                    : 'text-gray-700 hover:text-blue-900'
                 }`}
               >
                 <span>{section.label}</span>
-                <ChevronDown size={14} className={`transition-transform ${openTab === section.label ? 'rotate-180 text-blue-600' : 'text-gray-400'}`} />
+                {hasDropdown && (
+                  <ChevronDown
+                    size={14}
+                    className={`transition-all duration-200 ${openTab === section.label ? 'rotate-180 text-blue-600' : 'text-gray-400 group-hover:text-blue-700'}`}
+                  />
+                )}
               </button>
+                );
+              })()}
 
-              {openTab === section.label && (
-                <div className="absolute top-full left-0 z-[9999] bg-white rounded-xl shadow-2xl border border-gray-100 py-3 mt-2">
+              {section.items.length > 1 && openTab === section.label && (
+                <div
+                  className={`absolute top-full z-[9999] bg-white rounded-xl shadow-2xl border border-gray-100 py-3 mt-2 max-w-[calc(100vw-2rem)] overflow-x-auto ${
+                    sectionIndex >= sections.length - 3 ? 'right-0' : 'left-0'
+                  }`}
+                >
                   <div className="px-4 pb-2 mb-1 border-b border-gray-100">
                     <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                       {section.label}
@@ -331,7 +357,7 @@ export default function Header() {
                   </div>
 
                   {section.items.length > 5 ? (
-                    <div className="grid grid-cols-2 gap-0 min-w-[520px]">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 min-w-[280px] sm:min-w-[520px]">
                       {section.items.map((item, idx) => (
                         <Link
                           key={`${section.label}-${item.label}-${idx}`}

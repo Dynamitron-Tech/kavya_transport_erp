@@ -5,9 +5,13 @@ from pydantic_settings import BaseSettings
 from typing import Optional, List
 from functools import lru_cache
 from pathlib import Path
+from dotenv import load_dotenv
 
 
 ENV_FILE_PATH = Path(__file__).resolve().parents[2] / ".env"
+
+# Prefer repository-local backend/.env values over inherited shell vars.
+load_dotenv(dotenv_path=ENV_FILE_PATH, override=True)
 
 
 class Settings(BaseSettings):

@@ -3,6 +3,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+const apiProxyTarget = process.env.VITE_PROXY_TARGET || 'http://localhost:8002'
+const wsProxyTarget = apiProxyTarget.replace('http://', 'ws://').replace('https://', 'wss://')
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -26,11 +29,11 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: apiProxyTarget,
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://localhost:8000',
+        target: wsProxyTarget,
         ws: true,
         changeOrigin: true,
       },

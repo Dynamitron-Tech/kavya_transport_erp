@@ -6,6 +6,13 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --interactive-blue-bg: #eff6ff;
+    --interactive-blue-border: #bfdbfe;
+    --interactive-blue-text: #1d4ed8;
+    --interactive-blue-shadow: 0 10px 24px -14px rgba(37, 99, 235, 0.45);
+  }
+
   * {
     @apply border-gray-200;
   }
@@ -47,8 +54,10 @@
            transition-all duration-200 active:scale-[0.98];
   }
   .btn-icon {
-    @apply p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700
-           focus:outline-none transition-all duration-200;
+      @apply p-2 rounded-lg text-gray-500 border border-transparent
+        hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200
+        focus:outline-none focus:ring-2 focus:ring-primary-500/30
+        transition-all duration-200;
   }
 
   /* ---- Form Fields ---- */
@@ -83,7 +92,8 @@
     @apply bg-white rounded-card shadow-card border border-card-border p-6;
   }
   .card-hover {
-    @apply card hover:shadow-card-hover transition-shadow duration-200 cursor-pointer;
+    @apply card border border-transparent hover:border-blue-200 hover:bg-blue-50/50
+           hover:shadow-card-hover transition-all duration-200 cursor-pointer;
   }
   .card-compact {
     @apply bg-white rounded-card shadow-card border border-card-border p-4;
@@ -153,15 +163,15 @@
     @apply flex items-center gap-1 p-1 bg-gray-100 rounded-lg;
   }
   .tab-pill {
-    @apply px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 text-gray-600 hover:text-gray-800;
+    @apply px-3 py-1.5 text-sm font-medium rounded-md border border-transparent transition-all duration-200 text-gray-600 hover:text-blue-700 hover:bg-blue-50 hover:border-blue-200;
   }
   .tab-pill-active {
-    @apply tab-pill bg-white text-gray-900 shadow-sm;
+    @apply tab-pill bg-blue-50 text-blue-700 border-blue-200 shadow-sm;
   }
 
   /* ---- KPI Card ---- */
   .kpi-card {
-    @apply card-hover flex items-start justify-between gap-3;
+    @apply card-hover flex items-start justify-between gap-3 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-blue-50/90 hover:border-blue-300 hover:shadow-[0_16px_32px_-18px_rgba(37,99,235,0.52)];
   }
   .kpi-icon {
     @apply w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0;
@@ -174,6 +184,27 @@
   }
   .kpi-trend {
     @apply flex items-center gap-1 text-xs font-semibold mt-1.5;
+  }
+
+  .interactive-surface {
+    @apply border border-transparent transition-all duration-200;
+  }
+  .interactive-surface:hover {
+    background: var(--interactive-blue-bg);
+    border-color: var(--interactive-blue-border);
+    box-shadow: var(--interactive-blue-shadow);
+    transform: translateY(-1px);
+  }
+  .interactive-surface:focus-visible {
+    @apply outline-none ring-2 ring-primary-500/30 ring-offset-1;
+  }
+
+  .table-row-interactive {
+    @apply transition-all duration-200;
+  }
+  .table-row-interactive:hover {
+    background: var(--interactive-blue-bg);
+    box-shadow: inset 3px 0 0 0 #3b82f6;
   }
 
   /* ---- Sticky form footer ---- */
@@ -200,10 +231,10 @@
 
 /* Sidebar scrollbar override */
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #cbd5e1;
 }
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #94a3b8;
 }
 .animate-slide-in { animation: slideIn 0.3s ease-out; }
 .animate-fade-in { animation: fadeIn 0.2s ease-out; }
@@ -228,4 +259,145 @@
 }
 .enterprise-nav-scroll::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Top admin nav button hover treatment */
+.enterprise-nav-btn {
+  will-change: transform, box-shadow, background-color, border-color;
+  transform-origin: center;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  letter-spacing: 0;
+}
+.enterprise-nav-btn:hover {
+  background: rgba(30, 64, 175, 0.2) !important;
+  border-color: rgba(30, 64, 175, 0.52) !important;
+  box-shadow: 0 16px 30px -16px rgba(30, 58, 138, 0.62) !important;
+  transform: translateY(-1px) scale(1.05);
+  letter-spacing: 0.01em;
+}
+.enterprise-nav-btn:hover span,
+.enterprise-nav-btn:hover svg {
+  color: #1e3a8a !important;
+}
+.enterprise-nav-btn:active {
+  transform: translateY(0) scale(1.02);
+}
+
+.enterprise-nav-btn::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 9999px;
+  background: #1d4ed8;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.22s ease-in-out;
+}
+
+.enterprise-nav-btn:hover::after,
+.enterprise-nav-btn.enterprise-nav-btn-active::after {
+  transform: scaleX(1);
+}
+
+.enterprise-nav-btn.enterprise-nav-btn-active {
+  background: rgba(30, 64, 175, 0.2) !important;
+  border-color: rgba(30, 64, 175, 0.52) !important;
+  box-shadow: 0 16px 30px -16px rgba(30, 58, 138, 0.62) !important;
+}
+
+/* Header menu button 3D blue hover treatment */
+.header-nav-tab {
+  position: relative;
+  isolation: isolate;
+  will-change: transform, box-shadow, background-color, border-color;
+}
+
+.header-nav-tab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  background: linear-gradient(180deg, rgba(191, 219, 254, 0.72), rgba(147, 197, 253, 0.55));
+  filter: blur(7px);
+  transform: translateY(4px) scale(0.96);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.header-nav-tab:hover {
+  background: rgba(219, 234, 254, 0.8);
+  border-color: rgba(96, 165, 250, 0.56);
+  box-shadow: 0 14px 30px -18px rgba(37, 99, 235, 0.58);
+  transform: translateY(-2px) scale(1.05);
+}
+
+.header-nav-tab:hover::before {
+  opacity: 1;
+  transform: translateY(8px) scale(0.99);
+}
+
+.header-nav-tab:active {
+  transform: translateY(0) scale(1.02);
+}
+
+.header-nav-tab-open {
+  background: rgba(219, 234, 254, 0.84);
+  border-color: rgba(96, 165, 250, 0.62);
+  box-shadow: 0 12px 26px -18px rgba(37, 99, 235, 0.52);
+  transform: translateY(-1px) scale(1.02);
+}
+
+.header-nav-tab-open::before {
+  opacity: 0.9;
+  transform: translateY(7px) scale(0.985);
+}
+
+/* Sidebar menu button split-blue treatment */
+.sidebar-nav-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  will-change: transform, box-shadow, background-color, border-color;
+}
+
+.sidebar-nav-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  background: linear-gradient(102deg, rgba(30, 58, 138, 0.24) 0%, rgba(59, 130, 246, 0.14) 58%, rgba(147, 197, 253, 0.2) 100%);
+  transition: opacity 0.2s ease;
+}
+
+.sidebar-nav-btn-idle:hover {
+  color: #172554;
+  border-color: rgba(59, 130, 246, 0.45);
+  background: linear-gradient(102deg, rgba(30, 58, 138, 0.22) 0%, rgba(59, 130, 246, 0.14) 62%, rgba(147, 197, 253, 0.22) 100%);
+  box-shadow: 0 14px 28px -18px rgba(30, 64, 175, 0.58);
+  transform: translateY(-1px) scale(1.02);
+}
+
+.sidebar-nav-btn-idle:hover::before {
+  opacity: 1;
+}
+
+.sidebar-nav-btn-active {
+  border-color: rgba(96, 165, 250, 0.68);
+  background: linear-gradient(102deg, #1d4ed8 0%, #2563eb 50%, #60a5fa 100%);
+  box-shadow: 0 14px 30px -16px rgba(37, 99, 235, 0.58);
+}
+
+.sidebar-nav-btn-active::before {
+  opacity: 1;
+  background: linear-gradient(112deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 52%, rgba(255, 255, 255, 0.18) 100%);
 }

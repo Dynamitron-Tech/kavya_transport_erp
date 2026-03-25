@@ -1,5 +1,26 @@
-export const getRoleHomePage = (role?: string): string => {
-  switch ((role || '').toUpperCase()) {
+const normalizeRole = (value: unknown): string => {
+  if (typeof value === 'string') {
+    return value.toUpperCase();
+  }
+
+  if (Array.isArray(value)) {
+    return normalizeRole(value[0]);
+  }
+
+  if (value && typeof value === 'object') {
+    const candidate = value as Record<string, unknown>;
+    return normalizeRole(candidate.role ?? candidate.name ?? candidate.code ?? candidate.slug);
+  }
+
+  if (typeof value === 'number') {
+    return String(value).toUpperCase();
+  }
+
+  return '';
+};
+
+export const getRoleHomePage = (role?: unknown): string => {
+  switch (normalizeRole(role)) {
     case 'ADMIN':
       return '/dashboard';
     case 'MANAGER':

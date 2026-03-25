@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
-import { Truck, Eye, EyeOff, Shield, Zap, BarChart3 } from 'lucide-react';
+import { Eye, EyeOff, Shield, Zap, BarChart3 } from 'lucide-react';
 import { getRoleHomePage } from '@/utils/roleRouting';
 import { SubmitButton } from '@/components/common/SubmitButton';
+import brandLogo from '@/assets/logo.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -44,10 +45,10 @@ export default function LoginPage() {
 
         <div className="relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/20">
-              <Truck size={22} className="text-white" />
+            <div className="w-11 h-11 rounded-xl bg-white/90 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/20 p-1">
+              <img src={brandLogo} alt="Kavya Transport" className="w-full h-full object-contain" />
             </div>
-            <h1 className="text-white text-xl font-bold tracking-tight">TransportERP</h1>
+            <h1 className="text-white text-xl font-bold tracking-tight">Kavya Transport</h1>
           </div>
         </div>
 
@@ -95,10 +96,10 @@ export default function LoginPage() {
         <div className="w-full max-w-[420px]">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center">
-              <Truck size={20} className="text-white" />
+            <div className="w-10 h-10 rounded-xl bg-primary-600/10 border border-primary-200 flex items-center justify-center p-1.5">
+              <img src={brandLogo} alt="Kavya Transport" className="w-full h-full object-contain" />
             </div>
-            <h1 className="text-lg font-bold text-gray-900">TransportERP</h1>
+            <h1 className="text-lg font-bold text-gray-900">Kavya Transport</h1>
           </div>
 
           <div className="bg-white rounded-xl shadow-card border border-card-border p-8">

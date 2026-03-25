@@ -68,7 +68,7 @@ export default function EnterpriseNav() {
         className="hidden md:block bg-white border-b border-gray-200/80 sticky top-0 z-30 flex-shrink-0"
         aria-label="Main navigation"
       >
-        <div className="flex items-center h-11 px-6 gap-0.5 overflow-x-auto enterprise-nav-scroll">
+        <div className="flex items-center h-12 px-6 gap-0.5 overflow-x-auto overflow-y-visible enterprise-nav-scroll">
           {visibleGroups.map((group) => {
             const g = group.items
               ? { ...group, items: filteredItems(group.items) }
