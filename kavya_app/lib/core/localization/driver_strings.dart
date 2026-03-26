@@ -1,6 +1,7 @@
 /// Driver UI localization strings.
 /// Only user-facing instructional text is translated.
 /// Constants (trip numbers, status codes, amounts) remain in English.
+library;
 
 enum AppLocale { en, ta, hi, kn, te, ml }
 

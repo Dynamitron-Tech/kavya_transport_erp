@@ -8,7 +8,8 @@ import {
   TrendingDown, MapPinned, BarChart3, Settings, ChevronLeft,
   ChevronRight, LogOut, PlusCircle, FilePlus, Route, Upload,
   Bell, Fuel, Wrench, Gauge, Wallet, Landmark, Clock,
-  Folder, List, Database, AlertTriangle,
+  Folder, List, Database, AlertTriangle, Shield, Trophy, Circle,
+  Activity, Calendar, Wifi,
 } from 'lucide-react';
 
 const resolveRole = (rawRole?: string): HeaderNavRole => {
@@ -57,6 +58,14 @@ const iconMap: Record<string, React.ReactNode> = {
   list: <List size={20} />,
   database: <Database size={20} />,
   warning: <AlertTriangle size={20} />,
+  dollarsign: <DollarSign size={20} />,
+  shield: <Shield size={20} />,
+  trophy: <Trophy size={20} />,
+  circle: <Circle size={20} />,
+  activity: <Activity size={20} />,
+  building: <Building2 size={20} />,
+  calendar: <Calendar size={20} />,
+  wifi: <Wifi size={20} />,
 };
 
 export default function Sidebar() {

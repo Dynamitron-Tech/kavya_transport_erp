@@ -26,10 +26,11 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
   String? _selectedTankName;
   int? _selectedVehicleId;
   String? _selectedVehicleReg;
+  int? _selectedDriverId;
+  String? _selectedDriverName;
   final _litresCtrl = TextEditingController();
   final _rateCtrl = TextEditingController(text: '93.21');
   final _odometerCtrl = TextEditingController();
-  final _driverCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
   // Auto-generated receipt number shown read-only
@@ -49,7 +50,6 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
     _litresCtrl.dispose();
     _rateCtrl.dispose();
     _odometerCtrl.dispose();
-    _driverCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -166,13 +166,31 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Driver name (optional free text)
+            // Driver dropdown (optional)
             _label('Driver Name (optional)'),
             const SizedBox(height: 8),
-            TextFormField(
-              controller: _driverCtrl,
-              style: const TextStyle(color: _textPrimary),
-              decoration: _inputDecoration('e.g. Raman Kumar'),
+            ref.watch(driversProvider).when(
+              loading: () => const LinearProgressIndicator(color: _amber),
+              error: (_, __) => const Text('Failed to load drivers', style: TextStyle(color: Colors.red)),
+              data: (drivers) => _dropdownField<int>(
+                initialValue: _selectedDriverId,
+                hint: 'Select driver (optional)',
+                items: [
+                  const DropdownMenuItem<int>(value: null, child: Text('— None —')),
+                  ...drivers.map((d) => DropdownMenuItem<int>(
+                    value: d['id'] as int,
+                    child: Text(d['name']?.toString() ?? d['full_name']?.toString() ?? 'Driver #${d['id']}'),
+                  )),
+                ],
+                onChanged: (v) {
+                  final found = v == null ? null : drivers.firstWhere((d) => d['id'] == v, orElse: () => {});
+                  setState(() {
+                    _selectedDriverId = v;
+                    _selectedDriverName = found == null || found.isEmpty ? null
+                        : (found['name']?.toString() ?? found['full_name']?.toString());
+                  });
+                },
+              ),
             ),
             const SizedBox(height: 20),
 
@@ -303,7 +321,7 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
     final rate = double.parse(_rateCtrl.text);
     final odometer = _odometerCtrl.text.isNotEmpty ? double.parse(_odometerCtrl.text) : null;
     final notes = _notesCtrl.text.isNotEmpty ? _notesCtrl.text : null;
-    final driver = _driverCtrl.text.isNotEmpty ? _driverCtrl.text : null;
+    final driver = _selectedDriverName;
 
     bool ok = false;
     bool savedOffline = false;
@@ -312,6 +330,7 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
       ok = await ref.read(fuelIssueNotifierProvider.notifier).issueFuel(
             tankId: _selectedTankId!,
             vehicleId: _selectedVehicleId!,
+            driverId: _selectedDriverId,
             quantityLitres: litres,
             ratePerLitre: rate,
             odometerReading: odometer,
@@ -332,7 +351,7 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
             'rate_per_litre': rate,
             if (odometer != null) 'odometer_reading': odometer,
             if (notes != null) 'remarks': notes,
-            if (driver != null) 'driver_name': driver,
+            if (_selectedDriverId != null) 'driver_id': _selectedDriverId,
             'receipt_number': _receiptNumber,
           },
           'timestamp': DateTime.now().toIso8601String(),
@@ -382,11 +401,12 @@ class _PumpDispenseScreenState extends ConsumerState<PumpDispenseScreen> {
   void _resetForm() {
     _litresCtrl.clear();
     _odometerCtrl.clear();
-    _driverCtrl.clear();
     _notesCtrl.clear();
     setState(() {
       _selectedVehicleId = null;
       _selectedVehicleReg = null;
+      _selectedDriverId = null;
+      _selectedDriverName = null;
     });
     // receipt number is final per entry, so we just navigate focus back to form
     ScaffoldMessenger.of(context).showSnackBar(

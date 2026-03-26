@@ -115,7 +115,7 @@ class _FleetTyreEventScreenState extends ConsumerState<FleetTyreEventScreen> {
               error: (e, _) => Text('Failed to load vehicles: $e',
                   style: KTTextStyles.bodySmall.copyWith(color: KTColors.danger)),
               data: (vehicles) => DropdownButtonFormField<String>(
-                value: _selectedVehicleId,
+                initialValue: _selectedVehicleId,
                 dropdownColor: KTColors.surface,
                 style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                 decoration: _inputDecoration('Select vehicle'),
@@ -144,7 +144,7 @@ class _FleetTyreEventScreenState extends ConsumerState<FleetTyreEventScreen> {
             Text('EVENT TYPE', style: KTTextStyles.labelCaps.copyWith(color: KTColors.textMuted)),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _eventType,
+              initialValue: _eventType,
               dropdownColor: KTColors.surface,
               style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
               decoration: _inputDecoration('Select event type'),

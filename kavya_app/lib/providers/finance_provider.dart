@@ -24,5 +24,5 @@ final paymentsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final api = ref.read(apiServiceProvider);
   final response = await api.get('/accountant/payments');
   final data = response is Map ? (response['data'] ?? response['payments']) : response;
-  return data is List ? List<dynamic>.from(data as List) : [];
+  return data is List ? List<dynamic>.from(data) : [];
 });

@@ -332,7 +332,7 @@ class _KPIScrollRow extends StatelessWidget {
         itemBuilder: (context, i) {
           final k = kpis[i];
           return GestureDetector(
-            onTap: k.$5 as VoidCallback?,
+            onTap: k.$5,
             child: Container(
               width: 118,
               margin: const EdgeInsets.only(right: 10),
@@ -340,22 +340,22 @@ class _KPIScrollRow extends StatelessWidget {
               decoration: BoxDecoration(
                 color: KTColors.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: (k.$3 as Color).withValues(alpha: 0.3)),
+                border: Border.all(color: (k.$3).withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(k.$4 as IconData, color: k.$3 as Color, size: 20),
+                  Icon(k.$4, color: k.$3, size: 20),
                   const Spacer(),
                   Text(
-                    k.$1 as String,
+                    k.$1,
                     style: KTTextStyles.kpiNumber.copyWith(
                         color: KTColors.textHeading, fontSize: 26),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    k.$2 as String,
-                    style: KTTextStyles.caption.copyWith(color: k.$3 as Color),
+                    k.$2,
+                    style: KTTextStyles.caption.copyWith(color: k.$3),
                     maxLines: 2,
                   ),
                 ],

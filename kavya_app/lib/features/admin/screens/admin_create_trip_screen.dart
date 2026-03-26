@@ -112,8 +112,11 @@ class _AdminCreateTripScreenState extends ConsumerState<AdminCreateTripScreen> {
     if (time == null || !mounted) return;
     final dt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
     setState(() {
-      if (isDeparture) _plannedDeparture = dt;
-      else _plannedArrival = dt;
+      if (isDeparture) {
+        _plannedDeparture = dt;
+      } else {
+        _plannedArrival = dt;
+      }
     });
   }
 
@@ -207,7 +210,7 @@ class _AdminCreateTripScreenState extends ConsumerState<AdminCreateTripScreen> {
                   // ── Job ────────────────────────────────────────────
                   _SectionHeader('Job *'),
                   DropdownButtonFormField<dynamic>(
-                    value: _selectedJob,
+                    initialValue: _selectedJob,
                     decoration: _inputDecoration('Select approved job'),
                     items: _jobs.map((j) {
                       final num = j['job_number'] ?? j['id'].toString();
@@ -232,7 +235,7 @@ class _AdminCreateTripScreenState extends ConsumerState<AdminCreateTripScreen> {
                     const LinearProgressIndicator()
                   else
                     DropdownButtonFormField<dynamic>(
-                      value: _selectedLR,
+                      initialValue: _selectedLR,
                       decoration: _inputDecoration('Select LR (auto-loaded by job)'),
                       items: _lrs.map((lr) {
                         final num = lr['lr_number'] ?? lr['id'].toString();
@@ -245,7 +248,7 @@ class _AdminCreateTripScreenState extends ConsumerState<AdminCreateTripScreen> {
                   // ── Vehicle ────────────────────────────────────────────
                   _SectionHeader('Vehicle *'),
                   DropdownButtonFormField<dynamic>(
-                    value: _selectedVehicle,
+                    initialValue: _selectedVehicle,
                     decoration: _inputDecoration('Select available vehicle'),
                     items: _vehicles.map((v) {
                       final reg = v['registration_number'] ?? v['vehicle_number'] ?? v['id'].toString();
@@ -262,7 +265,7 @@ class _AdminCreateTripScreenState extends ConsumerState<AdminCreateTripScreen> {
                   // ── Driver ─────────────────────────────────────────────
                   _SectionHeader('Driver *'),
                   DropdownButtonFormField<dynamic>(
-                    value: _selectedDriver,
+                    initialValue: _selectedDriver,
                     decoration: _inputDecoration('Select available driver'),
                     items: _drivers.map((d) {
                       final name = d['name'] ?? d['full_name'] ?? d['id'].toString();

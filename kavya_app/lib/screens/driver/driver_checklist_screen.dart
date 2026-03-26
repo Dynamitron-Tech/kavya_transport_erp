@@ -53,11 +53,11 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
         backgroundColor: KTColors.surface,
         title: Text(
           _selectedTripId == null ? 'Select Trip' : s.checklist,
-          style: const TextStyle(color: KTColors.textPrimary),
+          style: const TextStyle(color: Colors.black),
         ),
         leading: _selectedTripId != null
             ? IconButton(
-                icon: const Icon(Icons.arrow_back_rounded, color: KTColors.textPrimary),
+                icon: const Icon(Icons.arrow_back_rounded, color: Colors.black),
                 onPressed: () {
                   setState(() {
                     _selectedTripId = null;
@@ -69,7 +69,7 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
                 },
               )
             : null,
-        iconTheme: const IconThemeData(color: KTColors.textPrimary),
+        iconTheme: const IconThemeData(color: Colors.black),
         elevation: 0,
       ),
       body: _selectedTripId == null ? _buildTripPicker() : _buildChecklistForm(),

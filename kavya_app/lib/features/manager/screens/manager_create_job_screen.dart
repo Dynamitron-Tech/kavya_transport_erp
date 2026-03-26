@@ -62,18 +62,23 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
     setState(() => _submitting = true);
     try {
       final api = ref.read(apiServiceProvider);
+      final originCity = _toTitleCase(_originCtrl.text.trim());
+      final destCity = _toTitleCase(_destCtrl.text.trim());
+      final today = DateTime.now().toIso8601String().split('T').first;
       final body = {
-        'client_id': _selectedClientId,
-        'origin_city': _toTitleCase(_originCtrl.text.trim()),
-        'destination_city': _toTitleCase(_destCtrl.text.trim()),
+        // --- required by JobCreate schema ---
+        'client_id': int.tryParse(_selectedClientId ?? '') ?? _selectedClientId,
+        'job_date': today,
+        'origin_address': originCity,        // reuse city text; schema requires non-null
+        'origin_city': originCity,
+        'destination_address': destCity,     // reuse city text; schema requires non-null
+        'destination_city': destCity,
+        // --- optional fields ---
         'material_type': _materialCtrl.text.trim(),
         'quantity': double.tryParse(_weightCtrl.text.trim()) ?? 0,
-        'total_amount': double.tryParse(_freightCtrl.text.trim()) ?? 0,
+        'agreed_rate': double.tryParse(_freightCtrl.text.trim()) ?? 0,
         'vehicle_type_required': _vehicleType,
         'pickup_date': _pickupDate.toIso8601String().split('T').first,
-        'payment_terms': _paymentTerms,
-        'notes': _notesCtrl.text.trim(),
-        'status': draft ? 'DRAFT' : 'PENDING_APPROVAL',
       };
       await api.post('/jobs', data: body);
       if (mounted) {
@@ -86,7 +91,7 @@ class _ManagerCreateJobScreenState extends ConsumerState<ManagerCreateJobScreen>
         ref.invalidate(managerJobListProvider);
         ref.invalidate(managerUnassignedJobsProvider);
         ref.invalidate(managerDashboardStatsProvider);
-        context.pop();
+        context.go('/manager/jobs');
       }
     } catch (e) {
       if (mounted) {

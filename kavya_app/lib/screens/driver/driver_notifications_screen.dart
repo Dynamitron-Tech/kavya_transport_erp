@@ -20,9 +20,9 @@ class DriverNotificationsScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: KTColors.surface,
         title: Text(s.notifications,
-            style: const TextStyle(color: KTColors.textPrimary)),
+            style: const TextStyle(color: Colors.black)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: KTColors.textPrimary),
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.black),
           onPressed: () => context.pop(),
         ),
         actions: [

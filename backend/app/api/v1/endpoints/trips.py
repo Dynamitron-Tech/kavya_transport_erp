@@ -87,14 +87,14 @@ async def create_trip(
 ):
     trip = await trip_service.create_trip(db, data.model_dump(), current_user.user_id)
     route_str = f"{trip.origin or ''} → {trip.destination or ''}"
-    adv_fmt = f"₹{float(trip.advance_paid or 0):,.0f}"
+    adv_fmt = f"₹{float(trip.driver_advance or 0):,.0f}"
     # Fetch driver user_id for targeted notification
     driver_res = await db.execute(select(Driver).where(Driver.id == trip.driver_id))
     driver_obj = driver_res.scalar_one_or_none()
     await notification_service.send(
         db, event_type="TRIP_CREATED",
         title="Trip created",
-        body=f"Trip {trip.trip_number} departing {trip.planned_departure or 'TBD'}",
+        body=f"Trip {trip.trip_number} departing {trip.planned_start or 'TBD'}",
         target_roles=["MANAGER"],
         data={"trip_id": str(trip.id)},
         urgency="normal", triggered_by=current_user.user_id,

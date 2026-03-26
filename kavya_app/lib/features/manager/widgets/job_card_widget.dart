@@ -65,7 +65,9 @@ class JobCardWidget extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              _ActionButtons(job: job, status: status, useLightTheme: useLightTheme),
+              Expanded(
+                child: _ActionButtons(job: job, status: status, useLightTheme: useLightTheme),
+              ),
             ],
           ),
         ],
@@ -137,6 +139,8 @@ class _ActionBtn extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         foregroundColor: color,
         side: BorderSide(color: color.withValues(alpha: 0.5)),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),

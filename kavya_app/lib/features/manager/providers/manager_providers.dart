@@ -22,7 +22,7 @@ final managerSparklineProvider = FutureProvider.autoDispose<Map<String, dynamic>
   return {};
 });
 
-final managerUnassignedJobsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+final managerUnassignedJobsProvider = FutureProvider<List<dynamic>>((ref) async {
   final api = ref.read(apiServiceProvider);
   final response = await api.get('/jobs', queryParameters: {
     'limit': 20,
@@ -59,7 +59,7 @@ class ManagerJobFilter {
 
 final managerJobFilterProvider = StateProvider<ManagerJobFilter>((ref) => const ManagerJobFilter());
 
-final managerJobListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+final managerJobListProvider = FutureProvider<List<dynamic>>((ref) async {
   final filter = ref.watch(managerJobFilterProvider);
   final api = ref.read(apiServiceProvider);
   final response = await api.get('/jobs', queryParameters: {
@@ -77,7 +77,7 @@ final managerJobListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) a
 
 final managerClientSearchProvider = StateProvider<String>((ref) => '');
 
-final managerClientListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+final managerClientListProvider = FutureProvider<List<dynamic>>((ref) async {
   final search = ref.watch(managerClientSearchProvider);
   final api = ref.read(apiServiceProvider);
   final response = await api.get('/clients', queryParameters: {

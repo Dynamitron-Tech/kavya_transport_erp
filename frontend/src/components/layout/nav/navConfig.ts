@@ -63,11 +63,16 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       {
         label: 'Finance',
         items: [
+          { label: 'Finance Dashboard', route: '/accountant', icon: 'gauge', description: 'Financial overview and KPIs' },
           { label: 'Invoices', route: '/finance/invoices', icon: 'invoice', description: 'GST invoices and billing' },
           { label: 'Payments', route: '/finance/payments', icon: 'pay', description: 'Record and track payments' },
-          { label: 'Ledger', route: '/finance/ledger', icon: 'book', description: 'General ledger and accounts' },
           { label: 'Receivables', route: '/finance/receivables', icon: 'arrowup', description: 'Outstanding client payments' },
           { label: 'Payables', route: '/finance/payables', icon: 'arrowdown', description: 'Vendor and driver payables' },
+          { label: 'Expenses', route: '/accountant/expenses', icon: 'wallet', description: 'Trip expense verification' },
+          { label: 'Driver Payments', route: '/accountant/payments', icon: 'dollarsign', description: 'Pending trip & expense payments' },
+          { label: 'Fuel Expenses', route: '/accountant/fuel', icon: 'fuel', description: 'Fuel cost analysis' },
+          { label: 'Banking', route: '/accountant/banking', icon: 'bank', description: 'Bank entries and reconciliation' },
+          { label: 'Ledger', route: '/finance/ledger', icon: 'book', description: 'General ledger and accounts' },
           { label: 'Reconciliation', route: '/finance/reconciliation', icon: 'bank', description: 'Bank statement reconciliation' },
           { label: 'Settlements', route: '/finance/settlements', icon: 'wallet', description: 'Driver settlement management' },
           { label: 'Finance Alerts', route: '/finance/alerts', icon: 'alert', description: 'Overdue & payment alerts' },
@@ -88,7 +93,7 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Fleet Dashboard', route: '/fleet', icon: 'gauge', description: 'Fleet overview and KPIs' },
           { label: 'Fleet Vehicles', route: '/fleet/vehicles', icon: 'truck', description: 'Vehicle health and maintenance' },
           { label: 'Fleet Drivers', route: '/fleet/drivers', icon: 'user', description: 'Driver performance and compliance' },
-          { label: 'Live Tracking', route: '/fleet/tracking', icon: 'pin', description: 'Real-time vehicle location map' },
+          { label: 'Fleet Tracking', route: '/fleet/tracking', icon: 'pin', description: 'Fleet GPS tracking map' },
           { label: 'Maintenance', route: '/fleet/maintenance', icon: 'wrench', description: 'Service records and schedules' },
           { label: 'Fuel Mgmt', route: '/fleet/fuel', icon: 'fuel', description: 'Fuel entries and efficiency tracking' },
           { label: 'Tyres', route: '/fleet/tyres', icon: 'circle', description: 'Tyre lifecycle and event tracking' },
@@ -98,25 +103,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Driver Leaderboard', route: '/fleet/driver-leaderboard', icon: 'trophy', description: 'Driver behavior scores and rankings' },
           { label: 'TPMS', route: '/fleet/tpms', icon: 'activity', description: 'Tyre pressure monitoring system' },
           { label: 'Fleet Reports', route: '/fleet/reports', icon: 'chart', description: 'Fleet analytics and reports' },
-        ],
-      },
-      {
-        label: 'Accountant',
-        items: [
-          { label: 'Finance Dashboard', route: '/accountant', icon: 'gauge', description: 'Financial overview and KPIs' },
-          { label: 'Invoices', route: '/accountant/invoices', icon: 'invoice', description: 'Invoice management and GST' },
-          { label: 'Receivables', route: '/accountant/receivables', icon: 'arrowup', description: 'Client outstanding amounts' },
-          { label: 'Payables', route: '/accountant/payables', icon: 'arrowdown', description: 'Vendor payment tracking' },
-          { label: 'Expenses', route: '/accountant/expenses', icon: 'wallet', description: 'Trip expense verification' },
-          { label: 'Driver Payments', route: '/accountant/payments', icon: 'dollarsign', description: 'Pending trip & expense payments' },
-          { label: 'Fuel Expenses', route: '/accountant/fuel', icon: 'fuel', description: 'Fuel cost analysis' },
-          { label: 'Banking', route: '/accountant/banking', icon: 'bank', description: 'Bank entries and reconciliation' },
-          { label: 'Reconciliation', route: '/finance/reconciliation', icon: 'bank', description: 'Bank statement auto-reconciliation' },
-          { label: 'Settlements', route: '/finance/settlements', icon: 'wallet', description: 'Driver settlement management' },
-          { label: 'Ledger', route: '/accountant/ledger', icon: 'book', description: 'Double-entry bookkeeping' },
-          { label: 'Finance Alerts', route: '/finance/alerts', icon: 'alert', description: 'Overdue invoices & payment alerts' },
-          { label: 'Reports', route: '/accountant/reports', icon: 'chart', description: 'Financial reports and P&L' },
-          { label: 'Finance Reports', route: '/finance/reports', icon: 'chart', description: 'Daily digest, P&L, GSTR-1' },
         ],
       },
       {
@@ -142,7 +128,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         label: 'Quick Actions',
         items: [
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
-          { label: 'LR Details', route: '/lr', icon: 'file', description: 'View and manage lorry receipt details' },
           { label: 'E-way Bill', route: '/lr/eway-bill', icon: 'receipt', description: 'Create and manage GST e-way bills' },
           { label: 'Create Trip', route: '/trips/new', icon: 'route', description: 'Create and assign trip execution' },
           { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },
@@ -193,7 +178,7 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Fleet Dashboard', route: '/fleet', icon: 'gauge', description: 'Fleet overview and KPIs' },
           { label: 'Fleet Vehicles', route: '/fleet/vehicles', icon: 'truck', description: 'Vehicle health and maintenance' },
           { label: 'Fleet Drivers', route: '/fleet/drivers', icon: 'user', description: 'Driver performance and compliance' },
-          { label: 'Live Tracking', route: '/fleet/tracking', icon: 'pin', description: 'Real-time vehicle location map' },
+          { label: 'Fleet Tracking', route: '/fleet/tracking', icon: 'pin', description: 'Fleet GPS tracking map' },
           { label: 'Maintenance', route: '/fleet/maintenance', icon: 'wrench', description: 'Service records and schedules' },
           { label: 'Fuel Mgmt', route: '/fleet/fuel', icon: 'fuel', description: 'Fuel entries and efficiency tracking' },
           { label: 'Tyres', route: '/fleet/tyres', icon: 'circle', description: 'Tyre lifecycle and event tracking' },
@@ -220,7 +205,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Settlements', route: '/finance/settlements', icon: 'wallet', description: 'Driver settlement management' },
           { label: 'Ledger', route: '/accountant/ledger', icon: 'book', description: 'Double-entry bookkeeping' },
           { label: 'Finance Alerts', route: '/finance/alerts', icon: 'alert', description: 'Overdue invoices & payment alerts' },
-          { label: 'Reports', route: '/accountant/reports', icon: 'chart', description: 'Financial reports and P&L' },
           { label: 'Finance Reports', route: '/finance/reports', icon: 'chart', description: 'Daily digest, P&L, GSTR-1' },
         ],
       },
@@ -245,7 +229,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         label: 'Quick Actions',
         items: [
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
-          { label: 'LR Details', route: '/lr', icon: 'file', description: 'View and manage lorry receipt details' },
           { label: 'E-way Bill', route: '/lr/eway-bill', icon: 'receipt', description: 'Create and manage GST e-way bills' },
           { label: 'Create Trip', route: '/trips/new', icon: 'route', description: 'Create and assign trip execution' },
           { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },
@@ -282,13 +265,13 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Fleet Dashboard', route: '/fleet', icon: 'gauge', description: 'Fleet overview and KPIs' },
           { label: 'Fleet Vehicles', route: '/fleet/vehicles', icon: 'truck', description: 'Vehicle health and maintenance' },
           { label: 'Fleet Drivers', route: '/fleet/drivers', icon: 'user', description: 'Driver performance and compliance' },
-          { label: 'Live Tracking', route: '/fleet/tracking', icon: 'pin', description: 'Real-time vehicle location map' },
+          { label: 'Fleet Tracking', route: '/fleet/tracking', icon: 'pin', description: 'Fleet GPS tracking map' },
           { label: 'Maintenance', route: '/fleet/maintenance', icon: 'wrench', description: 'Service records and schedules' },
           { label: 'Fuel Mgmt', route: '/fleet/fuel', icon: 'fuel', description: 'Fuel entries and efficiency tracking' },
           { label: 'Tyres', route: '/fleet/tyres', icon: 'circle', description: 'Tyre lifecycle and event tracking' },
           { label: 'Fleet Alerts', route: '/fleet/alerts', icon: 'bell', description: 'Compliance and service alerts' },
           { label: 'Geofences', route: '/fleet/geofences', icon: 'pin', description: 'Geofence zones and route corridors' },
-          { label: 'Compliance', route: '/fleet/compliance', icon: 'shield', description: 'AIS-140 compliance and alerts' },
+          { label: 'AIS-140 Compliance', route: '/fleet/compliance', icon: 'shield', description: 'AIS-140 compliance and alerts' },
           { label: 'Driver Leaderboard', route: '/fleet/driver-leaderboard', icon: 'trophy', description: 'Driver behavior scores and rankings' },
           { label: 'TPMS', route: '/fleet/tpms', icon: 'activity', description: 'Tyre pressure monitoring system' },
           { label: 'Fleet Reports', route: '/fleet/reports', icon: 'chart', description: 'Fleet analytics and reports' },
@@ -310,12 +293,9 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       },
       {
         label: 'System',
-        items: [{ label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' }],
-      },
-      {
-        label: 'My Work',
         items: [
           { label: 'Attendance', route: '/my-work/attendance', icon: 'clock', description: 'Mark daily attendance with camera check-in' },
+          { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
         ],
       },
     ],
@@ -326,12 +306,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       {
         label: 'Finance',
         items: [
-          { label: 'Ledger', route: '/finance/ledger', icon: 'book', description: 'General ledger and accounts overview' },
-        ],
-      },
-      {
-        label: 'Accountant',
-        items: [
           { label: 'Finance Dashboard', route: '/accountant', icon: 'gauge', description: 'Financial overview and KPIs' },
           { label: 'Invoices', route: '/accountant/invoices', icon: 'invoice', description: 'Invoice management and GST' },
           { label: 'Receivables', route: '/accountant/receivables', icon: 'arrowup', description: 'Client outstanding amounts' },
@@ -339,11 +313,10 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Expenses', route: '/accountant/expenses', icon: 'wallet', description: 'Trip expense verification' },
           { label: 'Fuel Expenses', route: '/accountant/fuel', icon: 'fuel', description: 'Fuel cost analysis' },
           { label: 'Banking', route: '/accountant/banking', icon: 'bank', description: 'Bank entries and reconciliation' },
+          { label: 'Ledger', route: '/accountant/ledger', icon: 'book', description: 'Double-entry bookkeeping' },
           { label: 'Reconciliation', route: '/finance/reconciliation', icon: 'bank', description: 'Bank statement auto-reconciliation' },
           { label: 'Settlements', route: '/finance/settlements', icon: 'wallet', description: 'Driver settlement management' },
-          { label: 'Ledger', route: '/accountant/ledger', icon: 'book', description: 'Double-entry bookkeeping' },
           { label: 'Finance Alerts', route: '/finance/alerts', icon: 'alert', description: 'Overdue invoices & payment alerts' },
-          { label: 'Reports', route: '/accountant/reports', icon: 'chart', description: 'Financial reports and P&L' },
           { label: 'Finance Reports', route: '/finance/reports', icon: 'chart', description: 'Daily digest, P&L, GSTR-1' },
         ],
       },
@@ -354,19 +327,9 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         ],
       },
       {
-        label: 'Tools',
-        items: [
-        ],
-      },
-      {
-        label: 'Quick Actions',
-        items: [
-          { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
-        ],
-      },
-      {
         label: 'System',
         items: [
+          { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
           { label: 'Attendance', route: '/my-work/attendance', icon: 'clock', description: 'Mark daily attendance with camera check-in' },
           { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
         ],
@@ -392,7 +355,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         label: 'Quick Actions',
         items: [
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
-          { label: 'LR Details', route: '/lr', icon: 'file', description: 'View and manage lorry receipt details' },
           { label: 'E-way Bill', route: '/lr/eway-bill', icon: 'receipt', description: 'Create and manage GST e-way bills' },
           { label: 'Create Trip', route: '/trips/new', icon: 'route', description: 'Create and assign trip execution' },
           { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },

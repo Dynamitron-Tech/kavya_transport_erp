@@ -138,7 +138,21 @@ async def list_documents(
     offset = (page - 1) * limit
     result = await db.execute(query.offset(offset).limit(limit).order_by(Document.id.desc()))
     docs = result.scalars().all()
-    items = [{c.key: getattr(d, c.key) for c in d.__table__.columns} for d in docs]
+
+    def _serialize_doc(d):
+        row = {}
+        for c in d.__table__.columns:
+            v = getattr(d, c.key)
+            if hasattr(v, 'isoformat'):
+                v = v.isoformat()
+            elif hasattr(v, 'value'):   # SQLAlchemy Enum
+                v = v.value
+            elif hasattr(v, '__float__') and not isinstance(v, (int, float, bool)):  # Decimal
+                v = float(v)
+            row[c.key] = v
+        return row
+
+    items = [_serialize_doc(d) for d in docs]
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 
 

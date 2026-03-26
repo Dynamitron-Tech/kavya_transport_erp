@@ -216,7 +216,7 @@ export default function DashboardPage() {
             change={`Collections: ${fmt(overview?.monthly_collections || 0)}`}
             changeType="up"
             color="bg-purple-50"
-            onClick={() => navigate('/finance')}
+            onClick={() => navigate('/finance/reports')}
           />
         )}
         <KPICard
@@ -226,6 +226,7 @@ export default function DashboardPage() {
           change={`${alertItems.length} alerts`}
           changeType={alertItems.length > 0 ? 'down' : 'neutral'}
           color="bg-amber-50"
+          onClick={() => navigate('/lr')}
         />
       </div>
 
@@ -256,7 +257,7 @@ export default function DashboardPage() {
               value={fmt(overview?.pending_receivables || 0)}
               icon={<TrendingUp size={20} className="text-emerald-600" />}
               color="bg-emerald-50"
-              onClick={() => navigate('/finance')}
+              onClick={() => navigate('/finance/receivables')}
             />
             <KPICard
               title="Monthly Expenses"
@@ -265,7 +266,7 @@ export default function DashboardPage() {
               change={`Profit: ${fmt(overview?.profit || 0)}`}
               changeType={overview?.profit > 0 ? 'up' : 'down'}
               color="bg-rose-50"
-              onClick={() => navigate('/finance')}
+              onClick={() => navigate('/finance/payments')}
             />
           </>
         )}

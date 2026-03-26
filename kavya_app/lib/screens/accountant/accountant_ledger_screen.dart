@@ -32,7 +32,7 @@ class _AccountantLedgerScreenState
   String? _typeFilter;
   final _currencyFmt =
       NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
-  final _types = ['receivable', 'payable', 'expense', 'income', 'capital'];
+  final _types = ['RECEIVABLE', 'PAYABLE', 'EXPENSE', 'INCOME', 'CAPITAL'];
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +59,7 @@ class _AccountantLedgerScreenState
             child: Row(
               children: [
                 _chip('All', null),
-                ..._types.map((t) => _chip(t[0].toUpperCase() + t.substring(1), t)),
+                ..._types.map((t) => _chip(t[0] + t.substring(1).toLowerCase(), t)),
               ],
             ),
           ),

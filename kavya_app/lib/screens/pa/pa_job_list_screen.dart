@@ -157,9 +157,10 @@ class _JobCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: KTColors.borderColor),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             // Left color rail
             Container(
               width: 5,
@@ -171,8 +172,8 @@ class _JobCard extends StatelessWidget {
                 ),
               ),
             ),
-            // Content
-            Expanded(
+              // Content
+              Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                 child: Column(
@@ -219,7 +220,7 @@ class _JobCard extends StatelessWidget {
                           const SizedBox(width: 3),
                           Expanded(
                             child: Text(
-                              job['origin'] ?? '',
+                              job['origin_city'] ?? '',
                               style: KTTextStyles.caption.copyWith(
                                   color: KTColors.textMuted),
                               overflow: TextOverflow.ellipsis,
@@ -234,7 +235,7 @@ class _JobCard extends StatelessWidget {
                       ),
                       Expanded(
                         child: Text(
-                          job['destination'] ?? '',
+                          job['destination_city'] ?? '',
                           style: KTTextStyles.caption.copyWith(
                               color: KTColors.textMuted),
                           overflow: TextOverflow.ellipsis,
@@ -275,6 +276,7 @@ class _JobCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }
