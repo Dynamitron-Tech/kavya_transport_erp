@@ -17,6 +17,7 @@ class _FleetCreateTripScreenState
     extends ConsumerState<FleetCreateTripScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _saving = false;
+  bool _loading = true;
 
   final _originCtrl = TextEditingController();
   final _destinationCtrl = TextEditingController();
@@ -25,9 +26,10 @@ class _FleetCreateTripScreenState
 
   DateTime _tripDate = DateTime.now();
 
-  // Vehicle & driver selections
+  List<Map<String, dynamic>> _jobs = [];
   List<Map<String, dynamic>> _vehicles = [];
   List<Map<String, dynamic>> _drivers = [];
+  int? _selectedJobId;
   int? _selectedVehicleId;
   int? _selectedDriverId;
 
@@ -40,21 +42,42 @@ class _FleetCreateTripScreenState
   Future<void> _loadLookups() async {
     try {
       final api = ref.read(apiServiceProvider);
-      final vRes = await api.get('/vehicles/', queryParameters: {'status': 'available'});
-      final dRes = await api.get('/drivers/', queryParameters: {'status': 'available'});
-      final vPayload = vRes['data'] ?? vRes;
-      final dPayload = dRes['data'] ?? dRes;
+      final results = await Future.wait([
+        api.get('/jobs', queryParameters: {'limit': 100}),
+        api.get('/vehicles', queryParameters: {'status': 'available', 'limit': 100}),
+        api.get('/drivers', queryParameters: {'status': 'available', 'limit': 100}),
+      ]);
+      final jPayload = (results[0] is Map && results[0]['data'] != null) ? results[0]['data'] : results[0];
+      final vPayload = (results[1] is Map && results[1]['data'] != null) ? results[1]['data'] : results[1];
+      final dPayload = (results[2] is Map && results[2]['data'] != null) ? results[2]['data'] : results[2];
       if (mounted) {
         setState(() {
-          _vehicles = (vPayload is List)
-              ? vPayload.cast<Map<String, dynamic>>()
-              : [];
-          _drivers = (dPayload is List)
-              ? dPayload.cast<Map<String, dynamic>>()
-              : [];
+          _jobs = (jPayload is List) ? List<Map<String, dynamic>>.from(jPayload) : [];
+          _vehicles = (vPayload is List) ? List<Map<String, dynamic>>.from(vPayload) : [];
+          _drivers = (dPayload is List) ? List<Map<String, dynamic>>.from(dPayload) : [];
+          _loading = false;
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load form data: $e')),
+        );
+      }
+    }
+  }
+
+  void _onJobSelected(int? jobId) {
+    if (jobId == null) return;
+    final job = _jobs.firstWhere((j) => j['id'] == jobId, orElse: () => {});
+    setState(() {
+      _selectedJobId = jobId;
+      if (job.isNotEmpty) {
+        _originCtrl.text = job['origin_city'] ?? job['origin_address'] ?? '';
+        _destinationCtrl.text = job['destination_city'] ?? job['destination_address'] ?? '';
+      }
+    });
   }
 
   @override
@@ -78,6 +101,12 @@ class _FleetCreateTripScreenState
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedJobId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a job')),
+      );
+      return;
+    }
     if (_selectedVehicleId == null || _selectedDriverId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a vehicle and driver')),
@@ -87,7 +116,8 @@ class _FleetCreateTripScreenState
     setState(() => _saving = true);
     try {
       final api = ref.read(apiServiceProvider);
-      await api.post('/trips/', data: {
+      await api.post('/trips', data: {
+        'job_id': _selectedJobId,
         'vehicle_id': _selectedVehicleId,
         'driver_id': _selectedDriverId,
         'origin': _originCtrl.text.trim(),
@@ -126,11 +156,37 @@ class _FleetCreateTripScreenState
                 color: KTColors.textHeading,
                 decoration: TextDecoration.none)),
       ),
-      body: Form(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            _sectionLabel('Job'),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<int>(
+              value: _selectedJobId,
+              dropdownColor: KTColors.surface,
+              style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
+              hint: Text('Select Job *', style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
+              decoration: _dropDecor('Job *'),
+              items: _jobs.map((j) {
+                final num = j['job_number'] ?? '#${j['id']}';
+                final orig = j['origin_city'] ?? '';
+                final dest = j['destination_city'] ?? '';
+                final label = orig.isNotEmpty && dest.isNotEmpty
+                    ? '$num  ($orig → $dest)'
+                    : num.toString();
+                return DropdownMenuItem<int>(
+                  value: j['id'] as int?,
+                  child: Text(label, overflow: TextOverflow.ellipsis),
+                );
+              }).toList(),
+              onChanged: _onJobSelected,
+              validator: (v) => v == null ? 'Select a job' : null,
+            ),
+            const SizedBox(height: 16),
             _sectionLabel('Route'),
             const SizedBox(height: 10),
             _field('Origin *', _originCtrl,

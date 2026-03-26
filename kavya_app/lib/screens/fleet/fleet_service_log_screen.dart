@@ -116,7 +116,7 @@ class _FleetServiceLogScreenState extends ConsumerState<FleetServiceLogScreen> {
               error: (e, _) => Text('Failed to load vehicles: $e',
                   style: KTTextStyles.bodySmall.copyWith(color: KTColors.danger)),
               data: (vehicles) => DropdownButtonFormField<String>(
-                value: _selectedVehicleId,
+                initialValue: _selectedVehicleId,
                 dropdownColor: KTColors.surface,
                 style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                 decoration: _inputDecoration('Select vehicle'),

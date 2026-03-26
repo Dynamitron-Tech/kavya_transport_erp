@@ -30,6 +30,7 @@ class KTWebSocketService {
   private baseDelay = 1000;
   private listeners = new Map<string, Set<Listener>>();
   private disposed = false;
+  private connectTime = 0;
 
   get connected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;
@@ -48,6 +49,7 @@ class KTWebSocketService {
 
     try {
       this.ws = new WebSocket(url);
+      this.connectTime = Date.now();
       this.ws.onopen = this.handleOpen;
       this.ws.onmessage = this.handleMessage;
       this.ws.onclose = this.handleClose;
@@ -124,18 +126,28 @@ class KTWebSocketService {
     } catch { /* ignore malformed messages */ }
   };
 
-  private handleClose = (): void => {
+  private handleClose = (event: CloseEvent): void => {
     this.ws = null;
-    if (!this.disposed) this.scheduleReconnect();
+    // 4001 = backend rejected (Unauthorized) — retrying with the same token won't help
+    // 4000-4999 = app-level policy rejections
+    if (event.code >= 4000 && event.code < 5000) return;
+    if (!this.disposed) {
+      // If the connection died almost immediately, the server is likely down;
+      // use a longer initial delay rather than hammering it.
+      const wasImmediateClose = (Date.now() - this.connectTime) < 1000;
+      this.scheduleReconnect(wasImmediateClose ? 2 : 0);
+    }
   };
 
   private handleError = (): void => {
-    this.ws?.close();
+    // onerror is always followed by onclose — don't call close() again or
+    // handleClose fires twice ("closed before connection established" spam).
   };
 
-  private scheduleReconnect(): void {
+  private scheduleReconnect(extraAttempts = 0): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) return;
-    const delay = Math.min(this.baseDelay * Math.pow(2, this.reconnectAttempts), 30000);
+    const attempts = this.reconnectAttempts + extraAttempts;
+    const delay = Math.min(this.baseDelay * Math.pow(2, attempts), 30000);
     this.reconnectAttempts++;
     this.reconnectTimer = setTimeout(() => this.connect(), delay);
   }

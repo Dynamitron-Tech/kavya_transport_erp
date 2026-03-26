@@ -52,7 +52,7 @@ class _ManagerCreateClientScreenState extends ConsumerState<ManagerCreateClientS
           const SnackBar(content: Text('Client created successfully'), backgroundColor: KTColors.success),
         );
         ref.invalidate(managerClientListProvider);
-        context.pop();
+        context.go('/manager/clients');
       }
     } catch (e) {
       if (mounted) {

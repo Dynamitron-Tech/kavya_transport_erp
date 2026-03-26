@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../models/fuel.dart';
 import '../../providers/pump_dashboard_provider.dart';
 import '../../utils/indian_format.dart';
 
@@ -74,15 +75,12 @@ class PumpReportsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _shareButton(BuildContext context, List<dynamic> issues) {
+  Widget _shareButton(BuildContext context, List<FuelIssue> issues) {
     return IconButton(
       onPressed: () {
         final lines = issues.map((i) {
-          final date = DateTime.tryParse(i['issued_at']?.toString() ?? '')
-              ?.toLocal()
-              .toString()
-              .substring(0, 16) ?? '';
-          return '${i['vehicle_registration'] ?? i['vehicle_id']}  ${i['quantity_litres']}L  ₹${i['total_amount']}  $date';
+          final date = i.issuedAt.toLocal().toString().substring(0, 16);
+          return '${i.vehicleRegistration ?? 'Vehicle #${i.vehicleId}'}  ${i.quantityLitres}L  ₹${i.totalAmount}  $date';
         }).join('\n');
         SharePlus.instance.share(ShareParams(text: 'Kavya Transport — Today\'s Fuel Log\n\n$lines'));
       },
@@ -161,12 +159,12 @@ class PumpReportsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _vehicleChart(List<dynamic> issues) {
+  Widget _vehicleChart(List<FuelIssue> issues) {
     // Aggregate by vehicle
     final map = <String, double>{};
     for (final i in issues) {
-      final key = i['vehicle_registration']?.toString() ?? 'V#${i['vehicle_id']}';
-      map[key] = (map[key] ?? 0) + (double.tryParse(i['quantity_litres']?.toString() ?? '0') ?? 0);
+      final key = i.vehicleRegistration ?? 'V#${i.vehicleId}';
+      map[key] = (map[key] ?? 0) + i.quantityLitres;
     }
     if (map.isEmpty) {
       return Container(
@@ -244,7 +242,7 @@ class PumpReportsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _recentLog(List<dynamic> issues) {
+  Widget _recentLog(List<FuelIssue> issues) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -266,11 +264,9 @@ class PumpReportsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _logRow(dynamic issue) {
+  Widget _logRow(FuelIssue issue) {
     final timeStr = () {
-      final dt = DateTime.tryParse(issue['issued_at']?.toString() ?? '');
-      if (dt == null) return '';
-      final local = dt.toLocal();
+      final local = issue.issuedAt.toLocal();
       return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
     }();
 
@@ -297,15 +293,14 @@ class PumpReportsScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  issue['vehicle_registration']?.toString() ??
-                      'Vehicle #${issue['vehicle_id']}',
+                  issue.vehicleRegistration ?? 'Vehicle #${issue.vehicleId}',
                   style: const TextStyle(
                       color: _textPrimary,
                       fontSize: 13,
                       fontWeight: FontWeight.w700),
                 ),
-                if (issue['driver_name'] != null)
-                  Text(issue['driver_name'].toString(),
+                if (issue.driverName != null)
+                  Text(issue.driverName!,
                       style: const TextStyle(
                           color: _textSecondary, fontSize: 11)),
               ],
@@ -315,7 +310,7 @@ class PumpReportsScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${double.tryParse(issue['quantity_litres']?.toString() ?? '0')?.toStringAsFixed(1) ?? '—'} L',
+                '${issue.quantityLitres.toStringAsFixed(1)} L',
                 style: const TextStyle(
                     color: _amber,
                     fontSize: 14,

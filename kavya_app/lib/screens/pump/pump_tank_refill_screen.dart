@@ -324,7 +324,7 @@ class _PumpTankRefillScreenState extends ConsumerState<PumpTankRefillScreen> {
     try {
       await _api.post('/fuel-pump/stock', data: {
         'tank_id': _selectedTankId,
-        'transaction_type': 'tanker_refill',
+        'transaction_type': 'TANKER_REFILL',
         'quantity_litres': double.parse(_qtyCtrl.text),
         'rate_per_litre': double.parse(_rateCtrl.text),
         if (_invoiceCtrl.text.trim().isNotEmpty)

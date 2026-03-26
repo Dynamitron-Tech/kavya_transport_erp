@@ -88,26 +88,34 @@ class ClientCardWidget extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                OutlinedButton(
-                  onPressed: () => context.go('/manager/jobs'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: KTColors.info,
-                    side: BorderSide(color: KTColors.info.withOpacity(0.5)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                Flexible(
+                  child: OutlinedButton(
+                    onPressed: () => context.go('/manager/jobs'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: KTColors.info,
+                      side: BorderSide(color: KTColors.info.withOpacity(0.5)),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Jobs', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                   ),
-                  child: const Text('Jobs', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 ),
                 const SizedBox(width: 8),
-                OutlinedButton(
-                  onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: KTColors.textMuted,
-                    side: BorderSide(color: KTColors.borderColor),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                Flexible(
+                  child: OutlinedButton(
+                    onPressed: () {},
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: KTColors.textMuted,
+                      side: BorderSide(color: KTColors.borderColor),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Statement', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                   ),
-                  child: const Text('Statement', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 ),
               ],
             ),

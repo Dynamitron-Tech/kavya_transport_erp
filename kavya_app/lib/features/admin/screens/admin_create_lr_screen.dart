@@ -175,7 +175,7 @@ class _AdminCreateLRScreenState extends ConsumerState<AdminCreateLRScreen> {
               _loadingJobs
                   ? const Center(child: CircularProgressIndicator())
                   : DropdownButtonFormField<dynamic>(
-                      value: _selectedJob,
+                      initialValue: _selectedJob,
                       decoration: _inputDecoration('Job *'),
                       items: _jobs.map((j) {
                         final jobNumber = j['job_number'] ?? j['id'].toString();
@@ -251,7 +251,7 @@ class _AdminCreateLRScreenState extends ConsumerState<AdminCreateLRScreen> {
                   subtitle: Text('Auto-creates an e-Way Bill for this LR',
                       style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
                   value: _autoGenerateEwb,
-                  activeColor: KTColors.primary,
+                  activeThumbColor: KTColors.primary,
                   onChanged: (v) => setState(() => _autoGenerateEwb = v),
                 ),
               ),

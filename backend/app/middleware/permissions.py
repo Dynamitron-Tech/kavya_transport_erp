@@ -229,6 +229,8 @@ ROLE_PERMISSIONS = {
         # Trip
         Permissions.TRIP_CREATE, Permissions.TRIP_READ, 
         Permissions.TRIP_UPDATE, Permissions.TRIP_START, Permissions.TRIP_COMPLETE,
+        # Job (read-only, needed to link trips to jobs)
+        Permissions.JOB_READ,
         # E-way Bill (view only)
         Permissions.EWAY_BILL_READ,
         # Vehicle

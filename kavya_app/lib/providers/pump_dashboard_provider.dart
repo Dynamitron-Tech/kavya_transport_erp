@@ -50,6 +50,15 @@ final vehicleListProvider = FutureProvider.autoDispose<List<Map<String, dynamic>
   return [];
 });
 
+final driversProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final res = await _api.get('/drivers', queryParameters: {'limit': 500});
+  final payload = (res['data'] ?? res);
+  if (payload is List) {
+    return payload.cast<Map<String, dynamic>>();
+  }
+  return [];
+});
+
 /// Notifier to submit a new fuel issue.
 class FuelIssueNotifier extends StateNotifier<AsyncValue<void>> {
   FuelIssueNotifier() : super(const AsyncData(null));
@@ -72,7 +81,7 @@ class FuelIssueNotifier extends StateNotifier<AsyncValue<void>> {
         'vehicle_id': vehicleId,
         if (driverId != null) 'driver_id': driverId,
         if (tripId != null) 'trip_id': tripId,
-        'fuel_type': 'diesel',
+        'fuel_type': 'DIESEL',
         'quantity_litres': quantityLitres,
         'rate_per_litre': ratePerLitre,
         if (odometerReading != null) 'odometer_reading': odometerReading,

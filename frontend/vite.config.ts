@@ -3,7 +3,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-const apiProxyTarget = process.env.VITE_PROXY_TARGET || 'http://localhost:8002'
+const apiProxyTarget = process.env.VITE_PROXY_TARGET || 'http://localhost:8000'
 const wsProxyTarget = apiProxyTarget.replace('http://', 'ws://').replace('https://', 'wss://')
 
 export default defineConfig({

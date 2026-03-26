@@ -58,9 +58,24 @@ final paEWBFilterProvider = StateProvider<String?>((ref) => null); // null = all
 final paEWBListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final status = ref.watch(paEWBFilterProvider);
   final api = ref.read(apiServiceProvider);
-  final response = await api.get('/eway-bills', queryParameters: {
-    if (status != null) 'status': status,
-  });
+
+  // 'active' and 'expiring' are not EwayBillStatus enum values — the backend
+  // exposes dedicated sub-routes for them.  Only 'expired' (and null = all)
+  // map to the generic list endpoint.
+  final String endpoint;
+  final Map<String, dynamic> params;
+  if (status == 'active') {
+    endpoint = '/eway-bills/active';
+    params = {};
+  } else if (status == 'expiring') {
+    endpoint = '/eway-bills/expiring';
+    params = {};
+  } else {
+    endpoint = '/eway-bills';
+    params = {if (status != null) 'status': status};
+  }
+
+  final response = await api.get(endpoint, queryParameters: params);
   if (response is Map && response['data'] is List) return response['data'] as List<dynamic>;
   if (response is List) return response;
   return [];

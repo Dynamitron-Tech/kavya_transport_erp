@@ -464,7 +464,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: KTColors.driverAccent,
                         ),
                       ),
                       Text(
