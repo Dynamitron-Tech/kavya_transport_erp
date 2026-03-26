@@ -338,6 +338,25 @@ async def upload_document(
         except Exception as e:
             logger.warning(f"Could not create expiry alert for document {doc.id}: {e}")
 
+    # EVT-05: Schedule 30-day and 7-day advance alerts for ALL documents with expiry
+    if expiry_date and entity_id:
+        try:
+            from app.services.tms_automation_service import evt_05_compliance_alerts
+            v_id = entity_id if entity_type.lower() == "vehicle" else None
+            d_id = entity_id if entity_type.lower() == "driver" else None
+            doc_label = title or document_type.replace("_", " ").title()
+            await evt_05_compliance_alerts(
+                db=db,
+                entity_type=entity_type.lower(),
+                entity_id=entity_id,
+                doc_type=doc_label,
+                expiry_date=expiry_date,
+                vehicle_id=v_id,
+                driver_id=d_id,
+            )
+        except Exception as e:
+            logger.warning(f"EVT-05: Could not schedule advance alerts for document {doc.id}: {e}")
+
     return APIResponse(
         success=True,
         data={

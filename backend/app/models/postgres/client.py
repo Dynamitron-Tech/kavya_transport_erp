@@ -48,6 +48,7 @@ class Client(Base, TimestampMixin, SoftDeleteMixin):
     # Status
     is_active = Column(Boolean, default=True)
     status = Column(String(20), default='active')  # active, suspended, blacklisted
+    do_not_remind = Column(Boolean, default=False)  # SCH-02: suppress payment reminders
     
     # Multi-tenant
     tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
