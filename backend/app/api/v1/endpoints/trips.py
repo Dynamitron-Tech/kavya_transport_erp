@@ -1,6 +1,6 @@
 # Trip Management Endpoints
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
@@ -161,12 +161,21 @@ async def change_trip_status(
 @router.put("/{trip_id}/start", response_model=APIResponse)
 async def start_trip(
     trip_id: int,
+    background_tasks: BackgroundTasks,
     payload: dict | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.TRIP_UPDATE)),
 ):
+    from app.services.tms_automation_service import evt_03_notify_driver_dispatch, evt_04_sync_vehicle_status, evt_04_check_vehicle_available
+
     odometer = payload.get("start_odometer") if isinstance(payload, dict) else None
+
+    # EVT-04 pre-check: block if vehicle is in maintenance
+    trip_obj = await db.get(Trip, trip_id)
+    if trip_obj and trip_obj.vehicle_id:
+        await evt_04_check_vehicle_available(db, trip_obj.vehicle_id)
+
     trip, error = await trip_service.change_trip_status(
         db, trip_id, "started", current_user.user_id, "Trip started",
         odometer_reading=odometer,
@@ -181,6 +190,10 @@ async def start_trip(
         data={"trip_id": str(trip.id)},
         urgency="normal", triggered_by=current_user.user_id,
     )
+    # EVT-03: notify driver; EVT-04: set vehicle ON_TRIP
+    background_tasks.add_task(evt_03_notify_driver_dispatch, db, trip.id, current_user.user_id)
+    if trip.vehicle_id:
+        background_tasks.add_task(evt_04_sync_vehicle_status, db, trip.vehicle_id, "started", current_user.user_id)
     return APIResponse(success=True, data={"id": trip.id}, message="Trip started")
 
 
@@ -206,14 +219,22 @@ async def reach_trip_destination(
 @router.put("/{trip_id}/close", response_model=APIResponse)
 async def close_trip(
     trip_id: int,
+    background_tasks: BackgroundTasks,
     payload: dict | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.TRIP_UPDATE)),
 ):
+    from app.services.tms_automation_service import evt_04_sync_vehicle_status
+
     odometer = None
     if isinstance(payload, dict):
         odometer = payload.get("end_odometer")
+
+    # Capture vehicle_id before status change
+    closing_trip = await db.get(Trip, trip_id)
+    vehicle_id_to_free = closing_trip.vehicle_id if closing_trip else None
+
     trip, error = await trip_service.change_trip_status(
         db, trip_id, "completed", current_user.user_id, "Trip closed",
         odometer_reading=odometer,
@@ -237,6 +258,9 @@ async def close_trip(
         data={"trip_id": str(trip.id), "route": "/accountant/invoices/new"},
         urgency="urgent", triggered_by=current_user.user_id,
     )
+    # EVT-04: release vehicle back to AVAILABLE
+    if vehicle_id_to_free:
+        background_tasks.add_task(evt_04_sync_vehicle_status, db, vehicle_id_to_free, "closed", current_user.user_id)
     return APIResponse(success=True, data={"id": trip.id}, message="Trip closed")
 
 
@@ -601,7 +625,10 @@ async def list_expenses(
 
 @router.post("/{trip_id}/expenses", response_model=APIResponse, status_code=201)
 async def add_expense(
-    trip_id: int, data: TripExpenseCreate, db: AsyncSession = Depends(get_db),
+    trip_id: int,
+    data: TripExpenseCreate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(require_permission(Permissions.EXPENSE_CREATE)),
 ):
     trip = await trip_service.get_trip(db, trip_id)
@@ -622,6 +649,13 @@ async def add_expense(
             detail=f"Biometric verification required for expenses ≥ ₹{threshold}",
         )
     expense = await trip_service.add_trip_expense(db, trip_id, data.model_dump(), current_user.user_id)
+    # RUL-03: flag expense anomaly in background (fire-and-forget)
+    from decimal import Decimal
+    from app.services.tms_automation_service import rul_03_flag_expense_anomaly
+    background_tasks.add_task(
+        rul_03_flag_expense_anomaly,
+        db, expense.id, data.category, Decimal(str(data.amount)), trip.route_id
+    )
     return APIResponse(success=True, data={"id": expense.id}, message="Expense added")
 
 

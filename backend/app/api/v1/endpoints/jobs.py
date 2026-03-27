@@ -51,7 +51,36 @@ async def create_job(
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.JOB_CREATE)),
 ):
-    job = await job_service.create_job(db, data.model_dump(), current_user.user_id)
+    from decimal import Decimal
+    from app.services.tms_automation_service import rul_01_check_credit_limit, rul_04_suggest_vehicle_type
+
+    payload = data.model_dump()
+
+    # RUL-04: auto-suggest vehicle type from cargo weight before insert
+    quantity_kg = float(payload.get("quantity") or 0)
+    if payload.get("quantity_unit", "").lower() in ("tons", "tonnes"):
+        quantity_kg *= 1000
+    if quantity_kg > 0:
+        payload["suggested_vehicle_type"] = rul_04_suggest_vehicle_type(quantity_kg)
+
+    # RUL-01: credit limit enforcement (soft mode — flag + notify, don't hard-block)
+    client_id = payload.get("client_id")
+    freight = Decimal(str(payload.get("total_amount") or payload.get("agreed_rate") or 0))
+    if client_id:
+        credit_result = await rul_01_check_credit_limit(db, client_id, freight, strict=False)
+        if credit_result["soft_flag"]:
+            payload["requires_credit_approval"] = True
+            await notification_service.send(
+                db,
+                event_type="CREDIT_LIMIT_FLAG",
+                title="Credit limit warning",
+                body=credit_result["message"],
+                target_roles=["manager", "accountant"],
+                urgency="high",
+                triggered_by=current_user.user_id,
+            )
+
+    job = await job_service.create_job(db, payload, current_user.user_id)
     route_str = f"{job.origin_city or ''} → {job.destination_city or ''}"
     await notification_service.send(
         db,
@@ -63,7 +92,7 @@ async def create_job(
         urgency="normal",
         triggered_by=current_user.user_id,
     )
-    return APIResponse(success=True, data={"id": job.id, "job_number": job.job_number}, message="Job created")
+    return APIResponse(success=True, data={"id": job.id, "job_number": job.job_number, "suggested_vehicle_type": payload.get("suggested_vehicle_type")}, message="Job created")
 
 
 @router.put("/{job_id}", response_model=APIResponse)
@@ -294,3 +323,22 @@ async def next_job_number(
 ):
     from app.utils.generators import generate_job_number
     return APIResponse(success=True, data={"job_number": generate_job_number()})
+
+
+# RUL-04: Vehicle type suggestion from cargo weight
+@router.get("/suggest-vehicle", response_model=APIResponse)
+async def suggest_vehicle_type(
+    weight_kg: float = 0,
+    current_user: TokenData = Depends(get_current_user),
+):
+    """
+    RUL-04: Returns the suggested vehicle type for a given cargo weight in kg.
+    Example: ?weight_kg=4500 → {"suggested_vehicle_type": "truck"}
+    """
+    from app.services.tms_automation_service import rul_04_suggest_vehicle_type
+    suggestion = rul_04_suggest_vehicle_type(weight_kg)
+    return APIResponse(
+        success=True,
+        data={"suggested_vehicle_type": suggestion, "weight_kg": weight_kg},
+        message=f"Suggested vehicle: {suggestion}",
+    )

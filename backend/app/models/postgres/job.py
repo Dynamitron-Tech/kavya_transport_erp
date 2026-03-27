@@ -123,7 +123,12 @@ class Job(Base, TimestampMixin, SoftDeleteMixin):
     # Completion
     completed_at = Column(DateTime, nullable=True)
     completion_remarks = Column(Text, nullable=True)
-    
+
+    # RUL-01: Credit enforcement
+    requires_credit_approval = Column(Boolean, default=False)
+    # RUL-04: Suggested vehicle type from cargo weight
+    suggested_vehicle_type = Column(String(50), nullable=True)
+
     # Multi-tenant
     tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
     branch_id = Column(Integer, ForeignKey('branches.id'), nullable=True)

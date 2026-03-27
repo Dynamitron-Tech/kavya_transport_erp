@@ -112,6 +112,7 @@ class Trip(Base, TimestampMixin, SoftDeleteMixin):
     
     # Completion
     pod_collected = Column(Boolean, default=False)
+    pod_completed_at = Column(DateTime, nullable=True)  # EVT-06: when all LRs get POD
     expenses_verified = Column(Boolean, default=False)
     verified_by = Column(Integer, ForeignKey('users.id'), nullable=True)
     verified_at = Column(DateTime, nullable=True)
@@ -192,6 +193,10 @@ class TripExpense(Base, TimestampMixin):
     
     # Biometric verification (required for high-value expenses)
     biometric_verified = Column(Boolean, default=False)
+
+    # RUL-03: Expense anomaly detection
+    anomaly_flag = Column(Boolean, default=False)
+    anomaly_reason = Column(String(255), nullable=True)
     
     # Entry tracking
     entered_by = Column(Integer, ForeignKey('users.id'), nullable=True)

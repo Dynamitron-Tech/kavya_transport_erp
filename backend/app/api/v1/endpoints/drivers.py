@@ -923,3 +923,19 @@ async def get_driver_attendance(
     }
 
     return APIResponse(success=True, data={"items": items, "summary": summary})
+
+
+# RUL-05: Driver attendance streak badge
+@router.get("/{driver_id}/streak", response_model=APIResponse)
+async def get_driver_streak(
+    driver_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """
+    RUL-05: Returns the driver's current consecutive non-absent attendance streak
+    and their earned badge (bronze / silver / gold).
+    """
+    from app.services.tms_automation_service import rul_05_attendance_streak
+    result = await rul_05_attendance_streak(db, driver_id)
+    return APIResponse(success=True, data=result)

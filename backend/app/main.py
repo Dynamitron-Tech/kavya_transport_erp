@@ -62,11 +62,24 @@ async def lifespan(app: FastAPI):
             logger.info("System config + event priority config seeded")
     except Exception as e:
         logger.warning(f"System config seeding skipped: {e}")
+
+    # Start TMS automation scheduler (APScheduler)
+    try:
+        from app.schedulers.tms_scheduler import start_tms_scheduler
+        start_tms_scheduler()
+        logger.info("TMS automation scheduler started")
+    except Exception as e:
+        logger.warning(f"TMS scheduler start failed (non-fatal): {e}")
     
     yield
     
     # Shutdown
     logger.info("Shutting down Transport ERP API...")
+    try:
+        from app.schedulers.tms_scheduler import stop_tms_scheduler
+        stop_tms_scheduler()
+    except Exception:
+        pass
     try:
         await close_db()
     except Exception:
