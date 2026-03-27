@@ -1,0 +1,67 @@
+{
+  "at": "2026-03-19T08:36:41.240Z",
+  "headless": true,
+  "slowMo": 350,
+  "results": [
+    {
+      "step": "Open login page",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/banking-e2e/01_open_login_page.png"
+    },
+    {
+      "step": "Login from UI",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/banking-e2e/02_login_from_ui.png"
+    },
+    {
+      "step": "Open Banking admin page",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/banking-e2e/03_open_banking_admin_page.png"
+    },
+    {
+      "step": "Check Overview tab widgets",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/banking-e2e/04_check_overview_tab_widgets.png"
+    },
+    {
+      "step": "Check Transactions tab and filters",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/banking-e2e/05_check_transactions_tab_and_filters.png"
+    },
+    {
+      "step": "Create PAYMENT_RECEIVED entry",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/banking-e2e/06_create_payment_received_entry.png"
+    },
+    {
+      "step": "Create PAYMENT_MADE entry",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/banking-e2e/07_create_payment_made_entry.png"
+    },
+    {
+      "step": "Create BANK_TRANSFER entry",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/banking-e2e/08_create_bank_transfer_entry.png"
+    },
+    {
+      "step": "Open Reconciliation tab",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/banking-e2e/09_open_reconciliation_tab.png"
+    },
+    {
+      "step": "Upload sample CSV in Reconciliation",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/banking-e2e/10_upload_sample_csv_in_reconciliation.png"
+    },
+    {
+      "step": "Open Accounts tab and verify rows",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/banking-e2e/11_open_accounts_tab_and_verify_rows.png"
+    },
+    {
+      "step": "Return to Transactions and verify table healthy",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/banking-e2e/12_return_to_transactions_and_verify_table_healthy.png"
+    }
+  ]
+}

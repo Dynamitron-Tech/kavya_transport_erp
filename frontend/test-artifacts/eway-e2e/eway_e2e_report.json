@@ -1,0 +1,62 @@
+{
+  "at": "2026-03-19T09:16:26.793Z",
+  "headless": true,
+  "slowMo": 350,
+  "created": {
+    "ewbNumber": "UI-EWB-1773911765328",
+    "createdId": 11,
+    "generatedEwbNumber": "EWB-260319091613"
+  },
+  "results": [
+    {
+      "step": "Open login page",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/eway-e2e/01_open_login_page.png"
+    },
+    {
+      "step": "Login from UI",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/eway-e2e/02_login_from_ui.png"
+    },
+    {
+      "step": "Open E-Way Bill list page",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/eway-e2e/03_open_e_way_bill_list_page.png"
+    },
+    {
+      "step": "Check status tabs and list health",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/eway-e2e/04_check_status_tabs_and_list_health.png"
+    },
+    {
+      "step": "Create E-Way Bill from website",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/eway-e2e/05_create_e_way_bill_from_website.png"
+    },
+    {
+      "step": "Find created E-Way Bill in list",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/eway-e2e/06_find_created_e_way_bill_in_list.png"
+    },
+    {
+      "step": "Open detail and verify compliance section",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/eway-e2e/07_open_detail_and_verify_compliance_section.png"
+    },
+    {
+      "step": "Return to list and cancel created E-Way Bill",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/eway-e2e/08_return_to_list_and_cancel_created_e_way_bill.png"
+    },
+    {
+      "step": "Extend an active or in-transit E-Way Bill",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/eway-e2e/09_extend_an_active_or_in_transit_e_way_bill.png"
+    },
+    {
+      "step": "Check expiring alert visibility logic",
+      "status": "PASS",
+      "screenshot": "/Users/ajaikumarn/Desktop/kavya_transport_erp/frontend/test-artifacts/eway-e2e/10_check_expiring_alert_visibility_logic.png"
+    }
+  ]
+}

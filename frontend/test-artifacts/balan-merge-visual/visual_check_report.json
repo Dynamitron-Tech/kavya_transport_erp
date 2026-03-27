@@ -1,0 +1,166 @@
+{
+  "timestamp": "2026-03-19T14:12:38.160Z",
+  "mergedBranch": "balan/safe-updates-20260319",
+  "loggedInAs": "admin@kavyatransports.com",
+  "headless": true,
+  "slowMo": 250,
+  "summary": {
+    "total": 25,
+    "passed": 25,
+    "failed": 0,
+    "jsErrors": 0
+  },
+  "steps": [
+    {
+      "step": 1,
+      "name": "Open login page",
+      "status": "PASS",
+      "screenshot": "01_open_login_page.png"
+    },
+    {
+      "step": 2,
+      "name": "Login as admin",
+      "status": "PASS",
+      "screenshot": "02_login_as_admin.png"
+    },
+    {
+      "step": 3,
+      "name": "Header renders correctly",
+      "status": "PASS",
+      "screenshot": "03_header_renders_correctly.png"
+    },
+    {
+      "step": 4,
+      "name": "Dashboard page loads",
+      "status": "PASS",
+      "screenshot": "04_dashboard_page_loads.png"
+    },
+    {
+      "step": 5,
+      "name": "Jobs list page loads",
+      "status": "PASS",
+      "screenshot": "05_jobs_list_page_loads.png"
+    },
+    {
+      "step": 6,
+      "name": "Job detail page (JobDetailPage.tsx)",
+      "status": "PASS",
+      "screenshot": "06_job_detail_page_jobdetailpage_tsx_.png"
+    },
+    {
+      "step": 7,
+      "name": "LR list page loads",
+      "status": "PASS",
+      "screenshot": "07_lr_list_page_loads.png"
+    },
+    {
+      "step": 8,
+      "name": "Create LR page loads",
+      "status": "PASS",
+      "screenshot": "08_create_lr_page_loads.png"
+    },
+    {
+      "step": 9,
+      "name": "Trips page loads",
+      "status": "PASS",
+      "screenshot": "09_trips_page_loads.png"
+    },
+    {
+      "step": 10,
+      "name": "Drivers list page loads",
+      "status": "PASS",
+      "screenshot": "10_drivers_list_page_loads.png"
+    },
+    {
+      "step": 11,
+      "name": "Driver dashboard page loads",
+      "status": "PASS",
+      "screenshot": "11_driver_dashboard_page_loads.png"
+    },
+    {
+      "step": 12,
+      "name": "Clients list page loads",
+      "status": "PASS",
+      "screenshot": "12_clients_list_page_loads.png"
+    },
+    {
+      "step": 13,
+      "name": "Client detail page (ClientDetailPage.tsx)",
+      "status": "PASS",
+      "screenshot": "13_client_detail_page_clientdetailpage_tsx_.png"
+    },
+    {
+      "step": 14,
+      "name": "Invoices page loads",
+      "status": "PASS",
+      "screenshot": "14_invoices_page_loads.png"
+    },
+    {
+      "step": 15,
+      "name": "Employees page loads",
+      "status": "PASS",
+      "screenshot": "15_employees_page_loads.png"
+    },
+    {
+      "step": 16,
+      "name": "Attendance page loads",
+      "status": "PASS",
+      "screenshot": "16_attendance_page_loads.png"
+    },
+    {
+      "step": 17,
+      "name": "Profile page loads",
+      "status": "PASS",
+      "screenshot": "17_profile_page_loads.png"
+    },
+    {
+      "step": 18,
+      "name": "E-Way Bill list page loads",
+      "status": "PASS",
+      "screenshot": "18_e_way_bill_list_page_loads.png"
+    },
+    {
+      "step": 19,
+      "name": "Market Trips page",
+      "status": "PASS",
+      "screenshot": "19_market_trips_page.png"
+    },
+    {
+      "step": 20,
+      "name": "Routes page",
+      "status": "PASS",
+      "screenshot": "20_routes_page.png"
+    },
+    {
+      "step": 21,
+      "name": "Suppliers page",
+      "status": "PASS",
+      "screenshot": "21_suppliers_page.png"
+    },
+    {
+      "step": 22,
+      "name": "Settings page",
+      "status": "PASS",
+      "screenshot": "22_settings_page.png"
+    },
+    {
+      "step": 23,
+      "name": "Banking page loads (4-tab layout)",
+      "status": "PASS",
+      "screenshot": "23_banking_page_loads_4_tab_layout_.png"
+    },
+    {
+      "step": 24,
+      "name": "New Banking Entry form loads",
+      "status": "PASS",
+      "screenshot": "24_new_banking_entry_form_loads.png"
+    },
+    {
+      "step": 25,
+      "name": "Accountant Banking view loads",
+      "status": "PASS",
+      "screenshot": "25_accountant_banking_view_loads.png"
+    }
+  ],
+  "jsErrors": []
+}
