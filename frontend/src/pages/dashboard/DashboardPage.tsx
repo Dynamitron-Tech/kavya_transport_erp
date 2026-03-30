@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/services/api';
-import { dashboardService, reportService, branchService } from '@/services/dataService';
+import { dashboardService, branchService } from '@/services/dataService';
 import { KPICard, TabPills, StatusBadge } from '@/components/common/Modal';
 import { useRealtimeDashboard } from '@/services/useRealtimeDashboard';
 import { safeArray } from '@/utils/helpers';
@@ -66,7 +66,14 @@ export default function DashboardPage() {
 
   const { data: overview, refetch } = useQuery({
     queryKey: ['dashboard-overview'],
-    queryFn: reportService.dashboard,
+    queryFn: dashboardService.getOverview,
+  });
+
+  // Also fetch from role-specific admin stats (same endpoint as mobile app)
+  const { data: adminStats } = useQuery({
+    queryKey: ['admin-dashboard-stats'],
+    queryFn: dashboardService.getAdminStats,
+    enabled: isAdmin,
   });
 
   const { data: revenueTrend } = useQuery({
@@ -104,6 +111,9 @@ export default function DashboardPage() {
   const displayExpenses = Array.isArray(expenseBreakdown) ? expenseBreakdown : [];
   const displayFleet = Array.isArray(fleetUtilization) ? fleetUtilization : [];
   const employees = safeArray<any>(employeesResponse);
+
+  // Merge admin stats (same source as mobile app) with report overview for consistent cross-platform data
+  const mergedOverview: Record<string, any> = { ...overview, ...adminStats };
   const activeEmployees = employees.filter((u) => u?.is_active !== false);
   const totalEmployees = employees.length;
   const totalDrivers = employees.filter((u) => {

@@ -31,7 +31,7 @@ export default function SmartSuggestions({ overview }: SmartSuggestionsProps) {
   const suggestions = useMemo<Suggestion[]>(() => {
     const items: Suggestion[] = [];
 
-    const pendingJobs = overview?.jobs?.pending || 0;
+    const pendingJobs = overview?.pending_jobs || overview?.jobs?.pending || 0;
     if (pendingJobs > 0) {
       items.push({
         id: 'pending-jobs',
@@ -55,7 +55,7 @@ export default function SmartSuggestions({ overview }: SmartSuggestionsProps) {
       });
     }
 
-    const pendingLR = overview?.lr?.pending || 0;
+    const pendingLR = overview?.pending_lrs || overview?.lr?.pending || 0;
     if (pendingLR > 0) {
       items.push({
         id: 'pending-lr',

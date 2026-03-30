@@ -58,7 +58,7 @@ class _AdminCreateEmployeeScreenState
         'last_name': lastName,
         'email': _emailCtrl.text.trim(),
         'phone': _phoneCtrl.text.trim(),
-        'role': _selectedRole,
+        'role_names': [_selectedRole],
         'branch_id': _selectedBranchId,
         'password': _passwordCtrl.text,
         if (_selectedRole == 'DRIVER') ...{

@@ -21,6 +21,14 @@ final fleetHomeStatsProvider =
   return {};
 });
 
+final fleetRecentAlertsProvider =
+    FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final response = await api.get('/fleet/dashboard/recent-alerts', queryParameters: {'limit': 5});
+  final data = response['data'] ?? response;
+  return data is List ? data : [];
+});
+
 class FleetHomeScreen extends ConsumerWidget {
   const FleetHomeScreen({super.key});
 
@@ -247,32 +255,40 @@ class FleetHomeScreen extends ConsumerWidget {
               _Section(
                 title: 'Recent Activity',
                 icon: Icons.history_rounded,
-                child: Column(
-                  children: const [
-                    _ActivityRow(
-                      title: 'Vehicle Maintenance',
-                      subtitle: 'MH-01-AB-1234 scheduled for service',
-                      time: '2h ago',
-                      icon: Icons.build_circle_rounded,
-                      color: KTColors.warning,
-                    ),
-                    SizedBox(height: 10),
-                    _ActivityRow(
-                      title: 'Trip Completed',
-                      subtitle: 'T-45821: Mumbai → Delhi completed',
-                      time: '4h ago',
-                      icon: Icons.check_circle_rounded,
-                      color: KTColors.success,
-                    ),
-                    SizedBox(height: 10),
-                    _ActivityRow(
-                      title: 'Vehicle Assignment',
-                      subtitle: 'Driver assigned to MH-01-AB-5678',
-                      time: '6h ago',
-                      icon: Icons.assignment_ind_rounded,
-                      color: KTColors.primary,
-                    ),
-                  ],
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final alertsAsync = ref.watch(fleetRecentAlertsProvider);
+                    return alertsAsync.when(
+                      loading: () => const KTLoadingShimmer(type: ShimmerType.card),
+                      error: (_, __) => const Text('Unable to load activity',
+                          style: TextStyle(color: KTColors.textMuted, fontSize: 13)),
+                      data: (alerts) {
+                        if (alerts.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Text('No recent alerts',
+                                style: TextStyle(color: KTColors.textMuted, fontSize: 13)),
+                          );
+                        }
+                        return Column(
+                          children: [
+                            for (int i = 0; i < alerts.length; i++) ...[
+                              if (i > 0) const SizedBox(height: 10),
+                              _ActivityRow(
+                                title: (alerts[i]['title'] as String?) ?? 'Alert',
+                                subtitle: (alerts[i]['message'] as String?) ?? '',
+                                time: _formatAlertTime(alerts[i]['created_at'] as String?),
+                                icon: _alertIcon(alerts[i]['type'] as String?),
+                                color: (alerts[i]['severity'] == 'critical')
+                                    ? KTColors.danger
+                                    : KTColors.warning,
+                              ),
+                            ],
+                          ],
+                        );
+                      },
+                    );
+                  },
                 ),
               ),
             ],
@@ -280,6 +296,32 @@ class FleetHomeScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  static String _formatAlertTime(String? isoTime) {
+    if (isoTime == null) return '';
+    try {
+      final dt = DateTime.parse(isoTime);
+      final diff = DateTime.now().difference(dt);
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      return '${diff.inDays}d ago';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static IconData _alertIcon(String? type) {
+    switch (type) {
+      case 'maintenance_due':
+        return Icons.build_circle_rounded;
+      case 'document_expiry':
+        return Icons.description_rounded;
+      case 'fuel_drop':
+        return Icons.local_gas_station_rounded;
+      default:
+        return Icons.warning_rounded;
+    }
   }
 }
 

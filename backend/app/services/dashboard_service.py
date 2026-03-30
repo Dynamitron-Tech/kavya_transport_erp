@@ -109,10 +109,46 @@ async def get_dashboard_stats(db: AsyncSession) -> dict:
         )
     )).scalar() or 0
 
+    # Pending jobs (awaiting approval)
+    pending_jobs = (await db.execute(
+        select(func.count(Job.id)).where(
+            Job.is_deleted == False,
+            Job.status.in_([JobStatusEnum.DRAFT, JobStatusEnum.PENDING_APPROVAL]),
+        )
+    )).scalar() or 0
+
+    # Overdue invoices
+    overdue_invoices = (await db.execute(
+        select(func.count(Invoice.id)).where(
+            Invoice.is_deleted == False,
+            Invoice.amount_due > 0,
+            Invoice.status != InvoiceStatus.CANCELLED,
+            Invoice.due_date < today,
+        )
+    )).scalar() or 0
+
+    # Idle vehicles (available for > 0 days, proxy: available status)
+    idle_vehicles = available_vehicles
+
+    # Expiring documents (within 30 days)
+    expiring_cutoff = today + timedelta(days=30)
+    expiring_documents = (await db.execute(
+        select(func.count(Document.id)).where(
+            Document.is_deleted == False,
+            Document.expiry_date.isnot(None),
+            Document.expiry_date <= expiring_cutoff,
+            Document.expiry_date >= today,
+        )
+    )).scalar() or 0
+
     return {
         "active_jobs": active_jobs,
         "active_trips": active_trips,
         "pending_lrs": pending_lrs,
+        "pending_jobs": pending_jobs,
+        "overdue_invoices": overdue_invoices,
+        "idle_vehicles": idle_vehicles,
+        "expiring_documents": expiring_documents,
         "monthly_revenue": float(monthly_revenue),
         "monthly_collections": float(monthly_collections),
         "pending_receivables": float(pending_receivables),

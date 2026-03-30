@@ -1,7 +1,7 @@
 """add document extraction fields
 
 Revision ID: g001_add_document_extraction
-Revises: f001_create_notifications_table
+Revises: f001
 Create Date: 2026-03-24
 
 Adds:
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'g001_add_document_extraction'
-down_revision = 'f001_create_notifications_table'
+down_revision = 'f001'
 branch_labels = None
 depends_on = None
 

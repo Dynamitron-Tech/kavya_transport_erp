@@ -397,15 +397,15 @@ class ApiService {
   }
 
   Future<void> approveExpense(String id) async {
-    await _dio.patch('/expenses/$id/status', data: {'status': 'approved'});
+    await _dio.put('/accountant/expenses/$id/approve');
   }
 
   Future<void> rejectExpense(String id, String reason) async {
-    await _dio.patch('/expenses/$id/status', data: {'status': 'rejected', 'reason': reason});
+    await _dio.put('/accountant/expenses/$id/reject');
   }
 
   Future<void> markExpensePaid(String id) async {
-    await _dio.patch('/expenses/$id/status', data: {'status': 'paid'});
+    await _dio.put('/accountant/expenses/$id/mark-paid');
   }
 
   Future<List<dynamic>> getInvoices() async { // [cite: 34]
@@ -503,7 +503,17 @@ class ApiService {
   }
 
   Future<void> closeTrip(String id) async { // [cite: 34]
-    await _dio.patch('/trips/$id/status', data: {'status': 'completed'});
+    await _dio.put('/trips/$id/close');
+  }
+
+  Future<void> startTrip(int tripId, {double? startOdometer}) async {
+    await _dio.put('/trips/$tripId/start', data: {
+      if (startOdometer != null) 'start_odometer': startOdometer,
+    });
+  }
+
+  Future<void> reachTrip(int tripId) async {
+    await _dio.put('/trips/$tripId/reach');
   }
 
   /// Trigger SOS alert for a trip. Returns response data including emergency contact.
@@ -625,6 +635,20 @@ class ApiService {
   }
 
   Future<void> updateTripStatus(int tripId, String status) async {
-    await _dio.patch('/trips/$tripId/status', data: {'status': status});
+    // Route to dedicated endpoints for statuses that have extra automation
+    switch (status) {
+      case 'started':
+        await _dio.put('/trips/$tripId/start');
+        break;
+      case 'unloading':
+      case 'reached':
+        await _dio.put('/trips/$tripId/reach');
+        break;
+      case 'completed':
+        await _dio.put('/trips/$tripId/close');
+        break;
+      default:
+        await _dio.patch('/trips/$tripId/status', data: {'status': status});
+    }
   }
 }

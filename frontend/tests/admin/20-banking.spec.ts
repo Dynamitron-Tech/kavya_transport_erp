@@ -27,6 +27,8 @@ test.describe('Banking', () => {
       prefix: 'Banking E2E',
     });
 
+    // Re-navigate to banking after create flow to avoid race condition
+    await gotoAndReady(page, '/banking');
     await ensureListHasData(page);
   });
 

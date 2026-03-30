@@ -354,7 +354,7 @@ export const ewayBillService = {
     return unwrap(data);
   },
   generate: async (id: number): Promise<any> => {
-    const data = await api.post(`/eway-bills/${id}/generate`);
+    const data = await api.post('/eway-bills/api/generate', { eway_bill_id: id });
     return data;
   },
   cancel: async (id: number, payload: { reason: string }): Promise<any> => {
@@ -1033,6 +1033,16 @@ export const dashboardService = {
   },
   getPARevenueSnapshot: async (params?: { period?: string }) => {
     const data = await api.get('/dashboard/pa/revenue-snapshot', { params });
+    return data.data ?? data;
+  },
+
+  // Role-specific stats (shared with mobile app)
+  getAdminStats: async () => {
+    const data = await api.get('/admin/dashboard/stats');
+    return data.data ?? data;
+  },
+  getManagerStats: async () => {
+    const data = await api.get('/manager/dashboard/stats');
     return data.data ?? data;
   },
 };
