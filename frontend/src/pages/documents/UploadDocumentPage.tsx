@@ -17,7 +17,7 @@ import {
   ChevronDown, Trash2, Clock,
   File, Image, FileSpreadsheet, FilePlus, Loader2,
   Link2, Tag, X, UploadCloud, RefreshCw, History,
-  UserCheck, MessageSquare, Send
+  MessageSquare, Send
 } from 'lucide-react';
 
 // ── Types ──
@@ -82,7 +82,7 @@ function SectionCard({
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-visible">
       <button
         type="button"
         onClick={() => collapsible && setIsOpen(!isOpen)}
@@ -199,7 +199,28 @@ export default function UploadDocumentPage() {
   const [entitySearch, setEntitySearch] = useState('');
   const [showEntityDropdown, setShowEntityDropdown] = useState(false);
   const [createdDocId, setCreatedDocId] = useState<number | null>(null);
+  const [extractingDoc, setExtractingDoc] = useState(false);
+  const [extractionMessage, setExtractionMessage] = useState('');
+  const [extractedData, setExtractedData] = useState<Record<string, any> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const normalizeDocType = useCallback((docType: string) => {
+    if (docType === 'license') return 'driving_license';
+    return docType;
+  }, []);
+
+  const normalizeDateToISO = useCallback((raw?: string | null) => {
+    if (!raw) return '';
+    const value = String(raw).trim();
+    const ddmmyyyy = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (ddmmyyyy) {
+      const [, dd, mm, yyyy] = ddmmyyyy;
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
+    return '';
+  }, []);
 
   // ── Helper ──
   const updateField = useCallback((field: string, value: any) => {
@@ -228,16 +249,6 @@ export default function UploadDocumentPage() {
     queryKey: ['doc-lookup-entities', form.entity_type, entitySearch],
     queryFn: () => documentService.lookupEntities(form.entity_type, entitySearch),
     enabled: !!form.entity_type && showEntityDropdown,
-  });
-
-  const { data: complianceCategories = [] } = useQuery({
-    queryKey: ['doc-lookup-compliance'],
-    queryFn: () => documentService.lookupComplianceCategories(),
-  });
-
-  const { data: reminderOptions = [] } = useQuery({
-    queryKey: ['doc-lookup-reminders'],
-    queryFn: () => documentService.lookupReminderOptions(),
   });
 
   const { data: _reviewers = [] } = useQuery({
@@ -292,7 +303,7 @@ export default function UploadDocumentPage() {
   }, [form.document_type, form.entity_label]);
 
   // ── File Handling ──
-  const handleFileSelect = useCallback((file: File) => {
+  const handleFileSelect = useCallback(async (file: File) => {
     if (file.size > MAX_FILE_SIZE) {
       setErrors((prev) => ({ ...prev, file: 'File size must be under 10 MB' }));
       return;
@@ -305,6 +316,7 @@ export default function UploadDocumentPage() {
     updateField('file_name', file.name);
     updateField('file_size', file.size);
     updateField('file_type', file.type);
+    setExtractionMessage('');
     setErrors((prev) => { const n = { ...prev }; delete n.file; return n; });
 
     // Image preview
@@ -315,7 +327,43 @@ export default function UploadDocumentPage() {
     } else {
       setFilePreview('');
     }
-  }, [updateField]);
+
+    if (!form.document_type) {
+      setExtractionMessage('Select document type to auto-extract document fields.');
+      return;
+    }
+
+    setExtractingDoc(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('document_type', normalizeDocType(form.document_type));
+      fd.append('entity_type', form.entity_type || 'driver');
+
+      const result = await documentService.extract(fd);
+      const data = (result?.data ?? {}) as Record<string, any>;
+      setExtractedData(data);
+
+      if (data.license_number) updateField('document_number', String(data.license_number));
+
+      const parsedIssueDate = normalizeDateToISO(data.issue_date);
+      if (parsedIssueDate) updateField('issue_date', parsedIssueDate);
+
+      const parsedExpiryDate = normalizeDateToISO(data.expiry_date);
+      if (parsedExpiryDate) updateField('expiry_date', parsedExpiryDate);
+
+      if (result?.extracted === false) {
+        setExtractionMessage(result?.message || 'Extraction unavailable. You can continue with manual entry.');
+      } else {
+        setExtractionMessage('Document fields extracted and auto-filled.');
+      }
+    } catch {
+      setExtractionMessage('Extraction failed. You can continue with manual entry.');
+      setExtractedData(null);
+    } finally {
+      setExtractingDoc(false);
+    }
+  }, [form.document_type, form.entity_type, normalizeDateToISO, normalizeDocType, updateField]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -334,6 +382,8 @@ export default function UploadDocumentPage() {
   const removeFile = useCallback(() => {
     setSelectedFile(null);
     setFilePreview('');
+    setExtractedData(null);
+    setExtractionMessage('');
     updateField('file_name', '');
     updateField('file_size', 0);
     updateField('file_type', '');
@@ -365,6 +415,32 @@ export default function UploadDocumentPage() {
       if (isEdit) {
         return documentService.update(Number(id), payload);
       }
+
+      if (selectedFile) {
+        const fd = new FormData();
+        fd.append('file', selectedFile);
+        fd.append('title', form.title || selectedFile.name);
+        fd.append('document_type', normalizeDocType(form.document_type || 'other'));
+        fd.append('entity_type', form.entity_type || 'driver');
+        if (form.entity_id) fd.append('entity_id', String(form.entity_id));
+        if (form.entity_label) fd.append('entity_label', form.entity_label);
+        if (form.document_number) fd.append('document_number', form.document_number);
+        if (form.issue_date) fd.append('issue_date', form.issue_date);
+        if (form.expiry_date) fd.append('expiry_date', form.expiry_date);
+
+        const mergedExtractedData = {
+          ...(extractedData || {}),
+          ...(form.document_number ? { license_number: form.document_number } : {}),
+          ...(form.issue_date ? { issue_date: form.issue_date.split('-').reverse().join('/') } : {}),
+          ...(form.expiry_date ? { expiry_date: form.expiry_date.split('-').reverse().join('/') } : {}),
+        };
+        if (Object.keys(mergedExtractedData).length > 0) {
+          fd.append('extracted_data', JSON.stringify(mergedExtractedData));
+        }
+
+        return documentService.uploadFile(fd);
+      }
+
       return documentService.create(payload);
     },
     onSuccess: (data: any) => {
@@ -645,13 +721,50 @@ export default function UploadDocumentPage() {
             {errors.file && (
               <p className="mt-2 text-xs text-red-600 flex items-center gap-1"><AlertCircle size={12} /> {errors.file}</p>
             )}
+            {extractingDoc && (
+              <p className="mt-2 text-xs text-primary-700 flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Extracting document data...</p>
+            )}
+            {!!extractionMessage && !extractingDoc && (
+              <p className="mt-2 text-xs text-gray-600 flex items-center gap-1"><AlertCircle size={12} /> {extractionMessage}</p>
+            )}
+
+            {form.document_type === 'license' && (
+              <div className="mt-4 border border-gray-200 rounded-xl p-4 bg-gray-50/40">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-3">Manual Entry (Safety)</p>
+                <p className="text-xs text-gray-500 mb-3">If OCR is incorrect, update these values manually before saving.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <FormField label="License Number">
+                    <TextInput
+                      value={form.document_number}
+                      onChange={(v) => updateField('document_number', v)}
+                      placeholder="Enter license number"
+                    />
+                  </FormField>
+                  <FormField label="Issue Date">
+                    <TextInput
+                      type="date"
+                      value={form.issue_date}
+                      onChange={(v) => updateField('issue_date', v)}
+                    />
+                  </FormField>
+                  <FormField label="Expiry Date" error={errors.expiry_date}>
+                    <TextInput
+                      type="date"
+                      value={form.expiry_date}
+                      onChange={(v) => updateField('expiry_date', v)}
+                      error={!!errors.expiry_date}
+                    />
+                  </FormField>
+                </div>
+              </div>
+            )}
           </SectionCard>
 
           {/* ━━━ Section 3: Compliance & Tracking ━━━ */}
           <SectionCard title="Compliance & Tracking" subtitle="Expiry dates, reminders & renewal" icon={<Shield size={20} />}
             collapsible defaultOpen={true}>
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <FormField label="Issue Date">
                   <TextInput
                     type="date"
@@ -668,25 +781,6 @@ export default function UploadDocumentPage() {
                     onChange={(v) => updateField('expiry_date', v)}
                     prefix={<Calendar size={16} />}
                     error={!!errors.expiry_date}
-                  />
-                </FormField>
-
-                <FormField label="Reminder Before Expiry">
-                  <SelectInput
-                    value={form.reminder_days}
-                    onChange={(v) => updateField('reminder_days', parseInt(v))}
-                    options={reminderOptions.map((r: any) => ({ value: r.value, label: r.label }))}
-                    disabled={!form.expiry_date}
-                  />
-                </FormField>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <FormField label="Compliance Category">
-                  <SelectInput
-                    value={form.compliance_category}
-                    onChange={(v) => updateField('compliance_category', v)}
-                    options={complianceCategories}
                   />
                 </FormField>
               </div>
@@ -730,6 +824,9 @@ export default function UploadDocumentPage() {
                 <SummaryRow label="File" value={currentFileName || 'No file'} truncate />
                 {currentFileSize > 0 && <SummaryRow label="File Size" value={formatFileSize(currentFileSize)} />}
                 <SummaryRow label="Category" value={form.compliance_category === 'mandatory' ? 'Mandatory' : 'Optional'} />
+                {form.issue_date && (
+                  <SummaryRow label="Issued" value={new Date(form.issue_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} />
+                )}
                 {form.expiry_date && (
                   <SummaryRow label="Expires" value={new Date(form.expiry_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} />
                 )}
@@ -759,31 +856,6 @@ export default function UploadDocumentPage() {
                   </div>
                 );
               })()}
-            </div>
-
-            {/* Approval Workflow */}
-            <div className="px-5 py-4 border-t border-gray-100">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <UserCheck size={13} /> Approval Workflow
-              </p>
-              <div className="space-y-3">
-                <FormField label="Status">
-                  <div className="flex gap-2 flex-wrap">
-                    {[
-                      { key: 'draft', label: 'Draft', color: 'bg-gray-100 text-gray-700 border-gray-300' },
-                      { key: 'pending', label: 'Pending', color: 'bg-amber-50 text-amber-700 border-amber-300' },
-                    ].map((s) => (
-                      <button key={s.key} type="button"
-                        onClick={() => updateField('approval_status', s.key)}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
-                          form.approval_status === s.key ? s.color + ' ring-1 ring-offset-1' : 'border-gray-200 text-gray-400 hover:bg-gray-50'
-                        }`}>
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                </FormField>
-              </div>
             </div>
 
             {/* Version History (edit mode) */}

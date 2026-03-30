@@ -88,7 +88,7 @@ export default function DataTable<T extends Record<string, any>>({
   };
 
   return (
-    <div className="card p-0 overflow-hidden">
+    <div className="card p-0 overflow-visible">
       {/* Header toolbar */}
       <div className="px-5 py-3.5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -138,7 +138,7 @@ export default function DataTable<T extends Record<string, any>>({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-visible relative">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-100">

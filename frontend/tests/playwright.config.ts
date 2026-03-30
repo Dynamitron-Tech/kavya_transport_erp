@@ -14,11 +14,16 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3000',
     headless: process.env.PW_HEADED !== '1',
+    channel: 'chrome',
     launchOptions: {
       slowMo: process.env.PW_HEADED === '1' ? 250 : 0,
+      env: {
+        ...process.env,
+        PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS: '1',
+      },
     },
+    video: 'off',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
     trace: 'retain-on-failure',
     viewport: { width: 1440, height: 900 },
   },

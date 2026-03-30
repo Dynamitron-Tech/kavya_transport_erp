@@ -13,6 +13,7 @@ from app.schemas.base import APIResponse, PaginationMeta
 from app.schemas.driver import DriverCreate, DriverUpdate, DriverLicenseCreate
 from app.services import driver_service, trip_service
 from app.models.postgres.driver import Driver, DriverDocument
+from app.models.postgres.document import Document, EntityType
 from app.models.postgres.trip import Trip
 from app.models.postgres.lr import LR
 from app.models.postgres.user import User
@@ -52,6 +53,63 @@ async def _get_current_driver_profile(db: AsyncSession, current_user: TokenData)
         driver.user_id = current_user.user_id
         await db.flush()
     return driver
+
+
+async def _collect_driver_documents(db: AsyncSession, driver_id: int):
+    """Collect driver docs from both driver_documents and central documents tables."""
+    result = await db.execute(
+        select(DriverDocument).where(DriverDocument.driver_id == driver_id)
+    )
+    docs = result.scalars().all()
+
+    central_docs_result = await db.execute(
+        select(Document).where(
+            Document.entity_type == EntityType.DRIVER,
+            Document.entity_id == driver_id,
+            Document.is_deleted == False,
+        )
+    )
+    central_docs = central_docs_result.scalars().all()
+
+    items = []
+    for dd in docs:
+        items.append({
+            "id": dd.id,
+            "document_type": dd.document_type,
+            "document_number": dd.document_number,
+            "file_name": None,
+            "file_url": dd.file_url,
+            "is_verified": dd.is_verified,
+            "remarks": dd.remarks,
+            "uploaded_at": dd.created_at.isoformat() if dd.created_at else None,
+            "updated_at": dd.updated_at.isoformat() if dd.updated_at else None,
+        })
+
+    for cd in central_docs:
+        doc_type = cd.document_type.value.lower() if hasattr(cd.document_type, "value") else str(cd.document_type).lower()
+        approval = cd.approval_status.value if hasattr(cd.approval_status, "value") else str(cd.approval_status)
+        items.append({
+            "id": cd.id,
+            "document_type": doc_type,
+            "document_number": cd.document_number,
+            "file_name": cd.file_name,
+            "file_url": cd.file_url,
+            "is_verified": approval == "APPROVED",
+            "remarks": cd.notes,
+            "uploaded_at": cd.created_at.isoformat() if cd.created_at else None,
+            "updated_at": cd.updated_at.isoformat() if cd.updated_at else None,
+        })
+
+    deduped = []
+    seen_urls = set()
+    for item in sorted(items, key=lambda x: x.get("uploaded_at") or "", reverse=True):
+        key = item.get("file_url") or f"id:{item.get('id')}"
+        if key in seen_urls:
+            continue
+        seen_urls.add(key)
+        deduped.append(item)
+
+    return deduped
 
 
 @router.get("/dashboard", response_model=APIResponse)
@@ -360,29 +418,10 @@ async def get_my_documents(
     current_user: TokenData = Depends(get_current_user),
 ):
     """Get the current driver's own documents."""
-    driver = await db.execute(
-        select(Driver).where(Driver.user_id == current_user.user_id)
-    )
-    driver = driver.scalar_one_or_none()
+    driver = await _get_current_driver_profile(db, current_user)
     if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
-
-    result = await db.execute(
-        select(DriverDocument).where(DriverDocument.driver_id == driver.id)
-    )
-    docs = result.scalars().all()
-    items = []
-    for dd in docs:
-        items.append({
-            "id": dd.id,
-            "document_type": dd.document_type,
-            "document_number": dd.document_number,
-            "file_url": dd.file_url,
-            "is_verified": dd.is_verified,
-            "remarks": dd.remarks,
-            "uploaded_at": dd.created_at.isoformat() if dd.created_at else None,
-            "updated_at": dd.updated_at.isoformat() if dd.updated_at else None,
-        })
+    items = await _collect_driver_documents(db, driver.id)
     return APIResponse(success=True, data={"items": items})
 
 
@@ -750,23 +789,19 @@ async def get_driver_documents(
             "verified": True,
         })
 
-    # Include DriverDocument records
-    result = await db.execute(
-        select(DriverDocument).where(DriverDocument.driver_id == driver_id)
-    )
-    driver_docs = result.scalars().all()
-    for dd in driver_docs:
+    extra_docs = await _collect_driver_documents(db, driver_id)
+    for dd in extra_docs:
         docs.append({
-            "id": dd.id,
-            "doc_type": dd.document_type,
-            "doc_name": dd.document_type.replace('_', ' ').title(),
-            "doc_number": dd.document_number,
-            "file_url": dd.file_url,
-            "status": "verified" if dd.is_verified else "pending",
-            "verified": dd.is_verified,
-            "uploaded_at": dd.created_at.isoformat() if dd.created_at else None,
-            "updated_at": dd.updated_at.isoformat() if dd.updated_at else None,
-            "remarks": dd.remarks,
+            "id": dd.get("id"),
+            "doc_type": dd.get("document_type"),
+            "doc_name": dd.get("file_name") or str(dd.get("document_type") or "Document").replace('_', ' ').title(),
+            "doc_number": dd.get("document_number"),
+            "file_url": dd.get("file_url"),
+            "status": "verified" if dd.get("is_verified") else "pending",
+            "verified": bool(dd.get("is_verified")),
+            "uploaded_at": dd.get("uploaded_at"),
+            "updated_at": dd.get("updated_at"),
+            "remarks": dd.get("remarks"),
         })
 
     compliance = {
@@ -923,19 +958,3 @@ async def get_driver_attendance(
     }
 
     return APIResponse(success=True, data={"items": items, "summary": summary})
-
-
-# RUL-05: Driver attendance streak badge
-@router.get("/{driver_id}/streak", response_model=APIResponse)
-async def get_driver_streak(
-    driver_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user),
-):
-    """
-    RUL-05: Returns the driver's current consecutive non-absent attendance streak
-    and their earned badge (bronze / silver / gold).
-    """
-    from app.services.tms_automation_service import rul_05_attendance_streak
-    result = await rul_05_attendance_streak(db, driver_id)
-    return APIResponse(success=True, data=result)

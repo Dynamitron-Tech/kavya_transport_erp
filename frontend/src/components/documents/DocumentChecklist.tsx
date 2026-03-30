@@ -26,6 +26,12 @@ interface DocRequirement {
   description?: string;
 }
 
+type RequirementItem = string | {
+  type?: string;
+  label?: string;
+  description?: string;
+};
+
 interface Props {
   entityType: string;
   entityId?: number;
@@ -98,6 +104,7 @@ interface CardProps {
   req: DocRequirement;
   status: DocStatus | 'missing';
   expiryDate?: string;
+  documentNumber?: string;
   entityId?: number;
   entityType: string;
   onExtracted?: (result: ExtractionResult) => void;
@@ -105,7 +112,7 @@ interface CardProps {
 }
 
 function DocumentCard({
-  req, status, expiryDate, entityId, entityType, onExtracted, onUploaded,
+  req, status, expiryDate, documentNumber, entityId, entityType, onExtracted, onUploaded,
 }: CardProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const cfg = STATUS_CONFIG[status];
@@ -141,6 +148,12 @@ function DocumentCard({
 
           {req.description && (
             <p className="text-xs text-gray-400 mt-1">{req.description}</p>
+          )}
+
+          {status !== 'missing' && documentNumber && (
+            <p className="text-xs text-gray-500 mt-1">
+              {req.type === 'driving_license' ? 'License No:' : 'Document No:'} <span className="font-medium text-gray-700">{documentNumber}</span>
+            </p>
           )}
         </div>
 
@@ -186,6 +199,12 @@ export function DocumentChecklist({ entityType, entityId, onExtracted, onAllRequ
   const queryClient = useQueryClient();
   const [optionalExpanded, setOptionalExpanded] = useState(false);
 
+  const normalizeDocType = (value: string): string => {
+    const normalized = value.toLowerCase().trim();
+    if (normalized === 'license') return 'driving_license';
+    return normalized;
+  };
+
   // Fetch requirements for this entity type
   const { data: requirements } = useQuery({
     queryKey: ['doc-requirements', entityType],
@@ -211,47 +230,64 @@ export function DocumentChecklist({ entityType, entityId, onExtracted, onAllRequ
     );
   }
 
-  const required: string[] = requirements.required ?? [];
-  const optional: string[] = requirements.optional ?? [];
+  const required: RequirementItem[] = requirements.required ?? [];
+  const optional: RequirementItem[] = requirements.optional ?? [];
 
   // Build a lookup: docType → latest uploaded document
   const docMap: Record<string, any> = {};
   if (existingDocs) {
     for (const doc of existingDocs) {
-      const dtype = (doc.document_type ?? '').toLowerCase();
+      const dtype = normalizeDocType(doc.document_type ?? '');
       if (!docMap[dtype] || new Date(doc.created_at) > new Date(docMap[dtype].created_at)) {
         docMap[dtype] = doc;
       }
     }
   }
 
-  const makeReq = (type: string, isRequired: boolean): DocRequirement => ({
-    type,
-    label: DOC_TYPE_LABELS[type] ?? type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-    required: isRequired,
-  });
+  const makeReq = (item: RequirementItem, isRequired: boolean): DocRequirement => {
+    const rawType = typeof item === 'string' ? item : (item.type ?? '');
+    const type = normalizeDocType(rawType);
+    const label = typeof item === 'object' && item.label
+      ? item.label
+      : (DOC_TYPE_LABELS[type] ?? type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
+    const description = typeof item === 'object' ? item.description : undefined;
 
-  const getStatus = (type: string): { status: DocStatus | 'missing'; expiryDate?: string } => {
-    const doc = docMap[type];
+    return {
+      type,
+      label,
+      required: isRequired,
+      description,
+    };
+  };
+
+  const getStatus = (type: string): { status: DocStatus | 'missing'; expiryDate?: string; documentNumber?: string } => {
+    const doc = docMap[normalizeDocType(type)];
     if (!doc) return { status: 'missing' };
     const status = getDocStatus(doc.expiry_date);
-    return { status, expiryDate: doc.expiry_date };
+    return { status, expiryDate: doc.expiry_date, documentNumber: doc.document_number };
   };
 
   const handleUploaded = () => {
     if (entityId != null) {
       queryClient.invalidateQueries({ queryKey: ['entity-docs', entityType, entityId] });
+      queryClient.invalidateQueries({ queryKey: [entityType, entityId] });
+      if (entityType === 'vehicle') queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      if (entityType === 'driver') queryClient.invalidateQueries({ queryKey: ['drivers'] });
     }
     // Check if all required docs now uploaded
-    const allDone = required.every(type => {
+    const allDone = requiredItems.every(req => {
       const newDocMap = { ...docMap };
-      return newDocMap[type] != null;
+      return newDocMap[req.type] != null;
     });
     if (allDone && onAllRequiredUploaded) onAllRequiredUploaded();
   };
 
-  const requiredItems = required.map(t => makeReq(t, true));
-  const optionalItems = optional.map(t => makeReq(t, false));
+  const requiredItems = required
+    .map(item => makeReq(item, true))
+    .filter(req => req.type.length > 0);
+  const optionalItems = optional
+    .map(item => makeReq(item, false))
+    .filter(req => req.type.length > 0);
 
   return (
     <div className="space-y-6">
@@ -263,13 +299,14 @@ export function DocumentChecklist({ entityType, entityId, onExtracted, onAllRequ
           </h4>
           <div className="space-y-2">
             {requiredItems.map(req => {
-              const { status, expiryDate } = getStatus(req.type);
+              const { status, expiryDate, documentNumber } = getStatus(req.type);
               return (
                 <DocumentCard
                   key={req.type}
                   req={req}
                   status={status}
                   expiryDate={expiryDate}
+                  documentNumber={documentNumber}
                   entityId={entityId}
                   entityType={entityType}
                   onExtracted={result => onExtracted && onExtracted(req, result)}
@@ -296,13 +333,14 @@ export function DocumentChecklist({ entityType, entityId, onExtracted, onAllRequ
           {optionalExpanded && (
             <div className="space-y-2 mt-3">
               {optionalItems.map(req => {
-                const { status, expiryDate } = getStatus(req.type);
+                const { status, expiryDate, documentNumber } = getStatus(req.type);
                 return (
                   <DocumentCard
                     key={req.type}
                     req={req}
                     status={status}
                     expiryDate={expiryDate}
+                    documentNumber={documentNumber}
                     entityId={entityId}
                     entityType={entityType}
                     onExtracted={result => onExtracted && onExtracted(req, result)}

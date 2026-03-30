@@ -1,7 +1,7 @@
 """add document extraction fields
 
 Revision ID: g001_add_document_extraction
-Revises: f001_create_notifications_table
+Revises: f001
 Create Date: 2026-03-24
 
 Adds:

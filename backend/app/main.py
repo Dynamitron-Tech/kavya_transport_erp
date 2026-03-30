@@ -63,13 +63,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"System config seeding skipped: {e}")
 
-    # Start TMS automation scheduler (APScheduler)
+    # Start TMS Automation Scheduler (APScheduler cron jobs)
     try:
         from app.schedulers.tms_scheduler import start_tms_scheduler
         start_tms_scheduler()
-        logger.info("TMS automation scheduler started")
+        logger.info("TMS Automation Scheduler started")
     except Exception as e:
-        logger.warning(f"TMS scheduler start failed (non-fatal): {e}")
+        logger.warning(f"TMS Scheduler start failed: {e}")
     
     yield
     

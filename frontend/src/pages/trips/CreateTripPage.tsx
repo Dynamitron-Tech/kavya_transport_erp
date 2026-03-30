@@ -812,12 +812,21 @@ export default function CreateTripPage() {
                             </span>
                             <span className="text-xs text-gray-400 flex items-center gap-0.5"><Star size={10} className="text-yellow-500" /> {d.rating}</span>
                           </div>
-                          <p className="text-xs text-gray-500">{d.employee_id} • {d.total_trips} trips • {d.city} • License: {d.license_expiry}</p>
+                          <p className="text-xs text-gray-500">{d.employee_id} • {d.total_trips} trips • {d.city} • DL: {d.license_number || '—'} • Exp: {d.license_expiry || '—'}</p>
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
+              </FormField>
+
+              <FormField label="License Number (Auto-filled)">
+                <TextInput
+                  value={selectedDriver?.license_number || '—'}
+                  onChange={() => {}}
+                  disabled
+                  prefix={<Shield size={15} />}
+                />
               </FormField>
 
               {/* Co-Driver */}
