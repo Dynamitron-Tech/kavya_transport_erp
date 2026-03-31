@@ -5,6 +5,9 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../providers/fleet_dashboard_provider.dart';
 import '../../core/localization/locale_provider.dart';
+import '../../services/ocr_service.dart';
+import '../../widgets/document_scanner_widget.dart';
+import '../../widgets/ocr_result_bottom_sheet.dart';
 
 class DriverDocumentsScreen extends ConsumerStatefulWidget {
   const DriverDocumentsScreen({super.key});
@@ -579,6 +582,52 @@ class _UploadSheet extends StatefulWidget {
 class _UploadSheetState extends State<_UploadSheet> {
   final ImagePicker _picker = ImagePicker();
   File? _selectedFile;
+  bool _isScanning = false;
+
+  // ─── OCR-powered scan flow ────────────────────────────────────────────────
+
+  Future<void> _openScanner() async {
+    // Push full-screen scanner
+    final ocrResult = await Navigator.of(context).push<OcrResult>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const DocumentScannerWidget(),
+      ),
+    );
+    if (ocrResult == null || !mounted) return;
+
+    // Store captured image if available (scanner sets capturedFile via result)
+    // We re-use the same OcrResult that already contains the recognised text.
+    // Show OCR results in bottom sheet
+    final accepted = await OcrResultBottomSheet.show(context, ocrResult);
+    if (accepted == null || !mounted) return;
+
+    // Auto-fill document number from the primary key for this doc type
+    const primaryKeys = [
+      'dl_number', 'registration_number', 'policy_number',
+      'fitness_number', 'pucc_number', 'reference_number',
+    ];
+    for (final k in primaryKeys) {
+      if (accepted.containsKey(k) && accepted[k]!.isNotEmpty) {
+        widget.numberController.text = accepted[k]!;
+        break;
+      }
+    }
+
+    // If scanner returned a file path we can use it — otherwise prompt gallery
+    // (DocumentScannerWidget stores the captured image in temp directory)
+    // We signal via snackbar that the user should confirm the file below.
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Fields applied. Please confirm the document file below.'),
+          backgroundColor: KTColors.success,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -605,7 +654,59 @@ class _UploadSheetState extends State<_UploadSheet> {
             widget.isUpdate ? 'Update ${widget.meta.label}' : 'Upload ${widget.meta.label}',
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: KTColors.textHeading),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+          // ── Scan banner ──────────────────────────────────────────────────
+          Material(
+            color: KTColors.driverAccentBg,
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: _isScanning ? null : _openScanner,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: KTColors.driverAccent.withAlpha(30),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.document_scanner_outlined,
+                        color: KTColors.driverAccent,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Scan & Auto-fill',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: KTColors.driverAccent,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Use camera to read document details',
+                            style: TextStyle(fontSize: 12, color: KTColors.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right, color: KTColors.driverAccent, size: 20),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           // Document number
           TextField(
             controller: widget.numberController,

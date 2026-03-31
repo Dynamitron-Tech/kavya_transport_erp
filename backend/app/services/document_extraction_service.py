@@ -1723,22 +1723,15 @@ class DocumentExtractionService:
         lines = [ln.strip() for ln in cleaned.split("\n") if ln.strip()]
 
         label_pattern = re.compile(
-            r"(?:LICENSE\s*(?:NO|NUMBER|#)?|LICENCE\s*(?:NO|NUMBER|#)?|DL\s*(?:NO|NUMBER|#)?|DRIVING\s+LICEN[CS]E\s*(?:NO|NUMBER)?)\s*[:\-]?\s*([A-Z0-9\-/]{6,25})",
+            r"(?:LICENSE\s*(?:NO|NUMBER|#)?|LICENCE\s*(?:NO|NUMBER|#)?|DL\s*(?:NO|NUMBER|#)?|DRIVING\s+LICEN[CS]E\s*(?:NO|NUMBER)?)\s*[:\-]?\s*([A-Z0-9\-/\s]{6,32})",
             re.IGNORECASE,
         )
         label_match = label_pattern.search(cleaned)
-        labeled_license = label_match.group(1).strip() if label_match else None
+        labeled_license = self._normalize_license_token(label_match.group(1)) if label_match else None
+        if labeled_license and not self._is_probable_driving_license_number(labeled_license):
+            labeled_license = None
 
-        top_candidate = None
-        token_pattern = re.compile(r"\b[A-Z0-9\-/]{6,25}\b")
-        for ln in lines[:6]:
-            for tok in token_pattern.findall(ln.upper()):
-                if re.search(r"[A-Z]", tok) and re.search(r"\d", tok):
-                    if tok not in {"GOVERNMENT", "INDIA", "DRIVING", "LICENCE", "LICENSE"}:
-                        top_candidate = tok
-                        break
-            if top_candidate:
-                break
+        top_candidate = self._extract_driving_license_number_from_lines(lines)
 
         license_number = labeled_license or top_candidate
 
@@ -1795,6 +1788,71 @@ class DocumentExtractionService:
             "issue_date": issue_date,
             "expiry_date": expiry_date,
         }
+
+    def _normalize_license_token(self, value: str | None) -> str | None:
+        if not value:
+            return None
+        compact = re.sub(r"[^A-Z0-9]", "", value.upper())
+        return compact or None
+
+    def _is_probable_driving_license_number(self, value: str | None) -> bool:
+        compact = self._normalize_license_token(value)
+        if not compact:
+            return False
+        if len(compact) < 10 or len(compact) > 18:
+            return False
+        if not re.match(r"^[A-Z]{2}\d", compact):
+            return False
+        if not re.search(r"\d{4}", compact):
+            return False
+        if compact in {"GOVERNMENT", "INDIA", "DRIVING", "LICENCE", "LICENSE"}:
+            return False
+        return True
+
+    def _extract_driving_license_number_from_lines(self, lines: list[str]) -> str | None:
+        line_pattern = re.compile(
+            r"\b([A-Z]{2}\s*[-/]?\s*\d{1,2}\s*[-/]?\s*\d{4}\s*[-/]?\s*\d{5,8})\b",
+            re.IGNORECASE,
+        )
+
+        for ln in lines[:12]:
+            line_upper = ln.upper()
+
+            # Direct match for common Indian DL pattern.
+            for match in line_pattern.findall(line_upper):
+                normalized = self._normalize_license_token(match)
+                if self._is_probable_driving_license_number(normalized):
+                    return normalized
+
+            # OCR often splits DL as: "TN72 20240005499" or "TN72 2024 0005499".
+            tokens = re.findall(r"[A-Z0-9]{2,}", line_upper)
+            for i, token in enumerate(tokens):
+                if not re.fullmatch(r"[A-Z]{2}\d{1,2}", token):
+                    continue
+
+                if i + 1 < len(tokens) and re.fullmatch(r"\d{9,12}", tokens[i + 1]):
+                    candidate = self._normalize_license_token(token + tokens[i + 1])
+                    if self._is_probable_driving_license_number(candidate):
+                        return candidate
+
+                if (
+                    i + 2 < len(tokens)
+                    and re.fullmatch(r"\d{4}", tokens[i + 1])
+                    and re.fullmatch(r"\d{5,8}", tokens[i + 2])
+                ):
+                    candidate = self._normalize_license_token(token + tokens[i + 1] + tokens[i + 2])
+                    if self._is_probable_driving_license_number(candidate):
+                        return candidate
+
+        # Last fallback: generic alphanumeric token scan in upper section.
+        generic_pattern = re.compile(r"\b[A-Z0-9\-/]{8,25}\b")
+        for ln in lines[:12]:
+            for token in generic_pattern.findall(ln.upper()):
+                normalized = self._normalize_license_token(token)
+                if self._is_probable_driving_license_number(normalized):
+                    return normalized
+
+        return None
 
     def _extract_labeled_date(self, text: str, label_regex: str) -> str | None:
         pattern = re.compile(label_regex + r"\s*[:\-]?\s*([0-9A-Za-z\-/\. ]{6,20})", re.IGNORECASE)

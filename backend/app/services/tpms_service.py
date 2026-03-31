@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.postgres.vehicle import (
-    Vehicle, VehicleTyre, TyreSensorReading, VehicleMaintenance,
+    Vehicle, VehicleTyre, TyreSensorReading, VehicleMaintenance, VehicleStatus,
 )
 
 # Thresholds
@@ -377,7 +377,6 @@ async def get_fleet_maintenance_predictions(db: AsyncSession, tenant_id: int | N
     result = await db.execute(query)
     vehicles = result.scalars().all()
 
-    from app.models.postgres.vehicle import VehicleStatus
 
     upcoming = []
     for v in vehicles:

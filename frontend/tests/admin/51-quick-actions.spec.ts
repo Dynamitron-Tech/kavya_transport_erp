@@ -7,78 +7,41 @@ test.describe('Quick Actions', () => {
   });
 
   test('Create LR opens LR form', async ({ page }) => {
-    const btn = page.getByRole('button', { name: /create lr/i });
-    const link = page.getByRole('link', { name: /create lr/i });
-    if (await btn.count()) {
-      await btn.click();
-    } else if (await link.count()) {
-      await link.click();
-    } else {
-      test.skip(true, 'Create LR quick action not available on dashboard');
-      return;
-    }
+    await page.getByRole('button', { name: /create lr/i }).click();
     await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(/\/lr/);
+    await expect(page).not.toHaveURL(/operations/);
+    await expect(page).not.toHaveURL(/create-job|jobs\/create/);
+    await expect(page).toHaveURL(/\/lr(\/new)?/);
+    await expect(page.getByRole('heading', { name: /lorry receipt|create lr|lr/i }).first()).toBeVisible({ timeout: 8000 });
   });
 
   test('Generate E-way Bill opens LR eway workflow', async ({ page }) => {
-    const btn = page.getByRole('button', { name: /generate e-way bill|e-way/i });
-    const link = page.getByRole('link', { name: /generate e-way bill|e-way/i });
-    if (await btn.count()) {
-      await btn.click();
-    } else if (await link.count()) {
-      await link.click();
-    } else {
-      test.skip(true, 'E-way Bill quick action not available on dashboard');
-      return;
-    }
+    await page.getByRole('button', { name: /generate e-way bill/i }).click();
     await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(/\/lr|\/eway/);
+    await expect(page).toHaveURL(/\/lr\/eway-bill/);
+    await expect(page.getByRole('heading', { name: /e-way bill|eway/i }).first()).toBeVisible({ timeout: 8000 });
   });
 
   test('Create Trip opens trip flow', async ({ page }) => {
-    const btn = page.getByRole('button', { name: /create trip/i });
-    const link = page.getByRole('link', { name: /create trip/i });
-    if (await btn.count()) {
-      await btn.click();
-    } else if (await link.count()) {
-      await link.click();
-    } else {
-      test.skip(true, 'Create Trip quick action not available on dashboard');
-      return;
-    }
+    await page.getByRole('button', { name: /create trip/i }).click();
     await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(/\/trips/);
+    await expect(page).not.toHaveURL(/create-job|jobs\/create/);
+    await expect(page).toHaveURL(/\/trips(\/new)?/);
+    await expect(page.getByRole('heading', { name: /create trip|trip/i }).first()).toBeVisible({ timeout: 8000 });
   });
 
   test('Upload Document opens upload workflow', async ({ page }) => {
-    const btn = page.getByRole('button', { name: /upload document/i });
-    const link = page.getByRole('link', { name: /upload document/i });
-    if (await btn.count()) {
-      await btn.click();
-    } else if (await link.count()) {
-      await link.click();
-    } else {
-      test.skip(true, 'Upload Document quick action not available on dashboard');
-      return;
-    }
+    await page.getByRole('button', { name: /upload document/i }).click();
     await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(/\/documents|\/jobs/);
+    await expect(page).not.toHaveURL(/eway-bill|ewb/);
+    await expect(page).toHaveURL(/\/documents\/(upload|new-upload)/);
+    await expect(page.getByRole('heading', { name: /upload|document/i }).first()).toBeVisible({ timeout: 8000 });
   });
 
   test('Banking Entry opens finance payment flow', async ({ page }) => {
-    const main = page.locator('main, [role="main"], .main-content').first();
-    const btn = main.getByRole('button', { name: /banking entry|banking/i });
-    const link = main.getByRole('link', { name: /banking entry|banking/i });
-    if (await btn.count()) {
-      await btn.click();
-    } else if (await link.count()) {
-      await link.click();
-    } else {
-      test.skip(true, 'Banking Entry quick action not available on dashboard');
-      return;
-    }
+    await page.getByRole('button', { name: /banking entry/i }).click();
     await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(/\/finance|\/banking|\/accountant/);
+    await expect(page).toHaveURL(/\/finance\/(payments|banking\/new)|\/banking/);
+    await expect(page.getByRole('heading', { name: /banking/i }).first()).toBeVisible({ timeout: 8000 });
   });
 });
