@@ -31,3 +31,24 @@ backend/migrations/versions/
 
 # Build outputs
 frontend/dist/
+frontend/test-results/
+
+# Playwright artifacts
+frontend/test-results/
+frontend/playwright-report/
+frontend/.playwright/
+**/test-results/
+**/playwright-report/
+
+# Gradle
+.gradle/
+build/
+gradle-cache/
+
+# General generated
+*.webm
+*.zip
+**/test-results/**/*.png
+
+# Uploaded user files (binaries, not source code)
+backend/uploads/documents/

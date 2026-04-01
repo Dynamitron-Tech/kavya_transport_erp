@@ -48,10 +48,6 @@ async def create_lr(
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.LR_CREATE)),
 ):
-    # RUL-02: Duplicate LR number guard — explicit 409 before INSERT
-    from app.services.tms_automation_service import rul_02_check_duplicate_lr
-    await rul_02_check_duplicate_lr(db, data.lr_number)
-
     lr = await lr_service.create_lr(db, data.model_dump(), current_user.user_id)
     freight_fmt = f"₹{float(lr.freight_amount or 0):,.0f}"
     await notification_service.send(
@@ -107,20 +103,36 @@ async def delete_lr(
 
 @router.post("/{lr_id}/status", response_model=APIResponse)
 async def change_lr_status(
-    lr_id: int, data: LRStatusChange, db: AsyncSession = Depends(get_db),
+    lr_id: int, data: LRStatusChange, background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.LR_UPDATE)),
 ):
     lr, error = await lr_service.change_lr_status(db, lr_id, data.status, current_user.user_id, data.remarks, data.received_by)
     if error:
         raise HTTPException(status_code=400, detail=error)
+
+    # EVT-02 / EVT-06: On POD received — auto-invoice & auto-close trip
+    if data.status in ("pod_received", "pod_verified") and lr and lr.trip_id:
+        try:
+            from app.services.tms_automation_service import evt_02_invoice_on_pod, evt_06_trip_closure_on_pod
+            from app.db.postgres.connection import AsyncSessionLocal
+
+            async def _run_pod_hooks():
+                async with AsyncSessionLocal() as _db:
+                    await evt_02_invoice_on_pod(_db, lr.trip_id, current_user.user_id)
+                    await evt_06_trip_closure_on_pod(_db, lr.trip_id, current_user.user_id)
+
+            background_tasks.add_task(_run_pod_hooks)
+        except Exception:
+            pass
+
     return APIResponse(success=True, message=f"LR status changed to {data.status}")
 
 
 @router.post("/{lr_id}/generate", response_model=APIResponse)
 async def generate_lr(
-    lr_id: int,
-    background_tasks: BackgroundTasks,
+    lr_id: int, background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.LR_UPDATE)),
@@ -129,9 +141,20 @@ async def generate_lr(
     lr, error = await lr_service.change_lr_status(db, lr_id, "generated", current_user.user_id, "LR generated")
     if error:
         raise HTTPException(status_code=400, detail=error)
-    # EVT-01: auto-draft EWB in background (fire-and-forget)
-    from app.services.tms_automation_service import evt_01_draft_ewb
-    background_tasks.add_task(evt_01_draft_ewb, db, lr_id)
+
+    # EVT-01: Auto-draft e-way bill (fire-and-forget)
+    try:
+        from app.services.tms_automation_service import evt_01_draft_ewb
+        from app.db.postgres.connection import AsyncSessionLocal
+
+        async def _run_evt01():
+            async with AsyncSessionLocal() as _db:
+                await evt_01_draft_ewb(_db, lr_id)
+
+        background_tasks.add_task(_run_evt01)
+    except Exception:
+        pass
+
     data = await lr_service.get_lr_with_details(db, lr)
     return APIResponse(success=True, data=data, message="LR generated successfully")
 
@@ -168,41 +191,3 @@ async def download_lr_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
-
-
-@router.post("/{lr_id}/pod/verify", response_model=APIResponse)
-async def verify_lr_pod(
-    lr_id: int,
-    background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user),
-    _perm=Depends(require_permission(Permissions.LR_UPDATE)),
-):
-    """
-    Mark an LR as POD verified (pod_verified=True, status=POD_RECEIVED).
-
-    EVT-02: If all LRs on the trip now have POD, auto-generate invoice (background).
-    EVT-06: If all LRs on the trip now have POD, move trip → CLOSURE_PENDING (background).
-    """
-    from app.models.postgres.lr import LR
-    from datetime import datetime
-
-    lr = await db.get(LR, lr_id)
-    if not lr:
-        raise HTTPException(status_code=404, detail="LR not found")
-    if lr.pod_verified:
-        return APIResponse(success=True, message="LR POD already verified")
-
-    lr.pod_verified = True
-    lr.pod_verified_by = current_user.user_id
-    lr.pod_upload_date = datetime.utcnow()
-    lr.status = "POD_RECEIVED"
-    await db.commit()
-
-    # EVT-02 + EVT-06 triggered in background (fire-and-forget)
-    if lr.trip_id:
-        from app.services.tms_automation_service import evt_02_invoice_on_pod, evt_06_trip_closure_on_pod
-        background_tasks.add_task(evt_02_invoice_on_pod, db, lr.trip_id, current_user.user_id)
-        background_tasks.add_task(evt_06_trip_closure_on_pod, db, lr.trip_id, current_user.user_id)
-
-    return APIResponse(success=True, data={"lr_id": lr_id}, message="LR POD verified")

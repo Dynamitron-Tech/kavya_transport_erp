@@ -436,7 +436,7 @@ class AdminEmployeeDetailScreen extends ConsumerWidget {
                       Navigator.pop(ctx);
                       final api = ref.read(apiServiceProvider);
                       try {
-                        await api.put('/users/$userId', data: {'role': selected});
+                        await api.put('/users/$userId', data: {'role_names': [selected]});
                         ref.invalidate(_employeeDetailProvider(userId));
                         ref.invalidate(adminEmployeesProvider);
                         if (context.mounted) {

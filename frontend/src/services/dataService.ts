@@ -145,6 +145,10 @@ export const driverService = {
     const data = await api.get(`/drivers/me/trips/${tripId}`);
     return unwrap(data);
   },
+  getMyDocuments: async () => {
+    const data = await api.get('/drivers/me/documents');
+    return unwrap(data);
+  },
   completeMyTrip: async (tripId: number, payload?: { end_odometer?: number; remarks?: string }) => {
     const data = await api.put(`/drivers/me/trips/${tripId}/complete`, payload ?? {});
     return data;
@@ -350,7 +354,7 @@ export const ewayBillService = {
     return unwrap(data);
   },
   generate: async (id: number): Promise<any> => {
-    const data = await api.post(`/eway-bills/${id}/generate`);
+    const data = await api.post('/eway-bills/api/generate', { eway_bill_id: id });
     return data;
   },
   cancel: async (id: number, payload: { reason: string }): Promise<any> => {
@@ -572,7 +576,20 @@ export const tripService = {
   },
   getDrivers: async (search?: string) => {
     const data = await api.get('/trips/lookup/drivers', { params: { search } });
-    return data;
+    const items = unwrap<any[]>(data) ?? [];
+    return items.map((d: any) => ({
+      ...d,
+      full_name: d.full_name || d.name || [d.first_name, d.last_name].filter(Boolean).join(' ').trim() || `Driver #${d.id}`,
+      employee_id: d.employee_id || d.employee_code || `DRV${String(d.id).padStart(5, '0')}`,
+      status: String(d.status || 'available').toLowerCase(),
+      rating: Number(d.rating ?? 0),
+      total_trips: Number(d.total_trips ?? 0),
+      total_km: Number(d.total_km ?? 0),
+      city: d.city || '',
+      license_number: d.license_number || '',
+      license_expiry: d.license_expiry || null,
+      license_type: d.license_type || '',
+    }));
   },
   getLRs: async (jobId?: number, search?: string) => {
     const data = await api.get('/trips/lookup/lrs', { params: { job_id: jobId, search } });
@@ -1018,6 +1035,16 @@ export const dashboardService = {
     const data = await api.get('/dashboard/pa/revenue-snapshot', { params });
     return data.data ?? data;
   },
+
+  // Role-specific stats (shared with mobile app)
+  getAdminStats: async () => {
+    const data = await api.get('/admin/dashboard/stats');
+    return data.data ?? data;
+  },
+  getManagerStats: async () => {
+    const data = await api.get('/manager/dashboard/stats');
+    return data.data ?? data;
+  },
 };
 
 // ---- Documents ----
@@ -1089,7 +1116,12 @@ export const documentService = {
   },
   lookupEntities: async (entityType: string, search?: string) => {
     const data = await api.get('/documents/lookup/entities', { params: { entity_type: entityType, search } });
-    return data.items;
+    const items = unwrap<{ items?: Array<{ id: number; name?: string; label?: string; type?: string }> }>(data).items ?? [];
+    return items.map((item) => ({
+      id: item.id,
+      label: item.label ?? item.name ?? '',
+      type: item.type ?? entityType,
+    }));
   },
   lookupComplianceCategories: async () => {
     const data = await api.get('/documents/lookup/compliance-categories');
@@ -1123,8 +1155,21 @@ export const documentService = {
     return unwrap(data);
   },
   listForEntity: async (entityId: number, entityType: string): Promise<Document[]> => {
+    if ((entityType || '').toLowerCase() === 'driver') {
+      const data = await api.get(`/drivers/${entityId}/documents`);
+      const payload = unwrap<any>(data);
+      const items = payload?.items ?? payload ?? [];
+      return (items as any[]).map((item) => ({
+        ...item,
+        document_type: (item.document_type ?? item.doc_type ?? '').toLowerCase(),
+        created_at: item.created_at ?? item.uploaded_at ?? null,
+        expiry_date: item.expiry_date ?? null,
+      })) as Document[];
+    }
+
     const data = await api.get('/documents', { params: { entity_id: entityId, entity_type: entityType } });
-    return (data as any)?.items ?? [];
+    const items = unwrap<any>(data);
+    return (Array.isArray(items) ? items : []) as Document[];
   },
   uploadFile: async (formData: FormData): Promise<Document> => {
     const data = await api.post('/documents/upload', formData, {

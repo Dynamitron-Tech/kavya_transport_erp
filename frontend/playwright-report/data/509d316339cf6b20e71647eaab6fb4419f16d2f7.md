@@ -1,0 +1,793 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e13]:
+          - heading "TransportERP" [level=1] [ref=e14]
+          - paragraph [ref=e15]: Fleet Management
+      - navigation [ref=e16]:
+        - generic [ref=e17]:
+          - heading "Overview" [level=3] [ref=e18]
+          - list [ref=e19]:
+            - listitem [ref=e20]:
+              - link "Dashboard" [ref=e21] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e23]
+                - generic [ref=e28]: Dashboard
+        - generic [ref=e29]:
+          - heading "Masters" [level=3] [ref=e30]
+          - list [ref=e31]:
+            - listitem [ref=e32]:
+              - link "Clients" [ref=e33] [cursor=pointer]:
+                - /url: /clients
+                - img [ref=e35]
+                - generic [ref=e39]: Clients
+            - listitem [ref=e40]:
+              - link "Vehicles" [ref=e41] [cursor=pointer]:
+                - /url: /vehicles
+                - img [ref=e43]
+                - generic [ref=e48]: Vehicles
+            - listitem [ref=e49]:
+              - link "Drivers" [ref=e50] [cursor=pointer]:
+                - /url: /drivers
+                - img [ref=e52]
+                - generic [ref=e56]: Drivers
+            - listitem [ref=e57]:
+              - link "Driver Dashboard" [ref=e58] [cursor=pointer]:
+                - /url: /drivers/dashboard
+                - img [ref=e60]
+                - generic [ref=e65]: Driver Dashboard
+            - listitem [ref=e66]:
+              - link "Routes" [ref=e67] [cursor=pointer]:
+                - /url: /routes
+                - img [ref=e69]
+                - generic [ref=e73]: Routes
+            - listitem [ref=e74]:
+              - link "Suppliers" [ref=e75] [cursor=pointer]:
+                - /url: /suppliers
+                - img [ref=e77]
+                - generic [ref=e82]: Suppliers
+        - generic [ref=e83]:
+          - heading "Operations" [level=3] [ref=e84]
+          - list [ref=e85]:
+            - listitem [ref=e86]:
+              - link "Jobs / Orders" [ref=e87] [cursor=pointer]:
+                - /url: /jobs
+                - img [ref=e89]
+                - generic [ref=e92]: Jobs / Orders
+            - listitem [ref=e93]:
+              - link "Market Trips" [ref=e94] [cursor=pointer]:
+                - /url: /market-trips
+                - img [ref=e96]
+                - generic [ref=e101]: Market Trips
+            - listitem [ref=e102]:
+              - link "Lorry Receipts" [ref=e103] [cursor=pointer]:
+                - /url: /lr
+                - img [ref=e105]
+                - generic [ref=e108]: Lorry Receipts
+            - listitem [ref=e109]:
+              - link "Trips" [ref=e110] [cursor=pointer]:
+                - /url: /trips
+                - img [ref=e112]
+                - generic [ref=e114]: Trips
+            - listitem [ref=e115]:
+              - link "Documents" [ref=e116] [cursor=pointer]:
+                - /url: /documents
+                - img [ref=e118]
+                - generic [ref=e120]: Documents
+        - generic [ref=e121]:
+          - heading "Finance" [level=3] [ref=e122]
+          - list [ref=e123]:
+            - listitem [ref=e124]:
+              - link "Finance Dashboard" [ref=e125] [cursor=pointer]:
+                - /url: /accountant
+                - img [ref=e127]
+                - generic [ref=e130]: Finance Dashboard
+            - listitem [ref=e131]:
+              - link "Invoices" [ref=e132] [cursor=pointer]:
+                - /url: /finance/invoices
+                - img [ref=e134]
+                - generic [ref=e137]: Invoices
+            - listitem [ref=e138]:
+              - link "Payments" [ref=e139] [cursor=pointer]:
+                - /url: /finance/payments
+                - img [ref=e141]
+                - generic [ref=e143]: Payments
+            - listitem [ref=e144]:
+              - link "Receivables" [ref=e145] [cursor=pointer]:
+                - /url: /finance/receivables
+                - img [ref=e147]
+                - generic [ref=e150]: Receivables
+            - listitem [ref=e151]:
+              - link "Payables" [ref=e152] [cursor=pointer]:
+                - /url: /finance/payables
+                - img [ref=e154]
+                - generic [ref=e157]: Payables
+            - listitem [ref=e158]:
+              - link "Expenses" [ref=e159] [cursor=pointer]:
+                - /url: /accountant/expenses
+                - img [ref=e161]
+                - generic [ref=e165]: Expenses
+            - listitem [ref=e166]:
+              - link "Driver Payments" [ref=e167] [cursor=pointer]:
+                - /url: /accountant/payments
+                - img [ref=e169]
+                - generic [ref=e171]: Driver Payments
+            - listitem [ref=e172]:
+              - link "Fuel Expenses" [ref=e173] [cursor=pointer]:
+                - /url: /accountant/fuel
+                - img [ref=e175]
+                - generic [ref=e178]: Fuel Expenses
+            - listitem [ref=e179]:
+              - link "Banking" [ref=e180] [cursor=pointer]:
+                - /url: /accountant/banking
+                - img [ref=e182]
+                - generic [ref=e184]: Banking
+            - listitem [ref=e185]:
+              - link "Ledger" [ref=e186] [cursor=pointer]:
+                - /url: /finance/ledger
+                - img [ref=e188]
+                - generic [ref=e191]: Ledger
+            - listitem [ref=e192]:
+              - link "Reconciliation" [ref=e193] [cursor=pointer]:
+                - /url: /finance/reconciliation
+                - img [ref=e195]
+                - generic [ref=e197]: Reconciliation
+            - listitem [ref=e198]:
+              - link "Settlements" [ref=e199] [cursor=pointer]:
+                - /url: /finance/settlements
+                - img [ref=e201]
+                - generic [ref=e205]: Settlements
+            - listitem [ref=e206]:
+              - link "Finance Alerts" [ref=e207] [cursor=pointer]:
+                - /url: /finance/alerts
+                - img [ref=e209]
+                - generic [ref=e212]: Finance Alerts
+            - listitem [ref=e213]:
+              - link "Finance Reports" [ref=e214] [cursor=pointer]:
+                - /url: /finance/reports
+                - img [ref=e216]
+                - generic [ref=e218]: Finance Reports
+        - generic [ref=e219]:
+          - heading "Monitoring" [level=3] [ref=e220]
+          - list [ref=e221]:
+            - listitem [ref=e222]:
+              - link "Live Tracking" [ref=e223] [cursor=pointer]:
+                - /url: /tracking
+                - img [ref=e225]
+                - generic [ref=e229]: Live Tracking
+            - listitem [ref=e230]:
+              - link "Alerts" [ref=e231] [cursor=pointer]:
+                - /url: /alerts
+                - img [ref=e233]
+                - generic [ref=e236]: Alerts
+            - listitem [ref=e237]:
+              - link "Reports" [ref=e238] [cursor=pointer]:
+                - /url: /reports
+                - img [ref=e240]
+                - generic [ref=e242]: Reports
+        - generic [ref=e243]:
+          - heading "Fleet Manager" [level=3] [ref=e244]
+          - list [ref=e245]:
+            - listitem [ref=e246]:
+              - link "Fleet Dashboard" [ref=e247] [cursor=pointer]:
+                - /url: /fleet
+                - img [ref=e249]
+                - generic [ref=e252]: Fleet Dashboard
+            - listitem [ref=e253]:
+              - link "Fleet Vehicles" [ref=e254] [cursor=pointer]:
+                - /url: /fleet/vehicles
+                - img [ref=e256]
+                - generic [ref=e261]: Fleet Vehicles
+            - listitem [ref=e262]:
+              - link "Fleet Drivers" [ref=e263] [cursor=pointer]:
+                - /url: /fleet/drivers
+                - img [ref=e265]
+                - generic [ref=e269]: Fleet Drivers
+            - listitem [ref=e270]:
+              - link "Fleet Tracking" [ref=e271] [cursor=pointer]:
+                - /url: /fleet/tracking
+                - img [ref=e273]
+                - generic [ref=e277]: Fleet Tracking
+            - listitem [ref=e278]:
+              - link "Maintenance" [ref=e279] [cursor=pointer]:
+                - /url: /fleet/maintenance
+                - img [ref=e281]
+                - generic [ref=e283]: Maintenance
+            - listitem [ref=e284]:
+              - link "Fuel Mgmt" [ref=e285] [cursor=pointer]:
+                - /url: /fleet/fuel
+                - img [ref=e287]
+                - generic [ref=e290]: Fuel Mgmt
+            - listitem [ref=e291]:
+              - link "Tyres" [ref=e292] [cursor=pointer]:
+                - /url: /fleet/tyres
+                - img [ref=e294]
+                - generic [ref=e296]: Tyres
+            - listitem [ref=e297]:
+              - link "Fleet Alerts" [ref=e298] [cursor=pointer]:
+                - /url: /fleet/alerts
+                - img [ref=e300]
+                - generic [ref=e303]: Fleet Alerts
+            - listitem [ref=e304]:
+              - link "Geofences" [ref=e305] [cursor=pointer]:
+                - /url: /fleet/geofences
+                - img [ref=e307]
+                - generic [ref=e311]: Geofences
+            - listitem [ref=e312]:
+              - link "Compliance" [ref=e313] [cursor=pointer]:
+                - /url: /fleet/compliance
+                - img [ref=e315]
+                - generic [ref=e317]: Compliance
+            - listitem [ref=e318]:
+              - link "Driver Leaderboard" [ref=e319] [cursor=pointer]:
+                - /url: /fleet/driver-leaderboard
+                - img [ref=e321]
+                - generic [ref=e327]: Driver Leaderboard
+            - listitem [ref=e328]:
+              - link "TPMS" [ref=e329] [cursor=pointer]:
+                - /url: /fleet/tpms
+                - img [ref=e331]
+                - generic [ref=e333]: TPMS
+            - listitem [ref=e334]:
+              - link "Fleet Reports" [ref=e335] [cursor=pointer]:
+                - /url: /fleet/reports
+                - img [ref=e337]
+                - generic [ref=e339]: Fleet Reports
+        - generic [ref=e340]:
+          - heading "Compliance" [level=3] [ref=e341]
+          - list [ref=e342]:
+            - listitem [ref=e343]:
+              - link "Vehicle Compliance" [ref=e344] [cursor=pointer]:
+                - /url: /fleet/vehicle-compliance
+                - img [ref=e346]
+                - generic [ref=e348]: Vehicle Compliance
+            - listitem [ref=e349]:
+              - link "Driver Compliance" [ref=e350] [cursor=pointer]:
+                - /url: /fleet/driver-compliance
+                - img [ref=e352]
+                - generic [ref=e356]: Driver Compliance
+            - listitem [ref=e357]:
+              - link "GST Verification" [ref=e358] [cursor=pointer]:
+                - /url: /fleet/gst-verify
+                - img [ref=e360]
+                - generic [ref=e363]: GST Verification
+        - generic [ref=e364]:
+          - heading "Tools" [level=3] [ref=e365]
+          - list [ref=e366]:
+            - listitem [ref=e367]:
+              - link "GPS Live Map" [ref=e368] [cursor=pointer]:
+                - /url: /tracking/gps
+                - img [ref=e370]
+                - generic [ref=e374]: GPS Live Map
+            - listitem [ref=e375]:
+              - link "Trip Replay" [ref=e376] [cursor=pointer]:
+                - /url: /tracking/replay
+                - img [ref=e378]
+                - generic [ref=e381]: Trip Replay
+            - listitem [ref=e382]:
+              - link "Fuel Prices" [ref=e383] [cursor=pointer]:
+                - /url: /fleet/fuel-prices
+                - img [ref=e385]
+                - generic [ref=e388]: Fuel Prices
+            - listitem [ref=e389]:
+              - link "Route Calculator" [ref=e390] [cursor=pointer]:
+                - /url: /trips/route-calculator
+                - img [ref=e392]
+                - generic [ref=e396]: Route Calculator
+            - listitem [ref=e397]:
+              - link "Notifications" [ref=e398] [cursor=pointer]:
+                - /url: /settings/notifications
+                - img [ref=e400]
+                - generic [ref=e403]: Notifications
+            - listitem [ref=e404]:
+              - link "Document Upload" [ref=e405] [cursor=pointer]:
+                - /url: /documents/new-upload
+                - img [ref=e407]
+                - generic [ref=e410]: Document Upload
+        - generic [ref=e411]:
+          - heading "Quick Actions" [level=3] [ref=e412]
+          - list [ref=e413]:
+            - listitem [ref=e414]:
+              - link "Create LR" [ref=e415] [cursor=pointer]:
+                - /url: /lr/new
+                - img [ref=e417]
+                - generic [ref=e420]: Create LR
+            - listitem [ref=e421]:
+              - link "E-way Bill" [ref=e422] [cursor=pointer]:
+                - /url: /lr/eway-bill
+                - img [ref=e424]
+                - generic [ref=e427]: E-way Bill
+            - listitem [ref=e428]:
+              - link "Create Trip" [ref=e429] [cursor=pointer]:
+                - /url: /trips/new
+                - img [ref=e431]
+                - generic [ref=e435]: Create Trip
+            - listitem [ref=e436]:
+              - link "Upload Doc" [ref=e437] [cursor=pointer]:
+                - /url: /documents/upload
+                - img [ref=e439]
+                - generic [ref=e442]: Upload Doc
+            - listitem [ref=e443]:
+              - link "Banking Entry" [ref=e444] [cursor=pointer]:
+                - /url: /finance/banking/new
+                - img [ref=e446]
+                - generic [ref=e448]: Banking Entry
+        - generic [ref=e449]:
+          - heading "System" [level=3] [ref=e450]
+          - list [ref=e451]:
+            - listitem [ref=e452]:
+              - link "Employees" [ref=e453] [cursor=pointer]:
+                - /url: /admin/employees
+                - img [ref=e455]
+                - generic [ref=e459]: Employees
+            - listitem [ref=e460]:
+              - link "Branches" [ref=e461] [cursor=pointer]:
+                - /url: /admin/branches
+                - img [ref=e463]
+                - generic [ref=e467]: Branches
+            - listitem [ref=e468]:
+              - link "Attendance" [ref=e469] [cursor=pointer]:
+                - /url: /admin/attendance
+                - img [ref=e471]
+                - generic [ref=e473]: Attendance
+            - listitem [ref=e474]:
+              - link "Connectivity" [ref=e475] [cursor=pointer]:
+                - /url: /admin/connectivity
+                - img [ref=e477]
+                - generic [ref=e481]: Connectivity
+            - listitem [ref=e482]:
+              - link "Settings" [ref=e483] [cursor=pointer]:
+                - /url: /settings
+                - img [ref=e485]
+                - generic [ref=e488]: Settings
+        - generic [ref=e489]:
+          - heading "ACCOUNT" [level=3] [ref=e490]
+          - list [ref=e491]:
+            - listitem [ref=e492]:
+              - link "Profile" [ref=e493] [cursor=pointer]:
+                - /url: /profile
+                - img [ref=e495]
+                - generic [ref=e499]: Profile
+      - generic [ref=e501]:
+        - generic [ref=e503]: U
+        - generic [ref=e504]:
+          - paragraph
+          - paragraph [ref=e505]: admin
+        - button "Logout" [ref=e506] [cursor=pointer]:
+          - img [ref=e507]
+      - button [ref=e510] [cursor=pointer]:
+        - img [ref=e511]
+    - generic [ref=e513]:
+      - banner [ref=e514]:
+        - generic [ref=e515]:
+          - navigation [ref=e517]:
+            - button [ref=e518] [cursor=pointer]:
+              - img [ref=e519]
+            - generic [ref=e522]:
+              - img [ref=e523]
+              - button "Home" [ref=e525] [cursor=pointer]
+            - generic [ref=e526]:
+              - img [ref=e527]
+              - button "Finance" [ref=e529] [cursor=pointer]
+            - generic [ref=e530]:
+              - img [ref=e531]
+              - generic [ref=e533]: Invoices
+          - generic [ref=e534]:
+            - generic [ref=e535]:
+              - img [ref=e536]
+              - textbox "Search jobs, LR, trips..." [ref=e539]
+            - button [ref=e541] [cursor=pointer]:
+              - img [ref=e542]
+            - button "U admin" [ref=e547] [cursor=pointer]:
+              - generic [ref=e549]: U
+              - generic [ref=e550]:
+                - paragraph
+                - paragraph [ref=e551]: admin
+              - img [ref=e552]
+        - generic [ref=e555]:
+          - button "Overview" [ref=e557] [cursor=pointer]:
+            - generic [ref=e558]: Overview
+          - button "Masters" [ref=e560] [cursor=pointer]:
+            - generic [ref=e561]: Masters
+            - img [ref=e562]
+          - button "Operations" [ref=e565] [cursor=pointer]:
+            - generic [ref=e566]: Operations
+            - img [ref=e567]
+          - button "Finance" [ref=e570] [cursor=pointer]:
+            - generic [ref=e571]: Finance
+            - img [ref=e572]
+          - button "Monitoring" [ref=e575] [cursor=pointer]:
+            - generic [ref=e576]: Monitoring
+            - img [ref=e577]
+          - button "Fleet Manager" [ref=e580] [cursor=pointer]:
+            - generic [ref=e581]: Fleet Manager
+            - img [ref=e582]
+          - button "Compliance" [ref=e585] [cursor=pointer]:
+            - generic [ref=e586]: Compliance
+            - img [ref=e587]
+          - button "Tools" [ref=e590] [cursor=pointer]:
+            - generic [ref=e591]: Tools
+            - img [ref=e592]
+          - button "Quick Actions" [ref=e595] [cursor=pointer]:
+            - generic [ref=e596]: Quick Actions
+            - img [ref=e597]
+          - button "System" [ref=e600] [cursor=pointer]:
+            - generic [ref=e601]: System
+            - img [ref=e602]
+      - main [ref=e604]:
+        - generic [ref=e606]:
+          - generic [ref=e607]:
+            - generic [ref=e608]:
+              - heading "Invoices" [level=1] [ref=e609]
+              - paragraph [ref=e610]: Manage invoices, billing, and collections
+            - button "Generate from Trip" [ref=e612] [cursor=pointer]:
+              - img [ref=e613]
+              - text: Generate from Trip
+          - generic [ref=e616]:
+            - generic [ref=e617]:
+              - generic [ref=e618]:
+                - generic [ref=e619]: "19"
+                - generic [ref=e620]:
+                  - img [ref=e621]
+                  - textbox "Search invoices..." [ref=e624]
+              - generic [ref=e625]:
+                - button "Refresh" [ref=e626] [cursor=pointer]:
+                  - img [ref=e627]
+                - button "Export" [ref=e632] [cursor=pointer]:
+                  - img [ref=e633]
+                  - text: Export
+            - table [ref=e637]:
+              - rowgroup [ref=e638]:
+                - row "Invoice No. Client Date Due Date Amount Paid Balance Status Actions" [ref=e639]:
+                  - columnheader "Invoice No." [ref=e640] [cursor=pointer]:
+                    - generic [ref=e642]: Invoice No.
+                  - columnheader "Client" [ref=e643]:
+                    - generic [ref=e645]: Client
+                  - columnheader "Date" [ref=e646] [cursor=pointer]:
+                    - generic [ref=e648]: Date
+                  - columnheader "Due Date" [ref=e649] [cursor=pointer]:
+                    - generic [ref=e651]: Due Date
+                  - columnheader "Amount" [ref=e652] [cursor=pointer]:
+                    - generic [ref=e654]: Amount
+                  - columnheader "Paid" [ref=e655]:
+                    - generic [ref=e657]: Paid
+                  - columnheader "Balance" [ref=e658]:
+                    - generic [ref=e660]: Balance
+                  - columnheader "Status" [ref=e661]:
+                    - generic [ref=e663]: Status
+                  - columnheader "Actions" [ref=e664]:
+                    - generic [ref=e666]: Actions
+              - rowgroup [ref=e667]:
+                - row "INV-260319-5064 Kerala Chemicals & Proteins 19/3/2026 18/4/2026 ₹15.75 ₹15.75 ₹0 PAID" [ref=e668]:
+                  - cell "INV-260319-5064" [ref=e669]
+                  - cell "Kerala Chemicals & Proteins" [ref=e670]
+                  - cell "19/3/2026" [ref=e671]
+                  - cell "18/4/2026" [ref=e672]
+                  - cell "₹15.75" [ref=e673]
+                  - cell "₹15.75" [ref=e674]
+                  - cell "₹0" [ref=e675]:
+                    - generic [ref=e676]: ₹0
+                  - cell "PAID" [ref=e677]:
+                    - generic [ref=e678]: PAID
+                  - cell [ref=e680]:
+                    - generic [ref=e681]:
+                      - button "Edit" [ref=e682] [cursor=pointer]:
+                        - img [ref=e683]
+                      - button "Delete" [ref=e686] [cursor=pointer]:
+                        - img [ref=e687]
+                - row "INV-260317-4165 Kerala Chemicals & Proteins 18/3/2026 17/4/2026 ₹44,460.15 ₹44,460.15 ₹0 PAID" [ref=e690]:
+                  - cell "INV-260317-4165" [ref=e691]
+                  - cell "Kerala Chemicals & Proteins" [ref=e692]
+                  - cell "18/3/2026" [ref=e693]
+                  - cell "17/4/2026" [ref=e694]
+                  - cell "₹44,460.15" [ref=e695]
+                  - cell "₹44,460.15" [ref=e696]
+                  - cell "₹0" [ref=e697]:
+                    - generic [ref=e698]: ₹0
+                  - cell "PAID" [ref=e699]:
+                    - generic [ref=e700]: PAID
+                  - cell [ref=e702]:
+                    - generic [ref=e703]:
+                      - button "Edit" [ref=e704] [cursor=pointer]:
+                        - img [ref=e705]
+                      - button "Delete" [ref=e708] [cursor=pointer]:
+                        - img [ref=e709]
+                - row "INV-260317-7808 Kerala Chemicals & Proteins 18/3/2026 17/4/2026 ₹44,460.15 ₹44,460.15 ₹0 PAID" [ref=e712]:
+                  - cell "INV-260317-7808" [ref=e713]
+                  - cell "Kerala Chemicals & Proteins" [ref=e714]
+                  - cell "18/3/2026" [ref=e715]
+                  - cell "17/4/2026" [ref=e716]
+                  - cell "₹44,460.15" [ref=e717]
+                  - cell "₹44,460.15" [ref=e718]
+                  - cell "₹0" [ref=e719]:
+                    - generic [ref=e720]: ₹0
+                  - cell "PAID" [ref=e721]:
+                    - generic [ref=e722]: PAID
+                  - cell [ref=e724]:
+                    - generic [ref=e725]:
+                      - button "Edit" [ref=e726] [cursor=pointer]:
+                        - img [ref=e727]
+                      - button "Delete" [ref=e730] [cursor=pointer]:
+                        - img [ref=e731]
+                - row "INV-260317-9795 Kerala Chemicals & Proteins 17/3/2026 16/4/2026 ₹44,460.15 ₹44,460.15 ₹0 PAID" [ref=e734]:
+                  - cell "INV-260317-9795" [ref=e735]
+                  - cell "Kerala Chemicals & Proteins" [ref=e736]
+                  - cell "17/3/2026" [ref=e737]
+                  - cell "16/4/2026" [ref=e738]
+                  - cell "₹44,460.15" [ref=e739]
+                  - cell "₹44,460.15" [ref=e740]
+                  - cell "₹0" [ref=e741]:
+                    - generic [ref=e742]: ₹0
+                  - cell "PAID" [ref=e743]:
+                    - generic [ref=e744]: PAID
+                  - cell [ref=e746]:
+                    - generic [ref=e747]:
+                      - button "Edit" [ref=e748] [cursor=pointer]:
+                        - img [ref=e749]
+                      - button "Delete" [ref=e752] [cursor=pointer]:
+                        - img [ref=e753]
+                - row "INV-260317-0116 Kerala Chemicals & Proteins 17/3/2026 16/4/2026 ₹44,460.15 ₹44,460.15 ₹0 PAID" [ref=e756]:
+                  - cell "INV-260317-0116" [ref=e757]
+                  - cell "Kerala Chemicals & Proteins" [ref=e758]
+                  - cell "17/3/2026" [ref=e759]
+                  - cell "16/4/2026" [ref=e760]
+                  - cell "₹44,460.15" [ref=e761]
+                  - cell "₹44,460.15" [ref=e762]
+                  - cell "₹0" [ref=e763]:
+                    - generic [ref=e764]: ₹0
+                  - cell "PAID" [ref=e765]:
+                    - generic [ref=e766]: PAID
+                  - cell [ref=e768]:
+                    - generic [ref=e769]:
+                      - button "Edit" [ref=e770] [cursor=pointer]:
+                        - img [ref=e771]
+                      - button "Delete" [ref=e774] [cursor=pointer]:
+                        - img [ref=e775]
+                - row "INV-260317-0210 Kerala Chemicals & Proteins 17/3/2026 16/4/2026 ₹44,460.15 ₹44,460.15 ₹0 PAID" [ref=e778]:
+                  - cell "INV-260317-0210" [ref=e779]
+                  - cell "Kerala Chemicals & Proteins" [ref=e780]
+                  - cell "17/3/2026" [ref=e781]
+                  - cell "16/4/2026" [ref=e782]
+                  - cell "₹44,460.15" [ref=e783]
+                  - cell "₹44,460.15" [ref=e784]
+                  - cell "₹0" [ref=e785]:
+                    - generic [ref=e786]: ₹0
+                  - cell "PAID" [ref=e787]:
+                    - generic [ref=e788]: PAID
+                  - cell [ref=e790]:
+                    - generic [ref=e791]:
+                      - button "Edit" [ref=e792] [cursor=pointer]:
+                        - img [ref=e793]
+                      - button "Delete" [ref=e796] [cursor=pointer]:
+                        - img [ref=e797]
+                - row "INV-260317-4831 Kerala Chemicals & Proteins 17/3/2026 16/4/2026 ₹44,460.15 ₹44,460.15 ₹0 PAID" [ref=e800]:
+                  - cell "INV-260317-4831" [ref=e801]
+                  - cell "Kerala Chemicals & Proteins" [ref=e802]
+                  - cell "17/3/2026" [ref=e803]
+                  - cell "16/4/2026" [ref=e804]
+                  - cell "₹44,460.15" [ref=e805]
+                  - cell "₹44,460.15" [ref=e806]
+                  - cell "₹0" [ref=e807]:
+                    - generic [ref=e808]: ₹0
+                  - cell "PAID" [ref=e809]:
+                    - generic [ref=e810]: PAID
+                  - cell [ref=e812]:
+                    - generic [ref=e813]:
+                      - button "Edit" [ref=e814] [cursor=pointer]:
+                        - img [ref=e815]
+                      - button "Delete" [ref=e818] [cursor=pointer]:
+                        - img [ref=e819]
+                - row "INV-260317-4753 Kerala Chemicals & Proteins 17/3/2026 16/4/2026 ₹44,460.15 ₹44,460.15 ₹0 PAID" [ref=e822]:
+                  - cell "INV-260317-4753" [ref=e823]
+                  - cell "Kerala Chemicals & Proteins" [ref=e824]
+                  - cell "17/3/2026" [ref=e825]
+                  - cell "16/4/2026" [ref=e826]
+                  - cell "₹44,460.15" [ref=e827]
+                  - cell "₹44,460.15" [ref=e828]
+                  - cell "₹0" [ref=e829]:
+                    - generic [ref=e830]: ₹0
+                  - cell "PAID" [ref=e831]:
+                    - generic [ref=e832]: PAID
+                  - cell [ref=e834]:
+                    - generic [ref=e835]:
+                      - button "Edit" [ref=e836] [cursor=pointer]:
+                        - img [ref=e837]
+                      - button "Delete" [ref=e840] [cursor=pointer]:
+                        - img [ref=e841]
+                - row "INV-260316-7692 fEGH 16/3/2026 16/3/2026 ₹0 ₹0 ₹0 PAID" [ref=e844]:
+                  - cell "INV-260316-7692" [ref=e845]
+                  - cell "fEGH" [ref=e846]
+                  - cell "16/3/2026" [ref=e847]
+                  - cell "16/3/2026" [ref=e848]
+                  - cell "₹0" [ref=e849]
+                  - cell "₹0" [ref=e850]
+                  - cell "₹0" [ref=e851]:
+                    - generic [ref=e852]: ₹0
+                  - cell "PAID" [ref=e853]:
+                    - generic [ref=e854]: PAID
+                  - cell [ref=e856]:
+                    - generic [ref=e857]:
+                      - button "Edit" [ref=e858] [cursor=pointer]:
+                        - img [ref=e859]
+                      - button "Delete" [ref=e862] [cursor=pointer]:
+                        - img [ref=e863]
+                - row "INV-260124-0010 Rane Holdings Ltd 24/1/2026 23/2/2026 ₹29,618 ₹0 ₹29,618 PENDING" [ref=e866]:
+                  - cell "INV-260124-0010" [ref=e867]
+                  - cell "Rane Holdings Ltd" [ref=e868]
+                  - cell "24/1/2026" [ref=e869]
+                  - cell "23/2/2026" [ref=e870]
+                  - cell "₹29,618" [ref=e871]
+                  - cell "₹0" [ref=e872]
+                  - cell "₹29,618" [ref=e873]:
+                    - generic [ref=e874]: ₹29,618
+                  - cell "PENDING" [ref=e875]:
+                    - generic [ref=e876]: PENDING
+                  - cell [ref=e878]:
+                    - generic [ref=e879]:
+                      - button "Edit" [ref=e880] [cursor=pointer]:
+                        - img [ref=e881]
+                      - button "Delete" [ref=e884] [cursor=pointer]:
+                        - img [ref=e885]
+                - row "INV-260120-0009 Chettinad Cement Corporation 20/1/2026 19/2/2026 ₹25,724 ₹0 ₹25,724 PENDING" [ref=e888]:
+                  - cell "INV-260120-0009" [ref=e889]
+                  - cell "Chettinad Cement Corporation" [ref=e890]
+                  - cell "20/1/2026" [ref=e891]
+                  - cell "19/2/2026" [ref=e892]
+                  - cell "₹25,724" [ref=e893]
+                  - cell "₹0" [ref=e894]
+                  - cell "₹25,724" [ref=e895]:
+                    - generic [ref=e896]: ₹25,724
+                  - cell "PENDING" [ref=e897]:
+                    - generic [ref=e898]: PENDING
+                  - cell [ref=e900]:
+                    - generic [ref=e901]:
+                      - button "Edit" [ref=e902] [cursor=pointer]:
+                        - img [ref=e903]
+                      - button "Delete" [ref=e906] [cursor=pointer]:
+                        - img [ref=e907]
+                - row "INV-260116-0008 Sakthi Sugars Ltd 16/1/2026 2/3/2026 ₹32,450 ₹0 ₹32,450 PENDING" [ref=e910]:
+                  - cell "INV-260116-0008" [ref=e911]
+                  - cell "Sakthi Sugars Ltd" [ref=e912]
+                  - cell "16/1/2026" [ref=e913]
+                  - cell "2/3/2026" [ref=e914]
+                  - cell "₹32,450" [ref=e915]
+                  - cell "₹0" [ref=e916]
+                  - cell "₹32,450" [ref=e917]:
+                    - generic [ref=e918]: ₹32,450
+                  - cell "PENDING" [ref=e919]:
+                    - generic [ref=e920]: PENDING
+                  - cell [ref=e922]:
+                    - generic [ref=e923]:
+                      - button "Edit" [ref=e924] [cursor=pointer]:
+                        - img [ref=e925]
+                      - button "Delete" [ref=e928] [cursor=pointer]:
+                        - img [ref=e929]
+                - row "INV-260112-0007 Tamil Nadu Cements Corporation 12/1/2026 11/2/2026 ₹20,956.8 ₹20,956.8 ₹0 PAID" [ref=e932]:
+                  - cell "INV-260112-0007" [ref=e933]
+                  - cell "Tamil Nadu Cements Corporation" [ref=e934]
+                  - cell "12/1/2026" [ref=e935]
+                  - cell "11/2/2026" [ref=e936]
+                  - cell "₹20,956.8" [ref=e937]
+                  - cell "₹20,956.8" [ref=e938]
+                  - cell "₹0" [ref=e939]:
+                    - generic [ref=e940]: ₹0
+                  - cell "PAID" [ref=e941]:
+                    - generic [ref=e942]: PAID
+                  - cell [ref=e944]:
+                    - generic [ref=e945]:
+                      - button "Edit" [ref=e946] [cursor=pointer]:
+                        - img [ref=e947]
+                      - button "Delete" [ref=e950] [cursor=pointer]:
+                        - img [ref=e951]
+                - row "INV-260108-0006 Kerala Chemicals & Proteins 8/1/2026 22/2/2026 ₹25,535.2 ₹25,535.2 ₹0 PAID" [ref=e954]:
+                  - cell "INV-260108-0006" [ref=e955]
+                  - cell "Kerala Chemicals & Proteins" [ref=e956]
+                  - cell "8/1/2026" [ref=e957]
+                  - cell "22/2/2026" [ref=e958]
+                  - cell "₹25,535.2" [ref=e959]
+                  - cell "₹25,535.2" [ref=e960]
+                  - cell "₹0" [ref=e961]:
+                    - generic [ref=e962]: ₹0
+                  - cell "PAID" [ref=e963]:
+                    - generic [ref=e964]: PAID
+                  - cell [ref=e966]:
+                    - generic [ref=e967]:
+                      - button "Edit" [ref=e968] [cursor=pointer]:
+                        - img [ref=e969]
+                      - button "Delete" [ref=e972] [cursor=pointer]:
+                        - img [ref=e973]
+                - row "INV-260104-0005 Bangalore Steel Industries 4/1/2026 3/2/2026 ₹26,314 ₹26,314 ₹0 PAID" [ref=e976]:
+                  - cell "INV-260104-0005" [ref=e977]
+                  - cell "Bangalore Steel Industries" [ref=e978]
+                  - cell "4/1/2026" [ref=e979]
+                  - cell "3/2/2026" [ref=e980]
+                  - cell "₹26,314" [ref=e981]
+                  - cell "₹26,314" [ref=e982]
+                  - cell "₹0" [ref=e983]:
+                    - generic [ref=e984]: ₹0
+                  - cell "PAID" [ref=e985]:
+                    - generic [ref=e986]: PAID
+                  - cell [ref=e988]:
+                    - generic [ref=e989]:
+                      - button "Edit" [ref=e990] [cursor=pointer]:
+                        - img [ref=e991]
+                      - button "Delete" [ref=e994] [cursor=pointer]:
+                        - img [ref=e995]
+                - row "INV-251231-0004 Rane Holdings Ltd 31/12/2025 30/1/2026 ₹33,984 ₹33,984 ₹0 PAID" [ref=e998]:
+                  - cell "INV-251231-0004" [ref=e999]
+                  - cell "Rane Holdings Ltd" [ref=e1000]
+                  - cell "31/12/2025" [ref=e1001]
+                  - cell "30/1/2026" [ref=e1002]
+                  - cell "₹33,984" [ref=e1003]
+                  - cell "₹33,984" [ref=e1004]
+                  - cell "₹0" [ref=e1005]:
+                    - generic [ref=e1006]: ₹0
+                  - cell "PAID" [ref=e1007]:
+                    - generic [ref=e1008]: PAID
+                  - cell [ref=e1010]:
+                    - generic [ref=e1011]:
+                      - button "Edit" [ref=e1012] [cursor=pointer]:
+                        - img [ref=e1013]
+                      - button "Delete" [ref=e1016] [cursor=pointer]:
+                        - img [ref=e1017]
+                - row "INV-251227-0003 Chettinad Cement Corporation 27/12/2025 26/1/2026 ₹25,865.6 ₹25,865.6 ₹0 PAID" [ref=e1020]:
+                  - cell "INV-251227-0003" [ref=e1021]
+                  - cell "Chettinad Cement Corporation" [ref=e1022]
+                  - cell "27/12/2025" [ref=e1023]
+                  - cell "26/1/2026" [ref=e1024]
+                  - cell "₹25,865.6" [ref=e1025]
+                  - cell "₹25,865.6" [ref=e1026]
+                  - cell "₹0" [ref=e1027]:
+                    - generic [ref=e1028]: ₹0
+                  - cell "PAID" [ref=e1029]:
+                    - generic [ref=e1030]: PAID
+                  - cell [ref=e1032]:
+                    - generic [ref=e1033]:
+                      - button "Edit" [ref=e1034] [cursor=pointer]:
+                        - img [ref=e1035]
+                      - button "Delete" [ref=e1038] [cursor=pointer]:
+                        - img [ref=e1039]
+                - row "INV-251223-0002 Sakthi Sugars Ltd 23/12/2025 6/2/2026 ₹28,603.2 ₹28,603.2 ₹0 PAID" [ref=e1042]:
+                  - cell "INV-251223-0002" [ref=e1043]
+                  - cell "Sakthi Sugars Ltd" [ref=e1044]
+                  - cell "23/12/2025" [ref=e1045]
+                  - cell "6/2/2026" [ref=e1046]
+                  - cell "₹28,603.2" [ref=e1047]
+                  - cell "₹28,603.2" [ref=e1048]
+                  - cell "₹0" [ref=e1049]:
+                    - generic [ref=e1050]: ₹0
+                  - cell "PAID" [ref=e1051]:
+                    - generic [ref=e1052]: PAID
+                  - cell [ref=e1054]:
+                    - generic [ref=e1055]:
+                      - button "Edit" [ref=e1056] [cursor=pointer]:
+                        - img [ref=e1057]
+                      - button "Delete" [ref=e1060] [cursor=pointer]:
+                        - img [ref=e1061]
+                - row "INV-251219-0001 Tamil Nadu Cements Corporation 19/12/2025 18/1/2026 ₹29,618 ₹29,618 ₹0 PAID" [ref=e1064]:
+                  - cell "INV-251219-0001" [ref=e1065]
+                  - cell "Tamil Nadu Cements Corporation" [ref=e1066]
+                  - cell "19/12/2025" [ref=e1067]
+                  - cell "18/1/2026" [ref=e1068]
+                  - cell "₹29,618" [ref=e1069]
+                  - cell "₹29,618" [ref=e1070]
+                  - cell "₹0" [ref=e1071]:
+                    - generic [ref=e1072]: ₹0
+                  - cell "PAID" [ref=e1073]:
+                    - generic [ref=e1074]: PAID
+                  - cell [ref=e1076]:
+                    - generic [ref=e1077]:
+                      - button "Edit" [ref=e1078] [cursor=pointer]:
+                        - img [ref=e1079]
+                      - button "Delete" [ref=e1082] [cursor=pointer]:
+                        - img [ref=e1083]
+  - generic:
+    - status [ref=e1091]: Server error. Please try again shortly.
+    - status [ref=e1097]: Server error. Please try again shortly.
+    - status [ref=e1103]: Server error. Please try again shortly.
+```

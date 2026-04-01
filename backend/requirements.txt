@@ -65,5 +65,10 @@ anthropic>=0.40.0
 pdf2image>=1.17.0
 Pillow>=10.3.0
 
-# TMS Automations — in-process cron scheduler
-apscheduler>=3.10.4
+# TMS Automation Scheduler
+apscheduler>=3.10.0
+pytesseract>=0.3.10
+
+# OCR Image Pre-processing
+opencv-python-headless>=4.8.0
+numpy>=1.24.0

@@ -74,8 +74,6 @@ class Vehicle(Base, TimestampMixin, SoftDeleteMixin):
     # GPS Device
     gps_device_id = Column(String(100), nullable=True)
     gps_provider = Column(String(50), nullable=True)
-    odometer_at_last_service = Column(Numeric(12, 2), nullable=True)  # SCH-03: predictive maintenance
-    last_service_date = Column(Date, nullable=True)  # SCH-03: predictive maintenance
     
     # Fitness & Permits
     fitness_valid_until = Column(Date, nullable=True)
@@ -86,6 +84,10 @@ class Vehicle(Base, TimestampMixin, SoftDeleteMixin):
     # Financial
     purchase_value = Column(Numeric(15, 2), nullable=True)
     current_value = Column(Numeric(15, 2), nullable=True)
+
+    # TMS Automation (SCH-03)
+    odometer_at_last_service = Column(Numeric(12, 2), nullable=True)
+    last_service_date = Column(Date, nullable=True)
     
     # Multi-tenant
     tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)

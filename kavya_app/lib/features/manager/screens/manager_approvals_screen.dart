@@ -106,9 +106,9 @@ class ManagerApprovalsScreen extends ConsumerWidget {
       final type = item['type'] ?? '';
       final id = item['id'];
       if (type == 'expense') {
-        await api.patch('/expenses/$id/status', data: {'status': 'approved'});
+        await api.put('/accountant/expenses/$id/approve');
       } else {
-        await api.patch('/banking/entries/$id', data: {'reconciled': true});
+        await api.put('/banking/entries/$id', data: {'reconciled': true});
       }
       ref.invalidate(managerApprovalsProvider);
       ref.invalidate(managerDashboardStatsProvider);
@@ -164,7 +164,7 @@ class ManagerApprovalsScreen extends ConsumerWidget {
         final type = item['type'] ?? '';
         final id = item['id'];
         if (type == 'expense') {
-          await api.patch('/expenses/$id/status', data: {'status': 'rejected', 'reason': result});
+          await api.put('/accountant/expenses/$id/reject');
         }
         ref.invalidate(managerApprovalsProvider);
         ref.invalidate(managerDashboardStatsProvider);

@@ -450,7 +450,7 @@ export default function CreateLRPage() {
     updateField('driver_id', driver.id);
     updateField('driver_name', driver.name || '');
     updateField('driver_phone', driver.phone || '');
-    updateField('driver_license', '');
+    updateField('driver_license', driver.license_number || '');
   }, [updateField]);
 
   // ── Price Calculations ──
@@ -1260,7 +1260,7 @@ export default function CreateLRPage() {
                   disabled={isReadonly}
                 />
               </FormField>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <FormField label="Driver Name">
                   <TextInput value={form.driver_name} onChange={() => {}}
                     placeholder="Driver name will auto-fill" disabled={true} />
@@ -1268,6 +1268,10 @@ export default function CreateLRPage() {
                 <FormField label="Driver Phone">
                   <TextInput value={form.driver_phone} onChange={() => {}}
                     placeholder="Phone number will auto-fill" disabled={true} prefix={<Phone size={14} />} />
+                </FormField>
+                <FormField label="Driver License Number">
+                  <TextInput value={form.driver_license} onChange={() => {}}
+                    placeholder="License number will auto-fill" disabled={true} prefix={<Hash size={14} />} />
                 </FormField>
               </div>
               {currentDriver && (

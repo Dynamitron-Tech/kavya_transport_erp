@@ -47,6 +47,7 @@ const FIELD_LABELS: Record<string, string> = {
   registration_number: 'Registration Number',
   owner_name: 'Owner Name',
   vehicle_class: 'Vehicle Class',
+  fuel_type: 'Fuel Type',
   fuel_type_extracted: 'Fuel Type',
   chassis_number: 'Chassis Number',
   engine_number: 'Engine Number',
@@ -56,6 +57,7 @@ const FIELD_LABELS: Record<string, string> = {
   registration_date: 'Registration Date',
   policy_number: 'Policy Number',
   insurer_name: 'Insurer Name',
+  vehicle_number: 'Vehicle Registration Number',
   coverage_type: 'Coverage Type',
   premium_amount: 'Premium Amount',
   certificate_number: 'Certificate Number',
@@ -68,8 +70,11 @@ const FIELD_LABELS: Record<string, string> = {
   puc_number: 'PUC Number',
   vehicle_registration: 'Vehicle Registration',
   test_date: 'Test Date',
+  valid_until: 'Valid Until',
   reading_values: 'Reading Values',
   permit_number: 'Permit Number',
+  route_area: 'Route / Area',
+  tax_amount: 'Tax Amount',
   permit_type: 'Permit Type',
   issued_by: 'Issued By',
   route: 'Route',
@@ -188,6 +193,7 @@ export function DocumentUploadWithExtraction({
 }: Props) {
   const [state, setState] = useState<UploadState>('idle');
   const [error, setError] = useState<string>('');
+  const [extractionWarning, setExtractionWarning] = useState<string>('');
   const [file, setFile] = useState<File | null>(null);
   const [editedData, setEditedData] = useState<Record<string, any>>({});
   const [maskedFields, setMaskedFields] = useState<Set<string>>(new Set(MASKED_FIELDS));
@@ -202,6 +208,7 @@ export function DocumentUploadWithExtraction({
   const handleFile = useCallback(async (f: File) => {
     setFile(f);
     setError('');
+    setExtractionWarning('');
 
     if (isSystemGenerated) {
       setState('saving');
@@ -224,8 +231,11 @@ export function DocumentUploadWithExtraction({
         onExtracted({ documentType, data: result.data ?? {}, entityType: result.entity_type });
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? err?.message ?? 'Extraction failed');
-      setState('error');
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Extraction failed';
+      // Fallback path: allow user to continue with manual upload/review.
+      setExtractionWarning(msg);
+      setEditedData({});
+      setState('review');
     }
   }, [documentType, entityType, isSystemGenerated, onExtracted]);
 
@@ -354,12 +364,21 @@ export function DocumentUploadWithExtraction({
     const fields = Object.entries(editedData).filter(([, v]) => v !== null && v !== undefined && v !== '');
     return (
       <div className="space-y-4">
+        {extractionWarning && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-sm text-amber-700">
+              Extraction unavailable. You can still upload this document manually.
+            </p>
+            <p className="text-xs text-amber-600 mt-1">{extractionWarning}</p>
+          </div>
+        )}
+
         {/* File info bar */}
         <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
           <FileText size={16} className="text-blue-600 shrink-0" />
           <span className="text-sm text-blue-800 truncate flex-1">{file?.name}</span>
           <button
-            onClick={() => { setState('idle'); setFile(null); }}
+            onClick={() => { setState('idle'); setFile(null); setExtractionWarning(''); }}
             className="text-blue-400 hover:text-blue-600 transition-colors"
           >
             <X size={14} />
@@ -415,7 +434,7 @@ export function DocumentUploadWithExtraction({
         {/* Footer actions */}
         <div className="flex items-center justify-between pt-2">
           <button
-            onClick={() => { setState('idle'); setFile(null); }}
+            onClick={() => { setState('idle'); setFile(null); setExtractionWarning(''); }}
             className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
           >
             Cancel

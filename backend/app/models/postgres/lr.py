@@ -64,7 +64,6 @@ class LR(Base, TimestampMixin, SoftDeleteMixin):
     eway_bill_number = Column(String(20), nullable=True, index=True)
     eway_bill_date = Column(Date, nullable=True)
     eway_bill_valid_until = Column(DateTime, nullable=True)
-    ewb_draft_id = Column(String(50), nullable=True)  # EVT-01: auto-draft EWB tracking id
     
     # Payment
     payment_mode = Column(SQLEnum(PaymentMode), default=PaymentMode.TO_BE_BILLED)
@@ -102,6 +101,9 @@ class LR(Base, TimestampMixin, SoftDeleteMixin):
     remarks = Column(Text, nullable=True)
     special_instructions = Column(Text, nullable=True)
     
+    # TMS Automation (EVT-01)
+    ewb_draft_id = Column(String(50), nullable=True)
+
     # Multi-tenant
     tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
     branch_id = Column(Integer, ForeignKey('branches.id'), nullable=True)

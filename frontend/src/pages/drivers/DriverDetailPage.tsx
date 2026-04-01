@@ -50,10 +50,23 @@ function ScoreRing({ score, label, size = 80, color }: { score: number; label: s
   );
 }
 
+function formatDateSafe(value?: string | null): string {
+  if (!value) return '—';
+  const dt = new Date(value);
+  return Number.isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('en-IN');
+}
+
 // ═══════════════════════════════════════════════════════
 // Tab: Overview
 // ═══════════════════════════════════════════════════════
 function OverviewTab({ driver }: { driver: Driver }) {
+  const joiningDate = formatDateSafe((driver as any).joining_date || (driver as any).created_at || null);
+  const licenseExpiryRaw = (driver as any).license_expiry || null;
+  const licenseExpiry = formatDateSafe(licenseExpiryRaw);
+  const isLicenseExpired = Boolean(
+    licenseExpiryRaw && !Number.isNaN(new Date(licenseExpiryRaw).getTime()) && new Date(licenseExpiryRaw) < new Date()
+  );
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {/* Personal Info */}
@@ -73,13 +86,13 @@ function OverviewTab({ driver }: { driver: Driver }) {
       <div className="card">
         <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Shield size={16} className="text-green-500" />Employment & License</h3>
         <InfoRow label="Employee ID" value={driver.employee_id} />
-        <InfoRow label="Designation" value={driver.designation} />
-        <InfoRow label="Joining Date" value={new Date(driver.joining_date).toLocaleDateString('en-IN')} icon={Calendar} />
-        <InfoRow label="License No." value={<span className="font-mono">{driver.license_number}</span>} />
-        <InfoRow label="License Type" value={driver.license_type} />
-        <InfoRow label="License Expiry" value={new Date(driver.license_expiry).toLocaleDateString('en-IN')}
-          className={new Date(driver.license_expiry) < new Date() ? 'text-red-600' : ''} />
-        <InfoRow label="Salary Type" value={driver.salary_type} />
+        <InfoRow label="Designation" value={driver.designation || 'Driver'} />
+        <InfoRow label="Joining Date" value={joiningDate} icon={Calendar} />
+        <InfoRow label="License No." value={<span className="font-mono">{driver.license_number || '—'}</span>} />
+        <InfoRow label="License Type" value={driver.license_type || '—'} />
+        <InfoRow label="License Expiry" value={licenseExpiry}
+          className={isLicenseExpired ? 'text-red-600' : ''} />
+        <InfoRow label="Salary Type" value={driver.salary_type || '—'} />
         <InfoRow label="Base Salary" value={`₹${Number((driver.salary_base || 0) ?? 0).toLocaleString('en-IN')}`} />
         {driver.per_km_rate && <InfoRow label="Per KM Rate" value={`₹${driver.per_km_rate}`} />}
         <InfoRow label="Bank" value={driver.bank_name} />

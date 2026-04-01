@@ -11,14 +11,14 @@ import toast from 'react-hot-toast';
 import { documentService } from '@/services/dataService';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import DataTable, { Column } from '@/components/common/DataTable';
-import { Modal, TabPills, KPICard } from '@/components/common/Modal';
+import { Modal, TabPills } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
-import type { Document, FilterParams, DocumentStats } from '@/types';
+import type { Document, FilterParams } from '@/types';
 import { safeArray } from '@/utils/helpers';
 import { handleApiError } from '../../utils/handleApiError';
 import {
   FileText, Clock, CheckCircle2, XCircle,
-  AlertTriangle, Eye, Trash2, MoreHorizontal, Download,
+  AlertTriangle, Eye, Trash2,
   File, Image, FileSpreadsheet, Tag, Link2
 } from 'lucide-react';
 
@@ -55,22 +55,6 @@ function ExpiryBadge({ status, expiryDate }: { status: string; expiryDate: strin
   );
 }
 
-// ── Approval Badge ──
-function ApprovalBadge({ status }: { status: string }) {
-  const config: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-    draft: { label: 'Draft', color: 'bg-gray-100 text-gray-700 border-gray-300', icon: <FileText size={11} /> },
-    pending: { label: 'Pending', color: 'bg-amber-50 text-amber-700 border-amber-200', icon: <Clock size={11} /> },
-    approved: { label: 'Approved', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <CheckCircle2 size={11} /> },
-    rejected: { label: 'Rejected', color: 'bg-red-50 text-red-700 border-red-200', icon: <XCircle size={11} /> },
-  };
-  const c = config[status] || config.draft;
-  return (
-    <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${c.color}`}>
-      {c.icon} {c.label}
-    </div>
-  );
-}
-
 // ── File Type Icon ──
 function FileTypeIcon({ fileType }: { fileType: string }) {
   if (fileType?.includes('pdf')) return <FileText size={16} className="text-red-500" />;
@@ -85,6 +69,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   insurance: 'Insurance',
   fitness: 'Fitness Cert',
   license: 'Driving License',
+  driving_license: 'Driving License',
   pollution: 'PUC',
   invoice: 'Invoice',
   eway_bill: 'E-Way Bill',
@@ -96,6 +81,22 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
+const TYPE_FILTER_OPTIONS = [
+  { value: 'rc', label: 'RC' },
+  { value: 'insurance', label: 'Insurance' },
+  { value: 'fitness', label: 'Fitness Cert' },
+  { value: 'license', label: 'Driving License' },
+  { value: 'pollution', label: 'PUC' },
+  { value: 'invoice', label: 'Invoice' },
+  { value: 'eway_bill', label: 'E-Way Bill' },
+  { value: 'lr_copy', label: 'LR Copy' },
+  { value: 'permit', label: 'Road Permit' },
+  { value: 'contract', label: 'Contract' },
+  { value: 'pod', label: 'POD' },
+  { value: 'tax_receipt', label: 'Tax Receipt' },
+  { value: 'other', label: 'Other' },
+];
+
 const ENTITY_TYPE_LABELS: Record<string, string> = {
   vehicle: 'Vehicle',
   driver: 'Driver',
@@ -104,34 +105,58 @@ const ENTITY_TYPE_LABELS: Record<string, string> = {
   finance: 'Finance',
 };
 
+function resolveFileUrl(fileUrl?: string | null): string {
+  if (!fileUrl) return '';
+  if (/^https?:\/\//i.test(fileUrl)) return fileUrl;
+
+  const normalizedPath = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
+  if (import.meta.env.DEV) {
+    const backendOrigin = (import.meta.env.VITE_PROXY_TARGET || 'http://localhost:8000').replace(/\/$/, '');
+    return `${backendOrigin}${normalizedPath}`;
+  }
+  return normalizedPath;
+}
+
+function getTypeLabel(documentType?: string, fileType?: string): string {
+  const normalized = (documentType || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+
+  if (DOC_TYPE_LABELS[normalized]) {
+    return DOC_TYPE_LABELS[normalized];
+  }
+
+  if (normalized === 'dl' || normalized === 'driver_license') {
+    return 'Driving License';
+  }
+
+  const mime = (fileType || '').toLowerCase();
+  if (mime.includes('pdf')) return 'PDF';
+  if (mime.startsWith('image/')) return 'Image';
+  if (mime.includes('sheet') || mime.includes('excel') || mime.includes('csv')) return 'Spreadsheet';
+
+  return documentType || 'Other';
+}
+
 export default function DocumentListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<FilterParams>({ page: 1, page_size: 20 });
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [expiryFilter, setExpiryFilter] = useState<string>('');
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [actionMenuId, setActionMenuId] = useState<number | null>(null);
   const [deleteDocId, setDeleteDocId] = useState<number | null>(null);
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [editDoc, setEditDoc] = useState<Document | null>(null);
   const [editForm, setEditForm] = useState({ title: '', doc_number: '' });
 
   // ── Data Queries ──
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['documents', filters, statusFilter, typeFilter, expiryFilter],
+    queryKey: ['documents', filters, typeFilter, expiryFilter],
     queryFn: () => documentService.list({
       ...filters,
-      approval_status: statusFilter !== 'all' ? statusFilter : undefined,
       document_type: typeFilter || undefined,
       expiry_filter: expiryFilter || undefined,
     }),
-  });
-
-  const { data: stats } = useQuery<DocumentStats>({
-    queryKey: ['document-stats'],
-    queryFn: () => documentService.stats(),
   });
 
   // ── Mutations ──
@@ -141,18 +166,6 @@ export default function DocumentListPage() {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       queryClient.invalidateQueries({ queryKey: ['document-stats'] });
       toast.success('Document deleted successfully.');
-    },
-    onError: (error) => {
-      handleApiError(error, 'Operation failed');
-    },
-  });
-
-  const approveMutation = useMutation({
-    mutationFn: (id: number) => documentService.approve(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
-      queryClient.invalidateQueries({ queryKey: ['document-stats'] });
-      toast.success('Document approved successfully.');
     },
     onError: (error) => {
       handleApiError(error, 'Operation failed');
@@ -176,6 +189,11 @@ export default function DocumentListPage() {
     setEditForm({ title: doc.title || '', doc_number: doc.doc_number || '' });
   };
 
+  const typeTabs = [
+    { key: '', label: 'All' },
+    ...TYPE_FILTER_OPTIONS.map((opt) => ({ key: opt.value, label: opt.label })),
+  ];
+
   // ── Columns ──
   const columns: Column<Document>[] = [
     {
@@ -192,6 +210,12 @@ export default function DocumentListPage() {
         <div className="min-w-0">
           <p className="font-medium text-gray-900 text-sm truncate max-w-[240px]">{d.title}</p>
           <p className="text-xs text-gray-400 mt-0.5 font-mono">{d.doc_number}</p>
+          {(String(d.document_type || '').toLowerCase() === 'license' || String(d.document_type || '').toLowerCase() === 'driving_license') && d.document_number && (
+            <p className="text-xs text-gray-500 mt-0.5">License No: <span className="font-medium text-gray-700">{d.document_number}</span></p>
+          )}
+          {String(d.document_type || '').toLowerCase() === 'rc' && d.document_number && (
+            <p className="text-xs text-gray-500 mt-0.5">Reg No: <span className="font-medium text-gray-700">{d.document_number}</span></p>
+          )}
         </div>
       ),
     },
@@ -201,7 +225,7 @@ export default function DocumentListPage() {
       sortable: true,
       render: (d) => (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-          <Tag size={11} /> {DOC_TYPE_LABELS[d.document_type] || d.document_type}
+          <Tag size={11} /> {getTypeLabel(d.document_type, d.file_type)}
         </span>
       ),
     },
@@ -210,10 +234,10 @@ export default function DocumentListPage() {
       header: 'Linked To',
       render: (d) => d.entity_label ? (
         <div className="min-w-0">
-          <div className="flex items-center gap-1 text-xs text-primary-600 font-medium">
+          <p className="text-sm text-gray-800 truncate max-w-[180px]">{d.entity_label.split(' — ')[0]}</p>
+          <div className="flex items-center gap-1 text-xs text-primary-600 font-medium mt-0.5">
             <Link2 size={11} /> {ENTITY_TYPE_LABELS[d.entity_type] || d.entity_type}
           </div>
-          <p className="text-xs text-gray-500 mt-0.5 truncate max-w-[180px]">{d.entity_label.split(' — ')[0]}</p>
         </div>
       ) : <span className="text-xs text-gray-400">—</span>,
     },
@@ -233,19 +257,10 @@ export default function DocumentListPage() {
       ),
     },
     {
-      key: 'approval_status',
-      header: 'Status',
-      sortable: true,
-      render: (d) => <ApprovalBadge status={d.approval_status} />,
-    },
-    {
       key: 'uploaded_by',
       header: 'Uploaded By',
       render: (d) => (
-        <div>
-          <p className="text-sm text-gray-700">{d.uploaded_by}</p>
-          <p className="text-[10px] text-gray-400">{new Date(d.created_at).toLocaleDateString('en-IN')}</p>
-        </div>
+        <p className="text-sm text-gray-700">{new Date(d.created_at).toLocaleDateString('en-IN')}</p>
       ),
     },
     {
@@ -253,58 +268,28 @@ export default function DocumentListPage() {
       header: '',
       width: '80px',
       render: (d) => (
-        <div className="relative">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={(e) => { e.stopPropagation(); openEditModal(d); }}
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-primary-600"
-              title="Edit"
-            >
-              <Eye size={15} />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === d.id ? null : d.id); }}
-              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
-            >
-              <MoreHorizontal size={15} />
-            </button>
-          </div>
-          {actionMenuId === d.id && (
-            <div className="absolute right-0 top-8 z-30 bg-white border border-gray-200 rounded-xl shadow-lg w-44 py-1 overflow-hidden"
-              onMouseLeave={() => setActionMenuId(null)}>
-              <button onClick={(e) => { e.stopPropagation(); openEditModal(d); setActionMenuId(null); }}
-                className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2">
-                <Eye size={14} /> View / Edit
-              </button>
-              {d.approval_status === 'pending' && (
-                <button onClick={(e) => { e.stopPropagation(); approveMutation.mutate(d.id); setActionMenuId(null); }}
-                  className="w-full px-4 py-2 text-sm text-left hover:bg-emerald-50 text-emerald-700 flex items-center gap-2">
-                  <CheckCircle2 size={14} /> Approve
-                </button>
-              )}
-              <button onClick={(e) => { e.stopPropagation(); window.open(d.file_url, '_blank'); setActionMenuId(null); }}
-                className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2">
-                <Download size={14} /> Download
-              </button>
-              <div className="border-t border-gray-100 my-1" />
-              <button onClick={(e) => { e.stopPropagation(); setDeleteDocId(d.id); setActionMenuId(null); }}
-                className="w-full px-4 py-2 text-sm text-left hover:bg-red-50 text-red-600 flex items-center gap-2">
-                <Trash2 size={14} /> Delete
-              </button>
-            </div>
-          )}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const fileUrl = resolveFileUrl(d.file_url);
+              if (fileUrl) window.open(fileUrl, '_blank');
+            }}
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-primary-600"
+            title="View File"
+          >
+            <Eye size={15} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setDeleteDocId(d.id); }}
+            className="p-1.5 hover:bg-red-50 rounded-lg transition-colors text-gray-400 hover:text-red-600"
+            title="Delete"
+          >
+            <Trash2 size={15} />
+          </button>
         </div>
       ),
     },
-  ];
-
-  // ── Status Tabs ──
-  const statusTabs = [
-    { key: 'all', label: `All${stats ? ` (${stats.total})` : ''}` },
-    { key: 'draft', label: 'Drafts' },
-    { key: 'pending', label: `Pending${stats?.pending_approval ? ` (${stats.pending_approval})` : ''}` },
-    { key: 'approved', label: `Approved${stats?.approved ? ` (${stats.approved})` : ''}` },
-    { key: 'rejected', label: 'Rejected' },
   ];
 
   return (
@@ -317,65 +302,13 @@ export default function DocumentListPage() {
         </div>
       </div>
 
-      {/* ── KPI Cards ── */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <KPICard
-            title="Total Documents"
-            value={stats.total}
-            icon={<FileText size={20} />}
-            color="blue"
-          />
-          <KPICard
-            title="Approved"
-            value={stats.approved}
-            icon={<CheckCircle2 size={20} />}
-            color="green"
-          />
-          <KPICard
-            title="Pending Approval"
-            value={stats.pending_approval}
-            icon={<Clock size={20} />}
-            color="amber"
-          />
-          <KPICard
-            title="Expiring Soon"
-            value={stats.expiring_soon}
-            icon={<AlertTriangle size={20} />}
-            color="orange"
-          />
-          <KPICard
-            title="Expired"
-            value={stats.expired}
-            icon={<XCircle size={20} />}
-            color="red"
-          />
-        </div>
-      )}
-
       {/* ── Filters Row ── */}
       <div className="flex flex-wrap gap-3 items-center">
         <TabPills
-          tabs={statusTabs}
-          activeTab={statusFilter}
-          onChange={(key) => { setStatusFilter(key); setFilters({ ...filters, page: 1 }); }}
+          tabs={typeTabs}
+          activeTab={typeFilter}
+          onChange={(key) => { setTypeFilter(key); setFilters({ ...filters, page: 1 }); }}
         />
-        <div className="flex items-center gap-2 ml-auto">
-          <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setFilters({ ...filters, page: 1 }); }}
-            className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white outline-none focus:border-primary-500">
-            <option value="">All Types</option>
-            {Object.entries(DOC_TYPE_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-          <select value={expiryFilter} onChange={(e) => { setExpiryFilter(e.target.value); setFilters({ ...filters, page: 1 }); }}
-            className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white outline-none focus:border-primary-500">
-            <option value="">All Expiry</option>
-            <option value="expired">Expired</option>
-            <option value="expiring_soon">Expiring Soon (30d)</option>
-            <option value="valid">Valid</option>
-          </select>
-        </div>
       </div>
 
       {/* ── Data Table ── */}
@@ -390,34 +323,7 @@ export default function DocumentListPage() {
         onPageChange={(p) => setFilters({ ...filters, page: p })}
         onSort={(key, order) => setFilters({ ...filters, sort_by: key, sort_order: order, page: 1 })}
         onRowClick={(d) => openEditModal(d)}
-        onAdd={() => navigate('/documents/upload')}
-        addLabel="Upload Document"
         onRefresh={() => refetch()}
-        selectedIds={selectedIds}
-        onSelectAll={(checked) => {
-          if (checked) {
-            setSelectedIds(new Set((safeArray<Document>(data)).map(d => d.id)));
-          } else {
-            setSelectedIds(new Set());
-          }
-        }}
-        onSelectRow={(id, checked) => {
-          setSelectedIds(prev => {
-            const next = new Set(prev);
-            if (checked) next.add(id); else next.delete(id);
-            return next;
-          });
-        }}
-        bulkActions={selectedIds.size > 0 ? (
-          <button
-            onClick={() => {
-              setShowBulkDeleteConfirm(true);
-            }}
-            className="px-3 py-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
-          >
-            Delete Selected
-          </button>
-        ) : undefined}
       />
 
       <ConfirmDialog
@@ -432,20 +338,6 @@ export default function DocumentListPage() {
           setDeleteDocId(null);
         }}
         onCancel={() => setDeleteDocId(null)}
-      />
-
-      <ConfirmDialog
-        isOpen={showBulkDeleteConfirm}
-        title="Delete Selected Documents"
-        message={`This will permanently delete ${selectedIds.size} document(s). Continue?`}
-        confirmLabel="Delete All"
-        isDangerous={true}
-        onConfirm={() => {
-          selectedIds.forEach((id) => deleteMutation.mutate(id));
-          setSelectedIds(new Set());
-          setShowBulkDeleteConfirm(false);
-        }}
-        onCancel={() => setShowBulkDeleteConfirm(false)}
       />
 
       <Modal

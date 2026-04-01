@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
-import { reportService } from '@/services/dataService';
+import { reportService, dashboardService } from '@/services/dataService';
 import { KPICard } from '@/components/common/Modal';
 import { Building2, ClipboardList, Shield, Wrench, Wallet, ArrowRight, Gauge, PlusCircle } from 'lucide-react';
 
@@ -19,6 +19,12 @@ export default function ManagerDashboardPage() {
     queryFn: reportService.dashboard,
   });
 
+  // Also fetch from role-specific manager stats (same endpoint as mobile app)
+  const { data: managerStats } = useQuery({
+    queryKey: ['manager-dashboard-stats'],
+    queryFn: dashboardService.getManagerStats,
+  });
+
   const shortcuts = [
     { label: 'Masters', subtitle: 'Clients, vehicles, drivers', path: '/clients', icon: <Building2 size={16} className="text-blue-600" />, bg: 'bg-blue-50' },
     { label: 'Operations', subtitle: 'LR and market trips', path: '/lr', icon: <ClipboardList size={16} className="text-emerald-600" />, bg: 'bg-emerald-50' },
@@ -33,6 +39,9 @@ export default function ManagerDashboardPage() {
     if (val >= 1000) return `₹${Number(val / 1000).toFixed(1)}K`;
     return `₹${val}`;
   };
+
+  // Merge manager stats (same source as mobile app) with report overview for consistent cross-platform data
+  const merged: Record<string, any> = { ...overview, ...managerStats };
 
   return (
     <div className="space-y-6 pb-8">

@@ -90,7 +90,21 @@ class TripsPaginationNotifier extends StateNotifier<AsyncValue<PaginatedTrips>> 
 
   Future<void> updateTripStatus(int tripId, String status) async {
     try {
-      await _api.patch('/trips/$tripId/status', data: {'status': status});
+      // Route to dedicated endpoints for statuses with extra automation
+      switch (status) {
+        case 'started':
+          await _api.put('/trips/$tripId/start');
+          break;
+        case 'unloading':
+        case 'reached':
+          await _api.put('/trips/$tripId/reach');
+          break;
+        case 'completed':
+          await _api.put('/trips/$tripId/close');
+          break;
+        default:
+          await _api.patch('/trips/$tripId/status', data: {'status': status});
+      }
       
       // Update local state optimistically
       _allTrips = _allTrips.map((trip) {
@@ -204,7 +218,21 @@ class TripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
 
   Future<void> updateTripStatus(int tripId, String status) async {
     try {
-      await _api.patch('/trips/$tripId/status', data: {'status': status});
+      // Route to dedicated endpoints for statuses with extra automation
+      switch (status) {
+        case 'started':
+          await _api.put('/trips/$tripId/start');
+          break;
+        case 'unloading':
+        case 'reached':
+          await _api.put('/trips/$tripId/reach');
+          break;
+        case 'completed':
+          await _api.put('/trips/$tripId/close');
+          break;
+        default:
+          await _api.patch('/trips/$tripId/status', data: {'status': status});
+      }
       await refresh();
     } catch (e, st) {
       state = AsyncValue.error(e, st);

@@ -1,16 +1,16 @@
 # Document Management Endpoints
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from typing import Optional
 import json
 import logging
-from datetime import datetime, date as date_type
+from datetime import datetime, date as date_type, timedelta
 
 from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user
 from app.schemas.base import APIResponse, PaginationMeta
-from app.models.postgres.document import Document, EntityType, DocumentType
+from app.models.postgres.document import Document, EntityType, DocumentType, DocumentApprovalStatus
 from app.services import s3_service
 from app.services.document_extraction_service import (
     DocumentExtractionService,
@@ -31,6 +31,20 @@ ALLOWED_MIME_TYPES = {
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
+DOC_TYPE_ALIASES = {
+    "license": "driving_license",
+}
+
+DOCUMENT_NUMBER_FIELDS = {
+    "driving_license": "license_number",
+    "rc": "registration_number",
+    "insurance": "policy_number",
+    "fitness": "certificate_number",
+    "puc": "certificate_number",
+    "permit": "permit_number",
+    "tax_receipt": "receipt_number",
+}
+
 
 def _parse_ddmmyyyy(value: Optional[str]) -> Optional[date_type]:
     """Parse DD/MM/YYYY string to a Python date. Returns None on failure."""
@@ -38,6 +52,23 @@ def _parse_ddmmyyyy(value: Optional[str]) -> Optional[date_type]:
         return None
     try:
         return datetime.strptime(value.strip(), "%d/%m/%Y").date()
+    except (ValueError, AttributeError):
+        return None
+
+
+def _normalize_doc_type(value: str) -> str:
+    key = (value or "").strip().lower()
+    return DOC_TYPE_ALIASES.get(key, key)
+
+
+def _parse_date_mixed(value: Optional[str]) -> Optional[date_type]:
+    if not value:
+        return None
+    parsed = _parse_ddmmyyyy(value)
+    if parsed:
+        return parsed
+    try:
+        return datetime.fromisoformat(value.strip()).date()
     except (ValueError, AttributeError):
         return None
 
@@ -71,7 +102,7 @@ async def extract_document(
 
     service = DocumentExtractionService()
     result = await service.extract(
-        document_type=document_type,
+        document_type=_normalize_doc_type(document_type),
         file_bytes=file_bytes,
         media_type=file.content_type,
     )
@@ -114,6 +145,9 @@ async def list_documents(
     page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     search: Optional[str] = None, entity_type: Optional[str] = None,
     entity_id: Optional[int] = None,
+    approval_status: Optional[str] = None,
+    document_type: Optional[str] = None,
+    expiry_filter: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(require_permission(Permissions.DOCUMENT_READ)),
 ):
@@ -132,6 +166,40 @@ async def list_documents(
     if entity_id:
         query = query.where(Document.entity_id == entity_id)
         count_query = count_query.where(Document.entity_id == entity_id)
+
+    if approval_status:
+        try:
+            resolved_status = DocumentApprovalStatus(approval_status.strip().upper())
+            query = query.where(Document.approval_status == resolved_status)
+            count_query = count_query.where(Document.approval_status == resolved_status)
+        except ValueError:
+            # Ignore unknown status filters instead of breaking list API.
+            pass
+
+    if document_type:
+        normalized_doc_type = _normalize_doc_type(document_type)
+        doc_type_key = DOC_TYPE_TO_ENUM.get(normalized_doc_type, normalized_doc_type.upper())
+        try:
+            resolved_doc_type = DocumentType(doc_type_key)
+            query = query.where(Document.document_type == resolved_doc_type)
+            count_query = count_query.where(Document.document_type == resolved_doc_type)
+        except ValueError:
+            # Ignore unknown doc type filters instead of breaking list API.
+            pass
+
+    if expiry_filter:
+        today = date_type.today()
+        soon_cutoff = today + timedelta(days=30)
+        key = expiry_filter.strip().lower()
+        if key == "expired":
+            query = query.where(Document.expiry_date.isnot(None), Document.expiry_date < today)
+            count_query = count_query.where(Document.expiry_date.isnot(None), Document.expiry_date < today)
+        elif key == "expiring_soon":
+            query = query.where(Document.expiry_date.isnot(None), Document.expiry_date >= today, Document.expiry_date <= soon_cutoff)
+            count_query = count_query.where(Document.expiry_date.isnot(None), Document.expiry_date >= today, Document.expiry_date <= soon_cutoff)
+        elif key == "valid":
+            query = query.where(Document.expiry_date.isnot(None), Document.expiry_date > soon_cutoff)
+            count_query = count_query.where(Document.expiry_date.isnot(None), Document.expiry_date > soon_cutoff)
 
     total = (await db.execute(count_query)).scalar() or 0
     pages = (total + limit - 1) // limit
@@ -229,12 +297,17 @@ async def get_document(
 
 @router.post("/upload", response_model=APIResponse, status_code=201)
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     entity_type: str = Form("vehicle"),
     entity_id: int = Form(0),
+    entity_label: Optional[str] = Form(None),
     title: Optional[str] = Form(None),
     document_type: str = Form("other"),
     extracted_data: Optional[str] = Form(None),
+    document_number: Optional[str] = Form(None),
+    issue_date: Optional[str] = Form(None),
+    expiry_date: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(require_permission(Permissions.DOCUMENT_CREATE)),
 ):
@@ -262,7 +335,8 @@ async def upload_document(
             logger.warning("Invalid extracted_data JSON in upload, ignoring.")
 
     # Resolve DocumentType enum (support both lowercase API types and existing uppercase values)
-    doc_type_key = DOC_TYPE_TO_ENUM.get(document_type.lower(), document_type.upper())
+    normalized_doc_type = _normalize_doc_type(document_type)
+    doc_type_key = DOC_TYPE_TO_ENUM.get(normalized_doc_type, document_type.upper())
     try:
         resolved_doc_type = DocumentType(doc_type_key)
     except ValueError:
@@ -275,15 +349,25 @@ async def upload_document(
         resolved_entity_type = EntityType.VEHICLE
 
     # Extract expiry and issue dates from parsed_extracted if present
-    expiry_date: Optional[date_type] = None
-    issue_date: Optional[date_type] = None
+    resolved_expiry_date: Optional[date_type] = None
+    resolved_issue_date: Optional[date_type] = None
+    resolved_document_number: Optional[str] = document_number
     if parsed_extracted:
-        expiry_field = EXPIRY_FIELDS.get(document_type.lower())
+        expiry_field = EXPIRY_FIELDS.get(normalized_doc_type)
         if expiry_field:
-            expiry_date = _parse_ddmmyyyy(parsed_extracted.get(expiry_field))
-        issue_field = ISSUE_DATE_FIELDS.get(document_type.lower())
+            resolved_expiry_date = _parse_ddmmyyyy(parsed_extracted.get(expiry_field))
+        issue_field = ISSUE_DATE_FIELDS.get(normalized_doc_type)
         if issue_field:
-            issue_date = _parse_ddmmyyyy(parsed_extracted.get(issue_field))
+            resolved_issue_date = _parse_ddmmyyyy(parsed_extracted.get(issue_field))
+        if not resolved_document_number:
+            number_field = DOCUMENT_NUMBER_FIELDS.get(normalized_doc_type)
+            if number_field:
+                resolved_document_number = parsed_extracted.get(number_field)
+
+    if issue_date:
+        resolved_issue_date = _parse_date_mixed(issue_date)
+    if expiry_date:
+        resolved_expiry_date = _parse_date_mixed(expiry_date)
 
     doc = Document(
         doc_number=generate_number("DOC", 4),
@@ -291,6 +375,8 @@ async def upload_document(
         document_type=resolved_doc_type,
         entity_type=resolved_entity_type,
         entity_id=entity_id,
+        entity_label=entity_label,
+        document_number=resolved_document_number,
         file_url=upload_result.get("url", ""),
         file_key=upload_result.get("key", ""),
         file_name=file.filename,
@@ -298,19 +384,190 @@ async def upload_document(
         file_type=file.content_type,
         uploaded_by=current_user.user_id,
         extracted_data=parsed_extracted,
-        issue_date=issue_date,
-        expiry_date=expiry_date,
+        issue_date=resolved_issue_date,
+        expiry_date=resolved_expiry_date,
     )
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
 
+    # Sync driver's license master record from uploaded driving license document.
+    if (
+        resolved_entity_type == EntityType.DRIVER
+        and doc_type_key == "LICENSE"
+        and entity_id
+        and resolved_document_number
+    ):
+        try:
+            from app.models.postgres.driver import DriverLicense, LicenseType
+
+            existing_result = await db.execute(
+                select(DriverLicense)
+                .where(DriverLicense.driver_id == entity_id)
+                .order_by(DriverLicense.id.desc())
+            )
+            existing_license = existing_result.scalars().first()
+
+            if existing_license:
+                existing_license.license_number = resolved_document_number
+                if resolved_issue_date:
+                    existing_license.issue_date = resolved_issue_date
+                if resolved_expiry_date:
+                    existing_license.expiry_date = resolved_expiry_date
+                existing_license.file_url = upload_result.get("url", existing_license.file_url)
+                await db.commit()
+            elif resolved_expiry_date:
+                new_license = DriverLicense(
+                    driver_id=entity_id,
+                    license_number=resolved_document_number,
+                    license_type=LicenseType.TRANSPORT,
+                    issue_date=resolved_issue_date,
+                    expiry_date=resolved_expiry_date,
+                    file_url=upload_result.get("url", ""),
+                    is_verified=False,
+                )
+                db.add(new_license)
+                await db.commit()
+            else:
+                logger.warning(
+                    "Skipping driver license sync for driver_id=%s because expiry_date is missing.",
+                    entity_id,
+                )
+        except Exception as e:
+            logger.warning("Could not sync driver license for driver_id=%s: %s", entity_id, e)
+
+    # Sync selected vehicle profile from uploaded RC extracted fields.
+    if (
+        resolved_entity_type == EntityType.VEHICLE
+        and doc_type_key == "RC"
+        and entity_id
+        and parsed_extracted
+    ):
+        try:
+            from app.models.postgres.vehicle import Vehicle
+
+            vehicle_result = await db.execute(
+                select(Vehicle).where(Vehicle.id == entity_id, Vehicle.is_deleted == False)
+            )
+            vehicle = vehicle_result.scalar_one_or_none()
+
+            if vehicle:
+                extracted_reg = (parsed_extracted.get("registration_number") or "").strip().upper() or None
+                current_reg = (vehicle.registration_number or "").strip().upper() if vehicle.registration_number else None
+
+                # Never overwrite registration_number with a conflicting value.
+                if extracted_reg and current_reg and extracted_reg != current_reg:
+                    logger.warning(
+                        "Skipping RC registration sync for vehicle_id=%s due to mismatch (%s vs %s)",
+                        entity_id,
+                        extracted_reg,
+                        current_reg,
+                    )
+
+                owner_name = parsed_extracted.get("owner_name")
+                engine_number = parsed_extracted.get("engine_number")
+                chassis_number = parsed_extracted.get("chassis_number")
+                fuel_type = parsed_extracted.get("fuel_type")
+
+                if owner_name:
+                    vehicle.owner_name = owner_name
+                if engine_number:
+                    vehicle.engine_number = engine_number
+                if chassis_number:
+                    vehicle.chassis_number = chassis_number
+                if fuel_type:
+                    vehicle.fuel_type = str(fuel_type).strip().lower()
+
+                await db.commit()
+        except Exception as e:
+            logger.warning("Could not sync RC details for vehicle_id=%s: %s", entity_id, e)
+
+    # Sync vehicle insurance validity from uploaded insurance document.
+    if (
+        resolved_entity_type == EntityType.VEHICLE
+        and doc_type_key == "INSURANCE"
+        and entity_id
+        and resolved_expiry_date
+    ):
+        try:
+            from app.models.postgres.vehicle import Vehicle
+
+            vehicle_result = await db.execute(
+                select(Vehicle).where(Vehicle.id == entity_id, Vehicle.is_deleted == False)
+            )
+            vehicle = vehicle_result.scalar_one_or_none()
+            if vehicle:
+                vehicle.insurance_valid_until = resolved_expiry_date
+                await db.commit()
+        except Exception as e:
+            logger.warning("Could not sync insurance validity for vehicle_id=%s: %s", entity_id, e)
+
+    # Sync vehicle PUC validity from uploaded PUC document.
+    if (
+        resolved_entity_type == EntityType.VEHICLE
+        and doc_type_key == "PUC"
+        and entity_id
+        and resolved_expiry_date
+    ):
+        try:
+            from app.models.postgres.vehicle import Vehicle
+
+            vehicle_result = await db.execute(
+                select(Vehicle).where(Vehicle.id == entity_id, Vehicle.is_deleted == False)
+            )
+            vehicle = vehicle_result.scalar_one_or_none()
+            if vehicle:
+                vehicle.puc_valid_until = resolved_expiry_date
+                await db.commit()
+        except Exception as e:
+            logger.warning("Could not sync PUC validity for vehicle_id=%s: %s", entity_id, e)
+
+    # Sync vehicle fitness validity from uploaded fitness document.
+    if (
+        resolved_entity_type == EntityType.VEHICLE
+        and doc_type_key == "FITNESS"
+        and entity_id
+        and resolved_expiry_date
+    ):
+        try:
+            from app.models.postgres.vehicle import Vehicle
+
+            vehicle_result = await db.execute(
+                select(Vehicle).where(Vehicle.id == entity_id, Vehicle.is_deleted == False)
+            )
+            vehicle = vehicle_result.scalar_one_or_none()
+            if vehicle:
+                vehicle.fitness_valid_until = resolved_expiry_date
+                await db.commit()
+        except Exception as e:
+            logger.warning("Could not sync fitness validity for vehicle_id=%s: %s", entity_id, e)
+
+    # Sync vehicle permit validity from uploaded permit document.
+    if (
+        resolved_entity_type == EntityType.VEHICLE
+        and doc_type_key == "PERMIT"
+        and entity_id
+        and resolved_expiry_date
+    ):
+        try:
+            from app.models.postgres.vehicle import Vehicle
+
+            vehicle_result = await db.execute(
+                select(Vehicle).where(Vehicle.id == entity_id, Vehicle.is_deleted == False)
+            )
+            vehicle = vehicle_result.scalar_one_or_none()
+            if vehicle:
+                vehicle.permit_valid_until = resolved_expiry_date
+                await db.commit()
+        except Exception as e:
+            logger.warning("Could not sync permit validity for vehicle_id=%s: %s", entity_id, e)
+
     # Create expiry compliance alert if document expires within 30 days
-    if expiry_date and entity_id:
+    if resolved_expiry_date and entity_id:
         try:
             from app.services import compliance_alert_service
             today = date_type.today()
-            days_until = (expiry_date - today).days
+            days_until = (resolved_expiry_date - today).days
             if days_until <= 30:
                 from app.models.postgres.document import DocumentType as DT
                 doc_label = title or document_type.replace("_", " ").title()
@@ -333,29 +590,35 @@ async def upload_document(
                     document_id=doc.id,
                     entity_type=entity_type.lower(),
                     entity_id=entity_id,
-                    due_date=datetime.combine(expiry_date, datetime.min.time()),
+                    due_date=datetime.combine(resolved_expiry_date, datetime.min.time()),
                 )
         except Exception as e:
             logger.warning(f"Could not create expiry alert for document {doc.id}: {e}")
 
-    # EVT-05: Schedule 30-day and 7-day advance alerts for ALL documents with expiry
-    if expiry_date and entity_id:
+    # EVT-05: TMS compliance alerts on document upload (fire-and-forget)
+    if resolved_expiry_date and entity_id:
         try:
             from app.services.tms_automation_service import evt_05_compliance_alerts
-            v_id = entity_id if entity_type.lower() == "vehicle" else None
-            d_id = entity_id if entity_type.lower() == "driver" else None
-            doc_label = title or document_type.replace("_", " ").title()
-            await evt_05_compliance_alerts(
-                db=db,
-                entity_type=entity_type.lower(),
-                entity_id=entity_id,
-                doc_type=doc_label,
-                expiry_date=expiry_date,
-                vehicle_id=v_id,
-                driver_id=d_id,
-            )
-        except Exception as e:
-            logger.warning(f"EVT-05: Could not schedule advance alerts for document {doc.id}: {e}")
+            from app.db.postgres.connection import AsyncSessionLocal
+
+            _et = entity_type
+            _eid = entity_id
+            _dt = document_type
+            _exp = resolved_expiry_date
+            _vid = entity_id if entity_type.lower() == "vehicle" else None
+            _did = entity_id if entity_type.lower() == "driver" else None
+
+            async def _run_evt05():
+                async with AsyncSessionLocal() as _db:
+                    await evt_05_compliance_alerts(
+                        _db, entity_type=_et, entity_id=_eid,
+                        doc_type=_dt, expiry_date=_exp,
+                        vehicle_id=_vid, driver_id=_did,
+                    )
+
+            background_tasks.add_task(_run_evt05)
+        except Exception:
+            pass
 
     return APIResponse(
         success=True,
@@ -363,7 +626,9 @@ async def upload_document(
             "id": doc.id,
             "url": upload_result.get("url"),
             "source": upload_result.get("source"),
-            "expiry_date": expiry_date.isoformat() if expiry_date else None,
+            "document_number": resolved_document_number,
+            "issue_date": resolved_issue_date.isoformat() if resolved_issue_date else None,
+            "expiry_date": resolved_expiry_date.isoformat() if resolved_expiry_date else None,
         },
         message="Document uploaded successfully",
     )
@@ -379,8 +644,15 @@ async def delete_document(
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    doc.is_deleted = True
-    await db.commit()
+
+    # Delete underlying file first when we have a storage key.
     if doc.file_key:
-        await s3_service.delete_file(doc.file_key)
+        try:
+            await s3_service.delete_file(doc.file_key)
+        except Exception as e:
+            logger.warning("Could not delete file key '%s' for doc_id=%s: %s", doc.file_key, doc_id, e)
+
+    # Hard-delete document record from DB.
+    await db.delete(doc)
+    await db.commit()
     return APIResponse(success=True, message="Document deleted")

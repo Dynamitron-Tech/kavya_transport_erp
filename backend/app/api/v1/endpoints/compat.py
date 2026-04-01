@@ -53,6 +53,49 @@ async def finance_receivables(db: AsyncSession = Depends(get_db), current_user: 
     return APIResponse(success=True, data=items)
 
 
+@router.get("/finance/gst/summary", response_model=APIResponse)
+async def finance_gst_summary(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.LEDGER_READ)),
+):
+    """Alias for /accountant/gst — allows website to access GST data via /finance/gst/summary."""
+    from app.models.postgres.finance import GSTEntry
+    total_result = await db.execute(select(func.count(GSTEntry.id)))
+    total = total_result.scalar() or 0
+    result = await db.execute(
+        select(GSTEntry).order_by(GSTEntry.id.desc()).offset((page - 1) * limit).limit(limit)
+    )
+    entries = result.scalars().all()
+    items = [{c.key: getattr(e, c.key) for c in e.__table__.columns} for e in entries]
+    summary_q = await db.execute(
+        select(
+            func.sum(GSTEntry.taxable_value).label("total_taxable"),
+            func.sum(GSTEntry.cgst_amount).label("total_cgst"),
+            func.sum(GSTEntry.sgst_amount).label("total_sgst"),
+            func.sum(GSTEntry.igst_amount).label("total_igst"),
+            func.sum(GSTEntry.total_value).label("total_value"),
+        )
+    )
+    s = summary_q.one()
+    summary = {
+        "total_taxable": float(s[0] or 0),
+        "total_cgst": float(s[1] or 0),
+        "total_sgst": float(s[2] or 0),
+        "total_igst": float(s[3] or 0),
+        "total_gst": float((s[1] or 0) + (s[2] or 0) + (s[3] or 0)),
+        "total_value": float(s[4] or 0),
+    }
+    pages = max(1, (total + limit - 1) // limit)
+    return APIResponse(
+        success=True,
+        data={"entries": items, "summary": summary},
+        pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages),
+    )
+
+
 @router.get("/finance/payables", response_model=APIResponse)
 async def finance_payables(db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
     result = await db.execute(

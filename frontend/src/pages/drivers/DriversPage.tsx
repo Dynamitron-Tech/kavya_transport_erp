@@ -9,7 +9,7 @@ import DataTable, { Column } from '@/components/common/DataTable';
 import { StatusBadge, KPICard, Modal } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import type { Driver, DriverDashboard, FilterParams } from '@/types';
-import { Star, Users, UserCheck, Truck, Clock, AlertTriangle, LayoutDashboard, Shield } from 'lucide-react';
+import { Star, Users, UserCheck, Truck, Clock, AlertTriangle, LayoutDashboard } from 'lucide-react';
 import { safeArray } from '@/utils/helpers';
 import { handleApiError } from '../../utils/handleApiError';
 import { DocumentChecklist } from '@/components/documents/DocumentChecklist';
@@ -247,13 +247,6 @@ export default function DriversPage() {
       render: (d) => <span className="text-sm">{d.phone}</span>,
     },
     {
-      key: 'assigned_vehicle',
-      header: 'Vehicle',
-      render: (d) => d.assigned_vehicle
-        ? <span className="font-mono text-sm text-purple-600">{d.assigned_vehicle}</span>
-        : <span className="text-gray-300 text-sm">—</span>,
-    },
-    {
       key: 'license_expiry',
       header: 'License Expiry',
       sortable: true,
@@ -273,38 +266,6 @@ export default function DriversPage() {
           </span>
         );
       },
-    },
-    {
-      key: 'total_trips',
-      header: 'Trips',
-      sortable: true,
-      render: (d) => <span className="font-semibold">{d.total_trips || 0}</span>,
-    },
-    {
-      key: 'safety_score',
-      header: 'Safety',
-      sortable: true,
-      render: (d) => {
-        const score = d.safety_score ?? 0;
-        const color = score >= 80 ? 'text-green-600' : score >= 60 ? 'text-amber-600' : 'text-red-600';
-        return (
-          <div className="flex items-center gap-1">
-            <Shield size={13} className={color} />
-            <span className={`text-sm font-medium ${color}`}>{score}</span>
-          </div>
-        );
-      },
-    },
-    {
-      key: 'rating',
-      header: 'Rating',
-      sortable: true,
-      render: (d) => (
-        <div className="flex items-center gap-1">
-          <Star size={14} className="text-amber-400 fill-amber-400" />
-          <span className="text-sm font-medium">{Number((d.rating || 0) ?? 0).toFixed(1)}</span>
-        </div>
-      ),
     },
     {
       key: 'status',

@@ -769,12 +769,30 @@ async def lookup_drivers(
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
 ):
+    from app.models.postgres.driver import DriverLicense
+
     query = select(Driver.id, Driver.first_name, Driver.last_name, Driver.phone).where(Driver.is_deleted == False)
     if search:
         query = query.where(Driver.first_name.ilike(f"%{search}%"))
     query = query.order_by(Driver.first_name).limit(50)
     result = await db.execute(query)
-    items = [{"id": r.id, "name": f"{r.first_name} {r.last_name}".strip(), "phone": r.phone} for r in result.all()]
+    items = []
+    for r in result.all():
+        lic_result = await db.execute(
+            select(DriverLicense)
+            .where(DriverLicense.driver_id == r.id)
+            .order_by(DriverLicense.id.desc())
+        )
+        lic = lic_result.scalars().first()
+        items.append(
+            {
+                "id": r.id,
+                "name": f"{r.first_name} {r.last_name}".strip(),
+                "phone": r.phone,
+                "license_number": lic.license_number if lic else None,
+                "license_expiry": str(lic.expiry_date) if lic and lic.expiry_date else None,
+            }
+        )
     return APIResponse(success=True, data=items)
 
 
