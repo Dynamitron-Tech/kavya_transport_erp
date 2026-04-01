@@ -25,6 +25,7 @@ type Listener = (msg: WSMessage) => void;
 class KTWebSocketService {
   private ws: WebSocket | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private connectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private baseDelay = 1000;
@@ -38,6 +39,19 @@ class KTWebSocketService {
 
   connect(): void {
     this.disposed = false;
+    // Debounce: cancel any pending connect (guards React StrictMode double-invoke)
+    if (this.connectTimer) {
+      clearTimeout(this.connectTimer);
+      this.connectTimer = null;
+    }
+    this.connectTimer = setTimeout(() => {
+      this.connectTimer = null;
+      if (this.disposed) return;
+      this._doConnect();
+    }, 50);
+  }
+
+  private _doConnect(): void {
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
 
     const token = useAuthStore.getState().token ?? localStorage.getItem('access_token');
@@ -61,18 +75,24 @@ class KTWebSocketService {
 
   disconnect(): void {
     this.disposed = true;
+    // Cancel any pending deferred connect (guards React StrictMode double-invoke)
+    if (this.connectTimer) {
+      clearTimeout(this.connectTimer);
+      this.connectTimer = null;
+    }
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     if (this.ws) {
+      // Strip all handlers FIRST so closing a CONNECTING socket doesn't log
+      // "WebSocket is closed before the connection is established" as an error.
       this.ws.onerror = null;
       this.ws.onclose = null;
       this.ws.onmessage = null;
       this.ws.onopen = null;
-      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
-        this.ws.close();
-      }
+      // close() is safe to call in any ready-state; it's a no-op if already CLOSED.
+      this.ws.close();
       this.ws = null;
     }
     this.reconnectAttempts = 0;

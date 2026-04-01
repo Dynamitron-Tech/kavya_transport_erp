@@ -11,8 +11,9 @@ A full-stack Enterprise Resource Planning system for transport and logistics ope
 └─────────────────┘     └──────────────────┘     └─────────────────────┘
                               ▲
                     ┌─────────┴─────────┐
-                    │   Flutter Apps    │
-                    │  (Dart / Mobile)  │
+                    │   Flutter App     │
+                    │   (kavya_app)     │
+                    │  Multi-role Dart  │
                     └───────────────────┘
 ```
 
@@ -20,8 +21,7 @@ A full-stack Enterprise Resource Planning system for transport and logistics ope
 |-----------|-------|------|
 | **Backend API** | FastAPI 0.109, SQLAlchemy 2.0 (async), Celery | `8000` |
 | **Frontend** | React 18, TypeScript, Vite, TailwindCSS, Zustand | `5173` |
-| **Driver App** (`flutter_driver_app/`) | Flutter 3.x, Riverpod, Dio, Google Maps | Android / Web |
-| **Management App** (`kavya_app/`) | Flutter 3.x, Riverpod, Dio, fl_chart | Android / iOS / Web |
+| **Mobile App** (`kavya_app/`) | Flutter 3.x, Riverpod 2.x, Dio, fl_chart, Google Maps | Android / iOS / Web |
 | **Database** | PostgreSQL (primary), MongoDB (logs/tracking) | `5432` / `27017` |
 | **Cache/Broker** | Redis | `6379` |
 
@@ -51,25 +51,29 @@ kavya_transport_erp/
 ├── frontend/                  # React SPA
 │   └── src/
 │       ├── components/        # Reusable UI components
-│       ├── pages/             # 20 page modules (dashboard, jobs, LR, etc.)
-│       ├── services/          # Axios API clients
+│       ├── pages/             # 25+ page modules (dashboard, jobs, LR, etc.)
+│       ├── services/          # Axios API clients + WebSocket
 │       ├── store/             # Zustand state stores
 │       ├── types/             # TypeScript type definitions
 │       └── utils/             # Helpers, role routing
-├── flutter_driver_app/        # Mobile app for drivers (production-ready)
-│   └── lib/
-│       ├── screens/           # 11 screens (login, trips, expenses, etc.)
-│       ├── providers/         # Riverpod state providers
-│       ├── services/          # API & location services
-│       ├── models/            # Dart data models
-│       └── widgets/           # Reusable Flutter widgets
-└── kavya_app/                 # Multi-role management app (WIP)
+└── kavya_app/                 # Multi-role Flutter app (production-ready)
     └── lib/
-        ├── screens/           # 22 screens (fleet, accountant, associate)
-        ├── providers/         # Riverpod state providers
-        ├── services/          # API, auth, offline, notification services
+        ├── screens/
+        │   ├── auth/          # Login, splash
+        │   ├── driver/        # Today, trip list/detail, expenses, ePOD, settlement
+        │   ├── fleet/         # Dashboard, vehicles, trips, drivers, maintenance
+        │   ├── accountant/    # Finance dashboard, invoices, payments, banking
+        │   ├── associate/     # LR, e-way bills, trip closing, documents
+        │   ├── branch/        # Branch home (4-tab), trips, drivers, reports
+        │   ├── pump/          # Pump dashboard, shift management
+        │   ├── pa/            # Project associate flows
+        │   ├── profile/       # User profile
+        │   └── notifications/ # Notification center
+        ├── providers/         # Riverpod 2.x state providers
+        ├── services/          # API, auth, offline sync, background GPS, notifications
         ├── models/            # Dart data models
-        └── core/              # Theme, router, reusable widgets
+        ├── widgets/           # Reusable Flutter widgets
+        └── core/              # Theme, router (go_router), reusable components
 ```
 
 ---
@@ -83,7 +87,7 @@ kavya_transport_erp/
 - PostgreSQL 15+
 - MongoDB 6+
 - Redis 7+
-- Flutter SDK 3.10+ (for driver app)
+- Flutter SDK 3.10+ (for kavya_app)
 
 ### Backend Setup
 
@@ -122,17 +126,7 @@ npm run build      # Production build
 npm run test       # Run Vitest tests
 ```
 
-### Driver App Setup
-
-```bash
-cd flutter_driver_app
-
-flutter pub get
-flutter run              # Android device/emulator
-flutter run -d chrome    # Web (for testing)
-```
-
-### Management App Setup (kavya_app)
+### Mobile App Setup (kavya_app)
 
 ```bash
 cd kavya_app
@@ -140,9 +134,10 @@ cd kavya_app
 flutter pub get
 flutter run              # Android device/emulator
 flutter run -d chrome    # Web (for testing)
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
 ```
 
-> **Note:** `kavya_app` is work-in-progress — router not fully wired, some screens use mock data.
+> **Note:** The default API base URL is `http://10.0.2.2:8000/api/v1` (Android emulator → host localhost). Override via `--dart-define=API_BASE_URL=<your_url>` for physical devices or different environments.
 
 ---
 
@@ -357,61 +352,61 @@ npm run test:coverage # With coverage report
 
 The React SPA includes pages for all roles:
 
-- **Dashboard** — KPIs, recent jobs, revenue charts
+- **Dashboard** — KPIs, recent jobs, revenue charts, smart suggestions (pending jobs, overdue invoices, idle vehicles, expiring docs), real-time WebSocket updates
 - **Clients** — List, detail, contacts, addresses
 - **Vehicles** — Fleet list, detail, documents, maintenance
 - **Drivers** — Profiles, dashboard, attendance, compliance
-- **Jobs** — Create, list, detail, status management
+- **Jobs** — Create, list, detail, status management; Kanban pipeline view
 - **LR (Lorry Receipts)** — Create, list, detail
-- **Trips** — Create, list, detail, route calculator
-- **E-way Bills** — List, detail, generate
+- **Trips** — Create, list, detail, route calculator, activity timeline
+- **E-way Bills** — List, detail, generate; live validity countdown
 - **Finance** — Invoices, payments, ledger, receivables, payables, banking
 - **Documents** — Upload, list, versioning
 - **Tracking** — Live GPS map, trip replay
 - **Reports** — Revenue, fleet, driver performance
 - **Fleet Manager Portal** — Vehicles, drivers, maintenance, fuel, tyres, alerts
 - **Accountant Portal** — Invoices, expenses, fuel, banking, reports
+- **Notifications** — Full notification inbox (`/settings/notifications`)
 - **Settings** — Notifications, system configuration
+
+**WebSocket integration:** `DashboardLayout` auto-connects to `/ws?token=<jwt>` on login. `useRealtimeDashboard`, `useRealtimeTrip`, and `useRealtimeVehicle` hooks auto-invalidate TanStack Query caches on `gps_update`, `trip_alert`, and `notification` events.
 
 ---
 
-## Mobile Apps
+## Mobile App
 
-### Driver App (`flutter_driver_app/`) — Production Ready
+### kavya_app — Production Ready
 
-Built with Flutter for drivers in the field:
+A single Flutter app covering all field and office roles. Authenticated users are routed to their role's home screen automatically.
 
-| Screen | Purpose |
-|--------|---------|
-| Login | Phone/email authentication |
-| Home | Today's tasks summary |
-| Today | Current day trips & tasks |
-| Trip List | All assigned trips |
-| Trip Detail | Trip info, route, status updates |
-| Add Expense | Log trip expenses with photos |
-| Expense List | View submitted expenses |
-| Documents | Upload/view driver documents |
-| Notifications | Push notification center |
-| Profile | Driver profile management |
-| Checklist | Pre-trip vehicle inspection |
+#### Roles & Screens
 
-**Key dependencies:** Riverpod (state), Dio (HTTP), Google Maps, Geolocator, Firebase Messaging, Hive (offline storage).
+| Role | Home | Screens |
+|------|------|---------|
+| **Driver** | `/driver/today` | Today's tasks, trip list/detail, add expense, expense list, ePOD (4-step), settlement, documents, notifications, profile |
+| **Fleet Manager** | `/fleet/home` | Dashboard, live map, vehicle list/detail, trip management, driver list, service logs, tyre events, expense approval |
+| **Accountant** | `/accountant/home` | Financial dashboard, invoice list, receivables, payments (record & list), banking, settlement, expense approval |
+| **Project Associate** | `/associate/home` | Job list, LR creation, e-way bill generation, trip closing, document upload |
+| **Branch Manager** | `/branch/home` (4-tab) | Branch overview, trips, drivers, reports |
+| **Pump Operator** | `/pump/home` | Pump dashboard, shift management |
+| **Admin / Manager** | Web redirect | Directed to the React frontend for full system access |
 
-### Management App (`kavya_app/`) — Work in Progress
+#### Key Technical Features
 
-Multi-role Flutter app for office staff (fleet managers, accountants, project associates):
+- **State management:** Riverpod 2.x (code-gen providers)
+- **Navigation:** go_router 17.x with `StatefulShellRoute` for tabbed roles
+- **Networking:** Dio 5.x with auth interceptor (JWT auto-refresh)
+- **Offline:** Hive local storage for offline-first trip data
+- **Background GPS:** `flutter_background_service` — 30-second location pings during active trips
+- **OCR:** On-device `google_mlkit_text_recognition` for receipt scanning
+- **Biometric auth:** `local_auth` for quick PIN/fingerprint unlock
+- **Push notifications:** Firebase Messaging + `flutter_local_notifications`
+- **ePOD:** 4-step proof-of-delivery flow (confirm → signature → photo → submit)
+- **Charts:** `fl_chart` for financial and fleet KPI charts
+- **Permissions:** Full Android permission declarations (GPS, camera, biometric, foreground service, etc.)
 
-| Module | Screens | Features |
-|--------|---------|----------|
-| **Fleet Manager** | 7 screens | Dashboard, live map, vehicle list/detail, service logs, tyre events, expense approval |
-| **Accountant** | 6 screens | Financial dashboard, invoices, receivables, payments, expense approval |
-| **Project Associate** | 6 screens | Job list, LR creation, e-way bill generation, trip closing, doc upload |
-| **Auth** | 2 screens | Login, web-only redirect for admin/manager roles |
-| **Shared** | 2 screens | Profile, notifications |
+**Dependencies:** Riverpod, go_router, Dio, Google Maps, Geolocator, fl_chart, Hive, Firebase Messaging, background_service, permission_handler, google_mlkit_text_recognition, local_auth, share_plus.
 
-**Status:** 22 screens with full UI, but ~40% use mock data. Router not fully wired to screens. No Android permissions declared. Offline sync is a skeleton.
-
-**Key dependencies:** Riverpod (state), Dio (HTTP), fl_chart, Google Maps, Firebase Messaging, Hive, Google Fonts.
 
 ---
 

@@ -52,6 +52,7 @@ from app.api.v1.endpoints import (
     user_notifications,
     pa_dashboard,
     manager_dashboard,
+    document_ocr,
 )
 
 api_router = APIRouter()
@@ -107,6 +108,9 @@ api_router.include_router(tracking.router, prefix="/tracking", tags=["Tracking"]
 
 # Document Management
 api_router.include_router(documents.router, prefix="/documents", tags=["Documents"])
+
+# Document OCR (free Tesseract-based scanner)
+api_router.include_router(document_ocr.router, prefix="/documents", tags=["Document OCR"])
 
 # Reports & Dashboard
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])
