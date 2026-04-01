@@ -30,6 +30,12 @@ interface VehicleOption {
   vehicle_type?: string;
   capacity_tons?: number;
   status?: string;
+  driver?: {
+    id: number;
+    name: string;
+    phone?: string;
+    license_number?: string;
+  } | null;
 }
 
 interface DriverOption {
@@ -443,6 +449,15 @@ export default function CreateLRPage() {
     setSelectedVehicle(vehicle);
     updateField('vehicle_id', vehicle.id);
     updateField('vehicle_number', vehicle.registration_number);
+    // Auto-fill driver from vehicle's last assigned driver
+    if (vehicle.driver) {
+      const d = vehicle.driver;
+      setSelectedDriver({ id: d.id, name: d.name, phone: d.phone, license_number: d.license_number });
+      updateField('driver_id', d.id);
+      updateField('driver_name', d.name || '');
+      updateField('driver_phone', d.phone || '');
+      updateField('driver_license', d.license_number || '');
+    }
   }, [updateField]);
 
   const selectDriver = useCallback((driver: DriverOption) => {
@@ -1234,6 +1249,13 @@ export default function CreateLRPage() {
             {/* Driver Selection */}
             <div className="space-y-4">
               <h4 className="text-sm font-bold text-gray-700">Driver</h4>
+              {selectedVehicle?.driver ? (
+                <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 flex items-center gap-2">
+                  <span className="font-semibold">{selectedVehicle.driver.name}</span>
+                  {selectedVehicle.driver.phone && <span className="text-green-600">| {selectedVehicle.driver.phone}</span>}
+                  <span className="ml-auto text-xs text-green-600 italic">Assigned by fleet manager</span>
+                </div>
+              ) : (
               <FormField label="Select Driver" hint="Pick from Drivers master data">
                 <SelectInput
                   value={form.driver_id || ''}
@@ -1260,6 +1282,7 @@ export default function CreateLRPage() {
                   disabled={isReadonly}
                 />
               </FormField>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <FormField label="Driver Name">
                   <TextInput value={form.driver_name} onChange={() => {}}

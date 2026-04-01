@@ -209,6 +209,19 @@ export default function UploadDocumentPage() {
     return docType;
   }, []);
 
+  const getDocumentNumberField = useCallback((docType: string) => {
+    switch (normalizeDocType(docType)) {
+      case 'driving_license': return 'license_number';
+      case 'rc': return 'registration_number';
+      case 'insurance': return 'policy_number';
+      case 'fitness':
+      case 'puc': return 'certificate_number';
+      case 'permit': return 'permit_number';
+      case 'tax_receipt': return 'receipt_number';
+      default: return 'document_number';
+    }
+  }, [normalizeDocType]);
+
   const normalizeDateToISO = useCallback((raw?: string | null) => {
     if (!raw) return '';
     const value = String(raw).trim();
@@ -336,20 +349,23 @@ export default function UploadDocumentPage() {
     setExtractingDoc(true);
     try {
       const fd = new FormData();
+      const normalizedDocType = normalizeDocType(form.document_type);
       fd.append('file', file);
-      fd.append('document_type', normalizeDocType(form.document_type));
+      fd.append('document_type', normalizedDocType);
       fd.append('entity_type', form.entity_type || 'driver');
 
       const result = await documentService.extract(fd);
       const data = (result?.data ?? {}) as Record<string, any>;
       setExtractedData(data);
 
-      if (data.license_number) updateField('document_number', String(data.license_number));
+      const numberField = getDocumentNumberField(normalizedDocType);
+      const extractedNumber = data[numberField];
+      if (extractedNumber) updateField('document_number', String(extractedNumber));
 
       const parsedIssueDate = normalizeDateToISO(data.issue_date);
       if (parsedIssueDate) updateField('issue_date', parsedIssueDate);
 
-      const parsedExpiryDate = normalizeDateToISO(data.expiry_date);
+      const parsedExpiryDate = normalizeDateToISO(data.expiry_date || data.validity_date);
       if (parsedExpiryDate) updateField('expiry_date', parsedExpiryDate);
 
       if (result?.extracted === false) {
@@ -363,7 +379,7 @@ export default function UploadDocumentPage() {
     } finally {
       setExtractingDoc(false);
     }
-  }, [form.document_type, form.entity_type, normalizeDateToISO, normalizeDocType, updateField]);
+  }, [form.document_type, form.entity_type, getDocumentNumberField, normalizeDateToISO, normalizeDocType, updateField]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -428,11 +444,15 @@ export default function UploadDocumentPage() {
         if (form.issue_date) fd.append('issue_date', form.issue_date);
         if (form.expiry_date) fd.append('expiry_date', form.expiry_date);
 
+        const normalizedDocType = normalizeDocType(form.document_type || 'other');
+        const numberField = getDocumentNumberField(normalizedDocType);
+        const expiryField = normalizedDocType === 'rc' ? 'validity_date' : 'expiry_date';
+
         const mergedExtractedData = {
           ...(extractedData || {}),
-          ...(form.document_number ? { license_number: form.document_number } : {}),
+          ...(form.document_number ? { [numberField]: form.document_number } : {}),
           ...(form.issue_date ? { issue_date: form.issue_date.split('-').reverse().join('/') } : {}),
-          ...(form.expiry_date ? { expiry_date: form.expiry_date.split('-').reverse().join('/') } : {}),
+          ...(form.expiry_date ? { [expiryField]: form.expiry_date.split('-').reverse().join('/') } : {}),
         };
         if (Object.keys(mergedExtractedData).length > 0) {
           fd.append('extracted_data', JSON.stringify(mergedExtractedData));
@@ -748,6 +768,37 @@ export default function UploadDocumentPage() {
                     />
                   </FormField>
                   <FormField label="Expiry Date" error={errors.expiry_date}>
+                    <TextInput
+                      type="date"
+                      value={form.expiry_date}
+                      onChange={(v) => updateField('expiry_date', v)}
+                      error={!!errors.expiry_date}
+                    />
+                  </FormField>
+                </div>
+              </div>
+            )}
+
+            {form.document_type === 'rc' && (
+              <div className="mt-4 border border-gray-200 rounded-xl p-4 bg-gray-50/40">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-3">Manual Entry (Safety)</p>
+                <p className="text-xs text-gray-500 mb-3">If OCR is incorrect, update these RC values manually before saving.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <FormField label="Registration Number">
+                    <TextInput
+                      value={form.document_number}
+                      onChange={(v) => updateField('document_number', v.toUpperCase().replace(/\s+/g, ''))}
+                      placeholder="Enter registration number"
+                    />
+                  </FormField>
+                  <FormField label="Issue Date">
+                    <TextInput
+                      type="date"
+                      value={form.issue_date}
+                      onChange={(v) => updateField('issue_date', v)}
+                    />
+                  </FormField>
+                  <FormField label="Validity Date" error={errors.expiry_date}>
                     <TextInput
                       type="date"
                       value={form.expiry_date}

@@ -63,6 +63,24 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     last_login = Column(DateTime, nullable=True)
     fcm_token = Column(String(512), nullable=True)
     
+    # Employee profile fields
+    date_of_birth = Column(Date, nullable=True)
+    gender = Column(String(20), nullable=True)
+    address = Column(Text, nullable=True)
+    joining_date = Column(Date, nullable=True)
+    emergency_contact_name = Column(String(100), nullable=True)
+    emergency_contact_phone = Column(String(20), nullable=True)
+
+    # Bank / salary fields
+    bank_account_holder = Column(String(150), nullable=True)
+    bank_name = Column(String(150), nullable=True)
+    account_number = Column(String(30), nullable=True)
+    ifsc_code = Column(String(20), nullable=True)
+    account_type = Column(String(30), nullable=True)
+    upi_id = Column(String(100), nullable=True)
+    salary_amount = Column(String(20), nullable=True)
+    pay_type = Column(String(20), nullable=True)
+
     # Multi-tenant support
     branch_id = Column(Integer, ForeignKey('branches.id'), nullable=True)
     tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)

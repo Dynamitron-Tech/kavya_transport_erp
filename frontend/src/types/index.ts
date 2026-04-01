@@ -2023,3 +2023,141 @@ export interface VehiclePrediction {
   predictions: MaintenancePrediction[];
 }
 
+// ── Tyre Tracker Types (Real-Time) ──────────────────────
+
+export type TyreAlertType = 'low_pressure' | 'high_temp' | 'critical_pressure' | null;
+
+export interface TyreData {
+  id: number;
+  position: string;
+  serial_number: string;
+  brand: string;
+  model: string;
+  size: string;
+  life_percent: number;
+  psi: number;
+  target_psi: number;
+  temperature: number;
+  km_run: number;
+  fitted_date: string;
+  has_sensor: boolean;
+  alert?: TyreAlertType;
+  vehicle_id: number;
+  vehicle_number?: string;
+}
+
+export interface TyreLifeSummary {
+  buckets: Record<string, number>;
+  items_by_bucket: Record<string, TyreLifeBucketItem[]>;
+  status_counts: {
+    normal: number;
+    low_psi: number;
+    critical: number;
+    alerts: number;
+  };
+  total: number;
+}
+
+export interface TyreLifeBucketItem {
+  id: number;
+  serial_number: string;
+  position: string;
+  vehicle_number: string;
+  vehicle_id: number;
+  life_percent: number;
+  psi: number;
+  km_run: number;
+}
+
+export interface TyreAlertItem {
+  id: number;
+  vehicle_id: number;
+  vehicle_number: string;
+  serial_number: string;
+  position: string;
+  psi: number;
+  temperature: number;
+  alert_type: string;
+  timestamp: string;
+}
+
+export interface TyreStockItem {
+  id: number;
+  serial_number: string;
+  brand: string;
+  size: string;
+  condition: string;
+  vehicle_number: string;
+  vehicle_id: number;
+  position: string;
+  purchase_date: string | null;
+  purchase_cost: number;
+  retread_count: number;
+  km_run: number;
+}
+
+export interface TyreRetreadItem {
+  id: number;
+  serial_number: string;
+  brand: string;
+  size: string;
+  position: string;
+  condition: string;
+  vehicle_number: string;
+  vehicle_id: number;
+  retread_count: number;
+  max_retreads: number;
+  last_retread_date: string | null;
+  total_retread_cost: number;
+  km_run: number;
+  status: string;
+  vendor: string | null;
+  notes: string | null;
+}
+
+export interface TyreCatalogueItem {
+  id: number;
+  brand: string;
+  model: string;
+  sizes: string[];
+  image: string;
+  category: string;
+}
+
+export interface TyreCompareItem {
+  brand: string;
+  count: number;
+  total_km: number;
+  total_cost: number;
+  cost_per_km: number;
+  models: string[];
+}
+
+export interface TyreWSPressureUpdate {
+  type: 'tyre_pressure_update';
+  vehicle_id: number;
+  position: string;
+  psi: number;
+  temperature: number;
+  timestamp: string;
+}
+
+export interface TyreWSAlert {
+  type: 'tyre_alert';
+  vehicle_id: number;
+  position: string;
+  alert_type: string;
+  value: number;
+  threshold: number;
+  timestamp: string;
+}
+
+export interface TyreWSLifeUpdate {
+  type: 'tyre_life_update';
+  vehicle_id: number;
+  position: string;
+  life_percent: number;
+  km_run: number;
+  timestamp: string;
+}
+

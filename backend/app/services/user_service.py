@@ -86,6 +86,21 @@ async def create_user(db: AsyncSession, data: dict) -> User:
     role_names = data.pop("role_names", [])
     password = data.pop("password")
     data["phone"] = _normalize_optional_phone(data.get("phone"))
+    # Convert date string fields to date objects
+    from datetime import date as _date
+    for date_field in ("date_of_birth", "joining_date"):
+        val = data.get(date_field)
+        if val and isinstance(val, str):
+            try:
+                data[date_field] = _date.fromisoformat(val)
+            except ValueError:
+                data[date_field] = None
+    # Strip empty strings for optional fields
+    for field in ("gender", "address", "emergency_contact_name", "emergency_contact_phone",
+                  "bank_account_holder", "bank_name", "account_number", "ifsc_code",
+                  "account_type", "upi_id", "salary_amount", "pay_type"):
+        if not data.get(field):
+            data.pop(field, None)
     user = User(**data, password_hash=get_password_hash(password))
     db.add(user)
     await db.flush()
@@ -112,6 +127,16 @@ async def update_user(db: AsyncSession, user_id: int, data: dict):
     raw_password = data.pop("password", None)
     if raw_password:
         user.password_hash = get_password_hash(raw_password)
+    # Convert date string fields to date objects
+    from datetime import date as _date
+    for date_field in ("date_of_birth", "joining_date"):
+        if date_field in data:
+            val = data[date_field]
+            if val and isinstance(val, str):
+                try:
+                    data[date_field] = _date.fromisoformat(val)
+                except ValueError:
+                    data[date_field] = None
     for k, v in data.items():
         if k == "phone":
             v = _normalize_optional_phone(v)
@@ -119,6 +144,12 @@ async def update_user(db: AsyncSession, user_id: int, data: dict):
             continue
         if v is not None:
             setattr(user, k, v)
+        elif k in ("gender", "address", "emergency_contact_name", "emergency_contact_phone",
+                   "date_of_birth", "joining_date",
+                   "bank_account_holder", "bank_name", "account_number", "ifsc_code",
+                   "account_type", "upi_id", "salary_amount", "pay_type"):
+            # Allow clearing these fields by passing empty string
+            setattr(user, k, None)
 
     if role_names is not None:
         # Remove existing roles

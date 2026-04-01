@@ -200,6 +200,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 tid = data.get("trip_id")
                 if tid:
                     ws_manager.trip_subscribers.get(int(tid), set()).discard(websocket)
+            elif action == "subscribe_tyre_vehicle":
+                vid = data.get("vehicle_id")
+                if vid:
+                    ws_manager.subscribe_tyre_vehicle(websocket, int(vid))
+            elif action == "unsubscribe_tyre_vehicle":
+                vid = data.get("vehicle_id")
+                if vid:
+                    ws_manager.tyre_subscribers.get(int(vid), set()).discard(websocket)
+            elif action == "subscribe_tyre_alerts":
+                ws_manager.subscribe_tyre_alerts(websocket)
             elif action == "pong":
                 pass  # keep-alive response
     except WebSocketDisconnect:

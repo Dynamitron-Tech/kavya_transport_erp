@@ -1675,14 +1675,35 @@ class DocumentExtractionService:
         )
         labeled_match = labeled_pattern.search(cleaned_upper)
         if labeled_match:
-            return re.sub(r"\s+", "", labeled_match.group(1).upper())
+            normalized = self._normalize_registration_number(labeled_match.group(1))
+            if normalized:
+                return normalized
 
         top_pattern = re.compile(r"\b[A-Z]{2}\s*\d{1,2}\s*[A-Z]{1,3}\s*\d{3,4}\b")
         for ln in lines[:8]:
             match = top_pattern.search(ln.upper())
             if match:
-                return re.sub(r"\s+", "", match.group(0).upper())
+                normalized = self._normalize_registration_number(match.group(0))
+                if normalized:
+                    return normalized
         return None
+
+    def _normalize_registration_number(self, raw: str | None) -> str | None:
+        if not raw:
+            return None
+
+        value = re.sub(r"[^A-Z0-9]", "", raw.upper())
+        match = re.fullmatch(r"([A-Z]{2})(\d{1,2})([A-Z]{1,3})(\d{3,4})", value)
+        if not match:
+            return None
+
+        state, district, series, number = match.groups()
+
+        # OCR on Tamil Nadu RCs commonly reads TN as IN due to low-contrast top row.
+        if state == "IN":
+            state = "TN"
+
+        return f"{state}{district}{series}{number}"
 
     def _extract_rc_labeled_text(self, text: str, labels: list[str], max_chars: int = 80) -> str | None:
         for label in labels:
@@ -1722,23 +1743,58 @@ class DocumentExtractionService:
         cleaned = re.sub(r"[\t\r]+", " ", text or "")
         lines = [ln.strip() for ln in cleaned.split("\n") if ln.strip()]
 
-        label_pattern = re.compile(
-            r"(?:LICENSE\s*(?:NO|NUMBER|#)?|LICENCE\s*(?:NO|NUMBER|#)?|DL\s*(?:NO|NUMBER|#)?|DRIVING\s+LICEN[CS]E\s*(?:NO|NUMBER)?)\s*[:\-]?\s*([A-Z0-9\-/]{6,25})",
-            re.IGNORECASE,
-        )
-        label_match = label_pattern.search(cleaned)
-        labeled_license = label_match.group(1).strip() if label_match else None
+        label_patterns = [
+            # Prefer explicit label variants to avoid picking nearby words like "Issued".
+            re.compile(
+                r"(?:LICENSE|LICENCE|DL|DRIVING\s+LICEN[CS]E)\s*(?:NO|NUMBER|NUM|#|ID)\s*[:\-]?\s*([A-Z0-9\-/ ]{6,30})",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"(?:LICENSE|LICENCE|DL|DRIVING\s+LICEN[CS]E)\s*[:\-]\s*([A-Z0-9\-/ ]{6,30})",
+                re.IGNORECASE,
+            ),
+        ]
+        labeled_license = None
+        for pattern in label_patterns:
+            match = pattern.search(cleaned)
+            if not match:
+                continue
+            candidate = self._normalize_license_candidate(match.group(1))
+            if candidate:
+                labeled_license = candidate
+                break
 
         top_candidate = None
-        token_pattern = re.compile(r"\b[A-Z0-9\-/]{6,25}\b")
-        for ln in lines[:6]:
-            for tok in token_pattern.findall(ln.upper()):
-                if re.search(r"[A-Z]", tok) and re.search(r"\d", tok):
-                    if tok not in {"GOVERNMENT", "INDIA", "DRIVING", "LICENCE", "LICENSE"}:
-                        top_candidate = tok
-                        break
+        top_line_patterns = [
+            # Common modern Indian DL pattern with optional space: TN72 2024005499
+            re.compile(r"\b[A-Z]{2}\s*\d{2}\s*\d{6,12}\b"),
+            # Legacy/state variants with alphanumeric suffix.
+            re.compile(r"\b[A-Z]{2}\s*\d{2}\s*[A-Z0-9]{4,20}\b"),
+            re.compile(r"\b[A-Z]{1,3}\d{6,20}\b"),
+        ]
+        for ln in lines[:8]:
+            upper_ln = ln.upper()
+            for pattern in top_line_patterns:
+                match = pattern.search(upper_ln)
+                if not match:
+                    continue
+                candidate = self._normalize_license_candidate(match.group(0))
+                if candidate:
+                    top_candidate = candidate
+                    break
             if top_candidate:
                 break
+
+        if not top_candidate:
+            token_pattern = re.compile(r"\b[A-Z0-9\-/]{6,25}\b")
+            for ln in lines[:8]:
+                for tok in token_pattern.findall(ln.upper()):
+                    candidate = self._normalize_license_candidate(tok)
+                    if candidate:
+                        top_candidate = candidate
+                        break
+                if top_candidate:
+                    break
 
         license_number = labeled_license or top_candidate
 
@@ -1795,6 +1851,25 @@ class DocumentExtractionService:
             "issue_date": issue_date,
             "expiry_date": expiry_date,
         }
+
+    def _normalize_license_candidate(self, raw: str | None) -> str | None:
+        if not raw:
+            return None
+
+        value = raw.strip().upper()
+        value = re.sub(r"\s+", "", value)
+        value = re.sub(r"[^A-Z0-9\-/]", "", value)
+
+        if len(value) < 6:
+            return None
+        if not re.search(r"[A-Z]", value) or not re.search(r"\d", value):
+            return None
+        if re.fullmatch(r"\d{2}[\-/]\d{2}[\-/]\d{4}", value):
+            return None
+        if value in {"GOVERNMENT", "INDIA", "DRIVING", "LICENCE", "LICENSE", "ISSUED"}:
+            return None
+
+        return value
 
     def _extract_labeled_date(self, text: str, label_regex: str) -> str | None:
         pattern = re.compile(label_regex + r"\s*[:\-]?\s*([0-9A-Za-z\-/\. ]{6,20})", re.IGNORECASE)

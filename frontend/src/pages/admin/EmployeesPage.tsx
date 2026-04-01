@@ -20,6 +20,20 @@ interface Employee {
   role: string;
   status: string;
   joined_date: string;
+  date_of_birth?: string;
+  gender?: string;
+  address?: string;
+  joining_date?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  bank_account_holder?: string;
+  bank_name?: string;
+  account_number?: string;
+  ifsc_code?: string;
+  account_type?: string;
+  upi_id?: string;
+  salary_amount?: string;
+  pay_type?: string;
 }
 
 const ROLE_OPTIONS = [
@@ -48,6 +62,22 @@ export default function EmployeesPage() {
     last_name: '',
     phone: '',
     role_names: ['manager'] as string[],
+    // Extended fields
+    dob: '',
+    joining_date: '',
+    gender: 'male',
+    address: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
+    salary_amount: '',
+    pay_type: 'monthly',
+    bank_account_holder: '',
+    bank_name: '',
+    account_number: '',
+    confirm_account_number: '',
+    ifsc_code: '',
+    account_type: '',
+    upi_id: '',
   });
   const [editForm, setEditForm] = useState({
     id: 0,
@@ -58,6 +88,18 @@ export default function EmployeesPage() {
     is_active: true,
     avatar_url: '',
     password: '',
+    date_of_birth: '',
+    joining_date: '',
+    gender: '',
+    address: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
+    bank_account_holder: '',
+    bank_name: '',
+    account_number: '',
+    ifsc_code: '',
+    account_type: '',
+    upi_id: '',
   });
   const qc = useQueryClient();
 
@@ -79,6 +121,18 @@ export default function EmployeesPage() {
       is_active: employee.status === 'active',
       avatar_url: employee.avatar_url || '',
       password: '',
+      date_of_birth: employee.date_of_birth || '',
+      joining_date: employee.joining_date || '',
+      gender: employee.gender || '',
+      address: employee.address || '',
+      emergency_contact_name: employee.emergency_contact_name || '',
+      emergency_contact_phone: employee.emergency_contact_phone || '',
+      bank_account_holder: employee.bank_account_holder || '',
+      bank_name: employee.bank_name || '',
+      account_number: employee.account_number || '',
+      ifsc_code: employee.ifsc_code || '',
+      account_type: employee.account_type || '',
+      upi_id: employee.upi_id || '',
     });
     setShowEditPassword(false);
     setIsEditOpen(true);
@@ -94,7 +148,28 @@ export default function EmployeesPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      return api.post('/users', createForm);
+      return api.post('/users', {
+        email: createForm.email,
+        password: createForm.password,
+        first_name: createForm.first_name,
+        last_name: createForm.last_name || undefined,
+        phone: createForm.phone || undefined,
+        role_names: createForm.role_names,
+        date_of_birth: createForm.dob || undefined,
+        joining_date: createForm.joining_date || undefined,
+        gender: createForm.gender || undefined,
+        address: createForm.address || undefined,
+        emergency_contact_name: createForm.emergency_contact_name || undefined,
+        emergency_contact_phone: createForm.emergency_contact_phone || undefined,
+        bank_account_holder: createForm.bank_account_holder || undefined,
+        bank_name: createForm.bank_name || undefined,
+        account_number: createForm.account_number || undefined,
+        ifsc_code: createForm.ifsc_code || undefined,
+        account_type: createForm.account_type || undefined,
+        upi_id: createForm.upi_id || undefined,
+        salary_amount: createForm.salary_amount || undefined,
+        pay_type: createForm.pay_type || undefined,
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-employees'] });
@@ -105,7 +180,7 @@ export default function EmployeesPage() {
       toast.success('Employee created successfully');
       setIsCreateOpen(false);
       setShowPassword(false);
-      setCreateForm({ email: '', password: '', first_name: '', last_name: '', phone: '', role_names: ['manager'] });
+      setCreateForm({ email: '', password: '', first_name: '', last_name: '', phone: '', role_names: ['manager'], dob: '', joining_date: '', gender: 'male', address: '', emergency_contact_name: '', emergency_contact_phone: '', salary_amount: '', pay_type: 'monthly', bank_account_holder: '', bank_name: '', account_number: '', confirm_account_number: '', ifsc_code: '', account_type: '', upi_id: '' });
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.detail || err?.message || 'Failed to create employee';
@@ -140,6 +215,18 @@ export default function EmployeesPage() {
         role_names: [editForm.role_name],
         is_active: editForm.is_active,
         avatar_url: editForm.avatar_url || null,
+        date_of_birth: editForm.date_of_birth || null,
+        joining_date: editForm.joining_date || null,
+        gender: editForm.gender || null,
+        address: editForm.address || null,
+        emergency_contact_name: editForm.emergency_contact_name || null,
+        emergency_contact_phone: editForm.emergency_contact_phone || null,
+        bank_account_holder: editForm.bank_account_holder || null,
+        bank_name: editForm.bank_name || null,
+        account_number: editForm.account_number || null,
+        ifsc_code: editForm.ifsc_code || null,
+        account_type: editForm.account_type || null,
+        upi_id: editForm.upi_id || null,
       };
       const trimmedPassword = editForm.password.trim();
       if (isAdmin && trimmedPassword) {
@@ -176,6 +263,20 @@ export default function EmployeesPage() {
     role: u.role || (u.roles && u.roles[0]) || 'user',
     status: u.is_active === false ? 'inactive' : 'active',
     joined_date: u.created_at || '-',
+    date_of_birth: u.date_of_birth || undefined,
+    gender: u.gender || undefined,
+    address: u.address || undefined,
+    joining_date: u.joining_date || undefined,
+    emergency_contact_name: u.emergency_contact_name || undefined,
+    emergency_contact_phone: u.emergency_contact_phone || undefined,
+    bank_account_holder: u.bank_account_holder || undefined,
+    bank_name: u.bank_name || undefined,
+    account_number: u.account_number || undefined,
+    ifsc_code: u.ifsc_code || undefined,
+    account_type: u.account_type || undefined,
+    upi_id: u.upi_id || undefined,
+    salary_amount: u.salary_amount || undefined,
+    pay_type: u.pay_type || undefined,
   }));
 
   const formatJoinedDate = (value: string) => {
@@ -287,19 +388,21 @@ export default function EmployeesPage() {
       {/* Employee Detail Modal */}
       {selectedEmployee && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="relative bg-gradient-to-r from-slate-700 to-slate-900 px-6 py-5">
-              <div className="flex items-center gap-3">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
+            {/* Header */}
+            <div className="relative bg-gradient-to-r from-slate-700 to-slate-900 px-6 py-5 shrink-0">
+              <div className="flex items-center gap-4">
                 {selectedEmployee.avatar_url ? (
-                  <img src={selectedEmployee.avatar_url} alt={selectedEmployee.name} className="w-10 h-10 rounded-xl object-cover border border-white/40" />
+                  <img src={selectedEmployee.avatar_url} alt={selectedEmployee.name} className="w-14 h-14 rounded-2xl object-cover border-2 border-white/40" />
                 ) : (
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                    <span className="text-base font-semibold text-white">{selectedEmployee.name.charAt(0)}</span>
+                  <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center border-2 border-white/30">
+                    <span className="text-2xl font-bold text-white">{selectedEmployee.name.charAt(0).toUpperCase()}</span>
                   </div>
                 )}
                 <div>
-                  <h2 className="text-lg font-semibold text-white">Employee Details</h2>
-                  <p className="text-slate-200 text-sm">{selectedEmployee.name}</p>
+                  <h2 className="text-xl font-bold text-white">{selectedEmployee.first_name} {selectedEmployee.last_name}</h2>
+                  <p className="text-slate-300 text-sm mt-0.5">{selectedEmployee.email}</p>
+                  <div className="mt-1.5"><StatusBadge status={selectedEmployee.status} /></div>
                 </div>
               </div>
               <button
@@ -310,34 +413,131 @@ export default function EmployeesPage() {
               </button>
             </div>
 
-            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Employee ID</p>
-                <p className="text-sm font-semibold text-slate-900">{selectedEmployee.id}</p>
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 p-6 space-y-6">
+
+              {/* Section: Personal Information */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Personal Information</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">First Name</p>
+                    <p className="text-sm font-semibold text-slate-900">{selectedEmployee.first_name || '—'}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Last Name</p>
+                    <p className="text-sm font-semibold text-slate-900">{selectedEmployee.last_name || '—'}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Date of Birth</p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {selectedEmployee.date_of_birth ? formatJoinedDate(selectedEmployee.date_of_birth) : '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Gender</p>
+                    <p className="text-sm font-semibold text-slate-900 capitalize">{selectedEmployee.gender || '—'}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Date of Joining</p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {selectedEmployee.joining_date ? formatJoinedDate(selectedEmployee.joining_date) : formatJoinedDate(selectedEmployee.joined_date)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Employee ID</p>
+                    <p className="text-sm font-semibold text-slate-900">EMP-{String(selectedEmployee.id).padStart(4, '0')}</p>
+                  </div>
+                </div>
+                {/* Address full width */}
+                <div className="rounded-xl bg-slate-50 p-4 mt-3">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Address</p>
+                  <p className="text-sm font-semibold text-slate-900">{selectedEmployee.address || '—'}</p>
+                </div>
               </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Role</p>
-                <div><StatusBadge status={selectedEmployee.role} /></div>
+
+              {/* Section: Contact Details */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Contact Details</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Email</p>
+                    <p className="text-sm font-semibold text-slate-900 break-all">{selectedEmployee.email || '—'}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Phone</p>
+                    <p className="text-sm font-semibold text-slate-900">{selectedEmployee.phone || '—'}</p>
+                  </div>
+                </div>
+                {/* Emergency Contact */}
+                <div className="rounded-xl bg-amber-50 border border-amber-100 p-4 mt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 mb-3">Emergency Contact</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Contact Name</p>
+                      <p className="text-sm font-semibold text-slate-900">{selectedEmployee.emergency_contact_name || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Contact Phone</p>
+                      <p className="text-sm font-semibold text-slate-900">{selectedEmployee.emergency_contact_phone || '—'}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="rounded-xl bg-slate-50 p-4 sm:col-span-2">
-                <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Email</p>
-                <p className="text-sm font-semibold text-slate-900 break-all">{selectedEmployee.email}</p>
+
+              {/* Section: Role & Account */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Role & Account</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Role</p>
+                    <StatusBadge status={selectedEmployee.role} />
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Status</p>
+                    <StatusBadge status={selectedEmployee.status} />
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4 col-span-2">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Account Created</p>
+                    <p className="text-sm font-semibold text-slate-900">{formatJoinedDate(selectedEmployee.joined_date)}</p>
+                  </div>
+                </div>
               </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Phone</p>
-                <p className="text-sm font-semibold text-slate-900">{selectedEmployee.phone}</p>
+
+              {/* Section: Bank Details */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Bank Details</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Account Holder</p>
+                    <p className="text-sm font-semibold text-slate-900">{selectedEmployee.bank_account_holder || '—'}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Bank Name</p>
+                    <p className="text-sm font-semibold text-slate-900">{selectedEmployee.bank_name || '—'}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Account Number</p>
+                    <p className="text-sm font-semibold text-slate-900">{selectedEmployee.account_number || '—'}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">IFSC Code</p>
+                    <p className="text-sm font-semibold text-slate-900">{selectedEmployee.ifsc_code || '—'}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Account Type</p>
+                    <p className="text-sm font-semibold text-slate-900 capitalize">{selectedEmployee.account_type || '—'}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">UPI ID</p>
+                    <p className="text-sm font-semibold text-slate-900">{selectedEmployee.upi_id || '—'}</p>
+                  </div>
+                </div>
               </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Status</p>
-                <div><StatusBadge status={selectedEmployee.status} /></div>
-              </div>
-              <div className="rounded-xl bg-slate-50 p-4 sm:col-span-2">
-                <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Joined Date</p>
-                <p className="text-sm font-semibold text-slate-900">{formatJoinedDate(selectedEmployee.joined_date)}</p>
-              </div>
+
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0">
               <button
                 type="button"
                 className="px-4 py-2.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
@@ -360,8 +560,8 @@ export default function EmployeesPage() {
       {/* Edit Employee Modal */}
       {isEditOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="relative bg-gradient-to-r from-emerald-600 to-teal-700 px-6 py-5">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
+            <div className="relative bg-gradient-to-r from-emerald-600 to-teal-700 px-6 py-5 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
                   <Pencil className="w-5 h-5 text-white" />
@@ -380,110 +580,221 @@ export default function EmployeesPage() {
             </div>
 
             <form
-              className="p-6 space-y-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                editMutation.mutate();
-              }}
+              className="overflow-y-auto flex-1 px-6 py-5 space-y-5"
+              onSubmit={(e) => { e.preventDefault(); editMutation.mutate(); }}
             >
+              {/* Avatar */}
               <div className="flex items-center gap-4">
                 {editForm.avatar_url ? (
-                  <img src={editForm.avatar_url} alt="Avatar" className="w-16 h-16 rounded-full object-cover border border-gray-200" />
+                  <img src={editForm.avatar_url} alt="Avatar" className="w-14 h-14 rounded-full object-cover border border-gray-200" />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-semibold">
-                    {(editForm.first_name || 'U').charAt(0)}
+                  <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-semibold text-lg">
+                    {(editForm.first_name || 'U').charAt(0).toUpperCase()}
                   </div>
                 )}
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Profile Photo</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="input w-full"
+                  <input type="file" accept="image/*" className="input w-full"
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
                       const dataUrl = await fileToDataUrl(file);
                       setEditForm((p) => ({ ...p, avatar_url: dataUrl }));
-                    }}
-                  />
+                    }} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">First Name <span className="text-red-500">*</span></label>
-                  <input
-                    className="input w-full"
-                    value={editForm.first_name}
-                    onChange={(e) => setEditForm((p) => ({ ...p, first_name: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Last Name</label>
-                  <input
-                    className="input w-full"
-                    value={editForm.last_name}
-                    onChange={(e) => setEditForm((p) => ({ ...p, last_name: e.target.value }))}
-                  />
-                </div>
-              </div>
-
+              {/* Personal Information */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone Number</label>
-                <input
-                  className="input w-full"
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
-                  <select
-                    className="input w-full"
-                    value={editForm.role_name}
-                    onChange={(e) => setEditForm((p) => ({ ...p, role_name: e.target.value }))}
-                  >
-                    {ROLE_OPTIONS.map((role) => (
-                      <option key={role.value} value={role.value}>{role.label}</option>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-600">Personal Information</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-emerald-200 to-transparent" />
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">First Name <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input className="input w-full pl-9 text-sm" value={editForm.first_name}
+                        onChange={(e) => setEditForm((p) => ({ ...p, first_name: e.target.value }))} required />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Last Name</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input className="input w-full pl-9 text-sm" value={editForm.last_name}
+                        onChange={(e) => setEditForm((p) => ({ ...p, last_name: e.target.value }))} />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Date of Birth</label>
+                    <input type="date" className="input w-full text-sm" value={editForm.date_of_birth}
+                      onChange={(e) => setEditForm((p) => ({ ...p, date_of_birth: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Date of Joining</label>
+                    <input type="date" className="input w-full text-sm" value={editForm.joining_date}
+                      onChange={(e) => setEditForm((p) => ({ ...p, joining_date: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Gender</label>
+                  <div className="flex gap-2">
+                    {['male', 'female', 'other'].map((g) => (
+                      <button key={g} type="button"
+                        className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium capitalize transition-all ${editForm.gender === g ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-500 hover:border-emerald-300'}`}
+                        onClick={() => setEditForm((p) => ({ ...p, gender: g }))}>
+                        {g === 'male' ? '♂ Male' : g === 'female' ? '♀ Female' : '⚧ Other'}
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-                  <select
-                    className="input w-full"
-                    value={editForm.is_active ? 'active' : 'inactive'}
-                    onChange={(e) => setEditForm((p) => ({ ...p, is_active: e.target.value === 'active' }))}
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
+                  <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Address</label>
+                  <textarea className="input w-full text-sm resize-none" rows={2} placeholder="Street, City, State, PIN"
+                    value={editForm.address}
+                    onChange={(e) => setEditForm((p) => ({ ...p, address: e.target.value }))} />
                 </div>
               </div>
 
+              {/* Contact Details */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-600">Contact Details</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-emerald-200 to-transparent" />
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="col-span-2">
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Phone Number</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input type="tel" className="input w-full pl-9 text-sm" placeholder="9876543210"
+                        value={editForm.phone}
+                        onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))} />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Emergency Contact Name</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input className="input w-full pl-9 text-sm" placeholder="Contact person name"
+                        value={editForm.emergency_contact_name}
+                        onChange={(e) => setEditForm((p) => ({ ...p, emergency_contact_name: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Emergency Contact Phone</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input type="tel" className="input w-full pl-9 text-sm" placeholder="9876543210"
+                        value={editForm.emergency_contact_phone}
+                        onChange={(e) => setEditForm((p) => ({ ...p, emergency_contact_phone: e.target.value }))} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Role & Status */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-600">Role & Status</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-emerald-200 to-transparent" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Role</label>
+                    <select className="input w-full text-sm" value={editForm.role_name}
+                      onChange={(e) => setEditForm((p) => ({ ...p, role_name: e.target.value }))}>
+                      {ROLE_OPTIONS.map((role) => (
+                        <option key={role.value} value={role.value}>{role.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Status</label>
+                    <select className="input w-full text-sm"
+                      value={editForm.is_active ? 'active' : 'inactive'}
+                      onChange={(e) => setEditForm((p) => ({ ...p, is_active: e.target.value === 'active' }))}>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bank Details */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-600">Bank Details</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-emerald-200 to-transparent" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Account Holder Name</label>
+                    <input className="input w-full" placeholder="Full name on bank account"
+                      value={editForm.bank_account_holder}
+                      onChange={(e) => setEditForm((p) => ({ ...p, bank_account_holder: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Bank Name</label>
+                    <input className="input w-full" placeholder="e.g. SBI, HDFC, ICICI"
+                      value={editForm.bank_name}
+                      onChange={(e) => setEditForm((p) => ({ ...p, bank_name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Account Number</label>
+                    <input className="input w-full" placeholder="Account number"
+                      value={editForm.account_number}
+                      onChange={(e) => setEditForm((p) => ({ ...p, account_number: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">IFSC Code</label>
+                    <input className="input w-full" placeholder="e.g. SBIN0001234"
+                      value={editForm.ifsc_code}
+                      onChange={(e) => setEditForm((p) => ({ ...p, ifsc_code: e.target.value.toUpperCase() }))} />
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Account Type</label>
+                    <select className="input w-full"
+                      value={editForm.account_type}
+                      onChange={(e) => setEditForm((p) => ({ ...p, account_type: e.target.value }))}>
+                      <option value="">Select type</option>
+                      <option value="savings">Savings</option>
+                      <option value="current">Current</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">UPI ID</label>
+                    <input className="input w-full" placeholder="e.g. name@upi"
+                      value={editForm.upi_id}
+                      onChange={(e) => setEditForm((p) => ({ ...p, upi_id: e.target.value }))} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Account Security */}
               {isAdmin && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Reset Password (Admin only)</label>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-600">Account Security</span>
+                    <div className="flex-1 h-px bg-gradient-to-r from-emerald-200 to-transparent" />
+                  </div>
+                  <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Reset Password (Admin only)</label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type={showEditPassword ? 'text' : 'password'}
+                    <input type={showEditPassword ? 'text' : 'password'}
                       className="input w-full pl-10 pr-10"
                       placeholder="Leave empty to keep current password"
                       value={editForm.password}
                       onChange={(e) => setEditForm((p) => ({ ...p, password: e.target.value }))}
-                      minLength={6}
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      onClick={() => setShowEditPassword(!showEditPassword)}
-                      tabIndex={-1}
-                    >
+                      minLength={6} />
+                    <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      onClick={() => setShowEditPassword(!showEditPassword)} tabIndex={-1}>
                       {showEditPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
@@ -494,18 +805,14 @@ export default function EmployeesPage() {
               )}
 
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button
-                  type="button"
+                <button type="button"
                   className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                  onClick={() => { setIsEditOpen(false); setShowEditPassword(false); }}
-                >
+                  onClick={() => { setIsEditOpen(false); setShowEditPassword(false); }}>
                   Cancel
                 </button>
-                <button
-                  type="submit"
+                <button type="submit"
                   className="px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2"
-                  disabled={editMutation.isPending || !editForm.first_name || (!!editForm.password && editForm.password.length < 6)}
-                >
+                  disabled={editMutation.isPending || !editForm.first_name || (!!editForm.password && editForm.password.length < 6)}>
                   {editMutation.isPending ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
@@ -516,177 +823,347 @@ export default function EmployeesPage() {
 
       {/* Create Employee Modal */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
+
             {/* Header */}
-            <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5">
-              <div className="flex items-center gap-3">
+            <div className="relative bg-gradient-to-r from-indigo-600 to-violet-600 px-7 py-5 flex items-center justify-between shrink-0 overflow-hidden">
+              <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full bg-white/10" />
+              <div className="absolute -bottom-10 left-[40%] w-24 h-24 rounded-full bg-white/5" />
+              <div className="flex items-center gap-3 z-10">
                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
                   <Users className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-white">Add New Employee</h2>
-                  <p className="text-blue-100 text-sm">Fill in the details to create a new team member</p>
+                  <h2 className="text-[17px] font-bold text-white">Add New Employee</h2>
+                  <p className="text-indigo-100 text-xs mt-0.5">Fill in the details to create a new team member</p>
                 </div>
               </div>
               <button
                 onClick={() => { setIsCreateOpen(false); setShowPassword(false); }}
-                className="absolute top-4 right-4 p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                className="z-10 w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
               >
-                <X size={18} className="text-white" />
+                <X size={16} className="text-white" />
               </button>
             </div>
 
+            {/* Auto-generated Employee ID strip */}
+            <div className="bg-indigo-50 border-b border-indigo-100 px-7 py-2.5 flex items-center gap-2.5 shrink-0">
+              <span className="text-xs text-indigo-600 font-medium">Employee ID</span>
+              <span className="bg-indigo-600 text-white text-[11px] font-semibold px-2.5 py-0.5 rounded-full tracking-wide">
+                KT-{new Date().getFullYear()}-{String(Math.floor(1000 + Math.random() * 9000))}
+              </span>
+              <span className="text-[11px] text-gray-400 italic">Auto-generated</span>
+            </div>
+
+            {/* Scrollable body */}
             <form
-              className="p-6 space-y-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                createMutation.mutate();
-              }}
+              className="overflow-y-auto flex-1 px-7 py-5 space-y-6"
+              id="create-employee-form"
+              onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }}
             >
-              {/* Name Row */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">First Name <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      className="input w-full pl-10"
-                      placeholder="John"
-                      value={createForm.first_name}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, first_name: e.target.value }))}
-                      required
-                    />
+
+              {/* ── Personal Information ── */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-indigo-600">Personal Information</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-indigo-200 to-transparent" />
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">First Name <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input className="input w-full pl-9 text-sm" placeholder="John"
+                        value={createForm.first_name}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, first_name: e.target.value }))}
+                        required />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Last Name</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input className="input w-full pl-9 text-sm" placeholder="Doe"
+                        value={createForm.last_name}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, last_name: e.target.value }))} />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Date of Birth</label>
+                    <input type="date" className="input w-full text-sm"
+                      value={createForm.dob}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, dob: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Date of Joining</label>
+                    <input type="date" className="input w-full text-sm"
+                      value={createForm.joining_date}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, joining_date: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Gender</label>
+                  <div className="flex gap-2">
+                    {['male', 'female', 'other'].map((g) => (
+                      <button key={g} type="button"
+                        className={`flex-1 py-2 rounded-lg border-2 text-sm font-medium capitalize transition-all ${createForm.gender === g ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500 hover:border-indigo-300'}`}
+                        onClick={() => setCreateForm((p) => ({ ...p, gender: g }))}>
+                        {g === 'male' ? '♂ Male' : g === 'female' ? '♀ Female' : '⚧ Other'}
+                      </button>
+                    ))}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Last Name</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      className="input w-full pl-10"
-                      placeholder="Doe"
-                      value={createForm.last_name}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, last_name: e.target.value }))}
-                    />
+                  <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Address</label>
+                  <textarea className="input w-full text-sm resize-none" rows={2} placeholder="Street, City, State, PIN"
+                    value={createForm.address}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, address: e.target.value }))} />
+                </div>
+              </div>
+
+              {/* ── Contact Details ── */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-indigo-600">Contact Details</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-indigo-200 to-transparent" />
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Email Address <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input type="email" className="input w-full pl-9 text-sm" placeholder="john@kavyatransports.com"
+                        value={createForm.email}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
+                        required />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Phone Number</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input type="tel" className="input w-full pl-9 text-sm" placeholder="9876543210"
+                        value={createForm.phone}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))} />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Emergency Contact Name</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input className="input w-full pl-9 text-sm" placeholder="Contact person name"
+                        value={createForm.emergency_contact_name}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, emergency_contact_name: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Emergency Contact Phone</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input type="tel" className="input w-full pl-9 text-sm" placeholder="9876543210"
+                        value={createForm.emergency_contact_phone}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, emergency_contact_phone: e.target.value }))} />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Email */}
+              {/* ── Account Security ── */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="email"
-                    className="input w-full pl-10"
-                    placeholder="john@kavyatransports.com"
-                    value={createForm.email}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
-                    required
-                  />
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-indigo-600">Account Security</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-indigo-200 to-transparent" />
+                </div>
+                <div>
+                  <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="input w-full pl-9 pr-10 text-sm"
+                      placeholder="Min 6 characters"
+                      value={createForm.password}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, password: e.target.value }))}
+                      required minLength={6}
+                    />
+                    <button type="button" tabIndex={-1}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      onClick={() => setShowPassword(!showPassword)}>
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                  {createForm.password && createForm.password.length < 6 && (
+                    <p className="text-xs text-amber-600 mt-1">Password must be at least 6 characters</p>
+                  )}
                 </div>
               </div>
 
-              {/* Password */}
+              {/* ── Assign Role ── */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Password <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    className="input w-full pl-10 pr-10"
-                    placeholder="Min 6 characters"
-                    value={createForm.password}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, password: e.target.value }))}
-                    required
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-indigo-600">Assign Role</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-indigo-200 to-transparent" />
                 </div>
-                {createForm.password && createForm.password.length < 6 && (
-                  <p className="text-xs text-amber-600 mt-1">Password must be at least 6 characters</p>
-                )}
-              </div>
-
-              {/* Phone */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone Number</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="tel"
-                    className="input w-full pl-10"
-                    placeholder="9876543210"
-                    value={createForm.phone}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              {/* Role Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <BadgeCheck className="inline w-4 h-4 mr-1 -mt-0.5" />
-                  Assign Role <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2.5">
                   {ROLE_OPTIONS.map((role) => {
                     const isSelected = createForm.role_names[0] === role.value;
+                    const isLast = role.value === 'pump_operator';
                     return (
-                      <button
-                        key={role.value}
-                        type="button"
-                        className={`text-left px-3 py-2.5 rounded-lg border-2 transition-all ${
-                          isSelected
-                            ? `${role.color} border-current ring-1 ring-current/20 shadow-sm`
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                        onClick={() => setCreateForm((p) => ({ ...p, role_names: [role.value] }))}
-                      >
-                        <p className={`text-sm font-medium ${isSelected ? '' : 'text-gray-800'}`}>{role.label}</p>
-                        <p className={`text-xs mt-0.5 ${isSelected ? 'opacity-80' : 'text-gray-500'}`}>{role.description}</p>
+                      <button key={role.value} type="button"
+                        className={`text-left px-3.5 py-3 rounded-xl border-2 transition-all ${isLast ? 'col-span-2' : ''} ${isSelected ? `${role.color} border-current shadow-sm` : 'border-gray-200 bg-gray-50 hover:border-indigo-300 hover:bg-indigo-50/40'}`}
+                        onClick={() => setCreateForm((p) => ({ ...p, role_names: [role.value] }))}>
+                        <p className={`text-sm font-semibold ${isSelected ? '' : 'text-gray-800'}`}>{role.label}</p>
+                        <p className={`text-[11.5px] mt-0.5 ${isSelected ? 'opacity-80' : 'text-gray-500'}`}>{role.description}</p>
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                <button
-                  type="button"
-                  className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                  onClick={() => { setIsCreateOpen(false); setShowPassword(false); }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2"
-                  disabled={createMutation.isPending || !createForm.email || !createForm.password || !createForm.first_name || createForm.password.length < 6}
-                >
-                  {createMutation.isPending ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      <Plus size={16} /> Create Employee
-                    </>
-                  )}
-                </button>
+              {/* ── Salary Details ── */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-indigo-600">Salary Details</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-indigo-200 to-transparent" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Salary Amount (₹)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">₹</span>
+                      <input type="number" className="input w-full pl-7 text-sm" placeholder="e.g. 25000"
+                        value={createForm.salary_amount}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, salary_amount: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Pay Type</label>
+                    <div className="flex gap-2">
+                      {['monthly', 'weekly', 'daily'].map((pt) => (
+                        <button key={pt} type="button"
+                          className={`flex-1 py-2 rounded-lg border-2 text-xs font-semibold capitalize transition-all ${createForm.pay_type === pt ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-500 hover:border-indigo-300'}`}
+                          onClick={() => setCreateForm((p) => ({ ...p, pay_type: pt }))}>
+                          {pt.charAt(0).toUpperCase() + pt.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              {/* ── Bank & Payment Details ── */}
+              <div className="bg-gradient-to-br from-indigo-50/60 to-violet-50/60 border border-indigo-100 rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-indigo-600">Bank & Payment Details</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-indigo-200 to-transparent" />
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Account Holder Name</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input className="input w-full pl-9 text-sm bg-white" placeholder="As per bank records"
+                        value={createForm.bank_account_holder}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, bank_account_holder: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Bank Name</label>
+                    <select className="input w-full text-sm bg-white"
+                      value={createForm.bank_name}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, bank_name: e.target.value }))}>
+                      <option value="">Select Bank</option>
+                      {['State Bank of India','HDFC Bank','ICICI Bank','Axis Bank','Bank of Baroda','Punjab National Bank','Kotak Mahindra Bank','Canara Bank','Indian Bank','Other'].map((b) => (
+                        <option key={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Account Number</label>
+                    <input className="input w-full text-sm bg-white" placeholder="Enter account number"
+                      value={createForm.account_number}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, account_number: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Confirm Account Number</label>
+                    <input className={`input w-full text-sm bg-white ${createForm.confirm_account_number && createForm.confirm_account_number !== createForm.account_number ? 'border-red-400' : ''}`}
+                      placeholder="Re-enter account number"
+                      value={createForm.confirm_account_number}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, confirm_account_number: e.target.value }))} />
+                    {createForm.confirm_account_number && createForm.confirm_account_number !== createForm.account_number && (
+                      <p className="text-xs text-red-500 mt-1">Account numbers do not match</p>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">IFSC Code</label>
+                    <input className="input w-full text-sm bg-white uppercase" placeholder="e.g. SBIN0001234" maxLength={11}
+                      value={createForm.ifsc_code}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, ifsc_code: e.target.value.toUpperCase() }))} />
+                  </div>
+                  <div>
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Account Type</label>
+                    <select className="input w-full text-sm bg-white"
+                      value={createForm.account_type}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, account_type: e.target.value }))}>
+                      <option value="">Select type</option>
+                      <option>Savings Account</option>
+                      <option>Current Account</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="border-t border-indigo-100 pt-4">
+                  <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">UPI ID</label>
+                  <input className="input w-full text-sm bg-white" placeholder="e.g. john@upi or 9876543210@paytm"
+                    value={createForm.upi_id}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, upi_id: e.target.value }))} />
+                  <p className="text-[11px] text-gray-400 mt-1">Used for quick salary transfers via UPI</p>
+                </div>
+              </div>
+
             </form>
+
+            {/* Footer */}
+            <div className="shrink-0 px-7 py-4 border-t border-gray-100 flex justify-end gap-3 bg-white">
+              <button
+                type="button"
+                className="px-5 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors border border-gray-200"
+                onClick={() => { setIsCreateOpen(false); setShowPassword(false); }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="create-employee-form"
+                className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition-all flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:shadow-lg hover:shadow-indigo-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0"
+                disabled={
+                  createMutation.isPending ||
+                  !createForm.email ||
+                  !createForm.password ||
+                  !createForm.first_name ||
+                  createForm.password.length < 6 ||
+                  (!!createForm.confirm_account_number && createForm.confirm_account_number !== createForm.account_number)
+                }
+              >
+                {createMutation.isPending ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                    Creating...
+                  </>
+                ) : (
+                  <><Plus size={16} /> Create Employee</>
+                )}
+              </button>
+            </div>
+
           </div>
         </div>
       )}

@@ -1249,6 +1249,16 @@ export const fleetService = {
     return data;
   },
 
+  // Vehicle-Driver Assignments
+  getVehicleAssignments: async () => {
+    const data = await api.get('/fleet/vehicle-assignments');
+    return unwrap(data);
+  },
+  assignDriverToVehicle: async (vehicleId: number, driverId: number | null) => {
+    const data = await api.post(`/fleet/vehicles/${vehicleId}/assign-driver`, { driver_id: driverId });
+    return unwrap(data);
+  },
+
   // Fleet Drivers
   getDrivers: async (params?: any) => {
     const data = await api.get('/fleet/drivers', { params });
@@ -2056,6 +2066,67 @@ export const tpmsService = {
   },
   predictFleet: async () => {
     const data = await api.get('/tpms/predict-fleet');
+    return unwrap(data);
+  },
+};
+
+// ── Tyre Tracker Service ──────────────────────────────────
+
+export const tyreTrackerService = {
+  getLifeSummary: async () => {
+    const data = await api.get('/tyre/life-summary');
+    return unwrap(data);
+  },
+  getInspectionNeeded: async () => {
+    const data = await api.get('/tyre/inspection-needed');
+    return unwrap(data);
+  },
+  getAlerts: async (status: string = 'active') => {
+    const data = await api.get('/tyre/alerts', { params: { status } });
+    return unwrap(data);
+  },
+  getCompare: async () => {
+    const data = await api.get('/tyre/compare');
+    return unwrap(data);
+  },
+  getStock: async (params?: { type?: string; brand?: string; search?: string }) => {
+    const data = await api.get('/tyre/stock', { params });
+    return unwrap(data);
+  },
+  addStock: async (payload: any) => {
+    const data = await api.post('/tyre', payload);
+    return unwrap(data);
+  },
+  fitTyre: async (tyreId: number, vehicleId: number, position: string) => {
+    const data = await api.patch(`/tyre/${tyreId}/fit`, null, { params: { vehicle_id: vehicleId, position } });
+    return unwrap(data);
+  },
+  moveTyre: async (tyreId: number, newPosition: string) => {
+    const data = await api.patch(`/tyre/${tyreId}/move`, null, { params: { new_position: newPosition } });
+    return unwrap(data);
+  },
+  getRetreading: async () => {
+    const data = await api.get('/tyre/retreading');
+    return unwrap(data);
+  },
+  submitRetread: async (tyreId: number, payload: any) => {
+    const data = await api.post(`/tyre/${tyreId}/retread`, payload);
+    return unwrap(data);
+  },
+  updateRetreadStatus: async (tyreId: number, status: string) => {
+    const data = await api.patch(`/tyre/retreading/${tyreId}/status`, null, { params: { status } });
+    return unwrap(data);
+  },
+  getCatalogue: async (brand?: string) => {
+    const data = await api.get('/tyre/catalogue', { params: brand ? { brand } : {} });
+    return unwrap(data);
+  },
+  getVehicleTyres: async (vehicleId: number) => {
+    const data = await api.get('/tyre', { params: { vehicle_id: vehicleId, limit: 50 } });
+    return unwrap(data);
+  },
+  getTyreHistory: async (tyreId: number) => {
+    const data = await api.get(`/tyre/${tyreId}/history`);
     return unwrap(data);
   },
 };

@@ -84,6 +84,7 @@ import ProfilePage from '@/pages/settings/ProfilePage';
 // Fleet Manager
 import FleetDashboardPage from '@/pages/fleet/FleetDashboardPage';
 import FleetVehiclesPage from '@/pages/fleet/FleetVehiclesPage';
+import FleetAssignDriverPage from '@/pages/fleet/FleetAssignDriverPage';
 import FleetDriversPage from '@/pages/fleet/FleetDriversPage';
 import FleetTrackingPage from '@/pages/fleet/FleetTrackingPage';
 import FleetMaintenancePage from '@/pages/fleet/FleetMaintenancePage';
@@ -91,6 +92,7 @@ import FleetFuelPage from '@/pages/fleet/FleetFuelPage';
 import FleetAlertsPage from '@/pages/fleet/FleetAlertsPage';
 import FleetReportsPage from '@/pages/fleet/FleetReportsPage';
 import TyrePage from '@/pages/fleet/TyrePage';
+import TyreTrackerPage from '@/pages/fleet/TyreTrackerPage';
 import GeofenceManagementPage from '@/pages/fleet/GeofenceManagementPage';
 import ComplianceDashboardPage from '@/pages/fleet/ComplianceDashboardPage';
 import DriverLeaderboardPage from '@/pages/fleet/DriverLeaderboardPage';
@@ -249,13 +251,15 @@ function App() {
           <Route path="/fleet/tracking" element={<FleetTrackingPage />} />
           <Route path="/fleet/maintenance" element={<FleetMaintenancePage />} />
           <Route path="/fleet/fuel" element={<FleetFuelPage />} />
-          <Route path="/fleet/tyres" element={<TyrePage />} />
+          <Route path="/fleet/tyres" element={<TyreTrackerPage />} />
+          <Route path="/fleet/tyres-old" element={<TyrePage />} />
           <Route path="/fleet/alerts" element={<FleetAlertsPage />} />
           <Route path="/fleet/reports" element={<FleetReportsPage />} />
           <Route path="/fleet/geofences" element={<GeofenceManagementPage />} />
           <Route path="/fleet/compliance" element={<ComplianceDashboardPage />} />
           <Route path="/fleet/driver-leaderboard" element={<DriverLeaderboardPage />} />
           <Route path="/fleet/tpms" element={<TPMSDashboardPage />} />
+          <Route path="/fleet/assign-drivers" element={<FleetAssignDriverPage />} />
 
           {/* Masters */}
           <Route path="/routes" element={<RoutesPage />} />
