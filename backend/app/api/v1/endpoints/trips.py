@@ -754,12 +754,58 @@ async def lookup_vehicles(
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
 ):
-    query = select(Vehicle.id, Vehicle.registration_number, Vehicle.vehicle_type).where(Vehicle.is_deleted == False)
+    from app.models.postgres.driver import DriverLicense
+    query = select(Vehicle.id, Vehicle.registration_number, Vehicle.vehicle_type, Vehicle.default_driver_id).where(Vehicle.is_deleted == False)
     if search:
         query = query.where(Vehicle.registration_number.ilike(f"%{search}%"))
     query = query.order_by(Vehicle.registration_number).limit(50)
     result = await db.execute(query)
-    items = [{"id": r.id, "registration_number": r.registration_number, "vehicle_type": r.vehicle_type} for r in result.all()]
+    vehicles = result.all()
+
+    items = []
+    for v in vehicles:
+        driver_info = None
+
+        # Prefer the explicitly assigned default driver
+        if v.default_driver_id:
+            dr_result = await db.execute(
+                select(Driver.id, Driver.first_name, Driver.last_name, Driver.phone)
+                .where(Driver.id == v.default_driver_id, Driver.is_deleted == False)
+            )
+            driver_row = dr_result.first()
+        else:
+            # Fall back to most recently assigned driver via trips
+            driver_row = None
+            trip_result = await db.execute(
+                select(Driver.id, Driver.first_name, Driver.last_name, Driver.phone)
+                .join(Trip, Trip.driver_id == Driver.id)
+                .where(Trip.vehicle_id == v.id, Driver.is_deleted == False)
+                .order_by(Trip.id.desc())
+                .limit(1)
+            )
+            driver_row = trip_result.first()
+
+        if driver_row:
+            lic_result = await db.execute(
+                select(DriverLicense)
+                .where(DriverLicense.driver_id == driver_row.id)
+                .order_by(DriverLicense.id.desc())
+                .limit(1)
+            )
+            lic = lic_result.scalars().first()
+            driver_info = {
+                "id": driver_row.id,
+                "name": f"{driver_row.first_name} {driver_row.last_name or ''}".strip(),
+                "phone": driver_row.phone,
+                "license_number": lic.license_number if lic else None,
+            }
+
+        items.append({
+            "id": v.id,
+            "registration_number": v.registration_number,
+            "vehicle_type": v.vehicle_type,
+            "driver": driver_info,
+        })
     return APIResponse(success=True, data=items)
 
 

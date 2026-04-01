@@ -88,7 +88,10 @@ class Vehicle(Base, TimestampMixin, SoftDeleteMixin):
     # TMS Automation (SCH-03)
     odometer_at_last_service = Column(Numeric(12, 2), nullable=True)
     last_service_date = Column(Date, nullable=True)
-    
+
+    # Default assigned driver (set by fleet manager)
+    default_driver_id = Column(Integer, ForeignKey('drivers.id'), nullable=True)
+
     # Multi-tenant
     tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
     branch_id = Column(Integer, ForeignKey('branches.id'), nullable=True)
@@ -98,6 +101,7 @@ class Vehicle(Base, TimestampMixin, SoftDeleteMixin):
     maintenance_records = relationship("VehicleMaintenance", back_populates="vehicle")
     trips = relationship("Trip", back_populates="vehicle")
     tyres = relationship("VehicleTyre", back_populates="vehicle")
+    default_driver = relationship("Driver", foreign_keys=[default_driver_id])
     
     def __repr__(self):
         return f"<Vehicle {self.registration_number}>"

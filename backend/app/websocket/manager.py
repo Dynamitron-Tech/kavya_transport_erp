@@ -34,6 +34,12 @@ class ConnectionManager:
         
         # Geofence alert subscriptions (per trip)
         self.geofence_subscribers: Dict[int, Set[WebSocket]] = {}
+        
+        # Tyre monitoring subscriptions (per vehicle)
+        self.tyre_subscribers: Dict[int, Set[WebSocket]] = {}
+        
+        # Global tyre alert subscribers (dashboard)
+        self.tyre_alert_subscribers: Set[WebSocket] = set()
     
     async def connect(self, websocket: WebSocket, channel: str = "general"):
         """Accept and register a WebSocket connection."""
@@ -84,6 +90,13 @@ class ConnectionManager:
             ]
             if not self.user_connections[user_id]:
                 del self.user_connections[user_id]
+        
+        # Clean up tyre subscriptions
+        for vehicle_id in list(self.tyre_subscribers.keys()):
+            self.tyre_subscribers[vehicle_id].discard(websocket)
+            if not self.tyre_subscribers[vehicle_id]:
+                del self.tyre_subscribers[vehicle_id]
+        self.tyre_alert_subscribers.discard(websocket)
     
     def subscribe_vehicle(self, websocket: WebSocket, vehicle_id: int):
         """Subscribe to a vehicle's tracking updates."""
@@ -96,6 +109,73 @@ class ConnectionManager:
         if trip_id not in self.trip_subscribers:
             self.trip_subscribers[trip_id] = set()
         self.trip_subscribers[trip_id].add(websocket)
+    
+    def subscribe_tyre_vehicle(self, websocket: WebSocket, vehicle_id: int):
+        """Subscribe to tyre updates for a specific vehicle."""
+        if vehicle_id not in self.tyre_subscribers:
+            self.tyre_subscribers[vehicle_id] = set()
+        self.tyre_subscribers[vehicle_id].add(websocket)
+    
+    def subscribe_tyre_alerts(self, websocket: WebSocket):
+        """Subscribe to global tyre alerts (for dashboard)."""
+        self.tyre_alert_subscribers.add(websocket)
+    
+    async def send_tyre_update(self, vehicle_id: int, data: dict):
+        """Send tyre pressure/temp update to subscribers of a vehicle."""
+        message = {
+            "type": "tyre_pressure_update",
+            "vehicle_id": vehicle_id,
+            **data,
+        }
+        if vehicle_id in self.tyre_subscribers:
+            disconnected = []
+            for ws in self.tyre_subscribers[vehicle_id]:
+                try:
+                    await ws.send_json(message)
+                except Exception:
+                    disconnected.append(ws)
+            for ws in disconnected:
+                self.tyre_subscribers[vehicle_id].discard(ws)
+    
+    async def send_tyre_alert(self, data: dict):
+        """Broadcast tyre alert to all alert subscribers."""
+        message = {
+            "type": "tyre_alert",
+            **data,
+        }
+        disconnected = []
+        for ws in self.tyre_alert_subscribers:
+            try:
+                await ws.send_json(message)
+            except Exception:
+                disconnected.append(ws)
+        for ws in disconnected:
+            self.tyre_alert_subscribers.discard(ws)
+        # Also send to vehicle-specific subscribers
+        vehicle_id = data.get("vehicle_id")
+        if vehicle_id and vehicle_id in self.tyre_subscribers:
+            for ws in list(self.tyre_subscribers[vehicle_id]):
+                try:
+                    await ws.send_json(message)
+                except Exception:
+                    self.tyre_subscribers[vehicle_id].discard(ws)
+    
+    async def send_tyre_life_update(self, vehicle_id: int, data: dict):
+        """Send tyre life % update to subscribers."""
+        message = {
+            "type": "tyre_life_update",
+            "vehicle_id": vehicle_id,
+            **data,
+        }
+        if vehicle_id in self.tyre_subscribers:
+            disconnected = []
+            for ws in self.tyre_subscribers[vehicle_id]:
+                try:
+                    await ws.send_json(message)
+                except Exception:
+                    disconnected.append(ws)
+            for ws in disconnected:
+                self.tyre_subscribers[vehicle_id].discard(ws)
     
     async def broadcast(self, message: dict, channel: str = "general"):
         """Broadcast message to all connections in a channel."""

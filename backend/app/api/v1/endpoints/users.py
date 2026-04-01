@@ -36,6 +36,20 @@ async def list_users(
             "is_active": u.is_active,
             "last_login": str(u.last_login) if u.last_login else None,
             "created_at": str(u.created_at) if u.created_at else None,
+            "date_of_birth": str(u.date_of_birth) if u.date_of_birth else None,
+            "gender": u.gender,
+            "address": u.address,
+            "joining_date": str(u.joining_date) if u.joining_date else None,
+            "emergency_contact_name": u.emergency_contact_name,
+            "emergency_contact_phone": u.emergency_contact_phone,
+            "bank_account_holder": u.bank_account_holder,
+            "bank_name": u.bank_name,
+            "account_number": u.account_number,
+            "ifsc_code": u.ifsc_code,
+            "account_type": u.account_type,
+            "upi_id": u.upi_id,
+            "salary_amount": u.salary_amount,
+            "pay_type": u.pay_type,
         })
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 
@@ -50,6 +64,20 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db), current_use
         "id": user.id, "email": user.email, "first_name": user.first_name,
         "last_name": user.last_name, "phone": user.phone, "avatar_url": user.avatar_url, "roles": roles,
         "is_active": user.is_active, "created_at": str(user.created_at) if user.created_at else None,
+        "date_of_birth": str(user.date_of_birth) if user.date_of_birth else None,
+        "gender": user.gender,
+        "address": user.address,
+        "joining_date": str(user.joining_date) if user.joining_date else None,
+        "emergency_contact_name": user.emergency_contact_name,
+        "emergency_contact_phone": user.emergency_contact_phone,
+        "bank_account_holder": user.bank_account_holder,
+        "bank_name": user.bank_name,
+        "account_number": user.account_number,
+        "ifsc_code": user.ifsc_code,
+        "account_type": user.account_type,
+        "upi_id": user.upi_id,
+        "salary_amount": user.salary_amount,
+        "pay_type": user.pay_type,
     })
 
 

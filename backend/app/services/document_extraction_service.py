@@ -1675,14 +1675,35 @@ class DocumentExtractionService:
         )
         labeled_match = labeled_pattern.search(cleaned_upper)
         if labeled_match:
-            return re.sub(r"\s+", "", labeled_match.group(1).upper())
+            normalized = self._normalize_registration_number(labeled_match.group(1))
+            if normalized:
+                return normalized
 
         top_pattern = re.compile(r"\b[A-Z]{2}\s*\d{1,2}\s*[A-Z]{1,3}\s*\d{3,4}\b")
         for ln in lines[:8]:
             match = top_pattern.search(ln.upper())
             if match:
-                return re.sub(r"\s+", "", match.group(0).upper())
+                normalized = self._normalize_registration_number(match.group(0))
+                if normalized:
+                    return normalized
         return None
+
+    def _normalize_registration_number(self, raw: str | None) -> str | None:
+        if not raw:
+            return None
+
+        value = re.sub(r"[^A-Z0-9]", "", raw.upper())
+        match = re.fullmatch(r"([A-Z]{2})(\d{1,2})([A-Z]{1,3})(\d{3,4})", value)
+        if not match:
+            return None
+
+        state, district, series, number = match.groups()
+
+        # OCR on Tamil Nadu RCs commonly reads TN as IN due to low-contrast top row.
+        if state == "IN":
+            state = "TN"
+
+        return f"{state}{district}{series}{number}"
 
     def _extract_rc_labeled_text(self, text: str, labels: list[str], max_chars: int = 80) -> str | None:
         for label in labels:
@@ -1732,6 +1753,17 @@ class DocumentExtractionService:
             labeled_license = None
 
         top_candidate = self._extract_driving_license_number_from_lines(lines)
+
+        if not top_candidate:
+            token_pattern = re.compile(r"\b[A-Z0-9\-/]{6,25}\b")
+            for ln in lines[:8]:
+                for tok in token_pattern.findall(ln.upper()):
+                    normalized = self._normalize_license_token(tok)
+                    if normalized and self._is_probable_driving_license_number(normalized):
+                        top_candidate = normalized
+                        break
+                if top_candidate:
+                    break
 
         license_number = labeled_license or top_candidate
 

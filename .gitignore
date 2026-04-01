@@ -29,6 +29,9 @@ Thumbs.db
 # Migrations (keep folder, ignore auto-generated)
 backend/migrations/versions/
 
+# Uploads
+backend/uploads/
+
 # Build outputs
 frontend/dist/
 frontend/test-results/
