@@ -5,8 +5,20 @@ from datetime import datetime
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    """Accepts either an email address or an employee ID (e.g. KTD01) as identifier."""
+    identifier: str = Field(..., min_length=2, description="Employee ID (e.g. KTD01) or admin email")
     password: str = Field(..., min_length=4)
+
+
+class OtpVerifyRequest(BaseModel):
+    session_id: str
+    otp: str = Field(..., min_length=6, max_length=6)
+
+
+class OtpInitResponse(BaseModel):
+    otp_required: bool = True
+    session_id: str
+    phone_masked: str
 
 
 class TokenResponse(BaseModel):

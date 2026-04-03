@@ -26,9 +26,12 @@ class ChecklistNotifier extends StateNotifier<AsyncValue<Checklist>> {
 
   Future<void> _load() async {
     try {
-      final data = await _api
-          .get('/trips/$tripId/checklist?type=$type');
-      state = AsyncValue.data(Checklist.fromJson(data));
+      final raw = await _api.get('/trips/$tripId/checklist?type=$type');
+      // API wraps responses in {success, data:{...}} — unwrap the inner payload
+      final payload = (raw is Map && raw.containsKey('data'))
+          ? raw['data'] as Map<String, dynamic>
+          : raw as Map<String, dynamic>;
+      state = AsyncValue.data(Checklist.fromJson(payload));
     } catch (_) {
       // No existing checklist — start with defaults
       state = AsyncValue.data(Checklist(
@@ -48,40 +51,44 @@ class ChecklistNotifier extends StateNotifier<AsyncValue<Checklist>> {
     state = AsyncValue.data(current.copyWith(items: updated));
   }
 
+  void setItems(List<ChecklistItem> items) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    state = AsyncValue.data(current.copyWith(items: items));
+  }
+
   void setNotes(String notes) {
     final current = state.valueOrNull;
     if (current == null) return;
     state = AsyncValue.data(current.copyWith(notes: notes));
   }
 
+  void setLocation(double latitude, double longitude) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    state = AsyncValue.data(current.copyWith(latitude: latitude, longitude: longitude));
+  }
+
   Future<void> submit() async {
     final current = state.valueOrNull;
     if (current == null) return;
     
-    // Save current state for potential rollback
-    final previousState = state;
-    
+    // Optimistic update — mark as submitted immediately before the request
+    final submittedAt = DateTime.now().toIso8601String();
+    state = AsyncValue.data(current.copyWith(
+      completedAt: submittedAt,
+    ));
+
     try {
-      // Optimistic update - mark as submitted immediately
-      state = AsyncValue.data(current.copyWith(
-        completedAt: DateTime.now().toIso8601String(),
-      ));
-      
-      // Send to server
       await _api.post('/trips/$tripId/checklist', data: current.toJson());
-      
-      // Success - keep optimistic state
     } catch (e) {
-      // Rollback on failure
-      state = previousState;
-      
-      // Fallback to offline sync
+      // Keep optimistic completedAt so the LOADED button unlocks,
+      // then queue for background retry.
       await _offline.enqueueRequest(
         method: 'POST',
         path: '/trips/$tripId/checklist',
         data: current.toJson(),
       );
-      
       rethrow;
     }
   }

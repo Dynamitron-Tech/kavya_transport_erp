@@ -22,6 +22,8 @@ import '../../screens/driver/driver_profile_screen.dart';
 import '../../screens/driver/driver_gps_tracking_screen.dart';
 import '../../screens/driver/driver_epod_screen.dart';
 import '../../screens/driver/language_settings_screen.dart';
+import '../../screens/driver/driver_apply_leave_screen.dart';
+import '../../screens/fleet/fleet_driver_approvals_screen.dart';
 // Fleet Manager screens
 import '../../screens/fleet/fleet_home_screen.dart';
 import '../../screens/fleet/fleet_live_map_screen.dart';
@@ -232,10 +234,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) {
           final tripId = int.parse(state.pathParameters['tripId'] ?? '0');
           final tripNumber = state.uri.queryParameters['trip'] ?? '';
+          final origin = state.uri.queryParameters['origin'];
+          final destination = state.uri.queryParameters['destination'];
           return PageTransitionPreset.modal(
             context: context,
             state: state,
-            child: DriverExpenseListScreen(tripId: tripId, tripNumber: tripNumber.isNotEmpty ? tripNumber : null),
+            child: DriverExpenseListScreen(
+              tripId: tripId,
+              tripNumber: tripNumber.isNotEmpty ? tripNumber : null,
+              origin: (origin?.isNotEmpty == true) ? Uri.decodeComponent(origin!) : null,
+              destination: (destination?.isNotEmpty == true) ? Uri.decodeComponent(destination!) : null,
+            ),
           );
         },
       ),
@@ -278,11 +287,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/driver/checklist',
         parentNavigatorKey: appNavigatorKey,
-        pageBuilder: (context, state) => PageTransitionPreset.modal(
-          context: context,
-          state: state,
-          child: const DriverChecklistScreen(),
-        ),
+        pageBuilder: (context, state) {
+          final tripId = int.tryParse(state.uri.queryParameters['tripId'] ?? '');
+          final type = state.uri.queryParameters['type'];
+          return PageTransitionPreset.modal(
+            context: context,
+            state: state,
+            child: DriverChecklistScreen(tripId: tripId, initialType: type),
+          );
+        },
       ),
       GoRoute(
         path: '/driver/vehicle',
@@ -320,6 +333,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           child: const LanguageSettingsScreen(),
         ),
       ),
+      GoRoute(
+        path: '/driver/leave',
+        parentNavigatorKey: appNavigatorKey,
+        pageBuilder: (context, state) => PageTransitionPreset.modal(
+          context: context,
+          state: state,
+          child: const DriverApplyLeaveScreen(),
+        ),
+      ),
       
       // --- Fleet Routes ---
       GoRoute(path: '/fleet/home', builder: (context, state) => const FleetHomeScreen()),
@@ -353,6 +375,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/fleet/expenses', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/fleet/service/new', builder: (context, state) => const FleetServiceLogScreen()),
       GoRoute(path: '/fleet/tyre/new', builder: (context, state) => const FleetTyreEventScreen()),
+      GoRoute(path: '/fleet/approvals', builder: (context, state) => const FleetDriverApprovalsScreen()),
       
       // --- Accountant Routes --- (Stateful shell with bottom nav)
       StatefulShellRoute.indexedStack(

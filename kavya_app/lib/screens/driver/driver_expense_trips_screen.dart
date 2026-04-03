@@ -47,7 +47,7 @@ class DriverExpenseTripsScreen extends ConsumerWidget {
               itemBuilder: (context, index) => _TripExpenseCard(
                 trip: trips[index],
                 currencyFormat: currencyFormat,
-                onTap: () => context.push('/driver/expenses/${trips[index].id}?trip=${Uri.encodeComponent(trips[index].tripNumber)}'),
+                onTap: () => context.push('/driver/expenses/${trips[index].id}?trip=${Uri.encodeComponent(trips[index].tripNumber)}&origin=${Uri.encodeComponent(trips[index].origin ?? '')}&destination=${Uri.encodeComponent(trips[index].destination ?? '')}'),
               ),
             ),
           );

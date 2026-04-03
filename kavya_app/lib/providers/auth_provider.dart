@@ -9,9 +9,17 @@ class AuthState {
   final bool isLoading;
   final String? error;
 
-  AuthState({this.user, this.isLoading = false, this.error});
+  AuthState({
+    this.user,
+    this.isLoading = false,
+    this.error,
+  });
 
-  AuthState copyWith({User? user, bool? isLoading, String? error}) {
+  AuthState copyWith({
+    User? user,
+    bool? isLoading,
+    String? error,
+  }) {
     return AuthState(
       user: user ?? this.user,
       isLoading: isLoading ?? this.isLoading,
@@ -58,12 +66,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
-  Future<bool> login(String email, String password) async {
+  Future<void> login(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _authService.login(email, password);
       state = state.copyWith(isLoading: false);
-      return true;
     } on DioException catch (e) {
       String message = 'Login failed. Please try again.';
       final responseData = e.response?.data;
@@ -72,13 +79,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
             responseData['message']?.toString() ??
             message;
       } else if (e.response?.statusCode == 401) {
-        message = 'Invalid E-mail or Password';
+        message = 'Invalid email or password';
       }
       state = state.copyWith(isLoading: false, error: message);
-      return false;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: 'Login failed. Please try again.');
-      return false;
     }
   }
 

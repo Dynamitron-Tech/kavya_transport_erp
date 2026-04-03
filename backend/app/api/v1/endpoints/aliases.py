@@ -16,6 +16,7 @@ from app.models.postgres.vehicle import Vehicle, VehicleMaintenance
 from app.schemas.base import APIResponse
 from app.schemas.trip import TripExpenseCreate
 from app.services import dashboard_service, driver_service, eway_service, finance_service, trip_service
+from app.services.notification_service import notification_service
 
 router = APIRouter()
 
@@ -334,6 +335,28 @@ async def attendance_check_in(
     )
     db.add(entry)
     await db.flush()
+
+    # Notify fleet managers if the check-in is from a driver
+    if 'driver' in current_roles:
+        driver_result = await db.execute(
+            select(Driver).where(Driver.user_id == current_user.user_id)
+        )
+        driver_obj = driver_result.scalar_one_or_none()
+        driver_name = (
+            f"{driver_obj.first_name} {driver_obj.last_name or ''}".strip()
+            if driver_obj else current_user.email or 'Driver'
+        )
+        date_label = today.strftime('%d %b %Y')
+        await notification_service.send(
+            db,
+            event_type='DRIVER_ATTENDANCE',
+            title='Driver Attendance',
+            body=f'{driver_name} is present for {date_label}',
+            target_roles=['FLEET_MANAGER'],
+            data={'driver_id': str(driver_obj.id) if driver_obj else ''},
+            urgency='normal',
+            triggered_by=current_user.user_id,
+        )
 
     message = 'Attendance marked successfully'
     if status_value == 'late':

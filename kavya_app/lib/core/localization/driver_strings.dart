@@ -53,6 +53,9 @@ class S {
   String get quickActions => _t({'en':'Quick Actions','ta':'விரைவு செயல்கள்','hi':'त्वरित कार्य','kn':'ತ್ವರಿತ ಕ್ರಿಯೆಗಳು','te':'త్వరిత చర్యలు','ml':'ദ്രുത പ്രവർത്തനങ്ങൾ'});
   String get addExpense => _t({'en':'Add Expense','ta':'செலவு சேர்','hi':'खर्च जोड़ें','kn':'ಖರ್ಚು ಸೇರಿಸಿ','te':'ఖర్చు జోడించు','ml':'ചെലവ് ചേർക്കുക'});
   String get checklist => _t({'en':'Checklist','ta':'சரிபார்ப்பு பட்டியல்','hi':'चेकलिस्ट','kn':'ಪರಿಶೀಲನಾ ಪಟ್ಟಿ','te':'చెక్‌లిస్ట్','ml':'ചെക്ക്‌ലിസ്റ്റ്'});
+  String get applyLeave => _t({'en':'Apply Leave','ta':'விடுப்பு','hi':'छुट्टी अप्लाई करें','kn':'ರಜೆ ಅರ್ಜಿ','te':'సెలవు దరఖాస్తు','ml':'അവധി അപേക്ഷ'});
+  String get requestAdvance => _t({'en':'Request Advance','ta':'முன்பணம்','hi':'अग्रिम राशि','kn':'ಮುಂಗಡ','te':'అడ్వాన్స్','ml':'അഡ്വാൻസ്'});
+  String get salaryAdvance => _t({'en':'Salary Advance','ta':'சம்பள முன்பணம்','hi':'वेतन अग्रिम','kn':'ವೇತನ ಮುಂಗಡ','te':'జీతం అడ్వాన్స్','ml':'ശമ്പള അഡ്വാൻസ്'});
   String get documents => _t({'en':'Documents','ta':'ஆவணங்கள்','hi':'दस्तावेज़','kn':'ದಾಖಲೆಗಳು','te':'పత్రాలు','ml':'രേഖകൾ'});
   String get notifications => _t({'en':'Notifications','ta':'அறிவிப்புகள்','hi':'सूचनाएं','kn':'ಅಧಿಸೂಚನೆಗಳು','te':'నోటిఫికేషన్‌లు','ml':'അറിയിപ്പുകൾ'});
   String get myEarnings => _t({'en':'My Earnings','ta':'என் வருமானம்','hi':'मेरी कमाई','kn':'ನನ್ನ ಗಳಿಕೆ','te':'నా ఆదాయం','ml':'എന്റെ വരുമാനം'});

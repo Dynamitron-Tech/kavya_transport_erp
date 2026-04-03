@@ -188,6 +188,13 @@ async def get_my_trips(
         )
         trip_lrs = lr_result.scalars().all()
         lr_numbers = [lr.lr_number for lr in trip_lrs if lr.lr_number]
+        # Fetch vehicle's current odometer for departure validation
+        vehicle_odometer = None
+        if t.vehicle_id:
+            veh_res = await db.execute(select(Vehicle).where(Vehicle.id == t.vehicle_id))
+            veh = veh_res.scalar_one_or_none()
+            if veh:
+                vehicle_odometer = float(veh.odometer_reading) if veh.odometer_reading is not None else None
         items.append({
             "id": t.id,
             "trip_number": t.trip_number,
@@ -200,6 +207,8 @@ async def get_my_trips(
             "driver_name": driver.full_name,
             "lr_numbers": lr_numbers,
             "lr_count": len(lr_numbers),
+            "start_odometer": float(t.start_odometer) if t.start_odometer is not None else None,
+            "vehicle_odometer": vehicle_odometer,
         })
 
     pages = (total + page_size - 1) // page_size
@@ -335,6 +344,343 @@ async def complete_my_trip(
         if error:
             raise HTTPException(status_code=400, detail=error)
     return APIResponse(success=True, data={"id": updated_trip.id}, message="Trip completed")
+
+
+# --- Driver Trip Workflow (LR/Eway → Loaded → Reached → Unloaded) ---
+
+async def _resolve_driver_name(driver: Driver) -> str:
+    return f"{driver.first_name or ''} {driver.last_name or ''}".strip() or "Driver"
+
+
+async def _advance_trip_to_started(db, trip_id, driver_trip, user_id):
+    """Advance a trip to STARTED regardless of its current pre-start status."""
+    from app.services.notification_service import notification_service as _ns  # local import avoids circular dep
+    current_status = getattr(driver_trip.status, "value", str(driver_trip.status)).strip().lower()
+    path_to_started = {
+        "planned": ["started"],
+        "vehicle_assigned": ["driver_assigned", "ready", "started"],
+        "driver_assigned": ["ready", "started"],
+        "ready": ["started"],
+    }
+    path = path_to_started.get(current_status)
+    if not path:
+        return None, f"Cannot submit documents for trip in '{current_status}' status"
+    updated = driver_trip
+    for step in path:
+        updated, error = await trip_service.change_trip_status(
+            db, trip_id, step, user_id, "LR/Eway submitted by driver"
+        )
+        if error:
+            return None, error
+    return updated, None
+
+
+@router.post("/me/trips/{trip_id}/submit-lr-eway", response_model=APIResponse)
+async def submit_lr_eway(
+    trip_id: int,
+    lr_number: Optional[str] = Form(None),
+    eway_number: Optional[str] = Form(None),
+    lr_file: Optional[UploadFile] = File(None),
+    eway_file: Optional[UploadFile] = File(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Driver submits LR and E-way bill (with optional file uploads) to start the trip."""
+    from app.services.notification_service import notification_service
+    import os, uuid
+    driver = await _get_current_driver_profile(db, current_user)
+    if not driver:
+        raise HTTPException(status_code=404, detail="No driver profile linked to this account")
+
+    trip_result = await db.execute(
+        select(Trip).where(Trip.id == trip_id, Trip.driver_id == driver.id, Trip.is_deleted == False)
+    )
+    trip = trip_result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found or not assigned to you")
+
+    # Save uploaded files locally
+    doc_dir = "uploads/trip_documents"
+    os.makedirs(doc_dir, exist_ok=True)
+    if lr_file and lr_file.filename:
+        ALLOWED_EXTS = {"pdf", "jpg", "jpeg", "png"}
+        ext = lr_file.filename.rsplit(".", 1)[-1].lower()
+        if ext not in ALLOWED_EXTS:
+            raise HTTPException(status_code=400, detail="LR file must be PDF, JPG, or PNG")
+        lr_filename = f"lr_{trip_id}_{uuid.uuid4().hex[:8]}.{ext}"
+        lr_path = os.path.join(doc_dir, lr_filename)
+        with open(lr_path, "wb") as f:
+            f.write(await lr_file.read())
+    if eway_file and eway_file.filename:
+        ALLOWED_EXTS = {"pdf", "jpg", "jpeg", "png"}
+        ext = eway_file.filename.rsplit(".", 1)[-1].lower()
+        if ext not in ALLOWED_EXTS:
+            raise HTTPException(status_code=400, detail="E-way file must be PDF, JPG, or PNG")
+        eway_filename = f"eway_{trip_id}_{uuid.uuid4().hex[:8]}.{ext}"
+        eway_path = os.path.join(doc_dir, eway_filename)
+        with open(eway_path, "wb") as f:
+            f.write(await eway_file.read())
+
+    # Store LR and E-way numbers in remarks
+    parts = []
+    if lr_number:
+        parts.append(f"LR: {lr_number}")
+    if eway_number:
+        parts.append(f"E-way: {eway_number}")
+    if parts:
+        trip.remarks = (trip.remarks or "") + f"\n[Driver submitted] {' | '.join(parts)}"
+
+    updated_trip, error = await _advance_trip_to_started(db, trip_id, trip, current_user.user_id)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    driver_name = await _resolve_driver_name(driver)
+    trip_number = trip.trip_number
+
+    try:
+        await notification_service.send(
+            db,
+            event_type="DRIVER_LR_EWAY_SUBMITTED",
+            title="LR & E-way Submitted",
+            body=f"{driver_name} has uploaded LR and E-way for trip {trip_number}",
+            target_roles=["FLEET_MANAGER"],
+            data={"trip_id": str(trip_id), "lr_number": lr_number or "", "eway_number": eway_number or ""},
+            urgency="normal",
+            triggered_by=current_user.user_id,
+        )
+    except Exception:
+        pass
+
+    return APIResponse(success=True, data={"id": trip_id}, message="LR and E-way submitted. Trip started.")
+
+
+@router.post("/me/trips/{trip_id}/mark-loaded", response_model=APIResponse)
+async def mark_trip_loaded(
+    trip_id: int,
+    photo: UploadFile = File(...),
+    start_odometer: Optional[float] = Form(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Driver marks the truck as loaded (after LR/Eway submission). Advances trip to LOADING."""
+    from app.services.notification_service import notification_service
+    import os, uuid
+    driver = await _get_current_driver_profile(db, current_user)
+    if not driver:
+        raise HTTPException(status_code=404, detail="No driver profile linked to this account")
+
+    trip_result = await db.execute(
+        select(Trip).where(Trip.id == trip_id, Trip.driver_id == driver.id, Trip.is_deleted == False)
+    )
+    trip = trip_result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found or not assigned to you")
+
+    current_status = getattr(trip.status, "value", str(trip.status)).strip().lower()
+    if current_status != "started":
+        raise HTTPException(status_code=400, detail=f"Trip must be in 'started' status to mark as loaded (current: {current_status})")
+
+    # Validate departure odometer against vehicle's current odometer
+    if start_odometer is not None and trip.vehicle_id:
+        veh_res = await db.execute(select(Vehicle).where(Vehicle.id == trip.vehicle_id))
+        vehicle = veh_res.scalar_one_or_none()
+        if vehicle and vehicle.odometer_reading is not None:
+            if start_odometer < float(vehicle.odometer_reading):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Departure odometer ({start_odometer:.0f} km) cannot be less than the vehicle's current odometer ({float(vehicle.odometer_reading):.0f} km)"
+                )
+
+    # Save photo locally
+    photo_dir = "uploads/trip_photos"
+    os.makedirs(photo_dir, exist_ok=True)
+    ext = (photo.filename or "photo.jpg").rsplit(".", 1)[-1]
+    filename = f"loaded_{trip_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    photo_path = os.path.join(photo_dir, filename)
+    content = await photo.read()
+    with open(photo_path, "wb") as f:
+        f.write(content)
+
+    updated_trip, error = await trip_service.change_trip_status(
+        db, trip_id, "loading", current_user.user_id, "Driver marked truck as loaded"
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    # Save departure odometer and update vehicle's odometer
+    if start_odometer is not None:
+        trip.start_odometer = start_odometer
+        if trip.vehicle_id:
+            veh_res2 = await db.execute(select(Vehicle).where(Vehicle.id == trip.vehicle_id))
+            veh2 = veh_res2.scalar_one_or_none()
+            if veh2:
+                veh2.odometer_reading = start_odometer
+        await db.commit()
+
+    driver_name = await _resolve_driver_name(driver)
+    trip_number = trip.trip_number
+
+    try:
+        await notification_service.send(
+            db,
+            event_type="DRIVER_TRUCK_LOADED",
+            title="Truck Loaded",
+            body=f"{driver_name} has Loaded his truck for the {trip_number}",
+            target_roles=["FLEET_MANAGER"],
+            data={"trip_id": str(trip_id)},
+            urgency="normal",
+            triggered_by=current_user.user_id,
+        )
+    except Exception:
+        pass
+
+    return APIResponse(success=True, data={"id": trip_id, "photo_path": photo_path}, message="Truck marked as loaded.")
+
+
+@router.post("/me/trips/{trip_id}/mark-reached", response_model=APIResponse)
+async def mark_trip_reached(
+    trip_id: int,
+    photo: UploadFile = File(...),
+    end_odometer: Optional[float] = Form(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Driver marks that the truck has reached the destination. Advances trip to UNLOADING."""
+    from app.services.notification_service import notification_service
+    import os, uuid
+    driver = await _get_current_driver_profile(db, current_user)
+    if not driver:
+        raise HTTPException(status_code=404, detail="No driver profile linked to this account")
+
+    trip_result = await db.execute(
+        select(Trip).where(Trip.id == trip_id, Trip.driver_id == driver.id, Trip.is_deleted == False)
+    )
+    trip = trip_result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found or not assigned to you")
+
+    current_status = getattr(trip.status, "value", str(trip.status)).strip().lower()
+    if current_status not in ("loading", "in_transit"):
+        raise HTTPException(status_code=400, detail=f"Trip must be in 'loading' or 'in_transit' status to mark as reached (current: {current_status})")
+
+    # Validate arrival odometer >= departure odometer
+    if end_odometer is not None and trip.start_odometer is not None:
+        if end_odometer < float(trip.start_odometer):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Arrival odometer ({end_odometer:.0f} km) cannot be less than departure odometer ({float(trip.start_odometer):.0f} km)"
+            )
+
+    # Save photo locally
+    photo_dir = "uploads/trip_photos"
+    os.makedirs(photo_dir, exist_ok=True)
+    ext = (photo.filename or "photo.jpg").rsplit(".", 1)[-1]
+    filename = f"reached_{trip_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    photo_path = os.path.join(photo_dir, filename)
+    content = await photo.read()
+    with open(photo_path, "wb") as f:
+        f.write(content)
+
+    # loading → in_transit → unloading (loading cannot go directly to unloading)
+    steps = ["in_transit", "unloading"] if current_status == "loading" else ["unloading"]
+    for step in steps:
+        updated_trip, error = await trip_service.change_trip_status(
+            db, trip_id, step, current_user.user_id, "Driver marked truck as reached"
+        )
+        if error:
+            raise HTTPException(status_code=400, detail=error)
+
+    # Save arrival odometer on the trip and update the vehicle's odometer reading
+    if end_odometer is not None:
+        trip.end_odometer = end_odometer
+        if trip.vehicle_id:
+            vehicle_result = await db.execute(
+                select(Vehicle).where(Vehicle.id == trip.vehicle_id)
+            )
+            vehicle = vehicle_result.scalar_one_or_none()
+            if vehicle:
+                vehicle.odometer_reading = end_odometer
+        await db.commit()
+
+    driver_name = await _resolve_driver_name(driver)
+    trip_number = trip.trip_number
+
+    try:
+        await notification_service.send(
+            db,
+            event_type="DRIVER_TRUCK_REACHED",
+            title="Truck Reached Destination",
+            body=f"{driver_name} has reached his destination for the {trip_number}",
+            target_roles=["FLEET_MANAGER"],
+            data={"trip_id": str(trip_id)},
+            urgency="normal",
+            triggered_by=current_user.user_id,
+        )
+    except Exception:
+        pass
+
+    return APIResponse(success=True, data={"id": trip_id, "photo_path": photo_path}, message="Truck marked as reached destination.")
+
+
+@router.post("/me/trips/{trip_id}/mark-unloaded", response_model=APIResponse)
+async def mark_trip_unloaded(
+    trip_id: int,
+    photo: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Driver marks the truck as unloaded, completing the trip."""
+    from app.services.notification_service import notification_service
+    import os, uuid
+    driver = await _get_current_driver_profile(db, current_user)
+    if not driver:
+        raise HTTPException(status_code=404, detail="No driver profile linked to this account")
+
+    trip_result = await db.execute(
+        select(Trip).where(Trip.id == trip_id, Trip.driver_id == driver.id, Trip.is_deleted == False)
+    )
+    trip = trip_result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found or not assigned to you")
+
+    current_status = getattr(trip.status, "value", str(trip.status)).strip().lower()
+    if current_status != "unloading":
+        raise HTTPException(status_code=400, detail=f"Trip must be in 'unloading' status to mark as unloaded (current: {current_status})")
+
+    # Save photo locally
+    photo_dir = "uploads/trip_photos"
+    os.makedirs(photo_dir, exist_ok=True)
+    ext = (photo.filename or "photo.jpg").rsplit(".", 1)[-1]
+    filename = f"unloaded_{trip_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    photo_path = os.path.join(photo_dir, filename)
+    content = await photo.read()
+    with open(photo_path, "wb") as f:
+        f.write(content)
+
+    updated_trip, error = await trip_service.change_trip_status(
+        db, trip_id, "completed", current_user.user_id, "Driver marked truck as unloaded"
+    )
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    driver_name = await _resolve_driver_name(driver)
+    trip_number = trip.trip_number
+
+    try:
+        await notification_service.send(
+            db,
+            event_type="DRIVER_TRUCK_UNLOADED",
+            title="Trip Completed",
+            body=f"{driver_name} has unloaded his truck for the {trip_number}",
+            target_roles=["FLEET_MANAGER"],
+            data={"trip_id": str(trip_id)},
+            urgency="normal",
+            triggered_by=current_user.user_id,
+        )
+    except Exception:
+        pass
+
+    return APIResponse(success=True, data={"id": trip_id, "photo_path": photo_path}, message="Trip completed successfully.")
 
 
 # --- Driver Allocated Vehicle ---
@@ -812,6 +1158,70 @@ async def get_driver_documents(
         "missing": 0,
     }
     return APIResponse(success=True, data={"items": docs, "compliance": compliance})
+
+
+@router.post("/{driver_id}/documents", response_model=APIResponse, status_code=201)
+async def upload_driver_document_for_fleet(
+    driver_id: int,
+    file: UploadFile = File(...),
+    document_type: str = Form(...),
+    document_number: str = Form(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Fleet manager uploads a document for a specific driver (upsert)."""
+    ALLOWED_TYPES = [
+        "driving_license", "pan_card", "aadhaar_card",
+        "bank_passbook", "driver_photo", "driver_fingerprint",
+    ]
+    document_type = document_type.lower().strip()
+    if document_type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail=f"Invalid document_type. Allowed: {ALLOWED_TYPES}")
+
+    driver = await driver_service.get_driver(db, driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+
+    from app.services import s3_service
+    folder = f"driver-documents/{driver_id}"
+    result = await s3_service.upload_file(content, file.filename, folder, file.content_type)
+    file_url = result.get("url", "")
+
+    # Upsert: update if same document_type already exists, else insert
+    existing_result = await db.execute(
+        select(DriverDocument).where(
+            DriverDocument.driver_id == driver_id,
+            DriverDocument.document_type == document_type,
+        )
+    )
+    doc = existing_result.scalar_one_or_none()
+    if doc:
+        doc.file_url = file_url
+        doc.is_verified = False
+        if document_number:
+            doc.document_number = document_number
+    else:
+        doc = DriverDocument(
+            driver_id=driver_id,
+            document_type=document_type,
+            document_number=document_number,
+            file_url=file_url,
+            is_verified=False,
+        )
+        db.add(doc)
+
+    await db.commit()
+    await db.refresh(doc)
+
+    return APIResponse(
+        success=True,
+        data={"id": doc.id, "file_url": doc.file_url, "document_type": doc.document_type},
+        message="Document uploaded successfully",
+    )
 
 
 # --- Driver Performance ---

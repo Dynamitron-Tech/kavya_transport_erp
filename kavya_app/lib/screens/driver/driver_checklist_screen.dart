@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/checklist.dart';
 import '../../models/trip.dart';
 import '../../providers/checklist_provider.dart';
@@ -11,8 +14,9 @@ import '../../core/localization/locale_provider.dart';
 
 class DriverChecklistScreen extends ConsumerStatefulWidget {
   final int? tripId;
+  final String? initialType;
 
-  const DriverChecklistScreen({super.key, this.tripId});
+  const DriverChecklistScreen({super.key, this.tripId, this.initialType});
 
   @override
   ConsumerState<DriverChecklistScreen> createState() => _DriverChecklistScreenState();
@@ -21,7 +25,7 @@ class DriverChecklistScreen extends ConsumerStatefulWidget {
 class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
   int? _selectedTripId;
   String? _selectedTripNumber;
-  String _selectedType = 'pre_trip';
+  final String _selectedType = 'checklist';
   late List<ChecklistItem> _items;
   bool _submitting = false;
   final TextEditingController _notesCtrl = TextEditingController();
@@ -32,6 +36,7 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
     _items = List.from(defaultPreTripItems());
     if (widget.tripId != null && widget.tripId! > 0) {
       _selectedTripId = widget.tripId;
+      _selectedTripNumber = 'Trip #${widget.tripId}';
     }
   }
 
@@ -42,11 +47,28 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
   }
 
   int get _completedCount => _items.where((i) => i.checked).length;
-  bool get _allDone => _completedCount == _items.length && _items.isNotEmpty;
+  bool get _allDone {
+    if (_items.isEmpty) return false;
+    return _items.every((i) => i.checked && i.photoPath != null);
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(sProvider);
+
+    // Resolve the actual trip number if we were pre-seeded with a tripId
+    if (widget.tripId != null && widget.tripId! > 0) {
+      final trips = ref.watch(driverMyTripsProvider).valueOrNull;
+      if (trips != null) {
+        final match = trips.where((t) => t.id == widget.tripId).firstOrNull;
+        if (match != null && _selectedTripNumber != match.tripNumber) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _selectedTripNumber = match.tripNumber);
+          });
+        }
+      }
+    }
+
     return Scaffold(
       backgroundColor: KTColors.lightBg,
       appBar: AppBar(
@@ -62,7 +84,6 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
                   setState(() {
                     _selectedTripId = null;
                     _selectedTripNumber = null;
-                    _selectedType = 'pre_trip';
                     _items = List.from(defaultPreTripItems());
                     _notesCtrl.clear();
                   });
@@ -77,15 +98,15 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
   }
 
   Widget _buildTripPicker() {
-    final paginatedAsync = ref.watch(tripsPaginatedProvider);
-    return paginatedAsync.when(
+    final myTripsAsync = ref.watch(driverMyTripsProvider);
+    return myTripsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, st) => Center(
         child: Text('Error loading trips: $e',
             style: const TextStyle(color: KTColors.danger)),
       ),
-      data: (paginated) {
-        final activeTrips = paginated.items.where((t) => t.isActive).toList();
+      data: (trips) {
+        final activeTrips = trips.where((t) => t.isActive).toList();
         if (activeTrips.isEmpty) {
           return Center(
             child: Padding(
@@ -101,12 +122,12 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
                     style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: KTColors.textPrimary),
+                        color: KTColors.textHeading),
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     'You have no active trips to fill a checklist for.',
-                    style: TextStyle(fontSize: 14, color: KTColors.textSecondary),
+                    style: TextStyle(fontSize: 14, color: KTColors.textBody),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -159,13 +180,13 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
                     style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: KTColors.textPrimary),
+                        color: KTColors.textHeading),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${trip.origin} → ${trip.destination}',
                     style: const TextStyle(
-                        fontSize: 13, color: KTColors.textSecondary),
+                        fontSize: 13, color: KTColors.textBody),
                   ),
                 ],
               ),
@@ -217,6 +238,10 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
 
   Widget _buildChecklistForm() {
     final s = ref.watch(sProvider);
+    final existingAsync = _selectedTripId != null
+        ? ref.watch(checklistProvider((tripId: _selectedTripId!, type: _selectedType)))
+        : null;
+    final alreadyCompleted = existingAsync?.valueOrNull?.completedAt != null;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -249,12 +274,6 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
             const SizedBox(height: 20),
           ],
 
-          // Type Selection
-          SectionHeader(title: s.checklistType),
-          const SizedBox(height: 12),
-          _buildTypeSelector(),
-          const SizedBox(height: 24),
-
           // Progress
           SectionHeader(title: s.progress),
           const SizedBox(height: 12),
@@ -279,7 +298,7 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
             child: TextField(
               controller: _notesCtrl,
               maxLines: 3,
-              style: const TextStyle(color: KTColors.textPrimary, fontSize: 14),
+              style: const TextStyle(color: KTColors.textHeading, fontSize: 14),
               decoration: const InputDecoration(
                 hintText: 'Add any notes about vehicle condition...',
                 hintStyle: TextStyle(color: KTColors.textMuted, fontSize: 14),
@@ -290,73 +309,50 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
           ),
           const SizedBox(height: 28),
 
-          // Submit Button — only enabled when all items done
-          AnimatedOpacity(
-            opacity: _allDone ? 1.0 : 0.45,
-            duration: const Duration(milliseconds: 250),
-            child: KtButton(
-              label: _allDone ? s.completeChecklist : s.completeAllItems,
-              icon: Icons.save_rounded,
-              isLoading: _submitting,
-              onPressed: _allDone ? () => _submitChecklist(ref) : null,
+          // Submit Button — blocked if already completed
+          if (alreadyCompleted)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              decoration: BoxDecoration(
+                color: KTColors.success.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: KTColors.success.withValues(alpha: 0.4)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle_rounded, color: KTColors.success, size: 20),
+                  SizedBox(width: 10),
+                  Text(
+                    'Checklist already submitted',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: KTColors.success,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            AnimatedOpacity(
+              opacity: _allDone ? 1.0 : 0.45,
+              duration: const Duration(milliseconds: 250),
+              child: KtButton(
+                label: _allDone ? s.completeChecklist : s.completeAllItems,
+                icon: Icons.save_rounded,
+                isLoading: _submitting,
+                onPressed: _allDone ? () => _submitChecklist(ref) : null,
+              ),
             ),
-          ),
           const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _buildTypeSelector() {
-    return Row(
-      children: [
-        Expanded(child: _typeCard('pre_trip', 'Pre-Trip', Icons.check_circle_outline_rounded, _selectedType == 'pre_trip')),
-        const SizedBox(width: 12),
-        Expanded(child: _typeCard('post_trip', 'Post-Trip', Icons.done_all_rounded, _selectedType == 'post_trip')),
-      ],
-    );
-  }
 
-  Widget _typeCard(String value, String label, IconData icon, bool selected) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedType = value;
-          _items = List.from(
-            value == 'pre_trip' ? defaultPreTripItems() : defaultPostTripItems(),
-          );
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-        decoration: BoxDecoration(
-          color: selected ? KTColors.driverAccent.withValues(alpha: 0.15) : KTColors.lightBg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? KTColors.driverAccent : KTColors.borderColor,
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: selected ? KTColors.driverAccent : KTColors.textMuted, size: 30),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: selected ? KTColors.driverAccent : KTColors.textSecondary,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildProgressCard() {
     final total = _items.length;
@@ -376,7 +372,7 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Items Completed', style: TextStyle(fontSize: 13, color: KTColors.textSecondary)),
+              const Text('Items Completed', style: TextStyle(fontSize: 13, color: KTColors.textBody)),
               Text(
                 '$completed/$total ($percentage%)',
                 style: TextStyle(
@@ -403,10 +399,14 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
   }
 
   Widget _checklistItemTile(int index, ChecklistItem item) {
+    final hasPhoto = item.photoPath != null;
     final isDone = item.checked;
+    const isPreTrip = true;
+    // For pre-trip: photo required before marking done
+    final canMarkDone = !isPreTrip || hasPhoto;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: isDone
             ? KTColors.success.withValues(alpha: 0.08)
@@ -416,64 +416,163 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
           color: isDone ? KTColors.success.withValues(alpha: 0.4) : KTColors.borderColor,
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Item label
-          Expanded(
-            child: Text(
-              item.label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isDone ? KTColors.textSecondary : KTColors.textPrimary,
-                decoration: isDone ? TextDecoration.lineThrough : null,
-                decorationColor: KTColors.textMuted,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // DONE button
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _items[index] = item.copyWith(checked: !isDone);
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
-              decoration: BoxDecoration(
-                color: isDone
-                    ? KTColors.success.withValues(alpha: 0.15)
-                    : KTColors.danger.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isDone ? KTColors.success : KTColors.danger,
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isDone ? Icons.check_rounded : Icons.close_rounded,
-                    size: 15,
-                    color: isDone ? KTColors.success : KTColors.danger,
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    'DONE',
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+            child: Row(
+              children: [
+                // Label
+                Expanded(
+                  child: Text(
+                    item.label,
                     style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: isDone ? KTColors.success : KTColors.danger,
-                      letterSpacing: 0.5,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: isDone ? KTColors.textBody : KTColors.textHeading,
+                      decoration: isDone ? TextDecoration.lineThrough : null,
+                      decorationColor: KTColors.textMuted,
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                // Camera button (pre-trip only)
+                if (isPreTrip)
+                  GestureDetector(
+                    onTap: isDone
+                        ? null
+                        : () async {
+                            final picker = ImagePicker();
+                            final xfile = await picker.pickImage(
+                              source: ImageSource.camera,
+                              imageQuality: 75,
+                              maxWidth: 1280,
+                            );
+                            if (xfile != null) {
+                              setState(() {
+                                _items[index] = item.copyWith(
+                                  photoPath: xfile.path,
+                                  checked: true,
+                                );
+                              });
+                            }
+                          },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: hasPhoto
+                            ? KTColors.success.withValues(alpha: 0.12)
+                            : KTColors.driverAccent.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: hasPhoto ? KTColors.success : KTColors.driverAccent,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            hasPhoto ? Icons.photo_camera : Icons.camera_alt_outlined,
+                            size: 15,
+                            color: hasPhoto ? KTColors.success : KTColors.driverAccent,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            hasPhoto ? 'Retake' : 'Photo',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: hasPhoto ? KTColors.success : KTColors.driverAccent,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                // DONE button
+                Opacity(
+                  opacity: canMarkDone ? 1.0 : 0.35,
+                  child: GestureDetector(
+                    onTap: !canMarkDone
+                        ? () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Row(children: [
+                                  Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                                  SizedBox(width: 8),
+                                  Text('Capture a photo first'),
+                                ]),
+                                backgroundColor: KTColors.warning,
+                                behavior: SnackBarBehavior.floating,
+                                duration: const Duration(seconds: 2),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
+                              ),
+                            );
+                          }
+                        : () {
+                            setState(() {
+                              _items[index] = item.copyWith(checked: !isDone);
+                            });
+                          },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isDone
+                            ? KTColors.success.withValues(alpha: 0.15)
+                            : KTColors.danger.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isDone ? KTColors.success : KTColors.danger,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isDone ? Icons.check_rounded : Icons.close_rounded,
+                            size: 15,
+                            color: isDone ? KTColors.success : KTColors.danger,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'DONE',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: isDone ? KTColors.success : KTColors.danger,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+          // Photo preview thumbnail
+          if (isPreTrip && hasPhoto)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  File(item.photoPath!),
+                  height: 80,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -484,13 +583,31 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
     setState(() => _submitting = true);
 
     try {
-      // Sync local _items into provider state before submitting
       final notifier = ref.read(
           checklistProvider((tripId: _selectedTripId ?? 0, type: _selectedType)).notifier);
-      for (final item in _items) {
-        notifier.toggleItem(item.id, item.checked);
-      }
+      // Sync the full item list (including photoPath) into the notifier before submitting
+      notifier.setItems(List<ChecklistItem>.from(_items));
       notifier.setNotes(_notesCtrl.text.trim());
+
+      // Capture GPS location
+      try {
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission == LocationPermission.whileInUse ||
+            permission == LocationPermission.always) {
+          final position = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 10),
+            ),
+          );
+          notifier.setLocation(position.latitude, position.longitude);
+        }
+      } catch (_) {
+        // Location unavailable — continue without it
+      }
 
       await notifier.submit();
 
@@ -500,7 +617,7 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
             content: Row(children: [
               const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
               const SizedBox(width: 8),
-              Text('${_selectedType == 'pre_trip' ? 'Pre-trip' : 'Post-trip'} checklist completed!'),
+              const Text('Checklist completed!'),
             ]),
             backgroundColor: KTColors.success,
             behavior: SnackBarBehavior.floating,
@@ -510,20 +627,20 @@ class _DriverChecklistScreenState extends ConsumerState<DriverChecklistScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
+      // Network or server error — data is queued for retry via offline sync.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(children: [
               const Icon(Icons.cloud_off_rounded, color: Colors.white, size: 18),
               const SizedBox(width: 8),
-              const Text('Saved offline — will sync when connected'),
+              const Text('Queued — will sync when connected'),
             ]),
             backgroundColor: KTColors.warning,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
-        // Still pop — offline sync will handle it
         Navigator.pop(context);
       }
     } finally {

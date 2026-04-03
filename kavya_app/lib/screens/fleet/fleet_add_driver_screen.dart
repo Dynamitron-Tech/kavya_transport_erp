@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -21,27 +23,47 @@ class _FleetAddDriverScreenState
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
   final _licenseCtrl = TextEditingController();
-  final _salaryCtrl = TextEditingController();
 
-  String _designation = 'driver';
-  String _salaryType = 'monthly';
   String _licenseType = 'hmv';
 
-  static const _designations = ['driver', 'senior_driver', 'helper'];
-  static const _salaryTypes = ['monthly', 'per_trip', 'per_km'];
   static const _licenseTypes = ['lmv', 'hmv', 'hgmv', 'transport'];
+
+  final Map<String, File?> _docFiles = {
+    'driving_license': null,
+    'pan_card': null,
+    'aadhaar_card': null,
+    'bank_passbook': null,
+    'driver_photo': null,
+    'driver_fingerprint': null,
+  };
+
+  static const _docMeta = <String, _DocMeta>{
+    'driving_license': _DocMeta('License', Icons.credit_card_outlined),
+    'pan_card': _DocMeta('PAN Card', Icons.badge_outlined),
+    'aadhaar_card': _DocMeta('Aadhaar', Icons.fingerprint),
+    'bank_passbook': _DocMeta('Bank Passbook', Icons.account_balance_outlined),
+    'driver_photo': _DocMeta('Driver Photo', Icons.person_outline),
+    'driver_fingerprint': _DocMeta('Driver Fingerprint', Icons.fingerprint),
+  };
 
   @override
   void dispose() {
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
     _phoneCtrl.dispose();
-    _emailCtrl.dispose();
     _licenseCtrl.dispose();
-    _salaryCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickDocument(String type) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+    );
+    if (result != null && result.files.single.path != null) {
+      setState(() => _docFiles[type] = File(result.files.single.path!));
+    }
   }
 
   Future<void> _submit() async {
@@ -49,21 +71,31 @@ class _FleetAddDriverScreenState
     setState(() => _saving = true);
     try {
       final api = ref.read(apiServiceProvider);
-      await api.post('/drivers', data: {
+      final resp = await api.post('/drivers', data: {
         'first_name': _firstNameCtrl.text.trim(),
         'last_name': _lastNameCtrl.text.trim(),
         'phone': _phoneCtrl.text.trim(),
-        'email': _emailCtrl.text.trim().isNotEmpty
-            ? _emailCtrl.text.trim()
-            : null,
-        'designation': _designation,
-        'salary_type': _salaryType,
-        'base_salary': double.tryParse(_salaryCtrl.text.trim()),
         'license_number': _licenseCtrl.text.trim().isNotEmpty
             ? _licenseCtrl.text.trim()
             : null,
         'license_type': _licenseType,
       });
+
+      // Upload any selected documents to the new driver's record
+      final driverId = resp?['data']?['id'] as int?;
+      if (driverId != null) {
+        for (final entry in _docFiles.entries) {
+          final file = entry.value;
+          if (file != null) {
+            try {
+              await api.uploadDriverDocumentForFleet(driverId, file, entry.key);
+            } catch (_) {
+              // Document upload is non-critical; driver is already created
+            }
+          }
+        }
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Driver added successfully')),
@@ -111,23 +143,21 @@ class _FleetAddDriverScreenState
                 keyboardType: TextInputType.phone,
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Required' : null),
-            _field('Email', _emailCtrl,
-                keyboardType: TextInputType.emailAddress),
-            const SizedBox(height: 16),
-            _sectionLabel('Employment'),
-            const SizedBox(height: 10),
-            _dropDown('Designation', _designation, _designations,
-                (v) => setState(() => _designation = v!)),
-            _dropDown('Salary Type', _salaryType, _salaryTypes,
-                (v) => setState(() => _salaryType = v!)),
-            _field('Base Salary (₹)', _salaryCtrl,
-                keyboardType: TextInputType.number),
             const SizedBox(height: 16),
             _sectionLabel('License'),
             const SizedBox(height: 10),
             _field('License Number', _licenseCtrl),
             _dropDown('License Type', _licenseType, _licenseTypes,
                 (v) => setState(() => _licenseType = v!)),
+            const SizedBox(height: 16),
+            _sectionLabel('Documents (Optional)'),
+            const SizedBox(height: 4),
+            Text(
+              'Uploaded documents are stored against this driver record.',
+              style: KTTextStyles.label.copyWith(color: KTColors.textMuted),
+            ),
+            const SizedBox(height: 10),
+            ..._docMeta.entries.map((e) => _buildDocTile(e.key, e.value)),
             const SizedBox(height: 24),
             SizedBox(
               height: 50,
@@ -242,4 +272,54 @@ class _FleetAddDriverScreenState
       ),
     );
   }
+
+  Widget _buildDocTile(String type, _DocMeta meta) {
+    final picked = _docFiles[type];
+    final fileName = picked?.path.split('/').last;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: KTColors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: KTColors.borderColor),
+        ),
+        child: ListTile(
+          leading: Icon(meta.icon,
+              color: picked != null ? KTColors.fleetAccent : KTColors.textMuted,
+              size: 22),
+          title: Text(meta.label,
+              style: KTTextStyles.body.copyWith(color: KTColors.textHeading)),
+          subtitle: picked != null
+              ? Text(fileName ?? 'File selected',
+                  style: KTTextStyles.label
+                      .copyWith(color: KTColors.fleetAccent),
+                  overflow: TextOverflow.ellipsis)
+              : Text('PDF, JPG or PNG',
+                  style: KTTextStyles.label
+                      .copyWith(color: KTColors.textMuted)),
+          trailing: picked != null
+              ? IconButton(
+                  icon: const Icon(Icons.close, size: 18,
+                      color: KTColors.textMuted),
+                  onPressed: () => setState(() => _docFiles[type] = null),
+                )
+              : TextButton(
+                  onPressed: () => _pickDocument(type),
+                  child: Text('Browse',
+                      style: KTTextStyles.label.copyWith(
+                          color: KTColors.fleetAccent,
+                          fontWeight: FontWeight.w600)),
+                ),
+          onTap: picked == null ? () => _pickDocument(type) : null,
+        ),
+      ),
+    );
+  }
+}
+
+class _DocMeta {
+  final String label;
+  final IconData icon;
+  const _DocMeta(this.label, this.icon);
 }

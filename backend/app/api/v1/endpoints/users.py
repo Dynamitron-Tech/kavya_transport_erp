@@ -88,6 +88,9 @@ async def create_user(
     _perm=Depends(require_permission(Permissions.USER_CREATE)),
 ):
     from app.services.auth_service import get_user_by_email
+    from app.services.employee_id_service import ROLE_PREFIX, generate_employee_id
+    import secrets, string
+
     existing = await get_user_by_email(db, data.email)
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -98,14 +101,45 @@ async def create_user(
         if existing_phone.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Phone number already registered")
 
+    payload = data.model_dump()
+
+    # Determine if this is an admin user
+    role_names = payload.get("role_names", [])
+    is_admin_user = any(r.lower() == "admin" for r in role_names)
+
+    # Auto-generate password if not provided
+    plain_password = payload.get("password")
+    if not plain_password:
+        alphabet = string.ascii_letters + string.digits + "!@#$"
+        plain_password = "".join(secrets.choice(alphabet) for _ in range(12))
+    payload["password"] = plain_password
+
+    # Auto-generate employee_id for non-admin roles
+    employee_id = None
+    if not is_admin_user:
+        # Find the first non-admin role we know about
+        non_admin_roles = [r for r in role_names if r.upper() in ROLE_PREFIX]
+        if non_admin_roles:
+            employee_id = await generate_employee_id(db, non_admin_roles[0])
+
     try:
-        user = await user_service.create_user(db, data.model_dump())
+        user = await user_service.create_user(db, payload)
     except IntegrityError as exc:
         msg = str(exc).lower()
         if "ix_users_phone" in msg or "users_phone_key" in msg:
             raise HTTPException(status_code=400, detail="Phone number already registered")
         raise HTTPException(status_code=400, detail="Unable to create user due to conflicting data")
-    return APIResponse(success=True, data={"id": user.id, "email": user.email}, message="User created")
+
+    if employee_id:
+        user.employee_id = employee_id
+        await db.flush()
+
+    return APIResponse(success=True, data={
+        "id": user.id,
+        "email": user.email,
+        "employee_id": user.employee_id,
+        "plain_password": plain_password,
+    }, message="User created")
 
 
 @router.put("/{user_id}", response_model=APIResponse)

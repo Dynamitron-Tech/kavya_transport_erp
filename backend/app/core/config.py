@@ -105,6 +105,8 @@ class Settings(BaseSettings):
     MSG91_SENDER_ID: str = "KAVYAT"
     WHATSAPP_API_KEY: str = "YOUR_GUPSHUP_API_KEY_HERE"
     WHATSAPP_SOURCE_NUMBER: str = "YOUR_WHATSAPP_NUMBER_HERE"
+    BREVO_API_KEY: str = "YOUR_BREVO_API_KEY_HERE"
+    BREVO_SMS_SENDER: str = "KavyaTrans"  # Max 11 chars
     
     # Email (SMTP)
     SMTP_HOST: str = "smtp.gmail.com"

@@ -41,16 +41,11 @@ class OcrService {
   OcrService._();
   static final OcrService instance = OcrService._();
 
-  // Lazy-initialised recognisers (Latin + Devanagari for Hindi)
+  // Lazy-initialised recogniser (Latin covers English + vehicle numbers)
   TextRecognizer? _latinRecognizer;
-  TextRecognizer? _devanagariRecognizer;
 
   TextRecognizer get _latin =>
       _latinRecognizer ??= TextRecognizer(script: TextRecognitionScript.latin);
-
-  TextRecognizer get _devanagari =>
-      _devanagariRecognizer ??=
-          TextRecognizer(script: TextRecognitionScript.devanagari);
 
   /// Run on-device OCR on an image file.
   /// Tries Latin first; if Hindi keywords appear it also runs Devanagari and
@@ -61,13 +56,7 @@ class OcrService {
 
       // Latin pass (covers English + vehicle numbers)
       final latinResult = await _latin.processImage(inputImage);
-      String combinedText = latinResult.text;
-
-      // Quick Devanagari check: if Hindi chars present, run second pass
-      if (_likelyHindi(combinedText)) {
-        final devaResult = await _devanagari.processImage(inputImage);
-        combinedText = '$combinedText\n${devaResult.text}';
-      }
+      final String combinedText = latinResult.text;
 
       final docType = detectDocType(combinedText);
       final fields = extractFields(combinedText, docType);
@@ -87,9 +76,7 @@ class OcrService {
   /// Dispose recognisers (call on app teardown)
   Future<void> dispose() async {
     await _latinRecognizer?.close();
-    await _devanagariRecognizer?.close();
     _latinRecognizer = null;
-    _devanagariRecognizer = null;
   }
 
   // ─── Doc type detection ────────────────────────────────────────────────────
@@ -176,7 +163,7 @@ class OcrService {
 
   Map<String, OcrField> _extractRC(String text) {
     final fields = <String, OcrField>{};
-    _tryMatch(fields, 'registration_number', _vehicleReg, text, 0.9);
+    _tryMatch(fields, 'registration_number', _vehicleReg, text, confidence: 0.9);
     // Engine — also handles "Engine/Motor Number" label on new TN smart cards
     final engineM = RegExp(
       r'(?:engine(?:\/motor)?\s*(?:no|number)?|engineno)\s*[:\-.]?\s*([A-Z0-9X]{6,20})',
@@ -226,7 +213,7 @@ class OcrService {
 
   Map<String, OcrField> _extractInsurance(String text) {
     final fields = <String, OcrField>{};
-    _tryMatch(fields, 'vehicle_number', _vehicleReg, text, 0.9);
+    _tryMatch(fields, 'vehicle_number', _vehicleReg, text, confidence: 0.9);
     // Policy number: find label then grab next token
     final policyMatch = RegExp(
       r'policy\s*[no#.:]+\s*([A-Z0-9\/\-]{4,25})',
@@ -244,7 +231,7 @@ class OcrService {
 
   Map<String, OcrField> _extractDL(String text) {
     final fields = <String, OcrField>{};
-    _tryMatch(fields, 'dl_number', _dlNumber, text, 0.9);
+    _tryMatch(fields, 'dl_number', _dlNumber, text, confidence: 0.9);
     // Name
     final nameMatch = RegExp(
       r'(?:name|holder)\s*[:\-]?\s*([A-Z][A-Z\s]{3,40})',
@@ -280,13 +267,13 @@ class OcrService {
       final sign = bgMatch.group(0)!.contains('+') ? '+' : '-';
       fields['blood_group'] = OcrField(value: '$letter$sign', confidence: 0.92);
     }
-    _tryMatch(fields, 'vehicle_number', _vehicleReg, text, 0.7);
+    _tryMatch(fields, 'vehicle_number', _vehicleReg, text, confidence: 0.7);
     return fields;
   }
 
   Map<String, OcrField> _extractFitness(String text) {
     final fields = <String, OcrField>{};
-    _tryMatch(fields, 'vehicle_number', _vehicleReg, text, 0.9);
+    _tryMatch(fields, 'vehicle_number', _vehicleReg, text, confidence: 0.9);
     final certMatch = RegExp(
       r'(?:cert|fitness)\s*[no#.:]+\s*([A-Z0-9\/\-]{4,25})',
       caseSensitive: false,
@@ -303,7 +290,7 @@ class OcrService {
 
   Map<String, OcrField> _extractPUC(String text) {
     final fields = <String, OcrField>{};
-    _tryMatch(fields, 'vehicle_number', _vehicleReg, text, 0.9);
+    _tryMatch(fields, 'vehicle_number', _vehicleReg, text, confidence: 0.9);
     final certMatch = RegExp(
       r'(?:test|cert|pucc?)\s*[no#.:]+\s*([A-Z0-9\/\-]{4,25})',
       caseSensitive: false,
@@ -320,7 +307,7 @@ class OcrService {
 
   Map<String, OcrField> _extractGeneric(String text) {
     final fields = <String, OcrField>{};
-    _tryMatch(fields, 'reference_number', _refNumber, text, 0.6);
+    _tryMatch(fields, 'reference_number', _refNumber, text, confidence: 0.6);
     _extractDates(fields, text);
     return fields;
   }
@@ -398,11 +385,6 @@ class OcrService {
   }
 
   String _clean(String s) => s.trim().replaceAll(RegExp(r'\s+'), ' ');
-
-  bool _likelyHindi(String text) {
-    // Devanagari Unicode block: U+0900–U+097F
-    return RegExp(r'[\u0900-\u097F]').hasMatch(text);
-  }
 
   double _calcConfidence(Map<String, OcrField> fields, OcrDocType docType) {
     if (fields.isEmpty) return 0.0;

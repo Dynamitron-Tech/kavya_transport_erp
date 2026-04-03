@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/trip.dart';
 import '../../providers/trip_provider.dart';
 import '../../providers/fleet_dashboard_provider.dart';
@@ -11,6 +14,7 @@ import '../../core/widgets/kt_button.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/widgets/section_header.dart';
 import '../../core/localization/locale_provider.dart';
+import '../fleet/fleet_vehicles_screen.dart' show fleetVehiclesProvider;
 
 class DriverTripDetailScreen extends ConsumerWidget {
   final int tripId;
@@ -179,6 +183,15 @@ class DriverTripDetailScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
             ],
+            // Mark as Reached button — shown when cargo is loaded/in transit
+            if (trip.awaitingReach) ...[
+              KtButton(
+                label: 'Mark as Reached',
+                icon: Icons.location_on_rounded,
+                onPressed: () => _showArrivalSheet(context, ref, trip),
+              ),
+              const SizedBox(height: 12),
+            ],
             KtButton(
               label: s.completeDeliveryEpod,
               icon: Icons.verified,
@@ -191,7 +204,7 @@ class DriverTripDetailScreen extends ConsumerWidget {
             icon: Icons.receipt_long,
             outlined: true,
             onPressed: () => context.push(
-              '/driver/expenses/${trip.id}?trip=${Uri.encodeComponent(trip.tripNumber)}',
+              '/driver/expenses/${trip.id}?trip=${Uri.encodeComponent(trip.tripNumber)}&origin=${Uri.encodeComponent(trip.origin ?? '')}&destination=${Uri.encodeComponent(trip.destination ?? '')}',
             ),
           ),
           const SizedBox(height: 24),
@@ -453,9 +466,14 @@ class DriverTripDetailScreen extends ConsumerWidget {
                       '/trips/${trip.id}/checklist',
                       queryParameters: {'type': 'pre_trip'},
                     );
-                    // 200 → checklist completed → proceed
-                    await ref.read(tripsPaginatedProvider.notifier).updateTripStatus(trip.id, status);
-                    ref.invalidate(tripDetailProvider(trip.id));
+                    // 200 → checklist completed → collect departure odometer
+                    if (context.mounted) {
+                      final odo = await _showDepartureOdometerDialog(context);
+                      final api2 = ref.read(apiServiceProvider);
+                      await api2.startTrip(trip.id, startOdometer: odo);
+                      ref.invalidate(tripDetailProvider(trip.id));
+                      await ref.read(tripsPaginatedProvider.notifier).refresh();
+                    }
                   } catch (_) {
                     // 404 or network error → checklist not done → show gate dialog
                     if (context.mounted) {
@@ -544,6 +562,273 @@ class DriverTripDetailScreen extends ConsumerWidget {
       case 'completed': return KTColors.success;
       default: return KTColors.textMuted;
     }
+  }
+
+  Future<double?> _showDepartureOdometerDialog(BuildContext context) async {
+    final ctrl = TextEditingController();
+    return showDialog<double>(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        title: const Row(children: [
+          Icon(Icons.speed_outlined, color: KTColors.driverAccent),
+          SizedBox(width: 8),
+          Text('Odometer at Departure'),
+        ]),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+          decoration: const InputDecoration(
+            labelText: 'Current reading',
+            suffixText: 'km',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dlgCtx),
+            child: const Text('Skip'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = double.tryParse(ctrl.text.trim());
+              Navigator.pop(dlgCtx, val);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: KTColors.driverAccent,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('Start Trip'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showArrivalSheet(BuildContext context, WidgetRef ref, Trip trip) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: KTColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _ArrivalSheet(trip: trip, ref: ref),
+    );
+  }
+}
+
+class _ArrivalSheet extends StatefulWidget {
+  final Trip trip;
+  final WidgetRef ref;
+
+  const _ArrivalSheet({required this.trip, required this.ref});
+
+  @override
+  State<_ArrivalSheet> createState() => _ArrivalSheetState();
+}
+
+class _ArrivalSheetState extends State<_ArrivalSheet> {
+  File? _photo;
+  final _odoCtrl = TextEditingController();
+  bool _isSubmitting = false;
+  final _picker = ImagePicker();
+
+  @override
+  void dispose() {
+    _odoCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickPhoto(ImageSource source) async {
+    final xfile = await _picker.pickImage(source: source, maxWidth: 1200, imageQuality: 85);
+    if (xfile != null) setState(() => _photo = File(xfile.path));
+  }
+
+  Future<void> _submit() async {
+    if (_photo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please take an arrival photo'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    setState(() => _isSubmitting = true);
+    try {
+      final odo = double.tryParse(_odoCtrl.text.trim());
+      final api = widget.ref.read(apiServiceProvider);
+      await api.markTripReached(widget.trip.id, _photo!, endOdometer: odo);
+      widget.ref.invalidate(tripDetailProvider(widget.trip.id));
+      widget.ref.invalidate(fleetVehiclesProvider);
+      await widget.ref.read(tripsPaginatedProvider.notifier).refresh();
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      setState(() => _isSubmitting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: KTColors.danger),
+        );
+      }
+    }
+  }
+
+  Future<void> _showPhotoSourceSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Take Photo'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _pickPhoto(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from Gallery'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _pickPhoto(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 20, 16, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: KTColors.driverAccent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.location_on_rounded, color: KTColors.driverAccent, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Text('Mark as Reached', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+
+          // Arrival Photo
+          const Text('Arrival Photo *',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KTColors.textSecondary)),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _showPhotoSourceSheet,
+            child: Container(
+              height: 150,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: KTColors.cardSurface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _photo != null
+                      ? KTColors.success
+                      : KTColors.borderColor,
+                  width: 1.5,
+                ),
+              ),
+              child: _photo != null
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(11),
+                          child: Image.file(_photo!, fit: BoxFit.cover),
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: GestureDetector(
+                            onTap: _showPhotoSourceSheet,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.edit, size: 14, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_a_photo_outlined, size: 40, color: KTColors.textMuted),
+                        SizedBox(height: 8),
+                        Text('Tap to capture arrival photo',
+                            style: TextStyle(color: KTColors.textMuted, fontSize: 13)),
+                      ],
+                    ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Odometer at Arrival
+          TextField(
+            controller: _odoCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+            decoration: const InputDecoration(
+              labelText: 'Odometer at Arrival (km)',
+              hintText: 'e.g. 85230',
+              prefixIcon: Icon(Icons.speed_outlined),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Submit
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isSubmitting ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: KTColors.driverAccent,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: _isSubmitting
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                    )
+                  : const Text('Confirm Arrival',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

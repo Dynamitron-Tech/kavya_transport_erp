@@ -1,5 +1,6 @@
 # Compatibility endpoints to satisfy frontend route expectations
 from datetime import date, datetime, timedelta
+from typing import Optional
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy import func, select, case, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,8 +14,10 @@ from app.models.postgres.client import Client
 from app.models.postgres.document import ComplianceCategory, Document, DocumentType, EntityType
 from app.models.postgres.driver import Driver
 from app.models.postgres.finance import Invoice, InvoiceStatus, Payable, Receivable, Vendor
-from app.models.postgres.route import BankAccount, BankTransaction, Route
-from app.models.postgres.trip import Trip, TripStatusEnum, TripExpense
+from app.models.postgres.fuel_pump import FuelIssue
+from app.models.postgres.route import BankAccount, BankTransaction, Route, FuelPrice
+from app.models.postgres.trip import Trip, TripStatusEnum, TripExpense, TripFuelEntry
+from app.models.postgres.vehicle import Vehicle
 
 router = APIRouter()
 
@@ -1484,3 +1487,236 @@ async def accountant_report_monthly_summary():
     return APIResponse(success=True, data={
         "months": [],
     })
+
+
+# ─── Fleet P&L Endpoints ──────────────────────────────────────────────────────
+
+@router.get("/fleet/pnl/trips", response_model=APIResponse)
+async def fleet_pnl_trips(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.TRIP_READ)),
+):
+    """Per-trip P&L for all completed trips.
+
+    Fuel cost = (end_odometer - start_odometer) / vehicle.mileage_per_litre × rate_per_litre
+    Rate source priority: FuelIssue linked to trip → FuelPrice for trip date → ₹93 fallback.
+    Driver cost = Trip.driver_pay (set by fleet manager).
+    Toll / Loading+Unloading / Other = TripExpense rows posted by driver (FUEL entries EXCLUDED).
+    """
+
+    trips_result = await db.execute(
+        select(Trip)
+        .where(Trip.is_deleted == False, Trip.status == TripStatusEnum.COMPLETED)
+        .order_by(Trip.actual_end.desc())
+        .limit(200)
+    )
+    trips = trips_result.scalars().all()
+
+    # Bulk-load vehicles for mileage lookup
+    vehicle_ids = list({t.vehicle_id for t in trips if t.vehicle_id})
+    veh_map: dict[int, float] = {}
+    if vehicle_ids:
+        veh_res = await db.execute(
+            select(Vehicle.id, Vehicle.mileage_per_litre).where(Vehicle.id.in_(vehicle_ids))
+        )
+        for vid, mpl in veh_res.all():
+            veh_map[vid] = float(mpl or 0)
+
+    _DIESEL_FALLBACK = 93.0
+
+    items = []
+    for trip in trips:
+        revenue = float(trip.revenue or 0)
+        driver_pay = float(trip.driver_pay or 0)  # set by fleet manager
+
+        # ── Fuel cost (odometer-based) ──────────────────────────────────────
+        start_odo = float(trip.start_odometer or 0)
+        end_odo = float(trip.end_odometer or 0)
+        km_driven = max(end_odo - start_odo, 0)
+        # fallback to stored distance if odometer not filled
+        if km_driven == 0:
+            km_driven = float(trip.actual_distance_km or trip.planned_distance_km or 0)
+
+        mileage = veh_map.get(trip.vehicle_id or 0, 0)
+
+        # Get rate_per_litre — 1st: pump issue linked to trip
+        rate_res = await db.execute(
+            select(FuelIssue.rate_per_litre)
+            .where(FuelIssue.trip_id == trip.id)
+            .order_by(FuelIssue.issued_at.desc())
+            .limit(1)
+        )
+        rate_row = rate_res.scalar()
+        if rate_row:
+            rate_per_litre = float(rate_row)
+        else:
+            # 2nd: FuelPrice table for trip date
+            fp_res = await db.execute(
+                select(FuelPrice.diesel_price)
+                .where(FuelPrice.date == (trip.trip_date or date.today()))
+                .order_by(FuelPrice.id.desc())
+                .limit(1)
+            )
+            fp_row = fp_res.scalar()
+            rate_per_litre = float(fp_row) if fp_row else _DIESEL_FALLBACK
+
+        if km_driven > 0 and mileage > 0:
+            fuel_litres = km_driven / mileage
+            fuel_cost = round(fuel_litres * rate_per_litre, 2)
+        else:
+            # last resort: use Trip.fuel_cost if odometer data missing
+            fuel_cost = float(trip.fuel_cost or 0)
+            fuel_litres = round(fuel_cost / rate_per_litre, 2) if rate_per_litre > 0 else 0
+
+        # ── Driver expenses (excluding FUEL — that's now odometer-based) ────
+        exp_result = await db.execute(
+            select(TripExpense.category, func.sum(TripExpense.amount))
+            .where(TripExpense.trip_id == trip.id)
+            .group_by(TripExpense.category)
+        )
+        exp_by_cat: dict[str, float] = {}
+        for cat, total in exp_result.all():
+            label = cat.value if hasattr(cat, 'value') else str(cat)
+            exp_by_cat[label] = float(total or 0)
+
+        # FUEL entries ignored — fuel is now calculated from odometer
+        toll_cost = exp_by_cat.get("TOLL", 0.0)
+        loading_cost = exp_by_cat.get("LOADING", 0.0) + exp_by_cat.get("UNLOADING", 0.0)
+        other_cost = sum(v for k, v in exp_by_cat.items()
+                         if k not in ("FUEL", "TOLL", "LOADING", "UNLOADING"))
+
+        distance = km_driven or float(trip.actual_distance_km or trip.planned_distance_km or 0)
+        total_cost = fuel_cost + driver_pay + toll_cost + loading_cost + other_cost
+        profit = revenue - total_cost
+        profit_pct = round((profit / revenue * 100), 1) if revenue > 0 else 0.0
+        profit_per_km = round(profit / distance, 2) if distance > 0 else 0.0
+
+        items.append({
+            "trip_id": trip.id,
+            "trip_number": trip.trip_number,
+            "origin": trip.origin,
+            "destination": trip.destination,
+            "driver_name": trip.driver_name,
+            "vehicle_registration": trip.vehicle_registration,
+            "trip_date": trip.trip_date.isoformat() if trip.trip_date else None,
+            "actual_end": trip.actual_end.isoformat() if trip.actual_end else None,
+            "distance_km": distance,
+            "fuel_litres": round(fuel_litres, 2),
+            "rate_per_litre": round(rate_per_litre, 2),
+            # Revenue
+            "revenue": revenue,
+            # Cost breakdown
+            "fuel_cost": fuel_cost,
+            "driver_cost": driver_pay,
+            "toll_cost": toll_cost,
+            "loading_cost": loading_cost,
+            "other_cost": other_cost,
+            "total_cost": total_cost,
+            # P&L
+            "profit": profit,
+            "profit_pct": profit_pct,
+            "profit_per_km": profit_per_km,
+            "is_profit": profit >= 0,
+        })
+
+    return APIResponse(success=True, data=items)
+
+
+@router.get("/fleet/pnl/vehicles", response_model=APIResponse)
+async def fleet_pnl_vehicles(
+    month: Optional[int] = Query(None, ge=1, le=12, description="Month number 1-12"),
+    year: Optional[int] = Query(None, ge=2020, le=2100, description="4-digit year"),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.TRIP_READ)),
+):
+    """Per-vehicle monthly P&L rollup. Defaults to current calendar month."""
+    from app.models.postgres.trip import ExpenseCategory
+    from app.models.postgres.vehicle import VehicleMaintenance
+    from calendar import monthrange
+
+    today = date.today()
+    target_month = month or today.month
+    target_year = year or today.year
+    month_start = date(target_year, target_month, 1)
+    _, last_day = monthrange(target_year, target_month)
+    month_end = date(target_year, target_month, last_day)
+
+    # Get all vehicles
+    veh_result = await db.execute(
+        select(Vehicle).where(Vehicle.is_deleted == False).order_by(Vehicle.id)
+    )
+    vehicles = veh_result.scalars().all()
+
+    items = []
+    for vehicle in vehicles:
+        # Trips this month
+        trips_res = await db.execute(
+            select(Trip).where(
+                Trip.vehicle_id == vehicle.id,
+                Trip.is_deleted == False,
+                Trip.trip_date >= month_start,
+                Trip.trip_date <= month_end,
+            )
+        )
+        trips = trips_res.scalars().all()
+
+        total_revenue = sum(float(t.revenue or 0) for t in trips)
+        total_trip_cost = 0.0
+        trip_count = len(trips)
+        completed_count = sum(
+            1 for t in trips
+            if (t.status.value if hasattr(t.status, 'value') else str(t.status)).upper() == 'COMPLETED'
+        )
+
+        for trip in trips:
+            exp_res = await db.execute(
+                select(func.sum(TripExpense.amount))
+                .where(TripExpense.trip_id == trip.id)
+            )
+            total_trip_cost += float(exp_res.scalar() or 0)
+            total_trip_cost += float(trip.driver_pay or 0)
+
+        # Fixed costs: maintenance this month
+        maint_res = await db.execute(
+            select(func.sum(VehicleMaintenance.total_cost))
+            .where(
+                VehicleMaintenance.vehicle_id == vehicle.id,
+                VehicleMaintenance.service_date >= month_start,
+                VehicleMaintenance.service_date <= month_end,
+            )
+        )
+        maintenance_cost = float(maint_res.scalar() or 0)
+
+        # Fixed cost placeholder (EMI/insurance/permits — enter via config later)
+        fixed_cost = maintenance_cost  # expandable later
+        total_cost = total_trip_cost + fixed_cost
+        profit = total_revenue - total_cost
+        profit_pct = round((profit / total_revenue * 100), 1) if total_revenue > 0 else 0.0
+
+        reg = vehicle.registration_number or vehicle.id
+        make = vehicle.make or ''
+        model = vehicle.model or ''
+        items.append({
+            "vehicle_id": vehicle.id,
+            "registration": str(reg),
+            "model": f"{make} {model}".strip() or "—",
+            "status": vehicle.status.value if hasattr(vehicle.status, 'value') else str(vehicle.status),
+            "month": month_start.strftime("%b %Y"),
+            "month_num": target_month,
+            "year_num": target_year,
+            "trip_count": trip_count,
+            "completed_trips": completed_count,
+            # Revenue
+            "total_revenue": total_revenue,
+            # Costs
+            "variable_cost": total_trip_cost,
+            "fixed_cost": fixed_cost,
+            "maintenance_cost": maintenance_cost,
+            "total_cost": total_cost,
+            # P&L
+            "profit": profit,
+            "profit_pct": profit_pct,
+            "is_profit": profit >= 0,
+        })
+
+    return APIResponse(success=True, data=items)

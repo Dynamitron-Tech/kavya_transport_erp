@@ -13,6 +13,7 @@
         "debounce_throttle",
         "device_info_plus",
         "dio",
+        "file_picker",
         "firebase_core",
         "firebase_messaging",
         "fl_chart",
@@ -348,6 +349,21 @@
         "camera_web",
         "flutter",
         "flutter_plugin_android_lifecycle"
+      ]
+    },
+    {
+      "name": "file_picker",
+      "version": "8.3.7",
+      "dependencies": [
+        "cross_file",
+        "ffi",
+        "flutter",
+        "flutter_plugin_android_lifecycle",
+        "flutter_web_plugins",
+        "path",
+        "plugin_platform_interface",
+        "web",
+        "win32"
       ]
     },
     {
@@ -1495,6 +1511,13 @@
       ]
     },
     {
+      "name": "plugin_platform_interface",
+      "version": "2.1.8",
+      "dependencies": [
+        "meta"
+      ]
+    },
+    {
       "name": "image_picker_windows",
       "version": "0.2.2",
       "dependencies": [
@@ -1927,13 +1950,6 @@
       "dependencies": [
         "source_span",
         "string_scanner"
-      ]
-    },
-    {
-      "name": "plugin_platform_interface",
-      "version": "2.1.8",
-      "dependencies": [
-        "meta"
       ]
     },
     {
