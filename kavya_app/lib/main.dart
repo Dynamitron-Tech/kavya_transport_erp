@@ -15,7 +15,12 @@ void main() async {
   // Initialize local notifications (system banners)
   await NotificationService().initialize();
 
-  runApp(const ProviderScope(child: KavyaApp()));
+  runApp(ProviderScope(
+    overrides: [
+      offlineSyncProvider.overrideWithValue(offlineSync),
+    ],
+    child: const KavyaApp(),
+  ));
 }
 
 class KavyaApp extends ConsumerWidget {

@@ -22,6 +22,44 @@ async def authenticate_user(db: AsyncSession, email: str, password: str):
     return user
 
 
+async def authenticate_by_identifier(db: AsyncSession, identifier: str, password: str):
+    """
+    Authenticate by either email address or employee_id (e.g. KTD01).
+    Returns the User ORM object on success, None otherwise.
+    """
+    cleaned = (identifier or "").strip()
+    normalized_password = (password or "").strip()
+
+    # Determine lookup strategy: if it looks like an email, use email lookup first;
+    # otherwise look up by employee_id.
+    user = None
+    if "@" in cleaned:
+        result = await db.execute(
+            select(User).where(func.lower(User.email) == cleaned.lower(), User.is_active == True)
+        )
+        user = result.scalar_one_or_none()
+    else:
+        result = await db.execute(
+            select(User).where(
+                func.upper(User.employee_id) == cleaned.upper(),
+                User.is_active == True,
+            )
+        )
+        user = result.scalar_one_or_none()
+        # Fall back to email lookup if still not found (edge case)
+        if not user:
+            result = await db.execute(
+                select(User).where(func.lower(User.email) == cleaned.lower(), User.is_active == True)
+            )
+            user = result.scalar_one_or_none()
+
+    if not user:
+        return None
+    if not verify_password(normalized_password, user.password_hash):
+        return None
+    return user
+
+
 async def get_user_roles(db: AsyncSession, user_id: int) -> list[str]:
     """Get role names for a user."""
     result = await db.execute(

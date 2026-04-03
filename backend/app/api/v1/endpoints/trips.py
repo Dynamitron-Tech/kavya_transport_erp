@@ -327,23 +327,26 @@ class ChecklistItemPayload(BaseModel):
     label: str
     checked: bool = False
     note: Optional[str] = None
+    photo: Optional[str] = None  # base64-encoded image
 
 class ChecklistPayload(BaseModel):
-    type: str = "pre_trip"  # pre_trip | post_trip
+    type: str = "checklist"  # checklist type
     items: list[ChecklistItemPayload] = []
     notes: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 @router.get("/{trip_id}/checklist", response_model=APIResponse)
 async def get_trip_checklist(
     trip_id: int,
-    type: str = Query("pre_trip"),
+    type: str = "checklist",  # default type
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(require_permission(Permissions.TRIP_READ)),
 ):
     """Fetch a saved checklist for a trip. Returns 404 if not saved yet (client uses defaults)."""
-    from app.db.mongo import MongoDB
-    mongo_db = await MongoDB.get_db()
+    from app.db.mongodb.connection import MongoDB
+    mongo_db = MongoDB.db
     doc = await mongo_db.driver_checklist_logs.find_one(
         {"trip_id": trip_id, "checklist_type": type},
         sort=[("submitted_at", -1)],
@@ -369,8 +372,8 @@ async def save_trip_checklist(
 ):
     """Save a completed pre-trip or post-trip checklist to MongoDB and mark trip.pod_collected."""
     from datetime import datetime
-    from app.db.mongo import MongoDB
-    mongo_db = await MongoDB.get_db()
+    from app.db.mongodb.connection import MongoDB
+    mongo_db = MongoDB.db
 
     # Verify trip exists and driver has access
     trip = await trip_service.get_trip(db, trip_id)
@@ -398,11 +401,33 @@ async def save_trip_checklist(
         "overall_status": overall_status,
         "submitted_at": datetime.utcnow().isoformat(),
         "submitted_by_user_id": current_user.user_id,
+        **({"location": {"latitude": payload.latitude, "longitude": payload.longitude}}
+           if payload.latitude is not None and payload.longitude is not None else {}),
     }
-    await mongo_db.driver_checklist_logs.insert_one(doc)
+    # Upsert: update if a checklist already exists (e.g., driver retaking photos),
+    # insert if this is the first submission.
+    await mongo_db.driver_checklist_logs.replace_one(
+        {"trip_id": trip_id, "checklist_type": payload.type},
+        doc,
+        upsert=True,
+    )
+
+    # Notify fleet manager
+    try:
+        driver_name = trip.driver_name or "Driver"
+        await notification_service.send(
+            db,
+            event_type="DRIVER_CHECKLIST_COMPLETED",
+            title="Checklist Completed",
+            body=f"{driver_name} has completed the checklist for {trip.trip_number}",
+            target_roles=["FLEET_MANAGER"],
+            data={"trip_id": trip_id, "trip_number": trip.trip_number},
+        )
+    except Exception:
+        pass
 
     # Mark pod_collected on the trip when checklist is passed
-    if overall_status == "passed" and payload.type == "pre_trip":
+    if overall_status == "passed":
         try:
             trip.pod_collected = True
             await db.commit()
@@ -412,8 +437,29 @@ async def save_trip_checklist(
     return APIResponse(
         success=True,
         data={"ok_count": ok_count, "total": total, "status": overall_status},
-        message=f"{'Pre-trip' if payload.type == 'pre_trip' else 'Post-trip'} checklist saved successfully.",
+        message="Checklist saved successfully.",
     )
+
+
+# --- Trip Document Photos ---
+@router.get("/{trip_id}/trip-documents", response_model=APIResponse)
+async def get_trip_document_photos(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.TRIP_READ)),
+):
+    """Return URLs for LR and E-way files uploaded for this trip."""
+    import os, glob as _glob
+    from pathlib import Path as _Path
+
+    doc_dir = _Path(__file__).resolve().parents[4] / "uploads" / "trip_documents"
+    docs = []
+    for pattern, doc_type in [(f"lr_{trip_id}_*", "lr"), (f"eway_{trip_id}_*", "eway")]:
+        matches = sorted(_glob.glob(str(doc_dir / pattern)))
+        if matches:
+            filename = os.path.basename(matches[-1])  # most recent
+            docs.append({"type": doc_type, "url": f"/uploads/trip_documents/{filename}"})
+    return APIResponse(success=True, data=docs)
 
 
 # --- SOS Emergency ---
@@ -730,7 +776,10 @@ async def next_trip_number(
     current_user: TokenData = Depends(get_current_user),
 ):
     from app.utils.generators import generate_trip_number
-    return APIResponse(success=True, data={"trip_number": generate_trip_number()})
+    from sqlalchemy import func
+    count_result = await db.execute(select(func.count(Trip.id)))
+    seq = (count_result.scalar() or 0) + 1
+    return APIResponse(success=True, data={"trip_number": generate_trip_number(seq)})
 
 
 @router.get("/lookup/jobs", response_model=APIResponse)

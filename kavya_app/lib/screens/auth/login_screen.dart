@@ -84,24 +84,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.dispose();
   }
 
-  // ── AUTH LOGIC (unchanged) ─────────────────────────────────────
+  // ── AUTH LOGIC ─────────────────────────────────────────────────
   void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      final success = await ref.read(authProvider.notifier).login(
+      await ref.read(authProvider.notifier).login(
             _emailController.text.trim(),
             _passwordController.text,
           );
-      if (!success && mounted) {
-        final msg = ref.read(authProvider).error ?? 'Login failed';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(msg),
-          backgroundColor: KTColors.danger,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 3),
-        ));
+      if (mounted) {
+        final st = ref.read(authProvider);
+        if (st.error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(st.error!),
+            backgroundColor: KTColors.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 3),
+          ));
+        }
       }
     }
   }
@@ -451,12 +452,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       // Email
                       _GlossyInput(
                         controller: _emailController,
-                        hint: 'Email address',
+                        hint: 'Email',
                         keyboardType: TextInputType.emailAddress,
+                        leadingIcon: Icons.email_outlined,
                         autofillHints: const [AutofillHints.email],
-                        leadingIcon: Icons.alternate_email_rounded,
                         validator: (v) {
-                          if (v == null || v.isEmpty) {
+                          if (v == null || v.trim().isEmpty) {
                             return 'Enter your email';
                           }
                           if (!v.contains('@')) {
@@ -539,7 +540,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   // ── LOGIN BUTTON ────────────────────────────────────────────────
-
   Widget _buildLoginButton(AuthState authState) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.92, end: 1.0),
@@ -849,6 +849,7 @@ class _GlossyInput extends StatefulWidget {
   final String? Function(String?)? validator;
   final IconData? leadingIcon;
   final Widget? trailingWidget;
+  final int? maxLength;
 
   const _GlossyInput({
     this.controller,
@@ -859,6 +860,7 @@ class _GlossyInput extends StatefulWidget {
     this.validator,
     this.leadingIcon,
     this.trailingWidget,
+    this.maxLength,
   });
 
   @override
@@ -919,6 +921,7 @@ class _GlossyInputState extends State<_GlossyInput>
                   keyboardType: widget.keyboardType,
                   autofillHints: widget.autofillHints,
                   validator: widget.validator,
+                  maxLength: widget.maxLength,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,

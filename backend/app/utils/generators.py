@@ -19,8 +19,11 @@ def generate_lr_number() -> str:
     return generate_number("LR", 4)
 
 
-def generate_trip_number() -> str:
-    return generate_number("TRP", 4)
+def generate_trip_number(sequence: int = None) -> str:
+    date_str = datetime.now().strftime("%d%m%Y")  # DDMMYYYY
+    if sequence is None:
+        sequence = random.randint(1, 9999)
+    return f"JOB-{date_str}-{sequence}"
 
 
 def generate_invoice_number() -> str:

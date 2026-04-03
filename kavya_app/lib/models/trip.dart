@@ -13,6 +13,8 @@ class Trip {
   final String? clientName;
   final String? lrNumber;
   final String? remarks;
+  final double? startOdometer;   // departure odometer set by driver at departure
+  final double? vehicleOdometer; // vehicle's current odometer reading (from DB)
 
   const Trip({
     required this.id,
@@ -29,6 +31,8 @@ class Trip {
     this.clientName,
     this.lrNumber,
     this.remarks,
+    this.startOdometer,
+    this.vehicleOdometer,
   });
 
   factory Trip.fromJson(Map<String, dynamic> json) => Trip(
@@ -37,16 +41,24 @@ class Trip {
         status: (json['status'] as String? ?? 'pending').toLowerCase(),
         origin: json['origin'] as String?,
         destination: json['destination'] as String?,
-        vehicleNumber: json['vehicle_number'] as String?,
+        vehicleNumber: json['vehicle_number'] as String? ?? json['vehicle_registration'] as String?,
         driverId: json['driver_id'] as int?,
         startDate: (json['trip_date'] ?? json['start_date'] ?? json['planned_start']) as String?,
         endDate: json['end_date'] as String?,
-        distanceKm: (json['distance_km'] as num?)?.toDouble(),
-        freightAmount: (json['freight_amount'] as num?)?.toDouble(),
+        distanceKm: _toDouble(json['distance_km']),
+        freightAmount: _toDouble(json['freight_amount']),
         clientName: json['client_name'] as String?,
         lrNumber: json['lr_number'] as String?,
         remarks: json['remarks'] as String?,
+        startOdometer: _toDouble(json['start_odometer']),
+        vehicleOdometer: _toDouble(json['vehicle_odometer']),
       );
+
+  static double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -66,7 +78,15 @@ class Trip {
       };
 
   bool get isActive =>
-      status == 'in_transit' || status == 'started' || status == 'loading' || status == 'ready';
+      status == 'in_transit' || status == 'started' || status == 'loading' || status == 'ready' || status == 'unloading';
 
   bool get isPendingAcceptance => status == 'driver_assigned';
+
+  bool get isAssigned => status == 'planned' || status == 'vehicle_assigned' || status == 'driver_assigned' || status == 'ready';
+
+  bool get awaitingLoad => status == 'started';
+
+  bool get awaitingReach => status == 'loading' || status == 'in_transit';
+
+  bool get awaitingUnload => status == 'unloading';
 }

@@ -84,7 +84,11 @@ async def _ensure_driver_profile_for_user(db: AsyncSession, user: User) -> None:
 
 async def create_user(db: AsyncSession, data: dict) -> User:
     role_names = data.pop("role_names", [])
-    password = data.pop("password")
+    password = data.pop("password", None)
+    if not password:
+        import secrets, string
+        alphabet = string.ascii_letters + string.digits + "!@#$"
+        password = "".join(secrets.choice(alphabet) for _ in range(12))
     data["phone"] = _normalize_optional_phone(data.get("phone"))
     user = User(**data, password_hash=get_password_hash(password))
     db.add(user)

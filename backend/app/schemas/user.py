@@ -6,7 +6,7 @@ from datetime import datetime
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=6)
+    password: Optional[str] = Field(None, min_length=6)  # auto-generated when omitted
     first_name: str
     last_name: Optional[str] = None
     phone: Optional[str] = None
@@ -32,6 +32,7 @@ class UserResponse(BaseModel):
     first_name: str
     last_name: Optional[str] = None
     phone: Optional[str] = None
+    employee_id: Optional[str] = None
     roles: List[str] = []
     branch_id: Optional[int] = None
     is_active: bool = True

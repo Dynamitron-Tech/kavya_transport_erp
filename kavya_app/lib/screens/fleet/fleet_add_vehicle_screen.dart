@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -27,11 +29,24 @@ class _FleetAddVehicleScreenState
   final _capacityCtrl = TextEditingController();
   final _odometerCtrl = TextEditingController();
   final _tankCapCtrl = TextEditingController();
-  final _mileageCtrl = TextEditingController();
 
   String _vehicleType = 'truck';
   String _ownershipType = 'owned';
   String _fuelType = 'diesel';
+
+  final Map<String, File?> _docFiles = {
+    'rc_book': null,
+    'insurance': null,
+    'pollution_certificate': null,
+    'fitness_certificate': null,
+  };
+
+  static const _docMeta = <String, _DocMeta>{
+    'rc_book': _DocMeta('RC Book', Icons.menu_book_outlined),
+    'insurance': _DocMeta('Insurance', Icons.shield_outlined),
+    'pollution_certificate': _DocMeta('Pollution Certificate', Icons.eco_outlined),
+    'fitness_certificate': _DocMeta('Fitness Certificate', Icons.health_and_safety_outlined),
+  };
 
   static const _vehicleTypes = [
     'truck', 'trailer', 'tanker', 'container', 'lcv', 'mini_truck',
@@ -50,8 +65,17 @@ class _FleetAddVehicleScreenState
     _capacityCtrl.dispose();
     _odometerCtrl.dispose();
     _tankCapCtrl.dispose();
-    _mileageCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickDocument(String type) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+    );
+    if (result != null && result.files.single.path != null) {
+      setState(() => _docFiles[type] = File(result.files.single.path!));
+    }
   }
 
   Future<void> _submit() async {
@@ -59,7 +83,7 @@ class _FleetAddVehicleScreenState
     setState(() => _saving = true);
     try {
       final api = ref.read(apiServiceProvider);
-      await api.post('/vehicles', data: {
+      final resp = await api.post('/vehicles', data: {
         'registration_number': _regCtrl.text.trim(),
         'make': _makeCtrl.text.trim(),
         'model': _modelCtrl.text.trim(),
@@ -80,9 +104,23 @@ class _FleetAddVehicleScreenState
             int.tryParse(_odometerCtrl.text.trim()) ?? 0,
         'fuel_tank_capacity':
             double.tryParse(_tankCapCtrl.text.trim()),
-        'mileage_per_litre':
-            double.tryParse(_mileageCtrl.text.trim()),
       });
+
+      // Upload any selected documents to the new vehicle
+      final vehicleId = resp?['data']?['id'] as int?;
+      if (vehicleId != null) {
+        for (final entry in _docFiles.entries) {
+          final file = entry.value;
+          if (file != null) {
+            try {
+              await api.uploadVehicleDocument(vehicleId, file, entry.key);
+            } catch (_) {
+              // Document upload is non-critical; vehicle is already created
+            }
+          }
+        }
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Vehicle added successfully')),
@@ -147,8 +185,15 @@ class _FleetAddVehicleScreenState
                 (v) => setState(() => _fuelType = v!)),
             _field('Tank Capacity (L)', _tankCapCtrl,
                 keyboardType: TextInputType.number),
-            _field('Mileage (km/L)', _mileageCtrl,
-                keyboardType: TextInputType.number),
+            const SizedBox(height: 16),
+            _sectionLabel('Documents (Optional)'),
+            const SizedBox(height: 4),
+            Text(
+              'Uploaded documents will be visible in the driver app when this vehicle is allocated.',
+              style: KTTextStyles.label.copyWith(color: KTColors.textMuted),
+            ),
+            const SizedBox(height: 10),
+            ..._docMeta.entries.map((e) => _buildDocTile(e.key, e.value)),
             const SizedBox(height: 24),
             SizedBox(
               height: 50,
@@ -225,6 +270,50 @@ class _FleetAddVehicleScreenState
     );
   }
 
+  Widget _buildDocTile(String type, _DocMeta meta) {
+    final picked = _docFiles[type];
+    final fileName = picked?.path.split('/').last;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: KTColors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: KTColors.borderColor),
+        ),
+        child: ListTile(
+          leading: Icon(meta.icon,
+              color: picked != null ? KTColors.fleetAccent : KTColors.textMuted,
+              size: 22),
+          title: Text(meta.label,
+              style: KTTextStyles.body.copyWith(color: KTColors.textHeading)),
+          subtitle: picked != null
+              ? Text(fileName ?? 'File selected',
+                  style: KTTextStyles.label
+                      .copyWith(color: KTColors.fleetAccent),
+                  overflow: TextOverflow.ellipsis)
+              : Text('PDF, JPG or PNG',
+                  style: KTTextStyles.label
+                      .copyWith(color: KTColors.textMuted)),
+          trailing: picked != null
+              ? IconButton(
+                  icon: const Icon(Icons.close, size: 18,
+                      color: KTColors.textMuted),
+                  onPressed: () => setState(() => _docFiles[type] = null),
+                )
+              : TextButton(
+                  onPressed: () => _pickDocument(type),
+                  child: Text('Browse',
+                      style: KTTextStyles.label.copyWith(
+                          color: KTColors.fleetAccent,
+                          fontWeight: FontWeight.w600)),
+                ),
+          onTap: picked == null ? () => _pickDocument(type) : null,
+        ),
+      ),
+    );
+  }
+
   Widget _dropDown(String label, String current,
       List<String> options, ValueChanged<String?> onChanged) {
     return Padding(
@@ -263,4 +352,10 @@ class _FleetAddVehicleScreenState
       ),
     );
   }
+}
+
+class _DocMeta {
+  final String label;
+  final IconData icon;
+  const _DocMeta(this.label, this.icon);
 }

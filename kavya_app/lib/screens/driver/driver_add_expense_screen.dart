@@ -67,7 +67,7 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
           }
         }
 
-        // Compare with user-entered amount
+        // Comparste with user-entered amount
         final userAmount = double.tryParse(_amountCtrl.text);
         if (userAmount != null && (userAmount - ocrAmount).abs() > 1.0) {
           setState(() {

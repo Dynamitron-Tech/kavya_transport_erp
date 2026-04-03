@@ -77,7 +77,7 @@ class TripFuelResponse(BaseModel):
 
 class TripCreate(BaseModel):
     trip_date: date
-    job_id: int
+    job_id: Optional[int] = None
     vehicle_id: int
     driver_id: int
     helper_id: Optional[int] = None

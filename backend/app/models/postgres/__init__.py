@@ -25,6 +25,7 @@ from .geofence import Geofence, GeofenceType
 from .compliance_alert import ComplianceAlert, AlertType, AlertSeverity
 from .driver_event import DriverEvent, DriverEventType
 from .audit_note import AuditNote, AuditNoteStatus
+from .driver_requests import DriverLeave, DriverAdvanceRequest, DriverSalaryAdvanceRequest, LeaveStatusEnum, AdvanceStatusEnum
 
 __all__ = [
     "Base",

@@ -14,7 +14,12 @@ class ApiService {
   final Dio _dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
-  ApiService() : _dio = Dio(BaseOptions(baseUrl: baseUrl)) {
+  ApiService() : _dio = Dio(BaseOptions(
+    baseUrl: baseUrl,
+    sendTimeout: const Duration(seconds: 60),
+    receiveTimeout: const Duration(seconds: 60),
+    connectTimeout: const Duration(seconds: 15),
+  )) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         // Request interceptor: adds Authorization header [cite: 32]
@@ -102,8 +107,9 @@ class ApiService {
   }
 
   // --- Named Auth & Profile ---
-  Future<Map<String, dynamic>> login(String email, String password) async { // [cite: 32-33]
-    final response = await _dio.post('/auth/login', data: {'email': email, 'password': password});
+  Future<Map<String, dynamic>> login(String email, String password) async {
+    final response = await _dio.post('/auth/login',
+        data: {'identifier': email, 'password': password});
     return response.data;
   }
 
@@ -272,7 +278,38 @@ class ApiService {
     return response.data;
   }
 
-  Future<Map<String, dynamic>> uploadDocument(File file, String type, String linkedId) async { // [cite: 34]
+  /// Upload a document (rc_book, insurance, pollution_certificate, fitness_certificate)
+  /// directly to the vehicle_documents table via POST /vehicles/{id}/documents.
+  Future<Map<String, dynamic>> uploadVehicleDocument(
+    int vehicleId,
+    File file,
+    String documentType, {
+    String? documentNumber,
+    String? expiryDate,
+    String? issueDate,
+  }) async {
+    final fileName = file.path.split('/').last;
+    final map = <String, dynamic>{
+      'file': await MultipartFile.fromFile(file.path, filename: fileName),
+      'document_type': documentType,
+    };
+    if (documentNumber != null && documentNumber.isNotEmpty) map['document_number'] = documentNumber;
+    if (expiryDate != null && expiryDate.isNotEmpty) map['expiry_date'] = expiryDate;
+    if (issueDate != null && issueDate.isNotEmpty) map['issue_date'] = issueDate;
+    final formData = FormData.fromMap(map);
+    final response = await _dio.post('/vehicles/$vehicleId/documents', data: formData);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Fetch all documents stored for a vehicle.
+  Future<List<dynamic>> getVehicleDocuments(int vehicleId) async {
+    final response = await _dio.get('/vehicles/$vehicleId/documents');
+    final data = response.data;
+    if (data is Map && data['data'] is List) return data['data'] as List<dynamic>;
+    return [];
+  }
+
+  Future<Map<String, dynamic>> uploadDocument(File file, String type, String linkedId) async {
     String fileName = file.path.split('/').last;
     FormData formData = FormData.fromMap({
       "file": await MultipartFile.fromFile(file.path, filename: fileName),
@@ -320,6 +357,25 @@ class ApiService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  /// Fleet manager uploads a document for a specific driver (upsert).
+  /// document_type: driving_license | pan_card | aadhaar_card | bank_passbook | driver_photo | driver_fingerprint
+  Future<Map<String, dynamic>> uploadDriverDocumentForFleet(
+    int driverId,
+    File file,
+    String documentType, {
+    String? documentNumber,
+  }) async {
+    final fileName = file.path.split('/').last;
+    final map = <String, dynamic>{
+      'file': await MultipartFile.fromFile(file.path, filename: fileName),
+      'document_type': documentType,
+    };
+    if (documentNumber != null && documentNumber.isNotEmpty) map['document_number'] = documentNumber;
+    final formData = FormData.fromMap(map);
+    final response = await _dio.post('/drivers/$driverId/documents', data: formData);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   /// Update (re-upload) an existing driver document.
   Future<Map<String, dynamic>> updateDriverDocument(int docId, File file, {String? documentNumber}) async {
     String fileName = file.path.split('/').last;
@@ -331,6 +387,59 @@ class ApiService {
     }
     FormData formData = FormData.fromMap(map);
     final response = await _dio.put('/drivers/me/documents/$docId', data: formData);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  // --- Driver Trip Workflow ---
+
+  /// Submit LR and E-way bill files (PDF/JPG/PNG) + numbers to start a trip.
+  Future<Map<String, dynamic>> submitTripLRAndEway(
+    int tripId, {
+    File? lrFile,
+    File? ewayFile,
+  }) async {
+    final map = <String, dynamic>{};
+    if (lrFile != null) {
+      map['lr_file'] = await MultipartFile.fromFile(lrFile.path, filename: lrFile.path.split('/').last);
+    }
+    if (ewayFile != null) {
+      map['eway_file'] = await MultipartFile.fromFile(ewayFile.path, filename: ewayFile.path.split('/').last);
+    }
+    final formData = FormData.fromMap(map);
+    final response = await _dio.post('/drivers/me/trips/$tripId/submit-lr-eway', data: formData);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Driver marks truck as loaded with a required photo.
+  Future<Map<String, dynamic>> markTripLoaded(int tripId, File photo, {double? startOdometer}) async {
+    final fileName = photo.path.split('/').last;
+    final formData = FormData.fromMap({
+      'photo': await MultipartFile.fromFile(photo.path, filename: fileName),
+      if (startOdometer != null) 'start_odometer': startOdometer.toString(),
+    });
+    final response = await _dio.post('/drivers/me/trips/$tripId/mark-loaded', data: formData);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Driver marks truck as reached destination with a required photo.
+  Future<Map<String, dynamic>> markTripReached(int tripId, File photo, {double? endOdometer}) async {
+    final fileName = photo.path.split('/').last;
+    final map = <String, dynamic>{
+      'photo': await MultipartFile.fromFile(photo.path, filename: fileName),
+      if (endOdometer != null) 'end_odometer': endOdometer.toString(),
+    };
+    final formData = FormData.fromMap(map);
+    final response = await _dio.post('/drivers/me/trips/$tripId/mark-reached', data: formData);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Driver marks truck as unloaded (completing the trip) with a required photo.
+  Future<Map<String, dynamic>> markTripUnloaded(int tripId, File photo) async {
+    final fileName = photo.path.split('/').last;
+    final formData = FormData.fromMap({
+      'photo': await MultipartFile.fromFile(photo.path, filename: fileName),
+    });
+    final response = await _dio.post('/drivers/me/trips/$tripId/mark-unloaded', data: formData);
     return Map<String, dynamic>.from(response.data as Map);
   }
 
@@ -406,6 +515,75 @@ class ApiService {
 
   Future<void> markExpensePaid(String id) async {
     await _dio.put('/accountant/expenses/$id/mark-paid');
+  }
+
+  Future<void> addTripExpense(int tripId, {
+    required String category,
+    required double amount,
+    String? subCategory,
+    String? description,
+  }) async {
+    await _dio.post('/trips/$tripId/expenses', data: {
+      'category': category,
+      'amount': amount,
+      if (subCategory != null) 'sub_category': subCategory,
+      if (description != null) 'description': description,
+      'expense_date': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<void> addTripFuel(int tripId, {required double litres, required double totalAmount}) async {
+    await _dio.post('/trips/$tripId/fuel', data: {
+      'fuel_date': DateTime.now().toIso8601String(),
+      'fuel_type': 'diesel',
+      'quantity_litres': litres,
+      'rate_per_litre': litres > 0 ? totalAmount / litres : 0,
+      'total_amount': totalAmount,
+      'payment_mode': 'cash',
+    });
+  }
+
+  Future<List<dynamic>> getTripExpenses(int tripId) async {
+    final response = await _dio.get('/trips/$tripId/expenses');
+    final raw = response.data;
+    if (raw is Map) {
+      final data = raw['data'];
+      if (data is List) return data;
+    }
+    return [];
+  }
+
+  Future<List<dynamic>> getTripFuelEntries(int tripId) async {
+    final response = await _dio.get('/trips/$tripId/fuel');
+    final raw = response.data;
+    if (raw is Map) {
+      final data = raw['data'];
+      if (data is List) return data;
+    }
+    return [];
+  }
+
+  /// Fetch the submitted checklist for a trip. Returns null if not submitted yet.
+  Future<Map<String, dynamic>?> getTripChecklist(int tripId) async {
+    try {
+      final response = await _dio.get('/trips/$tripId/checklist', queryParameters: {'type': 'checklist'});
+      final raw = response.data;
+      if (raw is Map) return Map<String, dynamic>.from(raw['data'] as Map? ?? {});
+    } catch (_) {}
+    return null;
+  }
+
+  /// Fetch LR and E-way document photo URLs for a trip.
+  Future<List<dynamic>> getTripDocumentPhotos(int tripId) async {
+    try {
+      final response = await _dio.get('/trips/$tripId/trip-documents');
+      final raw = response.data;
+      if (raw is Map) {
+        final data = raw['data'];
+        if (data is List) return data;
+      }
+    } catch (_) {}
+    return [];
   }
 
   Future<List<dynamic>> getInvoices() async { // [cite: 34]

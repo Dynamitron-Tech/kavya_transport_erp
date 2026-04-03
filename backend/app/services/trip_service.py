@@ -95,7 +95,9 @@ async def get_trip(db: AsyncSession, trip_id: int):
 async def create_trip(db: AsyncSession, data: dict, user_id: int = None) -> Trip:
     data = dict(data)
     lr_ids = data.pop("lr_ids", [])
-    data["trip_number"] = generate_trip_number()
+    count_result = await db.execute(select(func.count(Trip.id)))
+    seq = (count_result.scalar() or 0) + 1
+    data["trip_number"] = generate_trip_number(seq)
     data["created_by"] = user_id
     data["status"] = _coerce_enum(TripStatusEnum, data.get("status", "planned"))
 

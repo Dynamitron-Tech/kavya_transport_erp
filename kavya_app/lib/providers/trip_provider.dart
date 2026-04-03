@@ -263,3 +263,35 @@ final tripDetailProvider =
   
   return trip;
 });
+
+// Provider for driver's own assigned trips (from /me/trips endpoint)
+final driverMyTripsProvider =
+    StateNotifierProvider<DriverMyTripsNotifier, AsyncValue<List<Trip>>>((ref) {
+  return DriverMyTripsNotifier(ref.read(apiServiceProvider));
+});
+
+class DriverMyTripsNotifier extends StateNotifier<AsyncValue<List<Trip>>> {
+  final ApiService _api;
+
+  DriverMyTripsNotifier(this._api) : super(const AsyncValue.loading()) {
+    fetchTrips();
+  }
+
+  Future<void> fetchTrips() async {
+    state = const AsyncValue.loading();
+    try {
+      final response = await _api.get('/drivers/me/trips');
+      final rawData = response['data'];
+      final rawItems = rawData is List ? rawData : <dynamic>[];
+      final items = rawItems
+          .map((e) => Trip.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+      state = AsyncValue.data(items);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<void> refresh() => fetchTrips();
+}
+

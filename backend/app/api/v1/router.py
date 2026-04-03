@@ -53,6 +53,7 @@ from app.api.v1.endpoints import (
     pa_dashboard,
     manager_dashboard,
     document_ocr,
+    driver_requests,
 )
 
 api_router = APIRouter()
@@ -157,6 +158,9 @@ api_router.include_router(supplier_portal.router, prefix="/portal/supplier", tag
 
 # Branch Management
 api_router.include_router(branches.router, prefix="/branches", tags=["Branches"])
+
+# Driver Leave & Advance Requests
+api_router.include_router(driver_requests.router, prefix="/driver-requests", tags=["Driver Requests"])
 
 # TPMS + Predictive Maintenance
 api_router.include_router(tpms.router, prefix="/tpms", tags=["TPMS"])
