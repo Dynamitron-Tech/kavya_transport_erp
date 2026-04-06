@@ -50,6 +50,13 @@ async def list_users(
             "upi_id": u.upi_id,
             "salary_amount": u.salary_amount,
             "pay_type": u.pay_type,
+            "aadhaar_file_url": u.aadhaar_file_url,
+            "aadhaar_file_name": u.aadhaar_file_name,
+            "dl_file_url": u.dl_file_url,
+            "dl_file_name": u.dl_file_name,
+            "dl_number": u.dl_number,
+            "dl_issue_date": str(u.dl_issue_date) if u.dl_issue_date else None,
+            "dl_expiry_date": str(u.dl_expiry_date) if u.dl_expiry_date else None,
         })
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 
@@ -78,6 +85,13 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db), current_use
         "upi_id": user.upi_id,
         "salary_amount": user.salary_amount,
         "pay_type": user.pay_type,
+        "aadhaar_file_url": user.aadhaar_file_url,
+        "aadhaar_file_name": user.aadhaar_file_name,
+        "dl_file_url": user.dl_file_url,
+        "dl_file_name": user.dl_file_name,
+        "dl_number": user.dl_number,
+        "dl_issue_date": str(user.dl_issue_date) if user.dl_issue_date else None,
+        "dl_expiry_date": str(user.dl_expiry_date) if user.dl_expiry_date else None,
     })
 
 

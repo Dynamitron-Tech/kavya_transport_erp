@@ -20,68 +20,64 @@ from app.core.config import settings
 EXTRACTION_PROMPTS: dict[str, str] = {
 
     "rc": """
-You are a precise document data extraction assistant specialised
-in Indian transport documents. Extract data from this
-Registration Certificate (RC) image.
+You are a document data extraction assistant. Extract specific fields from an Indian vehicle Registration Certificate (RC) smart card.
 
-FIELDS TO EXTRACT:
-1. registration_number   — Vehicle registration number
-   (e.g., TN01AB1234, KA05CD5678)
-2. owner_name            — Full name of the registered owner
-3. make                  — Vehicle manufacturer / brand
-   (e.g., TATA, Ashok Leyland, Mahindra, Eicher, BharatBenz)
-4. model_name            — Vehicle model name / variant
-   (e.g., Prima 4028, LPS 3523, Blazo 37)
-5. year_of_manufacture   — Year the vehicle was manufactured (4-digit integer)
-6. vehicle_class         — Class of vehicle
-   (e.g., LMV, HMV, TRANS, MCWG, Motor Car)
-7. fuel_type             — Fuel type
-   (normalise to: Diesel / Petrol / CNG / Electric / LPG)
-8. engine_number         — Engine number (may be partial)
-9. chassis_number        — Chassis number (may be partial)
-10. issue_date           — Date of issue of the RC
-11. validity_date        — Validity / expiry date of the RC
+This is typically a Tamil Nadu / Indian government-issued RC smart card with a chip. Read ALL text carefully.
 
-EXTRACTION RULES:
-- registration_number: appears prominently at the top; may also
-  appear near labels "Reg No", "Registration No", "Vehicle No".
-  Format: state-code (2 letters) + district-code (2 digits) +
-  series (1-2 letters) + number (4 digits). Extract as-is.
-- owner_name: extract the full name exactly as printed.
-- make: the vehicle manufacturer brand. Look near labels like
-  "Maker", "Manufacturer", "Make", "Brand". If not found: null.
-- model_name: vehicle model. Look near labels like "Model",
-  "Vehicle Model", "Type". If not found: null.
-- year_of_manufacture: 4-digit integer year. Look near labels like
-  "Year of Mfg", "Mfg. Year", "Year". If not found: null.
-- vehicle_class: extract the class code or full description
-  as printed on the document.
-- fuel_type: normalise to one of:
-  Diesel, Petrol, CNG, Electric, LPG — regardless of case.
-- engine_number and chassis_number: may be partially masked
-  (e.g., "XXXXX1234") — extract whatever digits are visible.
-- All dates: normalise to DD/MM/YYYY format.
-  Convert "01-MAR-2022" → "01/03/2022".
-  Convert "2022/03/01" → "01/03/2022".
+FIELDS TO EXTRACT — use the EXACT label names listed:
 
-OUTPUT: Return ONLY a valid JSON object. No markdown, no
-explanation, no extra text before or after the JSON.
+1. "registration_number"
+   - Label on card: "Regn. Number" or "Reg. No." or at top of card
+   - Example: TN72BC7214 (remove all spaces)
 
-{
-  "registration_number": "TN01AB1234",
-  "owner_name": "Kumar Selvam",
-  "make": "TATA",
-  "model_name": "Prima 4028",
-  "year_of_manufacture": 2019,
-  "vehicle_class": "HGV",
-  "fuel_type": "Diesel",
-  "engine_number": "XXXXX98765",
-  "chassis_number": "XXXXX12345",
-  "issue_date": "15/06/2021",
-  "validity_date": "14/06/2026"
-}
+2. "owner_name"
+   - Label on card: "Owner Name"
+   - The value is the FULL NAME printed on the next line BELOW the "Owner Name" label
+   - Example: "NALAN SHUNMUGARAJ K"
+   - ONLY letters and spaces — never numbers or codes
+   - Do NOT return the label word "Owner" itself — return the actual person/company name
 
-Set any field you cannot find to null. Do not guess.
+3. "vehicle_class"
+   - Label on card: "Vehicle Class" or "Class of Vehicle"
+   - Example: "LMV", "HGV", "TRANS"
+
+4. "fuel_type"
+   - Label on card: "Fuel" (usually on left side of card)
+   - Example: "DIESEL" → normalise to "Diesel"
+   - Normalise to one of: Diesel / Petrol / CNG / Electric / LPG
+
+5. "engine_number"
+   - Label on card: "Engine/Motor Number" (exact label used on Tamil Nadu RC)
+   - The value is the alphanumeric code printed on the NEXT LINE below "Engine/Motor Number"
+   - Example: "1ND1440167"
+   - MUST be alphanumeric (letters + digits). NEVER a person's name.
+
+6. "chassis_number"
+   - Label on card: "Chassis Number" (exact label used on Tamil Nadu RC)
+   - The value is the alphanumeric VIN code printed on the NEXT LINE below "Chassis Number"
+   - Example: "MBJB49BT90001213701215"
+   - MUST be a long alphanumeric code (17+ characters). NEVER a person's name.
+   - CRITICAL: The chassis number appears BEFORE "Engine/Motor Number" on the card. Do NOT confuse with owner name.
+
+7. "issue_date"
+   - Label on card: "Date of Regn." or "Regn. Date"
+   - Dates on card may use dashes (04-01-2016) — convert to DD/MM/YYYY format → "04/01/2016"
+
+8. "validity_date"
+   - Label on card: "Regn. Validity" or "Valid Upto"
+   - Convert to DD/MM/YYYY format
+
+CRITICAL RULES:
+- Read the label first, then extract the value on the NEXT LINE after that label
+- chassis_number and engine_number are ALWAYS long alphanumeric codes, NEVER names
+- owner_name is ALWAYS a person or company name (letters only), NEVER a code
+- Dates with dashes (DD-MM-YYYY) must be converted to slashes (DD/MM/YYYY)
+- Return ONLY valid JSON with no extra text or markdown
+
+Return exactly:
+{"registration_number": "...", "owner_name": "...", "vehicle_class": "...", "fuel_type": "...", "engine_number": "...", "chassis_number": "...", "issue_date": "DD/MM/YYYY", "validity_date": "DD/MM/YYYY"}
+
+Set any not-found field to null.
 """,
 
     "insurance": """
@@ -241,22 +237,24 @@ Set any field you cannot find to null. Do not guess.
 """,
 
         "driving_license": """
-Driver's License (DL)
+You are a document data extraction assistant. Extract the following fields from a Driving Licence (DL) document.
 
-You are a document data extraction assistant. When given a driver's license document (PDF or scanned document), extract the following fields accurately:
+Fields to extract:
 1. License Number
 2. Issue Date
 3. Validity Date
 
 Rules:
-- The license number may appear in two ways:
-        a) At the TOP of the card with NO label — extract the first prominent alphanumeric value at the top.
-        b) With a label such as "License No", "DL No", "Driving Licence Number", "No.", "DL#", or similar — extract the value next to that label.
-- If both exist, prefer the labelled one as it is more reliable.
-- Dates may appear in any format (DD/MM/YYYY, MM-DD-YYYY, DD MMM YYYY, etc.) — normalize them to DD/MM/YYYY in your output.
-- Return the result strictly as JSON with keys: "license_number", "issue_date", "expiry_date".
-- If a field is not found, set its value to null.
-- Do not include any explanation or extra text — only return the JSON object.
+- "license_number": The DL number may appear in two ways:
+    a) At the TOP of the card with NO label — extract the first prominent alphanumeric value at the top.
+    b) With a label such as "License No", "DL No", "Driving Licence Number", "No.", "DL#", or similar — extract the value next to that label.
+  If both exist, prefer the labelled one. Remove all spaces from the number (e.g. "TN72 20240005499" → "TN7220240005499").
+- "issue_date": look for labels "Issue Date", "Date of Issue". Normalise to DD/MM/YYYY.
+- "expiry_date": look for labels "Valid Upto", "Validity", "Validity(NT)", "Validity(TR)". If multiple validity dates exist, use the LATEST one. Normalise to DD/MM/YYYY.
+- Dates may appear in any format (DD/MM/YYYY, DD-MM-YYYY, DD MMM YYYY, etc.) — always normalise to DD/MM/YYYY.
+
+Return ONLY a JSON object with keys: "license_number", "issue_date", "expiry_date"
+Set any not-found field to null. No explanation, no extra text.
 """,
 
     "aadhaar": """
@@ -1270,70 +1268,89 @@ class DocumentExtractionService:
             "data": data,
         }
 
+    def _extract_next_line_after_label(self, lines: list, label_patterns: list, max_chars: int = 120) -> str | None:
+        """Extract the value from the line AFTER a matching label line (TN RC smart card layout)."""
+        for i, line in enumerate(lines):
+            for pattern in label_patterns:
+                if re.search(pattern, line, re.IGNORECASE):
+                    # Check if value is on same line after the label
+                    same_line = re.sub(pattern, "", line, flags=re.IGNORECASE).strip(" :-")
+                    if same_line and len(same_line) > 1:
+                        return same_line[:max_chars].strip()
+                    # Otherwise take next non-empty line
+                    for j in range(i + 1, min(i + 3, len(lines))):
+                        candidate = lines[j].strip()
+                        if candidate:
+                            return candidate[:max_chars]
+        return None
+
     def _parse_rc_text(self, text: str) -> dict:
         cleaned = re.sub(r"[\t\r]+", " ", text or "")
         cleaned_upper = cleaned.upper()
         lines = [ln.strip() for ln in cleaned.split("\n") if ln.strip()]
 
         registration_number = self._extract_registration_number(cleaned_upper, lines)
-        owner_name = self._extract_rc_labeled_text(
-            cleaned,
-            [
-                r"OWNER\s*NAME",
-                r"NAME\s*OF\s*OWNER",
-            ],
+
+        # TN RC smart card: labels are on one line, values on the NEXT line
+        owner_name = self._extract_next_line_after_label(
+            lines,
+            [r"OWNER\s*NAME", r"NAME\s*OF\s*OWNER"],
             max_chars=120,
         )
-        vehicle_class = self._extract_rc_labeled_text(
-            cleaned,
-            [
-                r"VEHICLE\s*CLASS",
-                r"CLASS\s*OF\s*VEHICLE",
-            ],
+        # Validate: owner name must be letters/spaces only, not an alphanumeric code
+        if owner_name and re.search(r"\d{4,}", owner_name):
+            owner_name = None
+
+        vehicle_class = self._extract_next_line_after_label(
+            lines,
+            [r"VEHICLE\s*CLASS", r"CLASS\s*OF\s*VEHICLE"],
             max_chars=60,
         )
+
+        # Fuel is usually on same line as label on TN RC (left side)
         fuel_type = self._normalize_fuel_type(
             self._extract_rc_labeled_text(
                 cleaned,
-                [
-                    r"FUEL\s*USED",
-                    r"FUEL\s*TYPE",
-                ],
+                [r"FUEL\s*USED", r"FUEL\s*TYPE", r"^FUEL"],
+                max_chars=40,
+            ) or self._extract_next_line_after_label(
+                lines,
+                [r"^FUEL$", r"FUEL\s*USED", r"FUEL\s*TYPE"],
                 max_chars=40,
             )
         )
-        engine_number = self._extract_rc_labeled_text(
-            cleaned,
-            [
-                r"ENGINE\s*NO\.?",
-                r"ENGINE\s*NUMBER",
-            ],
+
+        # Engine/Motor Number and Chassis Number: next-line extraction
+        engine_number = self._extract_next_line_after_label(
+            lines,
+            [r"ENGINE\s*/\s*MOTOR\s*NUMBER", r"ENGINE\s*MOTOR\s*NUMBER", r"ENGINE\s*NUMBER", r"ENGINE\s*NO"],
             max_chars=60,
         )
-        chassis_number = self._extract_rc_labeled_text(
-            cleaned,
-            [
-                r"CHASSIS\s*NO\.?",
-                r"CHASSIS\s*NUMBER",
-            ],
+        # Validate: must be alphanumeric code, not a name
+        if engine_number and not re.search(r"[A-Z0-9]{4,}", engine_number.upper()):
+            engine_number = None
+        if engine_number and re.fullmatch(r"[A-Z ]+", engine_number.upper()):
+            engine_number = None
+
+        chassis_number = self._extract_next_line_after_label(
+            lines,
+            [r"CHASSIS\s*NUMBER", r"CHASSIS\s*NO"],
             max_chars=60,
         )
+        # Validate: must be long alphanumeric VIN, not a name
+        if chassis_number and re.fullmatch(r"[A-Z ]+", chassis_number.upper()):
+            chassis_number = None
+        if chassis_number and len(chassis_number) < 8:
+            chassis_number = None
+
         issue_date = self._extract_date_from_line_context(
             lines,
-            [
-                r"DATE\s*OF\s*REGISTRATION",
-                r"REGISTRATION\s*DATE",
-            ],
+            [r"DATE\s*OF\s*REGN", r"DATE\s*OF\s*REGISTRATION", r"REGN\.?\s*DATE"],
             pick="first",
         )
         validity_date = self._extract_date_from_line_context(
             lines,
-            [
-                r"VALID\s*UPTO",
-                r"VALIDITY",
-                r"VALID\s*TILL",
-                r"RC\s*VALID\s*TILL",
-            ],
+            [r"REGN\.?\s*VALIDITY", r"VALID\s*UPTO", r"VALIDITY", r"VALID\s*TILL", r"RC\s*VALID\s*TILL"],
             pick="latest",
         )
 

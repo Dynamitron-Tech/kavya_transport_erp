@@ -28,13 +28,26 @@ class MarketTrip(Base, TimestampMixin, SoftDeleteMixin):
     job_id = Column(Integer, ForeignKey('jobs.id', ondelete='CASCADE'), nullable=False)
 
     # Supplier
-    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=False)
+    supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=True)
 
     # Vehicle & Driver (market vehicles may not exist in our vehicles table)
     vehicle_registration = Column(String(20), nullable=True)
+    vehicle_type = Column(String(50), nullable=True)
+    fuel_type = Column(String(20), nullable=True)
+    vehicle_make = Column(String(100), nullable=True)
+    vehicle_model = Column(String(100), nullable=True)
+    year_of_manufacture = Column(Integer, nullable=True)
+    chassis_number = Column(String(50), nullable=True)
+    engine_number = Column(String(50), nullable=True)
+    rc_file_url = Column(String(500), nullable=True)
     driver_name = Column(String(200), nullable=True)
     driver_phone = Column(String(20), nullable=True)
+    driver_alt_phone = Column(String(20), nullable=True)
+    driver_address = Column(Text, nullable=True)
     driver_license = Column(String(30), nullable=True)
+    driver_license_issue = Column(String(20), nullable=True)
+    driver_license_valid = Column(String(20), nullable=True)
+    dl_file_url = Column(String(500), nullable=True)
 
     # Rates
     client_rate = Column(Numeric(15, 2), nullable=False)  # What client pays us

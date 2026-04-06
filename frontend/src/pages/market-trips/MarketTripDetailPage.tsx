@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { marketTripService } from '@/services/dataService';
+import { marketTripService, lrService } from '@/services/dataService';
 import { Modal } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -11,7 +11,8 @@ import { handleApiError } from '../../utils/handleApiError';
 import type { MarketTripStatus } from '@/types';
 import {
   ArrowLeft, Truck, User, IndianRupee,
-  CheckCircle, XCircle, Play, PackageCheck, CreditCard
+  CheckCircle, XCircle, Play, PackageCheck, CreditCard,
+  FileText, X, ExternalLink, Building2
 } from 'lucide-react';
 
 const STATUS_FLOW: MarketTripStatus[] = ['pending', 'assigned', 'in_transit', 'delivered', 'settled'];
@@ -24,6 +25,7 @@ export default function MarketTripDetailPage() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [settleOpen, setSettleOpen] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
+  const [viewDoc, setViewDoc] = useState<{ url: string; title: string } | null>(null);
 
   const [assignPayload, setAssignPayload] = useState({
     vehicle_registration: '',
@@ -46,6 +48,17 @@ export default function MarketTripDetailPage() {
     queryKey: ['market-trip-pnl', id],
     queryFn: () => marketTripService.getPnl(Number(id)),
     enabled: !!id,
+  });
+
+  const { data: jobLRs } = useQuery({
+    queryKey: ['market-trip-lrs', trip?.job_id],
+    queryFn: async () => {
+      const data = await lrService.list({ job_id: (trip as any)?.job_id, limit: 10 });
+      // Backend returns { success, data: [...], pagination }
+      return Array.isArray((data as any)?.data) ? (data as any).data
+        : (data as any)?.data?.items ?? (data as any)?.items ?? (Array.isArray(data) ? data : []);
+    },
+    enabled: !!(trip as any)?.job_id,
   });
 
   const invalidate = () => {
@@ -94,11 +107,56 @@ export default function MarketTripDetailPage() {
 
   const t: any = trip;
   const p: any = pnl;
+  const lrs: any[] = Array.isArray(jobLRs) ? jobLRs : [];
+  const firstLR: any = lrs[0] ?? null;
   const currentIdx = STATUS_FLOW.indexOf(t.status);
   const margin = Number(t.client_rate || 0) - Number(t.contractor_rate || 0);
 
+  // Document chip — image thumbnail or PDF icon, opens lightbox
+  const DocChip = ({ url, label }: { url: string; label: string }) => {
+    const isImg = /\.(jpe?g|png|gif|webp|heic)$/i.test(url);
+    return (
+      <button
+        onClick={() => setViewDoc({ url, title: label })}
+        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-medium shadow-sm"
+      >
+        {isImg
+          ? <img src={url} alt={label} className="w-5 h-5 object-cover rounded" />
+          : <FileText size={13} className="text-red-500 flex-shrink-0" />
+        }
+        <span className="max-w-[120px] truncate">{label}</span>
+      </button>
+    );
+  };
+
   return (
     <div className="space-y-6">
+      {/* Document Lightbox */}
+      {viewDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75" onClick={() => setViewDoc(null)}>
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-xl overflow-hidden shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+              <p className="font-semibold text-sm text-gray-900">{viewDoc.title}</p>
+              <div className="flex items-center gap-3">
+                <a href={viewDoc.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                  <ExternalLink size={12} /> Open in new tab
+                </a>
+                <button onClick={() => setViewDoc(null)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500">
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="overflow-auto flex-1 flex items-center justify-center bg-gray-50">
+              {/\.(jpe?g|png|gif|webp|heic)$/i.test(viewDoc.url) ? (
+                <img src={viewDoc.url} alt={viewDoc.title} className="max-w-full max-h-[80vh] object-contain p-2" />
+              ) : (
+                <iframe src={viewDoc.url} className="w-full h-[80vh] border-0" title={viewDoc.title} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -178,24 +236,68 @@ export default function MarketTripDetailPage() {
 
       {/* Details Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Trip Info */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2"><Truck size={16} /> Trip Details</h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between"><span className="text-gray-500">Vehicle</span><span className="font-mono font-medium">{t.vehicle_registration || '—'}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Driver</span><span className="font-medium">{t.driver_name || '—'}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Driver Phone</span><span className="font-medium">{t.driver_phone || '—'}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Driver License</span><span className="font-mono font-medium">{t.driver_license || '—'}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Created</span><span className="font-medium">{t.created_at ? new Date(t.created_at).toLocaleDateString('en-IN') : '—'}</span></div>
-            {t.assigned_at && <div className="flex justify-between"><span className="text-gray-500">Assigned</span><span className="font-medium">{new Date(t.assigned_at).toLocaleDateString('en-IN')}</span></div>}
-            {t.delivered_at && <div className="flex justify-between"><span className="text-gray-500">Delivered</span><span className="font-medium">{new Date(t.delivered_at).toLocaleDateString('en-IN')}</span></div>}
-            {t.settled_at && <div className="flex justify-between"><span className="text-gray-500">Settled</span><span className="font-medium">{new Date(t.settled_at).toLocaleDateString('en-IN')}</span></div>}
-            {t.settlement_reference && <div className="flex justify-between"><span className="text-gray-500">Settlement Ref</span><span className="font-mono font-medium">{t.settlement_reference}</span></div>}
+        {/* Vehicle & Driver Info */}
+        <div className="space-y-4">
+          {/* Vehicle Card */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2"><Truck size={15} /> Vehicle Details</h3>
+            <div className="space-y-2.5 text-sm">
+              {t.vehicle_registration && <div className="flex justify-between"><span className="text-gray-500">Reg. Number</span><span className="font-mono font-semibold">{t.vehicle_registration}</span></div>}
+              {(t as any).vehicle_make && <div className="flex justify-between"><span className="text-gray-500">Make / Model</span><span className="font-medium">{(t as any).vehicle_make} {(t as any).vehicle_model || ''}</span></div>}
+              {(t as any).vehicle_type && <div className="flex justify-between"><span className="text-gray-500">Type</span><span>{(t as any).vehicle_type}</span></div>}
+              {(t as any).fuel_type && <div className="flex justify-between"><span className="text-gray-500">Fuel</span><span>{(t as any).fuel_type}</span></div>}
+              {(t as any).year_of_manufacture && <div className="flex justify-between"><span className="text-gray-500">Year</span><span>{(t as any).year_of_manufacture}</span></div>}
+              {(t as any).chassis_number && <div className="flex justify-between"><span className="text-gray-500">Chassis</span><span className="font-mono text-xs">{(t as any).chassis_number}</span></div>}
+              {(t as any).engine_number && <div className="flex justify-between"><span className="text-gray-500">Engine</span><span className="font-mono text-xs">{(t as any).engine_number}</span></div>}
+              {(t as any).rc_file_url && (
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-gray-500">RC Document</span>
+                  <DocChip url={(t as any).rc_file_url} label="RC" />
+                </div>
+              )}
+              {!(t.vehicle_registration || (t as any).vehicle_make) && <p className="text-gray-400 text-xs italic">No vehicle details yet</p>}
+            </div>
+          </div>
+          {/* Driver Card */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="inline"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              Driver Details
+            </h3>
+            <div className="space-y-2.5 text-sm">
+              {t.driver_name && <div className="flex justify-between"><span className="text-gray-500">Name</span><span className="font-medium">{t.driver_name}</span></div>}
+              {t.driver_phone && <div className="flex justify-between"><span className="text-gray-500">Phone</span><span>{t.driver_phone}</span></div>}
+              {(t as any).driver_alt_phone && <div className="flex justify-between"><span className="text-gray-500">Alt Phone</span><span>{(t as any).driver_alt_phone}</span></div>}
+              {t.driver_license && <div className="flex justify-between"><span className="text-gray-500">DL Number</span><span className="font-mono text-xs">{t.driver_license}</span></div>}
+              {(t as any).driver_license_issue && <div className="flex justify-between"><span className="text-gray-500">DL Issued</span><span>{(t as any).driver_license_issue}</span></div>}
+              {(t as any).driver_license_valid && <div className="flex justify-between"><span className="text-gray-500">DL Valid Until</span><span>{(t as any).driver_license_valid}</span></div>}
+              {(t as any).driver_address && <div className="flex flex-col gap-0.5"><span className="text-gray-500">Address</span><span className="text-xs text-gray-700">{(t as any).driver_address}</span></div>}
+              {(t as any).dl_file_url && (
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-gray-500">DL Document</span>
+                  <DocChip url={(t as any).dl_file_url} label="Driving License" />
+                </div>
+              )}
+              {!(t.driver_name || t.driver_phone) && <p className="text-gray-400 text-xs italic">No driver details yet</p>}
+            </div>
+          </div>
+          {/* Timestamps */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Timeline</h3>
+            <div className="space-y-2.5 text-sm">
+              <div className="flex justify-between"><span className="text-gray-500">Created</span><span>{t.created_at ? new Date(t.created_at).toLocaleDateString('en-IN') : '—'}</span></div>
+              {t.assigned_at && <div className="flex justify-between"><span className="text-gray-500">Assigned</span><span>{new Date(t.assigned_at).toLocaleDateString('en-IN')}</span></div>}
+              {t.delivered_at && <div className="flex justify-between"><span className="text-gray-500">Delivered</span><span>{new Date(t.delivered_at).toLocaleDateString('en-IN')}</span></div>}
+              {t.settled_at && <div className="flex justify-between"><span className="text-gray-500">Settled</span><span>{new Date(t.settled_at).toLocaleDateString('en-IN')}</span></div>}
+              {t.settlement_reference && <div className="flex justify-between"><span className="text-gray-500">Settlement Ref</span><span className="font-mono">{t.settlement_reference}</span></div>}
+            </div>
           </div>
         </div>
 
-        {/* P&L Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        {/* Right column: P&L + Consignor/Consignee */}
+        <div className="space-y-6">
+          {/* P&L Card */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
           <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2"><IndianRupee size={16} /> Profit & Loss</h3>
           {p ? (
             <div className="space-y-3 text-sm">
@@ -239,6 +341,31 @@ export default function MarketTripDetailPage() {
               </div>
             </div>
           )}
+          </div>
+
+          {/* Consignor / Consignee from linked LR */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <Building2 size={15} /> Consignor
+            </h3>
+            <div className="space-y-1 text-sm">
+              <p className="font-medium text-gray-900">{firstLR?.consignor_name || '—'}</p>
+              {firstLR?.consignor_address && <p className="text-gray-500 text-xs">{firstLR.consignor_address}</p>}
+              {firstLR?.consignor_gstin && <p className="text-gray-400 text-xs">GST: {firstLR.consignor_gstin}</p>}
+              {firstLR?.consignor_phone && <p className="text-gray-400 text-xs">Ph: {firstLR.consignor_phone}</p>}
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <Building2 size={15} /> Consignee
+            </h3>
+            <div className="space-y-1 text-sm">
+              <p className="font-medium text-gray-900">{firstLR?.consignee_name || '—'}</p>
+              {firstLR?.consignee_address && <p className="text-gray-500 text-xs">{firstLR.consignee_address}</p>}
+              {firstLR?.consignee_gstin && <p className="text-gray-400 text-xs">GST: {firstLR.consignee_gstin}</p>}
+              {firstLR?.consignee_phone && <p className="text-gray-400 text-xs">Ph: {firstLR.consignee_phone}</p>}
+            </div>
+          </div>
         </div>
       </div>
 

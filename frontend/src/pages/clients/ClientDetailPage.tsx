@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { clientService, jobService } from '@/services/dataService';
+import { clientService, jobService, documentService } from '@/services/dataService';
 import { StatusBadge, LoadingPage, Modal } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
-import { ArrowLeft, Phone, Mail, MapPin, Edit, ChevronRight, Plus, Truck, User, Package, IndianRupee, Calendar, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MapPin, Edit, ChevronRight, Plus, Truck, User, Package, IndianRupee, Calendar, CheckCircle2, FileText, ExternalLink } from 'lucide-react';
 import { safeArray } from '@/utils/helpers';
 import { handleApiError } from '../../utils/handleApiError';
 import api from '@/services/api';
@@ -30,16 +30,35 @@ export default function ClientDetailPage() {
   const [step, setStep] = useState(1); // 1=details, 2=vehicle, 3=driver, 4=confirm
   const [editPayload, setEditPayload] = useState({
     name: '',
+    client_type: 'corporate',
+    contact_person: '',
+    legal_name: '',
+    trade_name: '',
+    nature_of_business: '',
+    designation: '',
     email: '',
     phone: '',
+    alt_phone: '',
+    website: '',
+    industry: '',
+    company_size: '',
     city: '',
     state: '',
     address_line1: '',
     pincode: '',
     gstin: '',
     pan: '',
-    credit_limit: 0,
-    credit_days: 30,
+    tds_rate: '',
+    tax_exempt: false,
+    name_deductor: '',
+    name_deductee: '',
+    pan_deductor: '',
+    pan_deductee: '',
+    nature_payment: '',
+    tds_amount: '',
+    invoice_frequency: 'per_order',
+    payment_method: 'bank_transfer',
+    ifsc_code: '',
   });
   const [jobForm, setJobForm] = useState({
     origin_city: '', destination_city: '', material_type: '', quantity: '',
@@ -62,6 +81,12 @@ export default function ClientDetailPage() {
     enabled: !!id,
   });
 
+  const { data: clientDocumentsRaw, isLoading: docsLoading } = useQuery({
+    queryKey: ['client-documents', id],
+    queryFn: () => documentService.listForEntity(Number(id), 'client'),
+    enabled: !!id,
+  });
+
   const { data: vehiclesRaw } = useQuery({
     queryKey: ['available-vehicles'],
     queryFn: () => api.get('/vehicles', { params: { page: 1, limit: 100 } }),
@@ -77,6 +102,7 @@ export default function ClientDetailPage() {
   const vehicles = safeArray<any>(vehiclesRaw);
   const drivers = safeArray<any>(driversRaw);
   const jobs = safeArray<any>(jobsData);
+  const clientDocuments = safeArray<any>(clientDocumentsRaw);
 
   // ── Mutations ──
   const createJobMutation = useMutation({
@@ -133,16 +159,35 @@ export default function ClientDetailPage() {
     if (!client) return;
     setEditPayload({
       name: client.name || '',
+      client_type: client.client_type || 'corporate',
+      contact_person: client.contact_person || '',
+      legal_name: client.legal_name || '',
+      trade_name: client.trade_name || '',
+      nature_of_business: client.nature_of_business || '',
+      designation: client.designation || '',
       email: client.email || '',
       phone: client.phone || '',
+      alt_phone: client.alt_phone || '',
+      website: client.website || '',
+      industry: client.industry || '',
+      company_size: client.company_size || '',
       city: client.city || '',
       state: client.state || '',
       address_line1: client.address_line1 || '',
       pincode: client.pincode || '',
       gstin: client.gstin || '',
       pan: client.pan || '',
-      credit_limit: Number(client.credit_limit || 0),
-      credit_days: Number(client.credit_days || 30),
+      tds_rate: client.tds_rate || '',
+      tax_exempt: !!client.tax_exempt,
+      name_deductor: client.name_deductor || '',
+      name_deductee: client.name_deductee || '',
+      pan_deductor: client.pan_deductor || '',
+      pan_deductee: client.pan_deductee || '',
+      nature_payment: client.nature_payment || '',
+      tds_amount: client.tds_amount || '',
+      invoice_frequency: client.invoice_frequency || 'per_order',
+      payment_method: client.payment_method || 'bank_transfer',
+      ifsc_code: client.ifsc_code || '',
     });
   }, [client]);
 
@@ -162,6 +207,7 @@ export default function ClientDetailPage() {
   if (!client) return <div className="text-center py-12 text-gray-500">Client not found</div>;
 
   const inr = (n: any) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
+  const show = (v: any) => (v === null || v === undefined || String(v).trim() === '' ? '—' : String(v));
   const activeJobs = jobs.filter((j: any) => !['completed', 'cancelled'].includes(j.status));
   const completedJobs = jobs.filter((j: any) => j.status === 'completed');
 
@@ -201,9 +247,7 @@ export default function ClientDetailPage() {
         {[
           { label: 'Active Jobs', value: activeJobs.length, icon: Package, color: 'text-blue-600 bg-blue-50' },
           { label: 'Completed', value: completedJobs.length, icon: CheckCircle2, color: 'text-green-600 bg-green-50' },
-          { label: 'Credit Limit', value: inr(client.credit_limit), icon: IndianRupee, color: 'text-emerald-600 bg-emerald-50' },
           { label: 'Outstanding', value: inr(client.outstanding_amount), icon: IndianRupee, color: Number(client.outstanding_amount || 0) > 0 ? 'text-red-600 bg-red-50' : 'text-gray-600 bg-gray-50' },
-          { label: 'Credit Days', value: `${client.credit_days || 0} days`, icon: Calendar, color: 'text-purple-600 bg-purple-50' },
         ].map((s) => (
           <div key={s.label} className="card flex items-center gap-3 py-4">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${s.color}`}>
@@ -217,17 +261,59 @@ export default function ClientDetailPage() {
         ))}
       </div>
 
-      {/* Two column: Info + Financial */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 card">
-          <h3 className="font-semibold text-gray-900 mb-4">Client Information</h3>
-          <div className="grid grid-cols-2 gap-y-3 gap-x-8 text-sm">
-            <div><span className="text-gray-400">Phone</span><p className="font-medium flex items-center gap-1.5 mt-0.5"><Phone size={14} className="text-gray-400" /> {client.phone || '—'}</p></div>
-            <div><span className="text-gray-400">Email</span><p className="font-medium flex items-center gap-1.5 mt-0.5"><Mail size={14} className="text-gray-400" /> {client.email || '—'}</p></div>
-            <div><span className="text-gray-400">Address</span><p className="font-medium flex items-center gap-1.5 mt-0.5"><MapPin size={14} className="text-gray-400" /> {[client.address_line1, client.city, client.state, client.pincode].filter(Boolean).join(', ') || '—'}</p></div>
-            <div><span className="text-gray-400">GSTIN</span><p className="font-medium font-mono mt-0.5">{client.gstin || '—'}</p></div>
-            <div><span className="text-gray-400">PAN</span><p className="font-medium font-mono mt-0.5">{client.pan || '—'}</p></div>
-            <div><span className="text-gray-400">Type</span><p className="font-medium capitalize mt-0.5">{client.client_type || '—'}</p></div>
+      {/* Full Details + Quick Actions */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2 card space-y-6">
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-4">Complete Client Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+              <div><span className="text-gray-400">Client Name</span><p className="font-medium mt-0.5">{show(client.name)}</p></div>
+              <div><span className="text-gray-400">Client Code</span><p className="font-medium font-mono mt-0.5">{show(client.code)}</p></div>
+              <div><span className="text-gray-400">Client Type</span><p className="font-medium capitalize mt-0.5">{show(client.client_type)}</p></div>
+              <div><span className="text-gray-400">Contact Person</span><p className="font-medium mt-0.5">{show(client.contact_person)}</p></div>
+              <div><span className="text-gray-400">Designation</span><p className="font-medium mt-0.5">{show(client.designation)}</p></div>
+              <div><span className="text-gray-400">Industry</span><p className="font-medium mt-0.5">{show(client.industry)}</p></div>
+              <div><span className="text-gray-400">Company Size</span><p className="font-medium mt-0.5">{show(client.company_size)}</p></div>
+              <div><span className="text-gray-400">Nature of Business</span><p className="font-medium mt-0.5">{show(client.nature_of_business)}</p></div>
+              <div><span className="text-gray-400">Legal Name</span><p className="font-medium mt-0.5">{show(client.legal_name)}</p></div>
+              <div><span className="text-gray-400">Trade Name</span><p className="font-medium mt-0.5">{show(client.trade_name)}</p></div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-3">Tax & Identity</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+              <div><span className="text-gray-400">GSTIN</span><p className="font-medium font-mono mt-0.5">{show(client.gstin)}</p></div>
+              <div><span className="text-gray-400">PAN</span><p className="font-medium font-mono mt-0.5">{show(client.pan)}</p></div>
+              <div><span className="text-gray-400">TDS Rate</span><p className="font-medium mt-0.5">{show(client.tds_rate)}</p></div>
+              <div><span className="text-gray-400">Tax Exempt</span><p className="font-medium mt-0.5">{client.tax_exempt ? 'Yes' : 'No'}</p></div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-3">TDS Details (Form 16A)</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+              <div><span className="text-gray-400">Name of Deductor</span><p className="font-medium mt-0.5">{show(client.name_deductor)}</p></div>
+              <div><span className="text-gray-400">Name of Deductee</span><p className="font-medium mt-0.5">{show(client.name_deductee)}</p></div>
+              <div><span className="text-gray-400">PAN of Deductor</span><p className="font-medium font-mono mt-0.5">{show(client.pan_deductor)}</p></div>
+              <div><span className="text-gray-400">PAN of Deductee</span><p className="font-medium font-mono mt-0.5">{show(client.pan_deductee)}</p></div>
+              <div><span className="text-gray-400">Nature of Payment</span><p className="font-medium mt-0.5">{show(client.nature_payment)}</p></div>
+              <div><span className="text-gray-400">TDS Amount</span><p className="font-medium mt-0.5">{show(client.tds_amount)}</p></div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-3">Contact & Financial</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+              <div><span className="text-gray-400">Email</span><p className="font-medium flex items-center gap-1.5 mt-0.5"><Mail size={14} className="text-gray-400" /> {show(client.email)}</p></div>
+              <div><span className="text-gray-400">Phone</span><p className="font-medium flex items-center gap-1.5 mt-0.5"><Phone size={14} className="text-gray-400" /> {show(client.phone)}</p></div>
+              <div><span className="text-gray-400">Alternate Phone</span><p className="font-medium mt-0.5">{show(client.alt_phone)}</p></div>
+              <div><span className="text-gray-400">Website</span><p className="font-medium mt-0.5">{show(client.website)}</p></div>
+              <div className="md:col-span-2"><span className="text-gray-400">Address</span><p className="font-medium flex items-center gap-1.5 mt-0.5"><MapPin size={14} className="text-gray-400" /> {[client.address_line1, client.city, client.state, client.pincode].filter(Boolean).join(', ') || '—'}</p></div>
+              <div><span className="text-gray-400">Invoice Frequency</span><p className="font-medium mt-0.5">{show(client.invoice_frequency)}</p></div>
+              <div><span className="text-gray-400">Payment Method</span><p className="font-medium mt-0.5">{show(client.payment_method)}</p></div>
+              <div><span className="text-gray-400">IFSC Code</span><p className="font-medium font-mono mt-0.5">{show(client.ifsc_code)}</p></div>
+            </div>
           </div>
         </div>
 
@@ -240,6 +326,40 @@ export default function ClientDetailPage() {
             <button onClick={() => navigate(`/jobs?client_id=${id}`)} className="btn-secondary w-full text-sm">All Jobs</button>
           </div>
         </div>
+      </div>
+
+      {/* Uploaded Documents */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-900">Uploaded Documents ({clientDocuments.length})</h3>
+        </div>
+        {docsLoading ? (
+          <div className="py-6 text-center text-gray-400">Loading documents...</div>
+        ) : clientDocuments.length === 0 ? (
+          <div className="py-6 text-center text-gray-400">No client documents uploaded yet.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {clientDocuments.map((doc: any) => (
+              <div key={doc.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 truncate flex items-center gap-2"><FileText size={14} /> {doc.title || doc.file_name || 'Document'}</p>
+                    <p className="text-xs text-gray-500 mt-1">Type: {show(doc.document_type)}</p>
+                    <p className="text-xs text-gray-500">Uploaded: {doc.created_at ? new Date(doc.created_at).toLocaleString('en-IN') : '—'}</p>
+                  </div>
+                  {doc.file_url && (
+                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-medium">
+                      View <ExternalLink size={14} />
+                    </a>
+                  )}
+                </div>
+                {doc.file_url && /\.(jpg|jpeg|png|webp)$/i.test(doc.file_url) && (
+                  <img src={doc.file_url} alt={doc.title || 'client document'} className="mt-3 w-full h-36 object-cover rounded border border-gray-200" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Jobs Table */}
@@ -314,7 +434,7 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      <Modal isOpen={showEditClient} onClose={() => setShowEditClient(false)} title={`Edit ${client.name}`} size="lg">
+      <Modal isOpen={showEditClient} onClose={() => setShowEditClient(false)} title={`Edit ${client.name}`} size="xl">
         <form
           className="space-y-4"
           onSubmit={(e) => {
@@ -322,61 +442,150 @@ export default function ClientDetailPage() {
             updateClientMutation.mutate(editPayload);
           }}
         >
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 pb-1">Basic Information</div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Client Name</label>
               <input className="input-field" value={editPayload.name} onChange={(e) => setEditPayload((p) => ({ ...p, name: e.target.value }))} required />
             </div>
             <div>
-              <label className="label">Email</label>
-              <input className="input-field" value={editPayload.email} onChange={(e) => setEditPayload((p) => ({ ...p, email: e.target.value }))} />
+              <label className="label">Client Type</label>
+              <select className="input-field" value={editPayload.client_type} onChange={(e) => setEditPayload((p) => ({ ...p, client_type: e.target.value }))}>
+                <option value="corporate">Corporate</option>
+                <option value="individual">Individual</option>
+                <option value="government">Government</option>
+                <option value="ngo">NGO</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="label">Contact Person</label>
+              <input className="input-field" value={editPayload.contact_person} onChange={(e) => setEditPayload((p) => ({ ...p, contact_person: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Designation</label>
+              <input className="input-field" value={editPayload.designation} onChange={(e) => setEditPayload((p) => ({ ...p, designation: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Industry</label>
+              <input className="input-field" value={editPayload.industry} onChange={(e) => setEditPayload((p) => ({ ...p, industry: e.target.value }))} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Legal Name</label>
+              <input className="input-field" value={editPayload.legal_name} onChange={(e) => setEditPayload((p) => ({ ...p, legal_name: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Trade Name</label>
+              <input className="input-field" value={editPayload.trade_name} onChange={(e) => setEditPayload((p) => ({ ...p, trade_name: e.target.value }))} />
+            </div>
+          </div>
+
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 pb-1">Tax & Identity</div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">PAN</label>
+              <input className="input-field font-mono" value={editPayload.pan} onChange={(e) => setEditPayload((p) => ({ ...p, pan: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">GSTIN</label>
+              <input className="input-field font-mono" value={editPayload.gstin} onChange={(e) => setEditPayload((p) => ({ ...p, gstin: e.target.value }))} />
+            </div>
+          </div>
+
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 pb-1">TDS Details</div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="label">TDS Rate</label>
+              <input className="input-field" value={editPayload.tds_rate} onChange={(e) => setEditPayload((p) => ({ ...p, tds_rate: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Tax Exempt</label>
+              <select className="input-field" value={editPayload.tax_exempt ? 'yes' : 'no'} onChange={(e) => setEditPayload((p) => ({ ...p, tax_exempt: e.target.value === 'yes' }))}>
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Name of Deductor</label>
+              <input className="input-field" value={editPayload.name_deductor} onChange={(e) => setEditPayload((p) => ({ ...p, name_deductor: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Name of Deductee</label>
+              <input className="input-field" value={editPayload.name_deductee} onChange={(e) => setEditPayload((p) => ({ ...p, name_deductee: e.target.value }))} />
+            </div>
+          </div>
+
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 pb-1">Contact Information</div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Email</label>
+              <input className="input-field" value={editPayload.email} onChange={(e) => setEditPayload((p) => ({ ...p, email: e.target.value }))} />
+            </div>
             <div>
               <label className="label">Phone</label>
               <input className="input-field" value={editPayload.phone} onChange={(e) => setEditPayload((p) => ({ ...p, phone: e.target.value }))} />
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Alternate Phone</label>
+              <input className="input-field" value={editPayload.alt_phone} onChange={(e) => setEditPayload((p) => ({ ...p, alt_phone: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Website</label>
+              <input className="input-field" value={editPayload.website} onChange={(e) => setEditPayload((p) => ({ ...p, website: e.target.value }))} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Address</label>
               <input className="input-field" value={editPayload.address_line1} onChange={(e) => setEditPayload((p) => ({ ...p, address_line1: e.target.value }))} />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">City</label>
               <input className="input-field" value={editPayload.city} onChange={(e) => setEditPayload((p) => ({ ...p, city: e.target.value }))} />
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">State</label>
               <input className="input-field" value={editPayload.state} onChange={(e) => setEditPayload((p) => ({ ...p, state: e.target.value }))} />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Pincode</label>
               <input className="input-field" value={editPayload.pincode} onChange={(e) => setEditPayload((p) => ({ ...p, pincode: e.target.value }))} />
             </div>
-            <div>
-              <label className="label">GSTIN</label>
-              <input className="input-field" value={editPayload.gstin} onChange={(e) => setEditPayload((p) => ({ ...p, gstin: e.target.value }))} />
-            </div>
           </div>
+
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 pb-1">Financial</div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">PAN</label>
-              <input className="input-field" value={editPayload.pan} onChange={(e) => setEditPayload((p) => ({ ...p, pan: e.target.value }))} />
+              <label className="label">Invoice Frequency</label>
+              <select className="input-field" value={editPayload.invoice_frequency} onChange={(e) => setEditPayload((p) => ({ ...p, invoice_frequency: e.target.value }))}>
+                <option value="per_order">Per Order</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+              </select>
             </div>
             <div>
-              <label className="label">Credit Limit</label>
-              <input type="number" className="input-field" value={editPayload.credit_limit} onChange={(e) => setEditPayload((p) => ({ ...p, credit_limit: Number(e.target.value) || 0 }))} />
+              <label className="label">Payment Method</label>
+              <select className="input-field" value={editPayload.payment_method} onChange={(e) => setEditPayload((p) => ({ ...p, payment_method: e.target.value }))}>
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="upi">UPI</option>
+                <option value="cheque">Cheque</option>
+                <option value="cash">Cash</option>
+              </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Credit Days</label>
-              <input type="number" className="input-field" value={editPayload.credit_days} onChange={(e) => setEditPayload((p) => ({ ...p, credit_days: Number(e.target.value) || 0 }))} />
-            </div>
+          <div>
+            <label className="label">IFSC Code</label>
+            <input className="input-field font-mono" value={editPayload.ifsc_code} onChange={(e) => setEditPayload((p) => ({ ...p, ifsc_code: e.target.value }))} />
           </div>
           <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
             <button type="button" className="btn-secondary" onClick={() => setShowEditClient(false)}>Cancel</button>

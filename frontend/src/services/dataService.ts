@@ -547,6 +547,28 @@ export const tripService = {
     const data = await api.post(`/trips/${tripId}/expenses/${expenseId}/verify`);
     return data;
   },
+  // LRs linked to this trip
+  getTripLRs: async (tripId: number): Promise<any[]> => {
+    const data = await api.get('/lr', { params: { trip_id: tripId, limit: 100 } });
+    // Backend returns { success, data: [...], pagination } — so data.data is the array
+    const items = Array.isArray((data as any)?.data) ? (data as any).data
+      : (data as any)?.data?.items ?? (data as any)?.items ?? (Array.isArray(data) ? data : []);
+    return items;
+  },
+  getTripInvoices: async (tripId: number): Promise<any[]> => {
+    const data = await api.get('/finance/invoices', { params: { trip_id: tripId, limit: 100 } });
+    const items = (data as any)?.data?.items ?? (data as any)?.items ?? (Array.isArray(data) ? data : []);
+    return items;
+  },
+  getFuelEntries: async (tripId: number): Promise<any[]> => {
+    const data = await api.get(`/trips/${tripId}/fuel`);
+    const items = (data as any)?.data ?? (data as any)?.items ?? (Array.isArray(data) ? data : []);
+    return Array.isArray(items) ? items : [];
+  },
+  getChecklist: async (tripId: number, type: string): Promise<any | null> => {
+    const data = await api.get(`/trips/${tripId}/checklist`, { params: { type } });
+    return (data as any)?.data ?? null;
+  },
   // Fuel
   addFuelEntry: async (id: number, payload: any) => {
     const data = await api.post(`/trips/${id}/fuel`, payload);
@@ -1143,6 +1165,7 @@ export const documentService = {
   extract: async (formData: FormData): Promise<{ extracted: boolean; data: Record<string, any>; entity_type?: string; message?: string }> => {
     const data = await api.post('/documents/extract', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000, // AI extraction can take up to 2 minutes
     });
     const result = unwrap<any>(data);
     if (result && result.extracted === false) {
@@ -1167,7 +1190,7 @@ export const documentService = {
       })) as Document[];
     }
 
-    const data = await api.get('/documents', { params: { entity_id: entityId, entity_type: entityType } });
+    const data = await api.get('/documents', { params: { entity_id: entityId, entity_type: entityType, page: 1, limit: 500 } });
     const items = unwrap<any>(data);
     return (Array.isArray(items) ? items : []) as Document[];
   },

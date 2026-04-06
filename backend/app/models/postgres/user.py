@@ -81,6 +81,15 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     upi_id = Column(String(100), nullable=True)
     salary_amount = Column(String(20), nullable=True)
     pay_type = Column(String(20), nullable=True)
+    aadhaar_file_url = Column(Text, nullable=True)
+    aadhaar_file_name = Column(String(255), nullable=True)
+
+    # Driving License fields
+    dl_file_url = Column(Text, nullable=True)
+    dl_file_name = Column(String(255), nullable=True)
+    dl_number = Column(String(50), nullable=True)
+    dl_issue_date = Column(Date, nullable=True)
+    dl_expiry_date = Column(Date, nullable=True)
 
     # Multi-tenant support
     branch_id = Column(Integer, ForeignKey('branches.id'), nullable=True)

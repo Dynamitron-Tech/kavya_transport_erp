@@ -46,7 +46,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Vehicles', route: '/vehicles', icon: 'truck', description: 'Fleet vehicle inventory and documents' },
           { label: 'Drivers', route: '/drivers', icon: 'id', description: 'Driver profiles, licences and compliance' },
           { label: 'Driver Dashboard', route: '/drivers/dashboard', icon: 'dashboard', description: 'Driver performance dashboard' },
-          { label: 'Routes', route: '/routes', icon: 'route', description: 'Route master and distance definitions' },
           { label: 'Suppliers', route: '/suppliers', icon: 'truck', description: 'Manage supplier/contractor records' },
         ],
       },
@@ -115,22 +114,9 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         ],
       },
       {
-        label: 'Tools',
-        items: [
-          { label: 'GPS Live Map', route: '/tracking/gps', icon: 'pin', description: 'Live GPS positions of all vehicles' },
-          { label: 'Trip Replay', route: '/tracking/replay', icon: 'play', description: 'Historical vehicle path replay' },
-          { label: 'Fuel Prices', route: '/fleet/fuel-prices', icon: 'fuel', description: 'Current diesel/petrol prices by city' },
-          { label: 'Route Calculator', route: '/trips/route-calculator', icon: 'route', description: 'Calculate distance between locations' },
-          { label: 'Notifications', route: '/settings/notifications', icon: 'bell', description: 'Send SMS, WhatsApp, Push notifications' },
-          { label: 'Document Upload', route: '/documents/new-upload', icon: 'upload', description: 'Upload files to S3 storage' },
-        ],
-      },
-      {
         label: 'Quick Actions',
         items: [
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
-          { label: 'E-way Bill', route: '/lr/eway-bill', icon: 'receipt', description: 'Create and manage GST e-way bills' },
-          { label: 'Create Trip', route: '/trips/new', icon: 'route', description: 'Create and assign trip execution' },
           { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },
           { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
         ],
@@ -139,9 +125,7 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         label: 'System',
         items: [
           { label: 'Employees', route: '/admin/employees', icon: 'users', description: 'Manage staff accounts and roles' },
-          { label: 'Branches', route: '/admin/branches', icon: 'building', description: 'Multi-branch management and P&L' },
           { label: 'Attendance', route: '/admin/attendance', icon: 'calendar', description: 'View all employee attendance' },
-          { label: 'Connectivity', route: '/admin/connectivity', icon: 'wifi', description: 'System connectivity check' },
           { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
         ],
       },
@@ -162,7 +146,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Vehicles', route: '/vehicles', icon: 'truck', description: 'Fleet vehicle inventory and documents' },
           { label: 'Drivers', route: '/drivers', icon: 'id', description: 'Driver profiles, licences and compliance' },
           { label: 'Driver Dashboard', route: '/drivers/dashboard', icon: 'dashboard', description: 'Driver performance dashboard' },
-          { label: 'Routes', route: '/routes', icon: 'route', description: 'Route master and distance definitions' },
           { label: 'Suppliers', route: '/suppliers', icon: 'truck', description: 'Manage supplier/contractor records' },
         ],
       },
@@ -217,21 +200,9 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         ],
       },
       {
-        label: 'Tools',
-        items: [
-          { label: 'GPS Live Map', route: '/tracking/gps', icon: 'pin', description: 'Live GPS positions of all vehicles' },
-          { label: 'Trip Replay', route: '/tracking/replay', icon: 'play', description: 'Historical vehicle path replay' },
-          { label: 'Fuel Prices', route: '/fleet/fuel-prices', icon: 'fuel', description: 'Current diesel/petrol prices by city' },
-          { label: 'Route Calculator', route: '/trips/route-calculator', icon: 'route', description: 'Calculate distance between locations' },
-          { label: 'Notifications', route: '/settings/notifications', icon: 'bell', description: 'Send SMS, WhatsApp, Push notifications' },
-        ],
-      },
-      {
         label: 'Quick Actions',
         items: [
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
-          { label: 'E-way Bill', route: '/lr/eway-bill', icon: 'receipt', description: 'Create and manage GST e-way bills' },
-          { label: 'Create Trip', route: '/trips/new', icon: 'route', description: 'Create and assign trip execution' },
           { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },
           { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
         ],
@@ -284,13 +255,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         items: [
           { label: 'Vehicle Compliance', route: '/fleet/vehicle-compliance', icon: 'shield', description: 'RC, Insurance, Fitness, Permit, PUC checks' },
           { label: 'Driver Compliance', route: '/fleet/driver-compliance', icon: 'id', description: 'DL verification and challan lookup' },
-        ],
-      },
-      {
-        label: 'Tools',
-        items: [
-          { label: 'GPS Live Map', route: '/tracking/gps', icon: 'pin', description: 'Live GPS positions of all vehicles' },
-          { label: 'Fuel Prices', route: '/fleet/fuel-prices', icon: 'fuel', description: 'Current diesel/petrol prices by city' },
         ],
       },
       {
@@ -357,8 +321,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         label: 'Quick Actions',
         items: [
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
-          { label: 'E-way Bill', route: '/lr/eway-bill', icon: 'receipt', description: 'Create and manage GST e-way bills' },
-          { label: 'Create Trip', route: '/trips/new', icon: 'route', description: 'Create and assign trip execution' },
           { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },
           { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
         ],
@@ -422,7 +384,6 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
       { label: 'Vehicles', path: '/vehicles', permission: 'vehicles:read' },
       { label: 'Drivers', path: '/drivers', permission: 'drivers:read' },
       { label: 'Driver Dashboard', path: '/drivers/dashboard', permission: 'drivers:read' },
-      { label: 'Routes', path: '/routes', permission: 'clients:view', roles: ['admin', 'manager'] },
     ],
   },
   {
@@ -433,7 +394,6 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
       { label: 'Lorry Receipts', path: '/lr', permission: 'lr:read' },
       { label: 'Trips', path: '/trips', permission: 'trips:read' },
       { label: 'Documents', path: '/documents', permission: 'documents:read' },
-      { label: 'E-way Bill', path: '/lr/eway-bill', permission: 'eway:read' },
     ],
   },
   {
@@ -510,24 +470,11 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
     ],
   },
   {
-    label: 'Tools',
-    roles: ['admin', 'manager', 'fleet_manager', 'accountant'],
-    items: [
-      { label: 'GPS Live Map', path: '/tracking/gps', roles: ['admin', 'manager', 'fleet_manager'] },
-      { label: 'Trip Replay', path: '/tracking/replay', roles: ['admin', 'manager'] },
-      { label: 'Fuel Prices', path: '/fleet/fuel-prices', roles: ['admin', 'manager', 'fleet_manager'] },
-      { label: 'Route Calculator', path: '/trips/route-calculator', roles: ['admin', 'manager'] },
-      { label: 'Notifications', path: '/settings/notifications', roles: ['admin', 'manager'] },
-      { label: 'Document Upload', path: '/documents/new-upload', roles: ['admin', 'manager'] },
-    ],
-  },
-  {
     label: 'Admin',
     roles: ['admin'],
     items: [
       { label: 'Employees', path: '/admin/employees', roles: ['admin'] },
       { label: 'Attendance', path: '/admin/attendance', roles: ['admin'] },
-      { label: 'Connectivity', path: '/admin/connectivity', roles: ['admin'] },
       { label: 'Settings', path: '/settings', roles: ['admin'] },
     ],
   },

@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from typing import Optional
 from datetime import datetime
 
@@ -73,7 +74,13 @@ async def create_vehicle(
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.VEHICLE_CREATE)),
 ):
-    vehicle = await vehicle_service.create_vehicle(db, data.model_dump())
+    try:
+        vehicle = await vehicle_service.create_vehicle(db, data.model_dump())
+    except IntegrityError as exc:
+        msg = str(exc).lower()
+        if "registration_number" in msg or "vehicles_registration_number_key" in msg:
+            raise HTTPException(status_code=400, detail="Vehicle registration number already exists")
+        raise HTTPException(status_code=400, detail="Unable to create vehicle due to conflicting data")
     return APIResponse(success=True, data={"id": vehicle.id, "registration_number": vehicle.registration_number}, message="Vehicle created")
 
 
@@ -83,7 +90,13 @@ async def update_vehicle(
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.VEHICLE_UPDATE)),
 ):
-    vehicle = await vehicle_service.update_vehicle(db, vehicle_id, data.model_dump(exclude_unset=True))
+    try:
+        vehicle = await vehicle_service.update_vehicle(db, vehicle_id, data.model_dump(exclude_unset=True))
+    except IntegrityError as exc:
+        msg = str(exc).lower()
+        if "registration_number" in msg or "vehicles_registration_number_key" in msg:
+            raise HTTPException(status_code=400, detail="Vehicle registration number already exists")
+        raise HTTPException(status_code=400, detail="Unable to update vehicle due to conflicting data")
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     return APIResponse(success=True, message="Vehicle updated")
