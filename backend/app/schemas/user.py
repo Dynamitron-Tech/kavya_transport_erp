@@ -29,6 +29,14 @@ class UserCreate(BaseModel):
     upi_id: Optional[str] = None
     salary_amount: Optional[str] = None
     pay_type: Optional[str] = None
+    aadhaar_file_url: Optional[str] = None
+    aadhaar_file_name: Optional[str] = None
+    # Driving License fields
+    dl_file_url: Optional[str] = None
+    dl_file_name: Optional[str] = None
+    dl_number: Optional[str] = None
+    dl_issue_date: Optional[str] = None
+    dl_expiry_date: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
@@ -56,6 +64,14 @@ class UserUpdate(BaseModel):
     upi_id: Optional[str] = None
     salary_amount: Optional[str] = None
     pay_type: Optional[str] = None
+    aadhaar_file_url: Optional[str] = None
+    aadhaar_file_name: Optional[str] = None
+    # Driving License fields
+    dl_file_url: Optional[str] = None
+    dl_file_name: Optional[str] = None
+    dl_number: Optional[str] = None
+    dl_issue_date: Optional[str] = None
+    dl_expiry_date: Optional[str] = None
 
 
 class UserResponse(BaseModel):
@@ -70,6 +86,13 @@ class UserResponse(BaseModel):
     is_active: bool = True
     last_login: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    aadhaar_file_url: Optional[str] = None
+    aadhaar_file_name: Optional[str] = None
+    dl_file_url: Optional[str] = None
+    dl_file_name: Optional[str] = None
+    dl_number: Optional[str] = None
+    dl_issue_date: Optional[str] = None
+    dl_expiry_date: Optional[str] = None
 
     class Config:
         from_attributes = True

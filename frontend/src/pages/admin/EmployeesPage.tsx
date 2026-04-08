@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Search, Plus, Shield, X, Trash2, Mail, Lock, Phone, User, BadgeCheck, Eye, EyeOff, Pencil } from 'lucide-react';
+import { Users, Search, Plus, Shield, X, Trash2, Mail, Lock, Phone, User, BadgeCheck, Eye, EyeOff, Pencil, Upload, ExternalLink, FileText } from 'lucide-react';
 import DataTable, { Column } from '@/components/common/DataTable';
 import { KPICard, StatusBadge } from '@/components/common/Modal';
+import { DocAutoFill } from '@/components/documents/DocAutoFill';
 import api from '@/services/api';
 import { safeArray } from '@/utils/helpers';
 import { useAuthStore } from '@/store/authStore';
@@ -34,6 +35,13 @@ interface Employee {
   upi_id?: string;
   salary_amount?: string;
   pay_type?: string;
+  aadhaar_file_url?: string;
+  aadhaar_file_name?: string;
+  dl_file_url?: string;
+  dl_file_name?: string;
+  dl_number?: string;
+  dl_issue_date?: string;
+  dl_expiry_date?: string;
 }
 
 const ROLE_OPTIONS = [
@@ -78,6 +86,13 @@ export default function EmployeesPage() {
     ifsc_code: '',
     account_type: '',
     upi_id: '',
+    aadhaar_file_url: '',
+    aadhaar_file_name: '',
+    dl_file_url: '',
+    dl_file_name: '',
+    dl_number: '',
+    dl_issue_date: '',
+    dl_expiry_date: '',
   });
   const [editForm, setEditForm] = useState({
     id: 0,
@@ -100,6 +115,13 @@ export default function EmployeesPage() {
     ifsc_code: '',
     account_type: '',
     upi_id: '',
+    aadhaar_file_url: '',
+    aadhaar_file_name: '',
+    dl_file_url: '',
+    dl_file_name: '',
+    dl_number: '',
+    dl_issue_date: '',
+    dl_expiry_date: '',
   });
   const qc = useQueryClient();
 
@@ -110,6 +132,18 @@ export default function EmployeesPage() {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+
+  /** Convert DD/MM/YYYY or DD-MM-YYYY to YYYY-MM-DD for <input type="date"> */
+  const toISODate = (v?: string | null): string => {
+    if (!v) return '';
+    const s = v.trim();
+    // Already ISO
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // DD/MM/YYYY or DD-MM-YYYY
+    const m = s.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})$/);
+    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+    return s;
+  };
 
   const openEditModal = (employee: Employee) => {
     setEditForm({
@@ -133,6 +167,13 @@ export default function EmployeesPage() {
       ifsc_code: employee.ifsc_code || '',
       account_type: employee.account_type || '',
       upi_id: employee.upi_id || '',
+      aadhaar_file_url: employee.aadhaar_file_url || '',
+      aadhaar_file_name: employee.aadhaar_file_name || '',
+      dl_file_url: employee.dl_file_url || '',
+      dl_file_name: employee.dl_file_name || '',
+      dl_number: employee.dl_number || '',
+      dl_issue_date: employee.dl_issue_date || '',
+      dl_expiry_date: employee.dl_expiry_date || '',
     });
     setShowEditPassword(false);
     setIsEditOpen(true);
@@ -169,6 +210,13 @@ export default function EmployeesPage() {
         upi_id: createForm.upi_id || undefined,
         salary_amount: createForm.salary_amount || undefined,
         pay_type: createForm.pay_type || undefined,
+        aadhaar_file_url: createForm.aadhaar_file_url || undefined,
+        aadhaar_file_name: createForm.aadhaar_file_name || undefined,
+        dl_file_url: createForm.dl_file_url || undefined,
+        dl_file_name: createForm.dl_file_name || undefined,
+        dl_number: createForm.dl_number || undefined,
+        dl_issue_date: createForm.dl_issue_date || undefined,
+        dl_expiry_date: createForm.dl_expiry_date || undefined,
       });
     },
     onSuccess: () => {
@@ -180,7 +228,7 @@ export default function EmployeesPage() {
       toast.success('Employee created successfully');
       setIsCreateOpen(false);
       setShowPassword(false);
-      setCreateForm({ email: '', password: '', first_name: '', last_name: '', phone: '', role_names: ['manager'], dob: '', joining_date: '', gender: 'male', address: '', emergency_contact_name: '', emergency_contact_phone: '', salary_amount: '', pay_type: 'monthly', bank_account_holder: '', bank_name: '', account_number: '', confirm_account_number: '', ifsc_code: '', account_type: '', upi_id: '' });
+      setCreateForm({ email: '', password: '', first_name: '', last_name: '', phone: '', role_names: ['manager'], dob: '', joining_date: '', gender: 'male', address: '', emergency_contact_name: '', emergency_contact_phone: '', salary_amount: '', pay_type: 'monthly', bank_account_holder: '', bank_name: '', account_number: '', confirm_account_number: '', ifsc_code: '', account_type: '', upi_id: '', aadhaar_file_url: '', aadhaar_file_name: '', dl_file_url: '', dl_file_name: '', dl_number: '', dl_issue_date: '', dl_expiry_date: '' });
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.detail || err?.message || 'Failed to create employee';
@@ -227,6 +275,13 @@ export default function EmployeesPage() {
         ifsc_code: editForm.ifsc_code || null,
         account_type: editForm.account_type || null,
         upi_id: editForm.upi_id || null,
+        aadhaar_file_url: editForm.aadhaar_file_url || null,
+        aadhaar_file_name: editForm.aadhaar_file_name || null,
+        dl_file_url: editForm.dl_file_url || null,
+        dl_file_name: editForm.dl_file_name || null,
+        dl_number: editForm.dl_number || null,
+        dl_issue_date: editForm.dl_issue_date || null,
+        dl_expiry_date: editForm.dl_expiry_date || null,
       };
       const trimmedPassword = editForm.password.trim();
       if (isAdmin && trimmedPassword) {
@@ -277,6 +332,8 @@ export default function EmployeesPage() {
     upi_id: u.upi_id || undefined,
     salary_amount: u.salary_amount || undefined,
     pay_type: u.pay_type || undefined,
+    aadhaar_file_url: u.aadhaar_file_url || undefined,
+    aadhaar_file_name: u.aadhaar_file_name || undefined,
   }));
 
   const formatJoinedDate = (value: string) => {
@@ -535,6 +592,82 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
+              {/* Section: Aadhaar Document */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Aadhaar Document</p>
+                <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
+                  {selectedEmployee.aadhaar_file_url ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Uploaded File</p>
+                          <p className="text-sm font-semibold text-slate-900 break-all">{selectedEmployee.aadhaar_file_name || 'aadhaar-file'}</p>
+                        </div>
+                        <a
+                          href={selectedEmployee.aadhaar_file_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100"
+                        >
+                          <ExternalLink size={14} /> View File
+                        </a>
+                      </div>
+                      {selectedEmployee.aadhaar_file_url.startsWith('data:image') && (
+                        <img src={selectedEmployee.aadhaar_file_url} alt="Aadhaar" className="w-full max-h-64 object-contain rounded-lg border border-slate-200 bg-white" />
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm font-semibold text-slate-900">—</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Section: Driving License */}
+              {selectedEmployee.roles?.some((r: string) => r.toLowerCase() === 'driver') && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Driving License</p>
+                  <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
+                    {selectedEmployee.dl_file_url ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Uploaded File</p>
+                            <p className="text-sm font-semibold text-slate-900 break-all">{selectedEmployee.dl_file_name || 'dl-file'}</p>
+                          </div>
+                          <a
+                            href={selectedEmployee.dl_file_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100"
+                          >
+                            <ExternalLink size={14} /> View File
+                          </a>
+                        </div>
+                        {selectedEmployee.dl_file_url.startsWith('data:image') && (
+                          <img src={selectedEmployee.dl_file_url} alt="Driving License" className="w-full max-h-64 object-contain rounded-lg border border-slate-200 bg-white" />
+                        )}
+                        <div className="grid grid-cols-3 gap-3 pt-2">
+                          <div className="rounded-lg bg-white p-3 border border-slate-100">
+                            <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">License Number</p>
+                            <p className="text-sm font-semibold text-slate-900">{selectedEmployee.dl_number || '—'}</p>
+                          </div>
+                          <div className="rounded-lg bg-white p-3 border border-slate-100">
+                            <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Issue Date</p>
+                            <p className="text-sm font-semibold text-slate-900">{selectedEmployee.dl_issue_date ? new Date(selectedEmployee.dl_issue_date).toLocaleDateString('en-IN') : '—'}</p>
+                          </div>
+                          <div className="rounded-lg bg-white p-3 border border-slate-100">
+                            <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Expiry Date</p>
+                            <p className="text-sm font-semibold text-slate-900">{selectedEmployee.dl_expiry_date ? new Date(selectedEmployee.dl_expiry_date).toLocaleDateString('en-IN') : '—'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm font-semibold text-slate-900">—</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
             </div>
 
             <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 shrink-0">
@@ -777,6 +910,137 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
+              {/* Aadhaar File */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-600">Aadhaar File</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-emerald-200 to-transparent" />
+                </div>
+                <div className="space-y-3">
+                  {editForm.aadhaar_file_url && (
+                    <a
+                      href={editForm.aadhaar_file_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100"
+                    >
+                      <ExternalLink size={14} />
+                      {editForm.aadhaar_file_name || 'View existing Aadhaar file'}
+                    </a>
+                  )}
+                  <label className="w-full flex items-center justify-between gap-3 border border-emerald-200 bg-emerald-50/40 rounded-xl px-3 py-2.5 cursor-pointer hover:bg-emerald-50 transition-colors">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Upload className="w-4 h-4 text-emerald-600" />
+                      <span className="text-sm text-gray-700 truncate">{editForm.aadhaar_file_name || 'Choose Aadhaar file (image or PDF)'}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-md">Browse</span>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const dataUrl = await fileToDataUrl(file);
+                          setEditForm((p) => ({
+                            ...p,
+                            aadhaar_file_url: dataUrl,
+                            aadhaar_file_name: file.name,
+                          }));
+                        } catch {
+                          toast.error('Failed to read Aadhaar file');
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Driving License (shown when driver role) */}
+              {editForm.role_name === 'driver' && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-600">Driving License</span>
+                    <div className="flex-1 h-px bg-gradient-to-r from-emerald-200 to-transparent" />
+                  </div>
+                  <div className="mb-3">
+                    <DocAutoFill
+                      documentType="driving_license"
+                      entityType="driver"
+                      label="Driving License"
+                      onExtracted={(data) => {
+                        setEditForm((p) => ({
+                          ...p,
+                          dl_number: data.license_number || data.dl_number || p.dl_number,
+                          dl_issue_date: toISODate(data.issue_date || data.doi) || p.dl_issue_date,
+                          dl_expiry_date: toISODate(data.expiry_date || data.validity || data.valid_till) || p.dl_expiry_date,
+                        }));
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    {editForm.dl_file_url && (
+                      <a
+                        href={editForm.dl_file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100"
+                      >
+                        <ExternalLink size={14} />
+                        {editForm.dl_file_name || 'View existing DL file'}
+                      </a>
+                    )}
+                    <label className="w-full flex items-center justify-between gap-3 border border-emerald-200 bg-emerald-50/40 rounded-xl px-3 py-2.5 cursor-pointer hover:bg-emerald-50 transition-colors">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="w-4 h-4 text-emerald-600" />
+                        <span className="text-sm text-gray-700 truncate">{editForm.dl_file_name || 'Choose DL file (image or PDF)'}</span>
+                      </div>
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-md">Browse</span>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const dataUrl = await fileToDataUrl(file);
+                            setEditForm((p) => ({
+                              ...p,
+                              dl_file_url: dataUrl,
+                              dl_file_name: file.name,
+                            }));
+                          } catch {
+                            toast.error('Failed to read DL file');
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 mt-3">
+                    <div>
+                      <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">License Number</label>
+                      <input className="input w-full text-sm uppercase" placeholder="e.g. KA0120200012345"
+                        value={editForm.dl_number}
+                        onChange={(e) => setEditForm((p) => ({ ...p, dl_number: e.target.value.toUpperCase() }))} />
+                    </div>
+                    <div>
+                      <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Issue Date</label>
+                      <input type="date" className="input w-full text-sm"
+                        value={editForm.dl_issue_date}
+                        onChange={(e) => setEditForm((p) => ({ ...p, dl_issue_date: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Expiry Date</label>
+                      <input type="date" className="input w-full text-sm"
+                        value={editForm.dl_expiry_date}
+                        onChange={(e) => setEditForm((p) => ({ ...p, dl_expiry_date: e.target.value }))} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Account Security */}
               {isAdmin && (
                 <div>
@@ -922,6 +1186,36 @@ export default function EmployeesPage() {
                     value={createForm.address}
                     onChange={(e) => setCreateForm((p) => ({ ...p, address: e.target.value }))} />
                 </div>
+                <div className="mt-4">
+                  <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Upload Aadhaar Card <span className="text-red-500">*</span></label>
+                  <label className="w-full flex items-center justify-between gap-3 border border-indigo-200 bg-indigo-50/40 rounded-xl px-3 py-2.5 cursor-pointer hover:bg-indigo-50 transition-colors">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Upload className="w-4 h-4 text-indigo-600" />
+                      <span className="text-sm text-gray-700 truncate">{createForm.aadhaar_file_name || 'Choose Aadhaar file (image or PDF)'}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2 py-1 rounded-md">Browse</span>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const dataUrl = await fileToDataUrl(file);
+                          setCreateForm((p) => ({
+                            ...p,
+                            aadhaar_file_url: dataUrl,
+                            aadhaar_file_name: file.name,
+                          }));
+                        } catch {
+                          toast.error('Failed to read Aadhaar file');
+                        }
+                      }}
+                    />
+                  </label>
+                  {!createForm.aadhaar_file_url && <p className="text-xs text-amber-600 mt-1">Aadhaar upload is required.</p>}
+                </div>
               </div>
 
               {/* ── Contact Details ── */}
@@ -1024,6 +1318,87 @@ export default function EmployeesPage() {
                   })}
                 </div>
               </div>
+
+              {/* ── Driving License (shown when driver role selected) ── */}
+              {createForm.role_names[0] === 'driver' && (
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-indigo-600">Driving License</span>
+                    <div className="flex-1 h-px bg-gradient-to-r from-indigo-200 to-transparent" />
+                  </div>
+
+                  {/* OCR Auto-fill zone */}
+                  <div className="mb-4">
+                    <DocAutoFill
+                      documentType="driving_license"
+                      entityType="driver"
+                      label="Driving License"
+                      onExtracted={(data) => {
+                        setCreateForm((p) => ({
+                          ...p,
+                          dl_number: data.license_number || data.dl_number || p.dl_number,
+                          dl_issue_date: toISODate(data.issue_date || data.doi) || p.dl_issue_date,
+                          dl_expiry_date: toISODate(data.expiry_date || data.validity || data.valid_till) || p.dl_expiry_date,
+                        }));
+                      }}
+                    />
+                  </div>
+
+                  {/* DL file upload */}
+                  <div className="mb-4">
+                    <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Upload Driving License <span className="text-red-500">*</span></label>
+                    <label className="w-full flex items-center justify-between gap-3 border border-indigo-200 bg-indigo-50/40 rounded-xl px-3 py-2.5 cursor-pointer hover:bg-indigo-50 transition-colors">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="w-4 h-4 text-indigo-600" />
+                        <span className="text-sm text-gray-700 truncate">{createForm.dl_file_name || 'Choose DL file (image or PDF)'}</span>
+                      </div>
+                      <span className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2 py-1 rounded-md">Browse</span>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const dataUrl = await fileToDataUrl(file);
+                            setCreateForm((p) => ({
+                              ...p,
+                              dl_file_url: dataUrl,
+                              dl_file_name: file.name,
+                            }));
+                          } catch {
+                            toast.error('Failed to read DL file');
+                          }
+                        }}
+                      />
+                    </label>
+                    {!createForm.dl_file_url && <p className="text-xs text-amber-600 mt-1">Driving license upload is required for drivers.</p>}
+                  </div>
+
+                  {/* Extracted / manual DL fields */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">License Number</label>
+                      <input className="input w-full text-sm uppercase" placeholder="e.g. KA0120200012345"
+                        value={createForm.dl_number}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, dl_number: e.target.value.toUpperCase() }))} />
+                    </div>
+                    <div>
+                      <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Issue Date</label>
+                      <input type="date" className="input w-full text-sm"
+                        value={createForm.dl_issue_date}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, dl_issue_date: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-[12.5px] font-medium text-gray-700 mb-1.5">Expiry Date</label>
+                      <input type="date" className="input w-full text-sm"
+                        value={createForm.dl_expiry_date}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, dl_expiry_date: e.target.value }))} />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* ── Salary Details ── */}
               <div>
@@ -1149,6 +1524,8 @@ export default function EmployeesPage() {
                   !createForm.email ||
                   !createForm.password ||
                   !createForm.first_name ||
+                  !createForm.aadhaar_file_url ||
+                  (createForm.role_names[0] === 'driver' && !createForm.dl_file_url) ||
                   createForm.password.length < 6 ||
                   (!!createForm.confirm_account_number && createForm.confirm_account_number !== createForm.account_number)
                 }

@@ -42,6 +42,22 @@ class UserInfo(BaseModel):
     branch_id: Optional[int] = None
     tenant_id: Optional[int] = None
     redirect_to: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    gender: Optional[str] = None
+    address: Optional[str] = None
+    joining_date: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
+    bank_account_holder: Optional[str] = None
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    account_type: Optional[str] = None
+    upi_id: Optional[str] = None
+    salary_amount: Optional[str] = None
+    pay_type: Optional[str] = None
+    aadhaar_file_url: Optional[str] = None
+    aadhaar_file_name: Optional[str] = None
 
 
 class RefreshRequest(BaseModel):

@@ -294,8 +294,6 @@ export default function TripsPage() {
         onPageChange={(p) => setFilters({ ...filters, page: p })}
         onSort={(key, order) => setFilters({ ...filters, sort_by: key, sort_order: order })}
         onRowClick={(t) => navigate(`/trips/${t.id}`)}
-        onAdd={hasPermission('trips:create') ? () => navigate('/trips/new') : undefined}
-        addLabel="Create Trip"
         onRefresh={() => refetch()}
         onExport={handleExportPdf}
       />

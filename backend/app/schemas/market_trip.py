@@ -6,11 +6,27 @@ from datetime import datetime
 
 class MarketTripCreate(BaseModel):
     job_id: int
-    supplier_id: int
+    supplier_id: Optional[int] = None
+    # Vehicle
     vehicle_registration: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    fuel_type: Optional[str] = None
+    vehicle_make: Optional[str] = None
+    vehicle_model: Optional[str] = None
+    year_of_manufacture: Optional[int] = None
+    chassis_number: Optional[str] = None
+    engine_number: Optional[str] = None
+    rc_file_url: Optional[str] = None
+    # Driver
     driver_name: Optional[str] = None
     driver_phone: Optional[str] = None
+    driver_alt_phone: Optional[str] = None
+    driver_address: Optional[str] = None
     driver_license: Optional[str] = None
+    driver_license_issue: Optional[str] = None
+    driver_license_valid: Optional[str] = None
+    dl_file_url: Optional[str] = None
+    # Rates
     client_rate: float
     contractor_rate: float
     advance_amount: float = 0
@@ -21,10 +37,26 @@ class MarketTripCreate(BaseModel):
 
 
 class MarketTripUpdate(BaseModel):
+    # Vehicle
     vehicle_registration: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    fuel_type: Optional[str] = None
+    vehicle_make: Optional[str] = None
+    vehicle_model: Optional[str] = None
+    year_of_manufacture: Optional[int] = None
+    chassis_number: Optional[str] = None
+    engine_number: Optional[str] = None
+    rc_file_url: Optional[str] = None
+    # Driver
     driver_name: Optional[str] = None
     driver_phone: Optional[str] = None
+    driver_alt_phone: Optional[str] = None
+    driver_address: Optional[str] = None
     driver_license: Optional[str] = None
+    driver_license_issue: Optional[str] = None
+    driver_license_valid: Optional[str] = None
+    dl_file_url: Optional[str] = None
+    # Rates
     contractor_rate: Optional[float] = None
     advance_amount: Optional[float] = None
     loading_charges: Optional[float] = None

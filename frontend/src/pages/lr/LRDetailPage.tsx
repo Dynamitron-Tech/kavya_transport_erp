@@ -16,6 +16,7 @@ export default function LRDetailPage() {
     queryKey: ['lr', id],
     queryFn: () => lrService.get(Number(id)),
     enabled: !!id,
+    retry: false,
   });
 
   const handlePrint = async () => {

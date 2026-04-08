@@ -27,11 +27,11 @@ router = APIRouter()
 async def list_invoices(
     page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     search: Optional[str] = None, status: Optional[str] = None,
-    client_id: Optional[int] = None,
+    client_id: Optional[int] = None, trip_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.INVOICE_READ)),
 ):
-    invoices, total = await finance_service.list_invoices(db, page, limit, search, status, client_id)
+    invoices, total = await finance_service.list_invoices(db, page, limit, search, status, client_id, trip_id)
     pages = (total + limit - 1) // limit
     items = []
     for inv in invoices:

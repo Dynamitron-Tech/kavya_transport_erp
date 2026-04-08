@@ -5,6 +5,7 @@ import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import api from '@/services/api';
+import { lrService } from '@/services/dataService';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -212,8 +213,48 @@ function TruckDetail({ truck, onBack }: { truck: TruckLocation; onBack: () => vo
   const label = STATUS_LABELS[truck.status];
   const mapsUrl = `https://maps.google.com/?q=${truck.lat},${truck.lng}`;
 
+  // Fetch LR data for the active trip
+  const { data: lrData } = useQuery({
+    queryKey: ['tracking-lr', truck.tripId],
+    queryFn: async () => {
+      if (!truck.tripId) return [];
+      const res = await lrService.list({ trip_id: truck.tripId });
+      return Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+    },
+    enabled: !!truck.tripId,
+    staleTime: 60000,
+  });
+
+  const lrs: any[] = lrData ?? [];
+  const firstLR = lrs[0] ?? null;
+  const [viewDoc, setViewDoc] = useState<{ url: string; title: string } | null>(null);
+
   return (
     <div className="flex flex-col h-full overflow-y-auto">
+      {/* Document Lightbox */}
+      {viewDoc && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75" onClick={() => setViewDoc(null)}>
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-xl overflow-hidden shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+              <p className="font-semibold text-sm text-gray-900">{viewDoc.title}</p>
+              <div className="flex items-center gap-3">
+                <a href={viewDoc.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                  Open in new tab ↗
+                </a>
+                <button onClick={() => setViewDoc(null)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500">✕</button>
+              </div>
+            </div>
+            <div className="overflow-auto flex-1 flex items-center justify-center bg-gray-50">
+              {/\.(jpe?g|png|gif|webp|heic)$/i.test(viewDoc.url) ? (
+                <img src={viewDoc.url} alt={viewDoc.title} className="max-w-full max-h-[80vh] object-contain p-2" />
+              ) : (
+                <iframe src={viewDoc.url} className="w-full h-[80vh] border-0" title={viewDoc.title} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="p-4 border-b border-gray-100">
         <button
@@ -289,6 +330,71 @@ function TruckDetail({ truck, onBack }: { truck: TruckLocation; onBack: () => vo
               <p className="text-xs text-gray-500 mt-1">Trip #{truck.tripId}</p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Consignor & Consignee */}
+      {firstLR && (
+        <div className="p-4 border-b border-gray-100 space-y-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Shipment Details</p>
+          {/* LR cards with View button */}
+          {lrs.map((lr: any, lrIdx: number) => (
+            <div key={lr.id ?? lrIdx} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              {/* LR header row */}
+              <div className="flex items-center justify-between px-3 py-2 bg-indigo-50 border-b border-indigo-100">
+                <span className="text-xs font-semibold text-indigo-700">
+                  LR #{lr.lr_number}
+                </span>
+                {lr.pod_file_url ? (
+                  <button
+                    onClick={() => setViewDoc({ url: lr.pod_file_url.startsWith('http') ? lr.pod_file_url : lr.pod_file_url, title: `LR ${lr.lr_number}` })}
+                    className="text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded-md transition-colors"
+                  >
+                    View
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-gray-400 italic">No document</span>
+                )}
+              </div>
+              {/* Consignor */}
+              <div className="px-3 py-2 border-b border-gray-100">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 mb-0.5">Consignor</p>
+                <p className="text-sm font-semibold text-gray-900">{lr.consignor_name || '—'}</p>
+                {lr.consignor_address && (
+                  <p className="text-xs text-gray-600 mt-0.5">{lr.consignor_address}</p>
+                )}
+                {(lr.consignor_gstin || lr.consignor_gst) && (
+                  <p className="text-xs text-gray-500 mt-0.5 font-mono">GST: {lr.consignor_gstin || lr.consignor_gst}</p>
+                )}
+              </div>
+              {/* Consignee */}
+              <div className="px-3 py-2 border-b border-gray-100">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-green-500 mb-0.5">Consignee</p>
+                <p className="text-sm font-semibold text-gray-900">{lr.consignee_name || '—'}</p>
+                {lr.consignee_address && (
+                  <p className="text-xs text-gray-600 mt-0.5">{lr.consignee_address}</p>
+                )}
+                {(lr.consignee_gstin || lr.consignee_gst) && (
+                  <p className="text-xs text-gray-500 mt-0.5 font-mono">GST: {lr.consignee_gstin || lr.consignee_gst}</p>
+                )}
+              </div>
+              {/* Items */}
+              {lr.items && lr.items.length > 0 && (
+                <div className="px-3 py-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Items ({lr.items.length})</p>
+                  {lr.items.map((item: any, idx: number) => (
+                    <div key={item.id ?? idx} className="flex items-center justify-between text-xs py-1 border-b border-gray-50 last:border-0">
+                      <span className="text-gray-800 truncate">{item.description || 'Unnamed'}</span>
+                      <span className="text-gray-500 flex-shrink-0 ml-2">
+                        {item.packages && `${item.packages} ${item.package_type || 'pkgs'}`}
+                        {item.actual_weight && ` · ${item.actual_weight} ${item.quantity_unit || 'kgs'}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

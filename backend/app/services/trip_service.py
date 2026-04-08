@@ -6,7 +6,7 @@ from datetime import datetime, timezone, date
 from app.models.postgres.trip import Trip, TripExpense, TripFuelEntry, TripStatus, TripStatusEnum, ExpenseCategory
 from app.models.postgres.job import Job, JobStatusEnum, JobStatus
 from app.models.postgres.vehicle import Vehicle, VehicleStatus
-from app.models.postgres.driver import Driver, DriverStatus
+from app.models.postgres.driver import Driver, DriverStatus, DriverLicense
 from app.models.postgres.lr import LR, LRStatus
 from app.utils.generators import generate_trip_number
 
@@ -476,10 +476,113 @@ async def get_trip_with_details(db: AsyncSession, trip: Trip) -> dict:
     lr_count = (await db.execute(select(func.count(LR.id)).where(LR.trip_id == trip.id))).scalar() or 0
     expense_count = (await db.execute(select(func.count(TripExpense.id)).where(TripExpense.trip_id == trip.id))).scalar() or 0
 
+    vehicle_data = None
+    if trip.vehicle_id:
+        v_res = await db.execute(select(Vehicle).where(Vehicle.id == trip.vehicle_id))
+        v = v_res.scalar_one_or_none()
+        if v:
+            vtype = v.vehicle_type
+            vehicle_data = {
+                "id": v.id,
+                "registration_number": v.registration_number,
+                "vehicle_type": vtype.value if hasattr(vtype, 'value') else str(vtype),
+                "make": v.make,
+                "model": v.model,
+                "capacity_tons": float(v.capacity_tons) if v.capacity_tons is not None else None,
+            }
+
+    driver_data = None
+    if trip.driver_id:
+        d_res = await db.execute(select(Driver).where(Driver.id == trip.driver_id))
+        d = d_res.scalar_one_or_none()
+        if d:
+            lic_res = await db.execute(
+                select(DriverLicense.license_number)
+                .where(DriverLicense.driver_id == d.id)
+                .limit(1)
+            )
+            license_number = lic_res.scalar_one_or_none()
+            driver_data = {
+                "id": d.id,
+                "full_name": d.full_name,
+                "phone": d.phone,
+                "license_number": license_number,
+            }
+
+    # Fetch status history
+    sh_result = await db.execute(
+        select(TripStatus).where(TripStatus.trip_id == trip.id).order_by(TripStatus.created_at)
+    )
+    status_history_data = [
+        {
+            "from_status": sh.from_status,
+            "to_status": sh.to_status,
+            "location_name": sh.location_name,
+            "remarks": sh.remarks,
+            "created_at": sh.created_at.isoformat() if sh.created_at else None,
+        }
+        for sh in sh_result.scalars().all()
+    ]
+
+    # Fetch route via_points for journey timeline
+    route_data = None
+    if trip.route_id:
+        from app.models.postgres.route import Route
+        import json as _json
+        r_res = await db.execute(select(Route).where(Route.id == trip.route_id))
+        r_obj = r_res.scalar_one_or_none()
+        if r_obj:
+            via_raw = r_obj.via_points or "[]"
+            try:
+                via_list = _json.loads(via_raw) if isinstance(via_raw, str) else (via_raw or [])
+            except Exception:
+                via_list = []
+            route_data = {
+                "id": r_obj.id,
+                "route_name": r_obj.route_name,
+                "distance_km": float(r_obj.distance_km) if r_obj.distance_km else None,
+                "estimated_hours": float(r_obj.estimated_hours) if r_obj.estimated_hours else None,
+                "via_points": via_list,
+            }
+
+    # Fetch LR details (lr_number + eway bill + attached documents)
+    from app.models.postgres.lr import LRDocument
+    lr_objs_result = await db.execute(
+        select(LR).where(LR.trip_id == trip.id, LR.is_deleted == False).order_by(LR.created_at)
+    )
+    lrs_data = []
+    for lr_obj in lr_objs_result.scalars().all():
+        docs_result = await db.execute(
+            select(LRDocument).where(LRDocument.lr_id == lr_obj.id)
+        )
+        docs = docs_result.scalars().all()
+        lrs_data.append({
+            "id": lr_obj.id,
+            "lr_number": lr_obj.lr_number,
+            "eway_bill_number": lr_obj.eway_bill_number,
+            "eway_bill_date": lr_obj.eway_bill_date.isoformat() if lr_obj.eway_bill_date else None,
+            "status": lr_obj.status.value if hasattr(lr_obj.status, 'value') else str(lr_obj.status),
+            "created_at": lr_obj.created_at.isoformat() if lr_obj.created_at else None,
+            "pod_file_url": lr_obj.pod_file_url,
+            "documents": [
+                {
+                    "document_type": d.document_type,
+                    "file_url": d.file_url,
+                    "document_number": d.document_number,
+                }
+                for d in docs if d.file_url
+            ],
+        })
+
     return {
         **{c.key: getattr(trip, c.key) for c in trip.__table__.columns},
         "job_number": job_number,
         "status": trip.status.value if hasattr(trip.status, 'value') else str(trip.status),
         "lr_count": lr_count,
         "expense_count": expense_count,
+        "vehicle": vehicle_data,
+        "driver": driver_data,
+        "status_history": status_history_data,
+        "lrs": lrs_data,
+        "route_detail": route_data,
     }

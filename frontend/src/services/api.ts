@@ -165,7 +165,11 @@ api.interceptors.response.use(
       if (suppressErrorToast) {
         return Promise.reject(error);
       }
-      toast.error('Network error. Please check your internet connection.');
+      if (error.code === 'ECONNABORTED') {
+        toast.error('Request timed out. The server is taking too long — please try again.');
+      } else {
+        toast.error('Network error. Please check your internet connection.');
+      }
       return Promise.reject(error);
     }
 

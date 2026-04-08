@@ -32,6 +32,10 @@ export default defineConfig({
         target: apiProxyTarget,
         changeOrigin: true,
       },
+      '/uploads': {
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
       '/ws': {
         target: wsProxyTarget,
         ws: true,

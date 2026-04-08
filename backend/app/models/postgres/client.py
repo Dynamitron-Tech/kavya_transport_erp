@@ -18,11 +18,19 @@ class Client(Base, TimestampMixin, SoftDeleteMixin):
     name = Column(String(200), nullable=False, index=True)
     code = Column(String(50), unique=True, nullable=False)
     client_type = Column(String(50), default='regular')  # regular, premium, contract
+    legal_name = Column(String(250), nullable=True)
+    trade_name = Column(String(250), nullable=True)
+    nature_of_business = Column(String(200), nullable=True)
+    designation = Column(String(100), nullable=True)
     
     # Contact Info
+    contact_person = Column(String(200), nullable=True)
     email = Column(String(255), nullable=True)
     phone = Column(String(20), nullable=True)
+    alt_phone = Column(String(20), nullable=True)
     website = Column(String(255), nullable=True)
+    industry = Column(String(100), nullable=True)
+    company_size = Column(String(50), nullable=True)
     
     # Address
     address_line1 = Column(String(255), nullable=True)
@@ -36,6 +44,20 @@ class Client(Base, TimestampMixin, SoftDeleteMixin):
     gstin = Column(String(20), nullable=True, index=True)
     pan = Column(String(15), nullable=True)
     gst_state_code = Column(String(5), nullable=True)
+    tan = Column(String(15), nullable=True)
+    reg_type = Column(String(50), nullable=True)
+    date_of_liability = Column(String(20), nullable=True)
+    assessment_year = Column(String(10), nullable=True)
+    tds_rate = Column(String(10), nullable=True)
+    tax_exempt = Column(Boolean, default=False)
+
+    # TDS (Form 16A) Details
+    name_deductor = Column(String(200), nullable=True)
+    name_deductee = Column(String(200), nullable=True)
+    pan_deductor = Column(String(15), nullable=True)
+    pan_deductee = Column(String(15), nullable=True)
+    nature_payment = Column(String(200), nullable=True)
+    tds_amount = Column(String(30), nullable=True)
     
     # UPI / Payment
     upi_id = Column(String(60), nullable=True)   # VPA e.g. "9876543210@okaxis"
@@ -44,6 +66,10 @@ class Client(Base, TimestampMixin, SoftDeleteMixin):
     credit_limit = Column(Numeric(15, 2), default=0)
     credit_days = Column(Integer, default=30)
     outstanding_amount = Column(Numeric(15, 2), default=0)
+    invoice_frequency = Column(String(30), default='per_order')  # per_order, weekly, monthly, quarterly
+    payment_method = Column(String(30), default='bank_transfer')  # bank_transfer, upi, cheque, cash
+    bank_account = Column(String(30), nullable=True)
+    ifsc_code = Column(String(15), nullable=True)
     
     # Status
     is_active = Column(Boolean, default=True)

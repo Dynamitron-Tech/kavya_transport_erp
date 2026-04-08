@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Camera, Save, User } from 'lucide-react';
+import { Camera, Save, User, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import api from '@/services/api';
@@ -18,6 +18,18 @@ export default function ProfilePage() {
     const name = `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
     return name || user?.full_name || user?.email || 'User';
   }, [user?.first_name, user?.last_name, user?.full_name, user?.email]);
+
+  const show = (value?: string | null) => {
+    const text = String(value ?? '').trim();
+    return text || '-';
+  };
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return '-';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleDateString('en-IN');
+  };
 
   const toDataUrl = (file: File) =>
     new Promise<string>((resolve, reject) => {
@@ -125,8 +137,80 @@ export default function ProfilePage() {
               <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
                 <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Joined Date</p>
                 <p className="text-sm font-semibold text-gray-900">
-                  {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-IN') : '-'}
+                  {formatDate(user?.joining_date || user?.created_at)}
                 </p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Date Of Birth</p>
+                <p className="text-sm font-semibold text-gray-900">{formatDate(user?.date_of_birth)}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Gender</p>
+                <p className="text-sm font-semibold text-gray-900 capitalize">{show(user?.gender)}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100 md:col-span-2">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Address</p>
+                <p className="text-sm font-semibold text-gray-900">{show(user?.address)}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Emergency Contact Name</p>
+                <p className="text-sm font-semibold text-gray-900">{show(user?.emergency_contact_name)}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Emergency Contact Phone</p>
+                <p className="text-sm font-semibold text-gray-900">{show(user?.emergency_contact_phone)}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Account Holder</p>
+                <p className="text-sm font-semibold text-gray-900">{show(user?.bank_account_holder)}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Bank Name</p>
+                <p className="text-sm font-semibold text-gray-900">{show(user?.bank_name)}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Account Number</p>
+                <p className="text-sm font-semibold text-gray-900">{show(user?.account_number)}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">IFSC Code</p>
+                <p className="text-sm font-semibold text-gray-900">{show(user?.ifsc_code)}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Account Type</p>
+                <p className="text-sm font-semibold text-gray-900">{show(user?.account_type)}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">UPI ID</p>
+                <p className="text-sm font-semibold text-gray-900">{show(user?.upi_id)}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Salary Amount</p>
+                <p className="text-sm font-semibold text-gray-900">{show(user?.salary_amount)}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1">Pay Type</p>
+                <p className="text-sm font-semibold text-gray-900 capitalize">{show(user?.pay_type)}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4 border border-gray-100 md:col-span-2">
+                <p className="text-xs uppercase tracking-wide text-gray-500 mb-2">Aadhaar Document</p>
+                {user?.aadhaar_file_url ? (
+                  <div className="space-y-3">
+                    <a
+                      href={user.aadhaar_file_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100"
+                    >
+                      <ExternalLink size={14} /> {user.aadhaar_file_name || 'View Aadhaar file'}
+                    </a>
+                    {user.aadhaar_file_url.startsWith('data:image') && (
+                      <img src={user.aadhaar_file_url} alt="Aadhaar" className="w-full max-h-72 object-contain rounded-lg border border-gray-200 bg-white" />
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm font-semibold text-gray-900">-</p>
+                )}
               </div>
             </div>
 

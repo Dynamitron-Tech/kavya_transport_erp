@@ -92,7 +92,7 @@ async def create_user(db: AsyncSession, data: dict) -> User:
     data["phone"] = _normalize_optional_phone(data.get("phone"))
     # Convert date string fields to date objects
     from datetime import date as _date
-    for date_field in ("date_of_birth", "joining_date"):
+    for date_field in ("date_of_birth", "joining_date", "dl_issue_date", "dl_expiry_date"):
         val = data.get(date_field)
         if val and isinstance(val, str):
             try:
@@ -102,7 +102,9 @@ async def create_user(db: AsyncSession, data: dict) -> User:
     # Strip empty strings for optional fields
     for field in ("gender", "address", "emergency_contact_name", "emergency_contact_phone",
                   "bank_account_holder", "bank_name", "account_number", "ifsc_code",
-                  "account_type", "upi_id", "salary_amount", "pay_type"):
+                  "account_type", "upi_id", "salary_amount", "pay_type",
+                  "aadhaar_file_url", "aadhaar_file_name",
+                  "dl_file_url", "dl_file_name", "dl_number"):
         if not data.get(field):
             data.pop(field, None)
     user = User(**data, password_hash=get_password_hash(password))
@@ -133,7 +135,7 @@ async def update_user(db: AsyncSession, user_id: int, data: dict):
         user.password_hash = get_password_hash(raw_password)
     # Convert date string fields to date objects
     from datetime import date as _date
-    for date_field in ("date_of_birth", "joining_date"):
+    for date_field in ("date_of_birth", "joining_date", "dl_issue_date", "dl_expiry_date"):
         if date_field in data:
             val = data[date_field]
             if val and isinstance(val, str):
@@ -151,7 +153,9 @@ async def update_user(db: AsyncSession, user_id: int, data: dict):
         elif k in ("gender", "address", "emergency_contact_name", "emergency_contact_phone",
                    "date_of_birth", "joining_date",
                    "bank_account_holder", "bank_name", "account_number", "ifsc_code",
-                   "account_type", "upi_id", "salary_amount", "pay_type"):
+                 "account_type", "upi_id", "salary_amount", "pay_type",
+                 "aadhaar_file_url", "aadhaar_file_name",
+                 "dl_file_url", "dl_file_name", "dl_number", "dl_issue_date", "dl_expiry_date"):
             # Allow clearing these fields by passing empty string
             setattr(user, k, None)
 
