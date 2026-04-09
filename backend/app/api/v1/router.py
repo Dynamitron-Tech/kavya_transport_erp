@@ -21,6 +21,7 @@ from app.api.v1.endpoints import (
     trips,
     finance,
     finance_automation,
+    finance_manager,
     banking,
     tracking,
     reports,
@@ -56,6 +57,7 @@ from app.api.v1.endpoints import (
     manager_dashboard,
     document_ocr,
     driver_requests,
+    expenses,
 )
 
 api_router = APIRouter()
@@ -99,6 +101,9 @@ api_router.include_router(driver_scoring.router, prefix="/driver-scoring", tags=
 # Finance
 api_router.include_router(finance.router, prefix="/finance", tags=["Finance"])
 api_router.include_router(finance_automation.router, prefix="/finance", tags=["Finance Automation"])
+
+# Finance Manager — salary, advances, expenses, payables, Razorpay payouts
+api_router.include_router(finance_manager.router, prefix="/finance-manager", tags=["Finance Manager"])
 
 # Payables (Driver Settlements)
 api_router.include_router(payables.router, prefix="/payables", tags=["Payables"])
@@ -179,6 +184,9 @@ api_router.include_router(sync.router, prefix="/sync", tags=["Sync"])
 #   POST /receivables/record-payment
 #   GET  /receivables/{id}/payments
 api_router.include_router(receivable_payments.router, tags=["Receivable Payments"])
+
+# Company Expenses (field GPay, driver advance, salaries, rent, etc.)
+api_router.include_router(expenses.router, prefix="/expenses", tags=["Company Expenses"])
 
 # IFIAS — Intelligent Freight Invoice Automation
 api_router.include_router(invoice_batches.router, prefix="", tags=["IFIAS Invoice Automation"])

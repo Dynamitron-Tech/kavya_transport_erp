@@ -129,7 +129,7 @@ class ExpensesPaginationNotifier extends StateNotifier<AsyncValue<PaginatedExpen
     await fetchExpenses(reset: true);
   }
 
-  Future<void> addExpense(Expense expense, {bool biometricVerified = false}) async {
+  Future<void> addExpense(Expense expense, {bool biometricVerified = false, Map<String, dynamic>? extraPayload}) async {
     try {
       // Optimistic update - add immediately to UI
       final current = state.valueOrNull;
@@ -141,8 +141,12 @@ class ExpensesPaginationNotifier extends StateNotifier<AsyncValue<PaginatedExpen
         ));
       }
 
-      // Send to server (include biometric flag)
-      final payload = {...expense.toJson(), 'biometric_verified': biometricVerified};
+      // Send to server (include biometric flag + payment method extras)
+      final payload = {
+        ...expense.toJson(),
+        'biometric_verified': biometricVerified,
+        if (extraPayload != null) ...extraPayload,
+      };
       final response = await _api.post('/expenses', data: payload);
       // API response: {success, data: {...expense...}}
       final expenseData = (response is Map && response['data'] is Map)
@@ -261,14 +265,18 @@ class ExpensesNotifier extends StateNotifier<AsyncValue<List<Expense>>> {
     await fetchExpenses();
   }
 
-  Future<void> addExpense(Expense expense, {bool biometricVerified = false}) async {
+  Future<void> addExpense(Expense expense, {bool biometricVerified = false, Map<String, dynamic>? extraPayload}) async {
     try {
       // Optimistic update
       final current = state.valueOrNull ?? [];
       state = AsyncValue.data([expense, ...current]);
 
-      // Send to server (include biometric flag)
-      final payload = {...expense.toJson(), 'biometric_verified': biometricVerified};
+      // Send to server (include biometric flag + payment method extras)
+      final payload = {
+        ...expense.toJson(),
+        'biometric_verified': biometricVerified,
+        if (extraPayload != null) ...extraPayload,
+      };
       debugPrint('[ExpensesNotifier] addExpense POST /expenses payload=$payload');
       final result = await _api.post('/expenses', data: payload);
       debugPrint('[ExpensesNotifier] addExpense POST result=$result');

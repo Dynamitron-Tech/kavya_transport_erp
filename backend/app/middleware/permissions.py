@@ -355,6 +355,36 @@ ROLE_PERMISSIONS = {
         Permissions.SYNC_CREATE,
     ],
 
+    "finance_manager": [
+        # Payment (full access for payroll, payouts)
+        Permissions.PAYMENT_CREATE, Permissions.PAYMENT_READ,
+        Permissions.PAYMENT_UPDATE, Permissions.PAYMENT_DELETE,
+        # Expense (approve / reimburse)
+        Permissions.EXPENSE_READ, Permissions.EXPENSE_APPROVE,
+        Permissions.EXPENSE_CREATE, Permissions.EXPENSE_UPDATE,
+        # Invoice (read for context)
+        Permissions.INVOICE_READ,
+        # Ledger (read)
+        Permissions.LEDGER_READ, Permissions.LEDGER_EXPORT,
+        # Banking
+        Permissions.BANKING_READ,
+        # Settlements
+        Permissions.SETTLEMENT_READ, Permissions.SETTLEMENT_CREATE, Permissions.SETTLEMENT_APPROVE,
+        # Driver / Vehicle (read for salary / advance context)
+        Permissions.DRIVER_READ,
+        Permissions.VEHICLE_READ,
+        # Fuel (read)
+        Permissions.FUEL_READ,
+        # Reports
+        Permissions.REPORT_VIEW, Permissions.REPORT_EXPORT,
+        # User (read for employee list)
+        Permissions.USER_READ,
+        # Documents
+        Permissions.DOCUMENT_READ,
+        # Alerts
+        Permissions.ALERT_VIEW,
+    ],
+
     "pump_operator": [
         # Fuel management (core responsibility)
         Permissions.FUEL_ISSUE, Permissions.FUEL_CREATE, Permissions.FUEL_READ,

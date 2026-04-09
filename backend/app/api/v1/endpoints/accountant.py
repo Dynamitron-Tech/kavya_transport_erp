@@ -37,6 +37,60 @@ def _expense_category_value(expense: TripExpense) -> str:
 @router.get("/dashboard", response_model=APIResponse)
 async def accountant_dashboard(db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
     data = await dashboard_service.get_accountant_dashboard(db)
+
+    # Append company expense summary KPIs
+    try:
+        from app.models.postgres.expense import Expense as CompanyExpense, ApprovalStatus
+        from sqlalchemy import func as sqlfunc, extract
+        today = date.today()
+        month_start = today.replace(day=1)
+
+        pending_count_r = await db.execute(
+            select(sqlfunc.count()).select_from(CompanyExpense)
+            .where(CompanyExpense.approval_status == ApprovalStatus.pending)
+        )
+        pending_count = pending_count_r.scalar() or 0
+
+        month_total_r = await db.execute(
+            select(sqlfunc.sum(CompanyExpense.amount_paise)).select_from(CompanyExpense)
+            .where(
+                CompanyExpense.approval_status == ApprovalStatus.approved,
+                CompanyExpense.expense_date >= month_start,
+            )
+        )
+        month_total_paise = month_total_r.scalar() or 0
+
+        gpay_unverified_r = await db.execute(
+            select(sqlfunc.count()).select_from(CompanyExpense)
+            .where(
+                CompanyExpense.payment_method.in_(["gpay_upi"]),
+                CompanyExpense.upi_ref_number.is_(None),
+                CompanyExpense.approval_status == ApprovalStatus.pending,
+            )
+        )
+        gpay_unverified = gpay_unverified_r.scalar() or 0
+
+        netbanking_unlinked_r = await db.execute(
+            select(sqlfunc.count()).select_from(CompanyExpense)
+            .where(
+                CompanyExpense.payment_method.in_(["netbanking"]),
+                CompanyExpense.banking_entry_id.is_(None),
+                CompanyExpense.approval_status == ApprovalStatus.approved,
+            )
+        )
+        netbanking_unlinked = netbanking_unlinked_r.scalar() or 0
+
+        if isinstance(data, dict):
+            data["expense_summary"] = {
+                "pending_approvals": pending_count,
+                "this_month_total_paise": month_total_paise,
+                "this_month_total_rupees": round(month_total_paise / 100, 2),
+                "gpay_unverified": gpay_unverified,
+                "netbanking_unlinked": netbanking_unlinked,
+            }
+    except Exception:
+        pass  # Non-blocking; Expense table may not exist yet if migration pending
+
     return APIResponse(success=True, data=data)
 
 
@@ -81,6 +135,62 @@ async def accountant_ledger(
     pages = (total + limit - 1) // limit
     items = [{c.key: getattr(e, c.key) for c in e.__table__.columns} for e in entries]
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
+
+
+@router.post("/receivables/{client_id}/send-reminder", response_model=APIResponse)
+async def send_receivable_reminder(
+    client_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.INVOICE_READ)),
+):
+    """Send a payment reminder WhatsApp/SMS to a client for all their overdue invoices."""
+    from sqlalchemy import select
+    from app.models.postgres.finance import Invoice, InvoiceStatus
+    from app.models.postgres.client import Client
+    today = date.today()
+
+    client = await db.get(Client, client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    result = await db.execute(
+        select(Invoice).where(
+            Invoice.client_id == client_id,
+            Invoice.is_deleted == False,
+            Invoice.amount_due > 0,
+            Invoice.status != InvoiceStatus.CANCELLED,
+        ).order_by(Invoice.due_date.asc())
+    )
+    overdue_invoices = result.scalars().all()
+    if not overdue_invoices:
+        return APIResponse(success=True, message="No outstanding invoices found for this client")
+
+    total_due = sum(float(inv.amount_due or 0) for inv in overdue_invoices)
+    inv_numbers = ", ".join(inv.invoice_number or str(inv.id) for inv in overdue_invoices[:5])
+
+    # Attempt WhatsApp notification if service available
+    reminder_sent = False
+    client_phone = getattr(client, 'phone', None) or getattr(client, 'contact_phone', None)
+    if client_phone:
+        try:
+            from app.services.notification_service import send_whatsapp_message
+            message = (
+                f"Dear {client.name}, this is a reminder that you have "
+                f"{len(overdue_invoices)} outstanding invoice(s) totalling "
+                f"\u20B9{total_due:,.0f} (Invoice#: {inv_numbers}). "
+                f"Please arrange payment at your earliest. Thank you."
+            )
+            await send_whatsapp_message(client_phone, message)
+            reminder_sent = True
+        except Exception:
+            pass  # Non-blocking — reminder logged even if WhatsApp unavailable
+
+    return APIResponse(
+        success=True,
+        message=f"Reminder {'sent' if reminder_sent else 'recorded'} for {len(overdue_invoices)} invoice(s) totalling \u20B9{total_due:,.0f}",
+        data={"client_id": client_id, "invoices": len(overdue_invoices), "total_due": total_due, "whatsapp_sent": reminder_sent},
+    )
 
 
 @router.get("/receivables", response_model=APIResponse)

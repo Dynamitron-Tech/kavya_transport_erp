@@ -16,6 +16,7 @@ from app.models.postgres.finance_automation import (
     FinanceAlert, FinanceAlertType, FinanceAlertSeverity,
 )
 from app.models.postgres.driver import Driver
+from app.models.postgres.user import User
 from app.models.postgres.trip import Trip, TripExpense
 from app.utils.generators import generate_settlement_number, generate_payable_number, generate_payment_number
 from app.services.finance_service import create_ledger_entry
@@ -62,7 +63,15 @@ async def generate_driver_settlement(
         )
         trip_allowance = Decimal(str(exp_result.scalar() or 0))
 
-    base_salary = Decimal(str(getattr(driver, "salary", 0) or 0))
+    base_salary = Decimal(str(driver.base_salary or 0))
+    if not base_salary:
+        # Fallback: read salary_amount from the linked User record
+        driver_user = await db.get(User, driver.user_id)
+        salary_str = getattr(driver_user, "salary_amount", None) or "0"
+        try:
+            base_salary = Decimal(str(salary_str))
+        except Exception:
+            base_salary = Decimal("0")
     gross = base_salary + trip_allowance
 
     # Deductions: advances

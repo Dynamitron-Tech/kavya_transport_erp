@@ -38,9 +38,16 @@ interface PayModalProps {
   onClose: () => void;
   loading: boolean;
   showRef?: boolean;
+  bankingInfo?: {
+    bank_name?: string | null;
+    account_number?: string | null;
+    ifsc_code?: string | null;
+    account_type?: string | null;
+    upi_id?: string | null;
+  };
 }
 
-function RecordPaymentModal({ title, amount, onConfirm, onClose, loading, showRef = true }: PayModalProps) {
+function RecordPaymentModal({ title, amount, onConfirm, onClose, loading, showRef = true, bankingInfo }: PayModalProps) {
   const [method, setMethod] = useState('NEFT');
   const [ref, setRef] = useState('');
   const [paidDate, setPaidDate] = useState(new Date().toISOString().split('T')[0]);
@@ -49,6 +56,8 @@ function RecordPaymentModal({ title, amount, onConfirm, onClose, loading, showRe
     if (showRef && !ref.trim()) { toast.error('Enter reference / UTR number'); return; }
     onConfirm(method, ref.trim(), paidDate);
   };
+
+  const hasBankDetails = bankingInfo?.account_number || bankingInfo?.upi_id;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -64,6 +73,42 @@ function RecordPaymentModal({ title, amount, onConfirm, onClose, loading, showRe
         </div>
 
         <div className="p-5 space-y-4">
+          {hasBankDetails && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-1">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Transfer To</p>
+              {bankingInfo?.account_number && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Account</span>
+                  <span className="text-sm font-mono font-medium text-gray-800">
+                    {bankingInfo.bank_name ? `${bankingInfo.bank_name} · ` : ''}{bankingInfo.account_number}
+                    {bankingInfo.account_type ? ` (${bankingInfo.account_type})` : ''}
+                  </span>
+                </div>
+              )}
+              {bankingInfo?.ifsc_code && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">IFSC</span>
+                  <span className="text-sm font-mono text-gray-800">{bankingInfo.ifsc_code}</span>
+                </div>
+              )}
+              {bankingInfo?.upi_id && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">UPI</span>
+                  <span className="text-sm font-mono text-gray-800">{bankingInfo.upi_id}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!hasBankDetails && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700">
+                No bank account / UPI details on file for this driver. Ask the driver to update their banking info in their profile.
+              </p>
+            </div>
+          )}
+
           <div className="bg-blue-50 rounded-xl p-3 flex items-center gap-3">
             <Wallet className="h-5 w-5 text-blue-600" />
             <div>
@@ -274,6 +319,13 @@ function DriverSettlementsTab() {
           loading={payMut.isPending}
           onClose={() => { setPayingId(null); setPayingSettlement(null); }}
           onConfirm={(method, ref, date) => payMut.mutate({ id: payingId, method, ref, date })}
+          bankingInfo={{
+            bank_name: payingSettlement.driver_bank_name,
+            account_number: payingSettlement.driver_account_number,
+            ifsc_code: payingSettlement.driver_ifsc_code,
+            account_type: payingSettlement.driver_account_type,
+            upi_id: payingSettlement.driver_upi_id,
+          }}
         />
       )}
     </div>

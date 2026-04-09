@@ -59,6 +59,12 @@ async def _ensure_driver_profile_for_user(db: AsyncSession, user: User) -> None:
             existing_driver.branch_id = user.branch_id
         if user.tenant_id is not None:
             existing_driver.tenant_id = user.tenant_id
+        if user.salary_amount:
+            try:
+                from decimal import Decimal
+                existing_driver.base_salary = Decimal(str(user.salary_amount))
+            except Exception:
+                pass
         return
 
     next_id = (await db.execute(select(func.coalesce(func.max(Driver.id), 0) + 1))).scalar() or 1
@@ -66,6 +72,14 @@ async def _ensure_driver_profile_for_user(db: AsyncSession, user: User) -> None:
 
     # Driver.phone is required; use a deterministic fallback if user phone is missing.
     phone_value = user.phone or f"driver-{user.id}"
+
+    base_salary_val = None
+    if user.salary_amount:
+        try:
+            from decimal import Decimal
+            base_salary_val = Decimal(str(user.salary_amount))
+        except Exception:
+            pass
 
     driver = Driver(
         user_id=user.id,
@@ -77,6 +91,7 @@ async def _ensure_driver_profile_for_user(db: AsyncSession, user: User) -> None:
         status=DriverStatus.AVAILABLE,
         branch_id=user.branch_id,
         tenant_id=user.tenant_id,
+        base_salary=base_salary_val,
     )
     db.add(driver)
     await db.flush()

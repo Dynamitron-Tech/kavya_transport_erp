@@ -211,3 +211,77 @@ async def fetch_payment_link(link_id: str) -> dict:
             }
     except httpx.HTTPStatusError as exc:
         raise HTTPException(status_code=exc.response.status_code, detail=f"Razorpay fetch error: {exc.response.text[:200]}")
+
+
+# ─── Razorpay X Payout API — Driver Advance ───────────────────────────────────
+
+def _x_auth() -> tuple:
+    """Auth tuple for Razorpay X (business banking) key pair."""
+    key_id     = getattr(settings, 'RAZORPAY_X_KEY_ID',     None)
+    key_secret = getattr(settings, 'RAZORPAY_X_KEY_SECRET', None)
+    if not key_id or not key_secret:
+        raise HTTPException(
+            status_code=400,
+            detail="Razorpay X is not configured. Set RAZORPAY_X_KEY_ID and RAZORPAY_X_KEY_SECRET in .env.",
+        )
+    return (key_id, key_secret)
+
+
+async def trigger_razorpay_payout(upi_id: str, amount_paise: int) -> dict:
+    """
+    Send driver advance (₹1,500) to driver UPI via Razorpay X Payout API.
+
+    Requires:
+      RAZORPAY_X_KEY_ID        — Razorpay X account key ID
+      RAZORPAY_X_KEY_SECRET    — Razorpay X account key secret
+      RAZORPAY_X_ACCOUNT_NUMBER — Linked current account number
+
+    Returns payout dict with at least `id` and `status`.
+    NOT used for any expense other than driver_advance.
+    """
+    account_number = getattr(settings, 'RAZORPAY_X_ACCOUNT_NUMBER', None)
+    if not account_number:
+        raise HTTPException(
+            status_code=400,
+            detail="RAZORPAY_X_ACCOUNT_NUMBER not configured in .env.",
+        )
+
+    payload = {
+        "account_number": account_number,
+        "fund_account": {
+            "account_type": "vpa",
+            "vpa": {"address": upi_id},
+            "contact": {
+                "name":  "Driver",
+                "type":  "employee",
+                "email": "driver@kavyatransports.com",
+            },
+        },
+        "amount":               amount_paise,
+        "currency":             "INR",
+        "mode":                 "UPI",
+        "purpose":              "salary",
+        "queue_if_low_balance": True,
+        "narration":            "Kavya Transports driver advance",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                "https://api.razorpay.com/v1/payouts",
+                auth  = _x_auth(),
+                json  = payload,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            logger.info("[RazorpayX] Payout created: %s status=%s", data.get("id"), data.get("status"))
+            return data
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=503, detail="Razorpay X payout API timeout.")
+    except httpx.HTTPStatusError as exc:
+        logger.error("[RazorpayX] Payout HTTP %s: %s", exc.response.status_code, exc.response.text[:300])
+        raise HTTPException(
+            status_code = exc.response.status_code,
+            detail      = f"Razorpay X payout error: {exc.response.text[:200]}",
+        )
+

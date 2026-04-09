@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/expense.dart';
 import '../../providers/expense_provider.dart';
@@ -21,20 +22,63 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
   final _formKey = GlobalKey<FormState>();
   final _amountCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
+  final _upiRefCtrl = TextEditingController();
   String _category = 'fuel';
+  String _paymentMethod = 'cash'; // 'cash' | 'gpay_upi'
   File? _receipt;
   bool _submitting = false;
   bool _ocrRunning = false;
   double? _ocrAmount;
   String? _ocrWarning;
 
-  static const _categories = ['fuel', 'toll', 'food', 'maintenance', 'loading', 'unloading', 'parking', 'police', 'other'];
+  // Field expenses: driver_advance is NOT here (issued by admin pre-trip via Razorpay X)
+  static const _categories = [
+    'fuel', 'toll', 'food', 'vehicle_spare_part',
+    'loading_unloading', 'parking', 'police', 'misc_field',
+  ];
+
+  static const _categoryLabels = <String, String>{
+    'fuel':              'Fuel',
+    'toll':              'Toll',
+    'food':              'Food / Meals',
+    'vehicle_spare_part': 'Spare Parts',
+    'loading_unloading': 'Loading / Unloading',
+    'parking':           'Parking',
+    'police':            'Police / Challan',
+    'misc_field':        'Miscellaneous',
+  };
+
   static const double _biometricThreshold = 500.0;
+  // Threshold above which GPay is REQUIRED
+  static const double _gpayThresholdSpare = 3000.0;
+  static const double _gpayThresholdLoading = 4000.0;
+
+  bool get _isGpayRequiredByThreshold {
+    final amt = double.tryParse(_amountCtrl.text) ?? 0;
+    if (_category == 'vehicle_spare_part' && amt > _gpayThresholdSpare) return true;
+    if (_category == 'loading_unloading'  && amt > _gpayThresholdLoading) return true;
+    return false;
+  }
+
+  bool get _showUpiRef =>
+      _paymentMethod == 'gpay_upi' || _isGpayRequiredByThreshold;
+
+  bool get _upiRefRequired => _isGpayRequiredByThreshold;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountCtrl.addListener(_onAmountChanged);
+  }
+
+  void _onAmountChanged() => setState(() {});
 
   @override
   void dispose() {
+    _amountCtrl.removeListener(_onAmountChanged);
     _amountCtrl.dispose();
     _descCtrl.dispose();
+    _upiRefCtrl.dispose();
     super.dispose();
   }
 
@@ -62,7 +106,7 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
         final ocrCategory = data['category'] as String?;
         if (ocrCategory != null) {
           final lower = ocrCategory.toLowerCase();
-          if (_categories.contains(lower)) {
+          if (_categoryLabels.containsKey(lower)) {
             setState(() => _category = lower);
           }
         }
@@ -91,10 +135,21 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final amount = double.tryParse(_amountCtrl.text) ?? 0;
+    final effectiveMethod = _isGpayRequiredByThreshold ? 'gpay_upi' : _paymentMethod;
+
+    // Validate UPI ref when required
+    if (effectiveMethod == 'gpay_upi' && _upiRefRequired && _upiRefCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('UPI transaction reference is required for this amount.')),
+      );
+      return;
+    }
+
     setState(() => _submitting = true);
     final s = ref.read(sProvider);
 
-    final amount = double.tryParse(_amountCtrl.text) ?? 0;
     bool biometricVerified = false;
 
     // Check OCR amount mismatch before submitting
@@ -158,7 +213,19 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
       receiptUrl: receiptServerUrl,
     );
 
-    await ref.read(expensesProvider(null).notifier).addExpense(expense, biometricVerified: biometricVerified);
+    // Build extra fields for the new /expenses endpoint
+    final extraPayload = <String, dynamic>{
+      'payment_method': effectiveMethod,
+      if (_upiRefCtrl.text.trim().isNotEmpty) 'upi_ref_number': _upiRefCtrl.text.trim(),
+      // Map old category names to new enum values where needed
+      'expense_category': _category,
+    };
+
+    await ref.read(expensesProvider(null).notifier).addExpense(
+      expense,
+      biometricVerified: biometricVerified,
+      extraPayload: extraPayload,
+    );
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.expenseAdded)));
@@ -169,6 +236,10 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(sProvider);
+    final amountRs = double.tryParse(_amountCtrl.text) ?? 0;
+    final showSpareWarning = _category == 'vehicle_spare_part' && amountRs > _gpayThresholdSpare;
+    final showLoadingWarning = _category == 'loading_unloading'  && amountRs > _gpayThresholdLoading;
+
     return Scaffold(
       appBar: AppBar(title: Text(s.addExpenseTitle)),
       body: SingleChildScrollView(
@@ -180,11 +251,27 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
             children: [
               Text(s.category, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
               const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
-                initialValue: _category,
-                items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c.replaceAll('_', ' ').toUpperCase()))).toList(),
-                onChanged: (v) => setState(() => _category = v ?? 'fuel'),
+              InputDecorator(
                 decoration: const InputDecoration(),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _category,
+                    isDense: true,
+                    isExpanded: true,
+                    items: _categories.map((c) => DropdownMenuItem(
+                      value: c,
+                      child: Text(_categoryLabels[c] ?? c.replaceAll('_', ' ').toUpperCase()),
+                    )).toList(),
+                    onChanged: (v) => setState(() {
+                      _category = v ?? 'fuel';
+                      if (_category == 'vehicle_spare_part' || _category == 'loading_unloading') {
+                        _paymentMethod = 'gpay_upi';
+                      } else {
+                        _paymentMethod = 'cash';
+                      }
+                    }),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               KtTextField(
@@ -198,6 +285,11 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
                   return null;
                 },
               ),
+              // Threshold warning banners
+              if (showSpareWarning)
+                _ThresholdWarning(message: 'Spare parts above ₹3,000 — GPay payment required. Enter UPI ref.'),
+              if (showLoadingWarning)
+                _ThresholdWarning(message: 'Loading/Unloading above ₹4,000 — GPay payment required. Enter UPI ref.'),
               // OCR warning banner
               if (_ocrWarning != null)
                 Padding(
@@ -219,13 +311,89 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
                   ),
                 ),
               const SizedBox(height: 16),
+              // Payment method
+              Text('Payment Method', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 6),
+              InputDecorator(
+                decoration: const InputDecoration(),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _isGpayRequiredByThreshold ? 'gpay_upi' : _paymentMethod,
+                    isDense: true,
+                    isExpanded: true,
+                    items: const [
+                      DropdownMenuItem(value: 'cash',     child: Text('Cash')),
+                      DropdownMenuItem(value: 'gpay_upi', child: Text('GPay / UPI')),
+                    ],
+                    onChanged: _isGpayRequiredByThreshold
+                        ? null
+                        : (v) => setState(() => _paymentMethod = v ?? 'cash'),
+                  ),
+                ),
+              ),
+              // UPI Ref field (shown when GPay selected or threshold exceeded)
+              if (_showUpiRef)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'GPay UPI Transaction Ref${_upiRefRequired ? ' *' : ''}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _upiRefCtrl,
+                              decoration: InputDecoration(
+                                hintText: 'e.g. T20260409123456789',
+                                border: const OutlineInputBorder(),
+                                suffixIcon: _upiRefCtrl.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear, size: 18),
+                                        onPressed: () => setState(() => _upiRefCtrl.clear()),
+                                      )
+                                    : null,
+                              ),
+                              onChanged: (_) => setState(() {}),
+                              validator: _upiRefRequired
+                                  ? (v) => (v == null || v.trim().isEmpty) ? 'UPI ref is required' : null
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // "Paste from clipboard" button
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.shade50,
+                              foregroundColor: Colors.green.shade800,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            ),
+                            icon: const Icon(Icons.paste, size: 16),
+                            label: const Text('Paste', style: TextStyle(fontSize: 12)),
+                            onPressed: () async {
+                              final data = await Clipboard.getData('text/plain');
+                              if (data?.text != null && data!.text!.isNotEmpty) {
+                                setState(() => _upiRefCtrl.text = data.text!.trim());
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 16),
               KtTextField(label: s.description, controller: _descCtrl, hint: s.optionalNotes, maxLines: 2),
               const SizedBox(height: 16),
               Text(s.receiptPhoto, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
               const SizedBox(height: 6),
               PhotoCapture(onCaptured: (file) {
                 setState(() => _receipt = file);
-                // Run OCR verification on the captured receipt
                 _runOcrVerification(file);
               }),
               if (_ocrRunning)
@@ -243,6 +411,33 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
               KtButton(label: s.saveExpense, icon: Icons.save, isLoading: _submitting, onPressed: _submit),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ThresholdWarning extends StatelessWidget {
+  final String message;
+  const _ThresholdWarning({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.amber.shade400),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800, size: 20),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message, style: TextStyle(fontSize: 12, color: Colors.amber.shade900))),
+          ],
         ),
       ),
     );

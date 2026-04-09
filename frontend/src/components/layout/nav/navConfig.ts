@@ -21,7 +21,7 @@ export interface NavMenuGroup {
   roles?: RoleType[];
 }
 
-export type HeaderNavRole = 'ADMIN' | 'MANAGER' | 'FLEET_MANAGER' | 'ACCOUNTANT' | 'PROJECT_ASSOCIATES' | 'DRIVER' | 'PUMP_OPERATOR';
+export type HeaderNavRole = 'ADMIN' | 'MANAGER' | 'FLEET_MANAGER' | 'ACCOUNTANT' | 'FINANCE_MANAGER' | 'PROJECT_ASSOCIATES' | 'DRIVER' | 'PUMP_OPERATOR';
 
 export interface HeaderNavItem {
   label: string;
@@ -242,13 +242,49 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       },
     ],
   },
+  FINANCE_MANAGER: {
+    sections: [
+      { label: 'Overview', items: [{ label: 'Dashboard', route: '/fm/dashboard', icon: 'gauge', description: 'Finance overview — pending approvals, salary status, payables' }] },
+      {
+        label: 'Payments',
+        items: [
+          { label: 'Salary Payments', route: '/fm/salary', icon: 'banknote', description: 'Staff salary processing via Razorpay' },
+          { label: 'Driver Advances', route: '/fm/advances', icon: 'wallet', description: 'Issue trip advances to drivers' },
+          { label: 'Expense Approvals', route: '/fm/expenses', icon: 'receipt', description: 'Review and approve GPay expense receipts' },
+          { label: 'Payables & Schedules', route: '/fm/payables', icon: 'calendar', description: 'Rent, insurance, tax, permits — recurring payments' },
+          { label: 'Payout History', route: '/fm/history', icon: 'history', description: 'All outgoing payment records and UTR tracking' },
+        ],
+      },
+      {
+        label: 'Banking',
+        items: [
+          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts' },
+        ],
+      },
+      {
+        label: 'System',
+        items: [
+          { label: 'Attendance', route: '/my-work/attendance', icon: 'clock', description: 'Mark daily attendance with camera check-in' },
+          { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
+        ],
+      },
+    ],
+  },
   ACCOUNTANT: {
     sections: [
-      { label: 'Overview', items: [{ label: 'Dashboard', route: '/dashboard', icon: 'home', description: 'Company overview and quick KPIs' }] },
+      { label: 'Overview', items: [{ label: 'Dashboard', route: '/accountant/dashboard', icon: 'home', description: 'Accountant overview — IFIAS status, bank reconciliation' }] },
+      {
+        label: 'IFIAS',
+        items: [
+          { label: 'Invoice Workspace', route: '/accountant/invoice-workspace', icon: 'file', description: 'Britannia invoice automation — parse, validate, writeback', badge: 'new' },
+        ],
+      },
       {
         label: 'Finance',
         items: [
           { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts', badge: 'alerts' },
+          { label: 'Bank Statement', route: '/accountant/banking', icon: 'bank', description: 'Download statements & Tally reconciliation' },
+          { label: 'Driver Advance', route: '/accountant/payments', icon: 'wallet', description: 'Backup: issue driver advances' },
         ],
       },
       {
@@ -260,7 +296,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       {
         label: 'System',
         items: [
-          { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
           { label: 'Attendance', route: '/my-work/attendance', icon: 'clock', description: 'Mark daily attendance with camera check-in' },
           { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
         ],
@@ -414,6 +449,7 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
     label: 'Accountant',
     items: [
       { label: 'Finance Dashboard', path: '/accountant', roles: ['admin', 'accountant'] },
+      { label: 'Invoice Workspace', path: '/accountant/invoice-workspace', roles: ['admin', 'accountant'] },
       { label: 'Invoices', path: '/accountant/invoices', roles: ['admin', 'accountant'] },
       { label: 'Receivables', path: '/accountant/receivables', roles: ['admin', 'accountant'] },
       { label: 'Payables', path: '/accountant/payables', roles: ['admin', 'accountant'] },

@@ -153,6 +153,13 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_SECRET: Optional[str] = None
     RAZORPAY_WEBHOOK_SECRET: Optional[str] = None  # Set in Razorpay dashboard → Webhooks
 
+    # Razorpay X — outgoing payout for driver advance (₹1,500 per trip)
+    # Requires Razorpay X (business banking) account — separate from standard Razorpay
+    # NOT used for salaries, rent, insurance, or GPay field expenses
+    RAZORPAY_X_KEY_ID: Optional[str] = None
+    RAZORPAY_X_KEY_SECRET: Optional[str] = None
+    RAZORPAY_X_ACCOUNT_NUMBER: Optional[str] = None  # Linked current account
+
     # Logging
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

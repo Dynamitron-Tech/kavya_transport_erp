@@ -1,465 +1,562 @@
+/**
+ * Company Expenses Page (Accountant / Admin)
+ *
+ * Two tabs:
+ *   1. Pending Approvals — GPay expenses from drivers/field staff waiting review
+ *   2. All Expenses — filterable table of all company outgoing payments
+ *
+ * Smart Create modal with category-driven field logic.
+ */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { accountantService, tripService } from '@/services/dataService';
 import api from '@/services/api';
-import { ConfirmDialog } from '@/components/common/ConfirmDialog';
-import { KPICard, Modal } from '@/components/common/Modal';
+import { Modal, KPICard } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
-import DataTable from '@/components/common/DataTable';
+import DataTable, { Column } from '@/components/common/DataTable';
 import {
-  Receipt, Clock, CheckCircle, XCircle, Plus,
-  ThumbsUp, ThumbsDown, Fuel, Truck, Wrench, Building, MoreHorizontal, Pencil, Trash2,
+  Receipt, Clock, Plus, ThumbsUp, ThumbsDown,
+  Smartphone, Building2, CreditCard, AlertTriangle, ImageIcon, ExternalLink,
+  IndianRupee, Truck, User, BadgeAlert,
 } from 'lucide-react';
-import type { AccountantExpenseItem, AccountantExpenseCategory } from '@/types';
 import { safeArray } from '@/utils/helpers';
 import { useAuthStore } from '@/store/authStore';
-import { handleApiError } from '../../utils/handleApiError';
+import { handleApiError } from '@/utils/handleApiError';
 
-const CATEGORY_CONFIG: Record<AccountantExpenseCategory, { label: string; icon: typeof Fuel; color: string }> = {
-  fuel: { label: 'Fuel', icon: Fuel, color: 'text-red-600 bg-red-50' },
-  driver_allowance: { label: 'Driver Allowance', icon: Truck, color: 'text-blue-600 bg-blue-50' },
-  toll: { label: 'Toll', icon: Receipt, color: 'text-purple-600 bg-purple-50' },
-  vehicle_maintenance: { label: 'Maintenance', icon: Wrench, color: 'text-orange-600 bg-orange-50' },
-  office: { label: 'Office', icon: Building, color: 'text-teal-600 bg-teal-50' },
-  miscellaneous: { label: 'Miscellaneous', icon: MoreHorizontal, color: 'text-gray-600 bg-gray-100' },
+type ExpenseCategory =
+  | 'market_vehicle_rent' | 'driver_salary' | 'driver_advance'
+  | 'staff_salary' | 'tax' | 'insurance' | 'permit_compliance'
+  | 'vehicle_spare_part' | 'loading_unloading' | 'misc_field' | 'fuel';
+
+type PaymentMethod = 'netbanking' | 'gpay_upi' | 'razorpay' | 'razorpay_payout' | 'cash' | 'cheque';
+type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+
+const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+  market_vehicle_rent: 'Market Vehicle Rent',
+  driver_salary:       'Driver Salary',
+  driver_advance:      'Driver Advance (₹1,500)',
+  staff_salary:        'Staff Salary',
+  tax:                 'Tax Payment',
+  insurance:           'Vehicle Insurance',
+  permit_compliance:   'Permit / Compliance',
+  vehicle_spare_part:  'Vehicle Spare Parts',
+  loading_unloading:   'Loading / Unloading',
+  misc_field:          'Misc Field Expense',
+  fuel:                'Fuel',
 };
 
-const CATEGORY_TABS: { key: AccountantExpenseCategory | 'all'; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'fuel', label: 'Fuel' },
-  { key: 'driver_allowance', label: 'Driver' },
-  { key: 'toll', label: 'Toll' },
-  { key: 'vehicle_maintenance', label: 'Maintenance' },
-  { key: 'office', label: 'Office' },
-  { key: 'miscellaneous', label: 'Other' },
+const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
+  market_vehicle_rent: 'bg-blue-50 text-blue-700',
+  driver_salary:       'bg-indigo-50 text-indigo-700',
+  driver_advance:      'bg-cyan-50 text-cyan-700',
+  staff_salary:        'bg-violet-50 text-violet-700',
+  tax:                 'bg-red-50 text-red-700',
+  insurance:           'bg-orange-50 text-orange-700',
+  permit_compliance:   'bg-amber-50 text-amber-700',
+  vehicle_spare_part:  'bg-slate-50 text-slate-700',
+  loading_unloading:   'bg-teal-50 text-teal-700',
+  misc_field:          'bg-gray-50 text-gray-700',
+  fuel:                'bg-rose-50 text-rose-700',
+};
+
+const NETBANKING_ONLY: ExpenseCategory[] = [
+  'market_vehicle_rent', 'driver_salary', 'staff_salary',
+  'tax', 'insurance', 'permit_compliance',
 ];
 
+const GPAY_CATEGORIES: ExpenseCategory[] = [
+  'vehicle_spare_part', 'loading_unloading', 'misc_field',
+];
+
+const METHOD_LABELS: Record<PaymentMethod, string> = {
+  netbanking:      'Netbanking (NEFT/IMPS)',
+  gpay_upi:        'GPay / UPI',
+  razorpay:        'Razorpay',
+  razorpay_payout: 'Razorpay Payout',
+  cash:            'Cash',
+  cheque:          'Cheque',
+};
+
+const fmt = (paise: number) =>
+  `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+
+const statusColors: Record<ApprovalStatus, string> = {
+  pending:  'bg-amber-50 text-amber-700 border-amber-200',
+  approved: 'bg-green-50 text-green-700 border-green-200',
+  rejected: 'bg-red-50 text-red-700 border-red-200',
+};
+
+const MethodBadge = ({ method }: { method: PaymentMethod }) => {
+  const isGpay   = method === 'gpay_upi';
+  const isRzpOut = method === 'razorpay_payout';
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border
+      ${isGpay ? 'bg-green-50 text-green-700 border-green-200'
+        : isRzpOut ? 'bg-cyan-50 text-cyan-700 border-cyan-200'
+        : 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+      {isGpay ? <Smartphone size={10} /> : isRzpOut ? <CreditCard size={10} /> : <Building2 size={10} />}
+      {METHOD_LABELS[method] || method}
+    </span>
+  );
+};
+
 export default function AccountantExpensesPage() {
-  const { hasPermission, hasAnyRole } = useAuthStore();
-  const isAdminOrAccountant = hasAnyRole(['admin', 'accountant'] as any);
-  const canCreateExpense = hasPermission('expense:create');
-  const canApproveExpense = isAdminOrAccountant || hasPermission('expense:approve');
-  const [catFilter, setCatFilter] = useState<AccountantExpenseCategory | 'all'>('all');
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [deleteExpenseId, setDeleteExpenseId] = useState<number | null>(null);
-  const [editExpense, setEditExpense] = useState<AccountantExpenseItem | null>(null);
-  const [editForm, setEditForm] = useState({ amount: '', description: '' });
-  const [createForm, setCreateForm] = useState({
-    trip_id: '',
-    expense_type: 'FUEL',
-    amount: '',
-    description: '',
-  });
+  const { hasAnyRole } = useAuthStore();
+  const isApprover = hasAnyRole(['admin', 'accountant', 'manager'] as any);
   const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['accountant-expenses', catFilter],
-    queryFn: () => api.get('/expenses', { params: { page: 1, limit: 200, category: catFilter === 'all' ? undefined : catFilter } }),
+  const [activeTab, setActiveTab]       = useState<'pending' | 'all'>('pending');
+  const [filters, setFilters]           = useState({ category: '', payment_method: '', from_date: '', to_date: '' });
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isAdvanceOpen, setIsAdvanceOpen] = useState(false);
+  const [rejectState, setRejectState]   = useState<{ id: number; reason: string } | null>(null);
+  const [receiptModal, setReceiptModal] = useState<string | null>(null);
+
+  const [form, setForm] = useState({
+    expense_category: 'market_vehicle_rent' as ExpenseCategory,
+    payment_method:   'netbanking' as PaymentMethod,
+    amount: '', description: '',
+    expense_date: new Date().toISOString().slice(0, 10),
+    vehicle_id: '', driver_id: '', trip_id: '',
+    upi_ref_number: '', netbanking_ref: '', bank_name: '',
+    payee_name: '', period_from: '', period_to: '',
   });
 
-  const { data: tripsData } = useQuery({
-    queryKey: ['expenses-create-trips'],
-    queryFn: () => tripService.list({ page: 1, page_size: 500 }),
+  const [advForm, setAdvForm] = useState({ driver_id: '', trip_id: '' });
+
+  const isNetbankingOnly = NETBANKING_ONLY.includes(form.expense_category);
+  const amountRupees     = parseFloat(form.amount || '0') || 0;
+  const amountPaise      = Math.round(amountRupees * 100);
+  const gpayRequired     = (form.expense_category === 'vehicle_spare_part' && amountRupees > 3000)
+                         || (form.expense_category === 'loading_unloading'  && amountRupees > 4000);
+
+  const { data: pendingData, isLoading: pendingLoading } = useQuery({
+    queryKey: ['company-expenses', 'pending'],
+    queryFn: () => api.get('/expenses', { params: { status: 'pending', limit: 100 } }),
+  });
+
+  const { data: allData, isLoading: allLoading } = useQuery({
+    queryKey: ['company-expenses', 'all', filters],
+    queryFn: () => api.get('/expenses', {
+      params: {
+        limit: 200,
+        ...(filters.category       ? { category:       filters.category }       : {}),
+        ...(filters.payment_method ? { payment_method: filters.payment_method } : {}),
+        ...(filters.from_date      ? { from_date:      filters.from_date }      : {}),
+        ...(filters.to_date        ? { to_date:        filters.to_date }        : {}),
+      },
+    }),
+    enabled: activeTab === 'all',
+  });
+
+  const { data: summaryData } = useQuery({
+    queryKey: ['company-expenses', 'summary'],
+    queryFn: () => api.get('/expenses/summary'),
+  });
+
+  const { data: driversData } = useQuery({
+    queryKey: ['drivers-list'],
+    queryFn: () => api.get('/drivers', { params: { limit: 200 } }),
   });
 
   const approveMut = useMutation({
-    mutationFn: (id: number) => accountantService.approveExpense(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['accountant-expenses'] }),
+    mutationFn: (id: number) => api.patch(`/expenses/${id}/approve`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company-expenses'] }); toast.success('Expense approved.'); },
+    onError: (e) => handleApiError(e, 'Approval failed'),
   });
 
   const rejectMut = useMutation({
-    mutationFn: (id: number) => accountantService.rejectExpense(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['accountant-expenses'] }),
+    mutationFn: ({ id, reason }: { id: number; reason: string }) =>
+      api.patch(`/expenses/${id}/reject`, { rejection_reason: reason }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['company-expenses'] });
+      setRejectState(null);
+      toast.success('Expense rejected.');
+    },
+    onError: (e) => handleApiError(e, 'Rejection failed'),
   });
 
   const createMut = useMutation({
     mutationFn: () => {
-      const categoryMap: Record<string, string> = {
-        FUEL: 'fuel',
-        TOLL: 'toll',
-        LOADING: 'loading',
-        UNLOADING: 'unloading',
-        DRIVER_ALLOWANCE: 'advance',
-        BREAKDOWN_REPAIR: 'repair',
-        OTHER: 'misc',
+      const payload: Record<string, any> = {
+        expense_category: form.expense_category,
+        payment_method:   form.expense_category === 'driver_advance' ? 'razorpay_payout'
+                          : isNetbankingOnly ? 'netbanking'
+                          : gpayRequired ? 'gpay_upi'
+                          : form.payment_method,
+        amount_paise:     form.expense_category === 'driver_advance' ? 150000 : amountPaise,
+        description:      form.description,
+        expense_date:     form.expense_date,
       };
-      return tripService.addExpense(Number(createForm.trip_id), {
-        category: categoryMap[createForm.expense_type] || 'misc',
-        amount: Number(createForm.amount || 0),
-        description: createForm.description,
-        payment_mode: 'cash',
-        expense_date: new Date().toISOString(),
-      } as any);
+      if (form.vehicle_id)    payload.vehicle_id    = parseInt(form.vehicle_id);
+      if (form.driver_id)     payload.driver_id     = parseInt(form.driver_id);
+      if (form.trip_id)       payload.trip_id       = parseInt(form.trip_id);
+      if (form.upi_ref_number) payload.upi_ref_number = form.upi_ref_number;
+      if (form.netbanking_ref) payload.netbanking_ref = form.netbanking_ref;
+      if (form.bank_name)     payload.bank_name     = form.bank_name;
+      if (form.payee_name)    payload.payee_name    = form.payee_name;
+      if (form.period_from)   payload.period_from   = form.period_from;
+      if (form.period_to)     payload.period_to     = form.period_to;
+      return api.post('/expenses', payload);
     },
-    onSuccess: () => {
-      setIsCreateOpen(false);
-      qc.invalidateQueries({ queryKey: ['accountant-expenses'] });
-      toast.success('Expense created successfully.');
-      setCreateForm({
-        trip_id: '',
-        expense_type: 'FUEL',
-        amount: '',
-        description: '',
-      });
-    },
-    onError: (error) => {
-      handleApiError(error, 'Operation failed');
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company-expenses'] }); toast.success('Expense recorded.'); setIsCreateOpen(false); },
+    onError: (e) => handleApiError(e, 'Failed to create expense'),
   });
 
-  const updateMut = useMutation({
-    mutationFn: async ({ id, payload }: { id: number; payload: any }) => {
-      try {
-        return await api.put(`/expenses/${id}`, payload);
-      } catch {
-        return api.put(`/accountant/expenses/${id}`, payload);
-      }
+  const advanceMut = useMutation({
+    mutationFn: () => api.post('/expenses/driver-advance', {
+      driver_id: parseInt(advForm.driver_id),
+      ...(advForm.trip_id ? { trip_id: parseInt(advForm.trip_id) } : {}),
+    }),
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ['company-expenses'] });
+      toast.success(`Driver advance ₹1,500 issued. ${res?.data?.payout_status || ''}`);
+      setIsAdvanceOpen(false);
+      setAdvForm({ driver_id: '', trip_id: '' });
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['accountant-expenses'] });
-      toast.success('Expense updated successfully.');
-    },
-    onError: (error: any) => handleApiError(error, 'Failed to update expense.'),
+    onError: (e) => handleApiError(e, 'Failed to issue advance'),
   });
 
-  const deleteMut = useMutation({
-    mutationFn: async (id: number) => {
-      try {
-        return await api.delete(`/expenses/${id}`);
-      } catch {
-        return api.delete(`/accountant/expenses/${id}`);
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['accountant-expenses'] });
-      toast.success('Expense deleted successfully.');
-    },
-    onError: (error: any) => handleApiError(error, 'Failed to delete expense.'),
-  });
+  const pendingItems = safeArray<any>((pendingData as any)?.data ?? pendingData);
+  const allItems     = safeArray<any>((allData as any)?.data ?? allData);
+  const summaryItems = safeArray<any>((summaryData as any)?.data ?? summaryData);
+  const drivers      = safeArray<any>((driversData as any)?.data?.items ?? (driversData as any)?.items ?? driversData);
+  const thisMonthTotal = summaryItems.reduce((s: number, r: any) => s + (r.total_paise || 0), 0);
 
-  const handleEditExpense = (item: AccountantExpenseItem) => {
-    setEditExpense(item);
-    setEditForm({ amount: String(item.amount || ''), description: item.description || '' });
-  };
-
-  const rawItems = safeArray<any>((data as any)?.data?.items ?? (data as any)?.items ?? data);
-
-  const mapCategory = (category: string): AccountantExpenseCategory => {
-    const c = String(category || '').toLowerCase();
-    if (c === 'fuel') return 'fuel';
-    if (c === 'toll') return 'toll';
-    if (c === 'repair') return 'vehicle_maintenance';
-    if (c === 'advance') return 'driver_allowance';
-    if (c === 'misc') return 'miscellaneous';
-    if (c === 'office') return 'office';
-    if (c === 'vehicle_maintenance') return 'vehicle_maintenance';
-    if (c === 'driver_allowance') return 'driver_allowance';
-    return 'miscellaneous';
-  };
-
-  const items = rawItems.map((item: any) => ({
-    id: item.id,
-    expense_number: item.expense_number || String(item.id),
-    trip_ref: item.trip_ref || '-',
-    driver: item.driver || '-',
-    payment_method: item.payment_method || 'cash',
-    vendor: item.vendor || '-',
-    date: item.expense_date || item.date,
-    category: mapCategory(item.category),
-    description: item.description || '-',
-    vehicle: item.vehicle || '-',
-    amount: Number(item.amount || 0),
-    status: item.is_verified ? 'approved' : 'pending',
-    receipt_url: item.receipt_url || null,
-  })) as AccountantExpenseItem[];
-
-  const filteredItems = catFilter === 'all'
-    ? items
-    : items.filter((item) => item.category === catFilter);
-
-  const summary = {
-    total: items.reduce((sum, item) => sum + Number(item.amount || 0), 0),
-    pending_approval: items.filter((item) => item.status === 'pending').reduce((sum, item) => sum + Number(item.amount || 0), 0),
-    approved: items.filter((item) => item.status === 'approved').reduce((sum, item) => sum + Number(item.amount || 0), 0),
-    rejected: items.filter((item) => item.status === 'rejected').reduce((sum, item) => sum + Number(item.amount || 0), 0),
-  };
-
-  const fmt = (n: number) => `₹${(n ?? 0).toLocaleString('en-IN')}`;
-
-  const canEditExpense = (item: AccountantExpenseItem) => {
-    if (isAdminOrAccountant) return true;
-    if (!canCreateExpense) return false;
-    if (item.status !== 'pending') return false;
-
-    if (hasAnyRole(['project_associate'] as any)) return true;
-    if (hasAnyRole(['fleet_manager'] as any)) {
-      return item.category === 'fuel' || item.category === 'vehicle_maintenance';
-    }
-    return false;
-  };
-
-  const canDeleteExpense = (item: AccountantExpenseItem) => {
-    if (isAdminOrAccountant) return true;
-    if (hasAnyRole(['project_associate'] as any)) return item.status !== 'approved';
-    return false;
-  };
-
-  const columns = [
+  const pendingCols: Column<any>[] = [
+    { key: 'expense_date', header: 'Date', render: (e) => <span className="text-sm text-gray-600">{e.expense_date}</span> },
     {
-      key: 'date' as const,
-      header: 'Date',
-      render: (item: AccountantExpenseItem) => (
-        <span className="text-sm">{new Date(item.date).toLocaleDateString('en-IN')}</span>
+      key: 'expense_category', header: 'Category',
+      render: (e) => (
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${CATEGORY_COLORS[e.expense_category as ExpenseCategory] || 'bg-gray-50 text-gray-700'}`}>
+          {CATEGORY_LABELS[e.expense_category as ExpenseCategory] || e.expense_category}
+        </span>
       ),
     },
+    { key: 'amount_paise', header: 'Amount', render: (e) => <span className="font-bold text-sm">{fmt(e.amount_paise)}</span> },
+    { key: 'payment_method', header: 'Method', render: (e) => <MethodBadge method={e.payment_method} /> },
     {
-      key: 'category' as const,
-      header: 'Category',
-      render: (item: AccountantExpenseItem) => {
-        const cfg = CATEGORY_CONFIG[item.category as AccountantExpenseCategory] || CATEGORY_CONFIG.miscellaneous;
-        const Icon = cfg.icon;
-        return (
-          <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${cfg.color}`}>
-            <Icon size={12} /> {cfg.label}
-          </span>
-        );
-      },
+      key: 'upi_ref_number', header: 'UPI Ref',
+      render: (e) => e.upi_ref_number
+        ? <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{e.upi_ref_number}</span>
+        : <span className="text-gray-400 text-xs">—</span>,
     },
     {
-      key: 'description' as const,
-      header: 'Description',
-      render: (item: AccountantExpenseItem) => (
-        <div>
-          <p className="text-sm font-medium text-gray-900">{item.description}</p>
-          {item.receipt_url && <p className="text-xs text-gray-400">Receipt: {item.receipt_url}</p>}
+      key: 'receipt_image_url', header: 'Receipt',
+      render: (e) => e.receipt_image_url
+        ? <button onClick={() => setReceiptModal(e.receipt_image_url)} className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"><ImageIcon size={12} /> View</button>
+        : <span className="text-gray-400 text-xs">None</span>,
+    },
+    { key: 'description', header: 'Description', render: (e) => <span className="text-sm text-gray-700">{e.description || '—'}</span> },
+    {
+      key: 'id', header: 'Actions',
+      render: (e) => isApprover ? (
+        <div className="flex items-center gap-1">
+          <button onClick={() => approveMut.mutate(e.id)} disabled={approveMut.isPending} className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors" title="Approve"><ThumbsUp size={14} /></button>
+          <button onClick={() => setRejectState({ id: e.id, reason: '' })} className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors" title="Reject"><ThumbsDown size={14} /></button>
         </div>
+      ) : null,
+    },
+  ];
+
+  const allCols: Column<any>[] = [
+    { key: 'expense_date', header: 'Date', render: (e) => <span className="text-sm">{e.expense_date}</span> },
+    {
+      key: 'expense_category', header: 'Category',
+      render: (e) => (
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${CATEGORY_COLORS[e.expense_category as ExpenseCategory] || 'bg-gray-50 text-gray-700'}`}>
+          {CATEGORY_LABELS[e.expense_category as ExpenseCategory] || e.expense_category}
+        </span>
       ),
     },
+    { key: 'description', header: 'Description', render: (e) => <span className="text-sm text-gray-700">{e.description || '—'}</span> },
+    { key: 'amount_paise', header: 'Amount', sortable: true, render: (e) => <span className="font-semibold text-sm">{fmt(e.amount_paise)}</span> },
+    { key: 'payment_method', header: 'Method', render: (e) => <MethodBadge method={e.payment_method} /> },
     {
-      key: 'vehicle_number' as const,
-      header: 'Vehicle',
-      render: (item: AccountantExpenseItem) => (
-        <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded">{item.vehicle || '—'}</span>
-      ),
-    },
-    {
-      key: 'amount' as const,
-      header: 'Amount',
-      render: (item: AccountantExpenseItem) => (
-        <span className="font-bold text-sm">{fmt(item.amount)}</span>
-      ),
-    },
-    {
-      key: 'status' as const,
-      header: 'Status',
-      render: (item: AccountantExpenseItem) => {
-        const colors: Record<string, string> = {
-          pending: 'bg-amber-50 text-amber-700',
-          approved: 'bg-green-50 text-green-700',
-          rejected: 'bg-red-50 text-red-700',
-        };
-        return (
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${colors[item.status] || 'bg-gray-100'}`}>
-            {item.status}
-          </span>
-        );
+      key: 'upi_ref_number', header: 'Ref #',
+      render: (e) => {
+        const ref = e.upi_ref_number || e.netbanking_ref;
+        return ref ? <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{ref}</span> : <span className="text-gray-300 text-xs">—</span>;
       },
     },
     {
-      key: 'id' as const,
-      header: 'Actions',
-      render: (item: AccountantExpenseItem) => (
-          <div className="flex items-center gap-1">
-            {canEditExpense(item) && (
-              <button
-                onClick={() => handleEditExpense(item)}
-                className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
-                title="Edit"
-              >
-                <Pencil size={14} />
-              </button>
-            )}
-          {item.status === 'pending' && canApproveExpense && (
-            <>
-            <button
-              onClick={() => approveMut.mutate(item.id)}
-              className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
-              title="Approve"
-            >
-              <ThumbsUp size={14} />
-            </button>
-            <button
-              onClick={() => rejectMut.mutate(item.id)}
-              className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-              title="Reject"
-            >
-              <ThumbsDown size={14} />
-            </button>
-            </>
-          )}
-            {canDeleteExpense(item) && (
-              <button
-                onClick={() => {
-                  setDeleteExpenseId(item.id);
-                }}
-                className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-                title="Delete"
-              >
-                <Trash2 size={14} />
-              </button>
-            )}
-          </div>
+      key: 'approval_status', header: 'Status',
+      render: (e) => (
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${statusColors[e.approval_status as ApprovalStatus] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+          {e.approval_status}
+        </span>
+      ),
+    },
+    {
+      key: 'driver_id', header: 'Linked To',
+      render: (e) => (
+        <div className="text-xs text-gray-500 space-y-0.5">
+          {e.driver_id && <div className="flex items-center gap-1"><User size={10} /> Driver #{e.driver_id}</div>}
+          {e.vehicle_id && <div className="flex items-center gap-1"><Truck size={10} /> Vehicle #{e.vehicle_id}</div>}
+          {e.trip_id && <div className="flex items-center gap-1"><Receipt size={10} /> Trip #{e.trip_id}</div>}
+          {!e.driver_id && !e.vehicle_id && !e.trip_id && '—'}
+        </div>
       ),
     },
   ];
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="page-title">Expense Management</h1>
-          <p className="page-subtitle">Track and approve all operational expenses</p>
-          {!canCreateExpense && (
-            <p className="text-xs text-amber-700 mt-1">You have read/approval access for expenses. Create is restricted by role permission.</p>
-          )}
-          {!isAdminOrAccountant && (
-            <p className="text-xs text-gray-500 mt-1">Finalized expenses are locked. Project Associates cannot delete approved records. Fleet Managers can only edit fuel/maintenance pending entries.</p>
-          )}
+          <h1 className="page-title flex items-center gap-2"><IndianRupee size={22} className="text-primary-600" /> Company Expenses</h1>
+          <p className="page-subtitle">Field GPay · Salaries · Rent · Insurance · Permits · Driver Advances</p>
         </div>
-        {canCreateExpense && (
-          <button type="button" onClick={() => setIsCreateOpen(true)} className="btn-primary flex items-center gap-2">
-            <Plus size={16} /> Add Expense
-          </button>
+        {isApprover && (
+          <div className="flex items-center gap-2">
+            <button onClick={() => setIsAdvanceOpen(true)} className="btn-secondary flex items-center gap-2 text-cyan-700 border-cyan-300 hover:bg-cyan-50">
+              <BadgeAlert size={15} /> Issue Driver Advance
+            </button>
+            <button onClick={() => setIsCreateOpen(true)} className="btn-primary flex items-center gap-2">
+              <Plus size={15} /> Record Expense
+            </button>
+          </div>
         )}
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard title="Total Expenses" value={fmt(summary.total)} icon={<Receipt size={22} />} color="bg-blue-50 text-blue-600" />
-        <KPICard title="Pending Approval" value={fmt(summary.pending_approval)} icon={<Clock size={22} />} color="bg-amber-50 text-amber-600" />
-        <KPICard title="Approved" value={fmt(summary.approved)} icon={<CheckCircle size={22} />} color="bg-green-50 text-green-600" />
-        <KPICard title="Rejected" value={fmt(summary.rejected)} icon={<XCircle size={22} />} color="bg-red-50 text-red-600" />
+        <KPICard title="Pending Approvals" value={String(pendingItems.length)} icon={<Clock size={22} />} color="bg-amber-50 text-amber-600" />
+        <KPICard title="This Month Total" value={fmt(thisMonthTotal)} icon={<IndianRupee size={22} />} color="bg-blue-50 text-blue-600" />
+        <KPICard title="GPay Expenses" value={String(summaryItems.filter((r: any) => r.payment_method === 'gpay_upi').reduce((s: number, r: any) => s + (r.count || 0), 0))} icon={<Smartphone size={22} />} color="bg-green-50 text-green-600" />
+        <KPICard title="Netbanking Paid" value={fmt(summaryItems.filter((r: any) => r.payment_method === 'netbanking').reduce((s: number, r: any) => s + (r.total_paise || 0), 0))} icon={<Building2 size={22} />} color="bg-indigo-50 text-indigo-600" />
       </div>
 
-      {/* Category Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit overflow-x-auto">
-        {CATEGORY_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setCatFilter(tab.key)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
-              catFilter === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+        <button onClick={() => setActiveTab('pending')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center gap-2 ${activeTab === 'pending' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          <Clock size={14} /> Pending Approvals
+          {pendingItems.length > 0 && <span className="bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded-full">{pendingItems.length}</span>}
+        </button>
+        <button onClick={() => setActiveTab('all')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          All Expenses
+        </button>
       </div>
 
-      {/* Table */}
-      <div className="card p-0 overflow-hidden">
-        <DataTable
-          data={filteredItems}
-          columns={columns}
-          isLoading={isLoading}
-          emptyMessage="No expenses found"
-        />
-      </div>
+      {activeTab === 'pending' && (
+        <div className="card p-0 overflow-hidden">
+          <div className="px-4 py-3 border-b bg-amber-50">
+            <p className="text-sm text-amber-800 flex items-center gap-2">
+              <AlertTriangle size={14} /> Review GPay receipts before approving. Check UPI ref against receipt photo.
+            </p>
+          </div>
+          <DataTable data={pendingItems} columns={pendingCols} isLoading={pendingLoading} emptyMessage="No pending expenses — all caught up!" />
+        </div>
+      )}
+
+      {activeTab === 'all' && (
+        <div className="space-y-3">
+          <div className="card">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
+                <select className="input-field text-sm" value={filters.category} onChange={(e) => setFilters((p) => ({ ...p, category: e.target.value }))}>
+                  <option value="">All categories</option>
+                  {(Object.entries(CATEGORY_LABELS) as [ExpenseCategory, string][]).map(([val, label]) => (
+                    <option key={val} value={val}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Payment Method</label>
+                <select className="input-field text-sm" value={filters.payment_method} onChange={(e) => setFilters((p) => ({ ...p, payment_method: e.target.value }))}>
+                  <option value="">All methods</option>
+                  {(Object.entries(METHOD_LABELS) as [PaymentMethod, string][]).map(([val, label]) => (
+                    <option key={val} value={val}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">From Date</label>
+                <input type="date" className="input-field text-sm" value={filters.from_date} onChange={(e) => setFilters((p) => ({ ...p, from_date: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">To Date</label>
+                <input type="date" className="input-field text-sm" value={filters.to_date} onChange={(e) => setFilters((p) => ({ ...p, to_date: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+          <div className="card p-0 overflow-hidden">
+            <DataTable data={allItems} columns={allCols} isLoading={allLoading} emptyMessage="No expenses found." />
+          </div>
+        </div>
+      )}
 
       {/* Create Expense Modal */}
-      <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Add New Expense" size="md">
+      <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Record Expense" size="lg">
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); createMut.mutate(); }}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Trip</label>
-            <select className="input-field" value={createForm.trip_id} onChange={(e) => setCreateForm((prev) => ({ ...prev, trip_id: e.target.value }))} required>
-              <option value="">Select trip</option>
-              {safeArray<any>((tripsData as any)?.items ?? tripsData).map((trip: any) => (
-                <option key={trip.id} value={trip.id}>{trip.trip_number || `Trip #${trip.id}`}</option>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Expense Category *</label>
+            <select className="input-field" value={form.expense_category} onChange={(e) => {
+              const cat = e.target.value as ExpenseCategory;
+              setForm((p) => ({
+                ...p, expense_category: cat,
+                payment_method: NETBANKING_ONLY.includes(cat) ? 'netbanking' : GPAY_CATEGORIES.includes(cat) ? 'gpay_upi' : cat === 'driver_advance' ? 'razorpay_payout' : p.payment_method,
+              }));
+            }} required>
+              {(Object.entries(CATEGORY_LABELS) as [ExpenseCategory, string][]).map(([val, label]) => (
+                <option key={val} value={val}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹) *</label>
+            {form.expense_category === 'driver_advance'
+              ? <input type="text" className="input-field bg-gray-50 text-gray-500 cursor-not-allowed" value="₹1,500 (fixed)" readOnly />
+              : <input type="number" className="input-field" placeholder="0" value={form.amount} onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))} min={1} required />
+            }
+          </div>
+
+          {gpayRequired && (
+            <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <AlertTriangle size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-amber-800">
+                Amount above {form.expense_category === 'vehicle_spare_part' ? '₹3,000' : '₹4,000'} — must use GPay. UPI ref is required.
+              </p>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method *</label>
+            {isNetbankingOnly || form.expense_category === 'driver_advance'
+              ? <input type="text" className="input-field bg-gray-50 text-gray-500 cursor-not-allowed" value={form.expense_category === 'driver_advance' ? 'Razorpay Payout' : 'Netbanking (NEFT/IMPS/RTGS)'} readOnly />
+              : (
+                <select className="input-field" value={gpayRequired ? 'gpay_upi' : form.payment_method} onChange={(e) => setForm((p) => ({ ...p, payment_method: e.target.value as PaymentMethod }))} disabled={gpayRequired} required>
+                  <option value="gpay_upi">GPay / UPI</option>
+                  <option value="cash">Cash</option>
+                  {!GPAY_CATEGORIES.includes(form.expense_category) && <option value="netbanking">Netbanking</option>}
+                  <option value="cheque">Cheque</option>
+                </select>
+              )
+            }
+          </div>
+
+          {(form.payment_method === 'gpay_upi' || gpayRequired) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">GPay UPI Ref Number {gpayRequired ? '*' : ''}</label>
+              <input type="text" className="input-field font-mono" placeholder="e.g. T20260409123456789" value={form.upi_ref_number} onChange={(e) => setForm((p) => ({ ...p, upi_ref_number: e.target.value }))} required={gpayRequired} />
+            </div>
+          )}
+
+          {(form.payment_method === 'netbanking' || isNetbankingOnly) && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">NEFT/IMPS Ref (UTR)</label>
+                <input type="text" className="input-field font-mono" placeholder="Bank UTR number" value={form.netbanking_ref} onChange={(e) => setForm((p) => ({ ...p, netbanking_ref: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                <input type="text" className="input-field" placeholder="HDFC / ICICI / SBI..." value={form.bank_name} onChange={(e) => setForm((p) => ({ ...p, bank_name: e.target.value }))} />
+              </div>
+            </div>
+          )}
+
+          {isNetbankingOnly && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payee / Vendor Name</label>
+                <input type="text" className="input-field" placeholder="Who was paid?" value={form.payee_name} onChange={(e) => setForm((p) => ({ ...p, payee_name: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Expense Date *</label>
+                <input type="date" className="input-field" value={form.expense_date} onChange={(e) => setForm((p) => ({ ...p, expense_date: e.target.value }))} required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Period From</label>
+                <input type="date" className="input-field" value={form.period_from} onChange={(e) => setForm((p) => ({ ...p, period_from: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Period To</label>
+                <input type="date" className="input-field" value={form.period_to} onChange={(e) => setForm((p) => ({ ...p, period_to: e.target.value }))} />
+              </div>
+            </div>
+          )}
+
+          {form.expense_category === 'driver_advance' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Driver *</label>
+              <select className="input-field" value={form.driver_id} onChange={(e) => setForm((p) => ({ ...p, driver_id: e.target.value }))} required>
+                <option value="">Select driver</option>
+                {drivers.map((d: any) => (
+                  <option key={d.id} value={d.id}>{d.first_name} {d.last_name} — {d.upi_id ? '✓ UPI' : '⚠ No UPI'}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea className="input-field" rows={2} placeholder="Brief description..." value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t">
+            <button type="button" onClick={() => setIsCreateOpen(false)} className="btn-secondary">Cancel</button>
+            <SubmitButton isLoading={createMut.isPending} label={form.expense_category === 'driver_advance' ? 'Issue Advance' : 'Record Expense'} loadingLabel="Saving..." disabled={form.expense_category !== 'driver_advance' && (!form.amount || amountPaise <= 0)} />
+          </div>
+        </form>
+      </Modal>
+
+      {/* Driver Advance Quick Modal */}
+      <Modal isOpen={isAdvanceOpen} onClose={() => setIsAdvanceOpen(false)} title="Issue Driver Advance — ₹1,500" size="sm">
+        <div className="space-y-4">
+          <div className="p-3 bg-cyan-50 border border-cyan-200 rounded-lg text-sm text-cyan-800">
+            Standard ₹1,500 advance issued to driver UPI <strong>before trip starts</strong>. Requires UPI ID on driver profile.
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Driver *</label>
+            <select className="input-field" value={advForm.driver_id} onChange={(e) => setAdvForm((p) => ({ ...p, driver_id: e.target.value }))} required>
+              <option value="">Select driver</option>
+              {drivers.map((d: any) => (
+                <option key={d.id} value={d.id}>{d.first_name} {d.last_name} — {d.upi_id ? '✓ UPI: ' + d.upi_id : '⚠ No UPI'}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Expense Type</label>
-            <select className="input-field" value={createForm.expense_type} onChange={(e) => setCreateForm((prev) => ({ ...prev, expense_type: e.target.value }))}>
-              <option value="FUEL">FUEL</option>
-              <option value="TOLL">TOLL</option>
-              <option value="LOADING">LOADING</option>
-              <option value="UNLOADING">UNLOADING</option>
-              <option value="DRIVER_ALLOWANCE">DRIVER_ALLOWANCE</option>
-              <option value="BREAKDOWN_REPAIR">BREAKDOWN_REPAIR</option>
-              <option value="OTHER">OTHER</option>
-            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Trip # (optional)</label>
+            <input type="number" className="input-field" placeholder="Trip ID" value={advForm.trip_id} onChange={(e) => setAdvForm((p) => ({ ...p, trip_id: e.target.value }))} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="flex justify-end gap-3 pt-3 border-t">
+            <button type="button" onClick={() => setIsAdvanceOpen(false)} className="btn-secondary">Cancel</button>
+            <button type="button" disabled={!advForm.driver_id || advanceMut.isPending} onClick={() => advanceMut.mutate()} className="btn-primary">
+              {advanceMut.isPending ? 'Issuing...' : 'Issue ₹1,500 Advance'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Reject Reason Modal */}
+      {rejectState && (
+        <Modal isOpen onClose={() => setRejectState(null)} title="Reject Expense" size="sm">
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
-              <input type="number" className="input-field" placeholder="0.00" value={createForm.amount} onChange={(e) => setCreateForm((prev) => ({ ...prev, amount: e.target.value }))} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rejection Reason *</label>
+              <textarea className="input-field" rows={3} placeholder="Explain why..." value={rejectState.reason} onChange={(e) => setRejectState((p) => p ? { ...p, reason: e.target.value } : null)} />
+            </div>
+            <div className="flex justify-end gap-3 pt-3 border-t">
+              <button type="button" onClick={() => setRejectState(null)} className="btn-secondary">Cancel</button>
+              <button type="button" disabled={!rejectState.reason.trim() || rejectMut.isPending} onClick={() => rejectMut.mutate({ id: rejectState.id, reason: rejectState.reason })} className="btn-danger">
+                {rejectMut.isPending ? 'Rejecting...' : 'Reject'}
+              </button>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea className="input-field" rows={2} placeholder="Describe the expense..." value={createForm.description} onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))} />
-          </div>
-          <div className="flex justify-end gap-3 pt-3 border-t">
-            <button type="button" onClick={() => setIsCreateOpen(false)} className="btn-secondary">Cancel</button>
-            <SubmitButton isLoading={createMut.isPending} label="Submit Expense" loadingLabel="Submitting..." disabled={!createForm.trip_id || !createForm.amount || !createForm.description} />
-          </div>
-        </form>
-      </Modal>
+        </Modal>
+      )}
 
-      <Modal isOpen={!!editExpense} onClose={() => setEditExpense(null)} title="Edit Expense" size="md">
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!editExpense) return;
-            const amount = Number(editForm.amount);
-            if (Number.isNaN(amount) || amount <= 0) {
-              toast.error('Invalid amount.');
-              return;
-            }
-            updateMut.mutate({
-              id: editExpense.id,
-              payload: {
-                amount,
-                description: editForm.description,
-                category: editExpense.category,
-                date: editExpense.date,
-              },
-            });
-            setEditExpense(null);
-          }}
-        >
-          <div>
-            <label className="label">Amount (₹)</label>
-            <input type="number" className="input-field" value={editForm.amount} onChange={(e) => setEditForm((p) => ({ ...p, amount: e.target.value }))} required />
+      {/* Receipt Image Viewer */}
+      {receiptModal && (
+        <Modal isOpen onClose={() => setReceiptModal(null)} title="Receipt" size="md">
+          <div className="text-center">
+            <img src={receiptModal} alt="Expense receipt" className="max-w-full rounded-lg border border-gray-200" onError={(e) => { (e.target as HTMLImageElement).alt = 'Image not available'; }} />
+            <a href={receiptModal} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
+              <ExternalLink size={14} /> Open full size
+            </a>
           </div>
-          <div>
-            <label className="label">Description</label>
-            <textarea className="input-field" rows={2} value={editForm.description} onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))} required />
-          </div>
-          <div className="flex justify-end gap-3 pt-3 border-t">
-            <button type="button" className="btn-secondary" onClick={() => setEditExpense(null)}>Cancel</button>
-            <SubmitButton isLoading={updateMut.isPending} label="Save Changes" />
-          </div>
-        </form>
-      </Modal>
-
-      <ConfirmDialog
-        isOpen={deleteExpenseId !== null}
-        title="Delete Expense"
-        message="This action cannot be undone. Are you sure?"
-        confirmLabel="Delete"
-        isDangerous={true}
-        onConfirm={() => {
-          if (deleteExpenseId === null) return;
-          deleteMut.mutate(deleteExpenseId);
-          setDeleteExpenseId(null);
-        }}
-        onCancel={() => setDeleteExpenseId(null)}
-      />
+        </Modal>
+      )}
     </div>
   );
 }
-

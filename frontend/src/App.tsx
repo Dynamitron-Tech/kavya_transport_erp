@@ -122,6 +122,16 @@ import AccountantFuelExpensePage from '@/pages/accountant/AccountantFuelExpenseP
 import AccountantBankingPage from '@/pages/accountant/AccountantBankingPage';
 import AccountantLedgerPage from '@/pages/accountant/AccountantLedgerPage';
 import AccountantReportsPage from '@/pages/accountant/AccountantReportsPage';
+// Finance Manager
+import FinanceManagerDashboardPage from '@/pages/finance-manager/FinanceManagerDashboardPage';
+import SalaryPaymentsPage from '@/pages/finance-manager/SalaryPaymentsPage';
+import ExpenseApprovalsPage from '@/pages/finance-manager/ExpenseApprovalsPage';
+import PayablesDashboardPage from '@/pages/finance-manager/PayablesDashboardPage';
+import PayoutHistoryPage from '@/pages/finance-manager/PayoutHistoryPage';
+
+// IFIAS (Accountant)
+import InvoiceWorkspacePage from '@/pages/finance/InvoiceWorkspacePage';
+
 import ConnectivityPage from '@/pages/admin/ConnectivityPage';
 import EmployeesPage from '@/pages/admin/EmployeesPage';
 import AttendancePage from '@/pages/admin/AttendancePage';
@@ -276,6 +286,7 @@ function App() {
           {/* Accountant */}
           <Route path="/accountant/dashboard" element={<AccountantDashboardPage />} />
           <Route path="/accountant" element={<AccountantDashboardPage />} />
+          <Route path="/accountant/invoice-workspace" element={<InvoiceWorkspacePage />} />
           <Route path="/accountant/invoices" element={<AuthGuard requiredPermission="invoice:read"><AccountantInvoicesPage /></AuthGuard>} />
           <Route path="/accountant/receivables" element={<AuthGuard requiredPermission="invoice:read"><AccountantReceivablesPage /></AuthGuard>} />
           <Route path="/accountant/payables" element={<AuthGuard requiredPermission="payment:read"><AccountantPayablesPage /></AuthGuard>} />
@@ -285,6 +296,15 @@ function App() {
           <Route path="/accountant/banking" element={<AccountantBankingPage />} />
           <Route path="/accountant/ledger" element={<AuthGuard requiredPermission="ledger:read"><AccountantLedgerPage /></AuthGuard>} />
           <Route path="/accountant/reports" element={<AccountantReportsPage />} />
+
+          {/* Finance Manager */}
+          <Route path="/fm/dashboard" element={<FinanceManagerDashboardPage />} />
+          <Route path="/fm" element={<FinanceManagerDashboardPage />} />
+          <Route path="/fm/salary" element={<SalaryPaymentsPage />} />
+          <Route path="/fm/advances" element={<SalaryPaymentsPage />} />
+          <Route path="/fm/expenses" element={<ExpenseApprovalsPage />} />
+          <Route path="/fm/payables" element={<PayablesDashboardPage />} />
+          <Route path="/fm/history" element={<PayoutHistoryPage />} />
 
           {/* Pump Operator */}
           <Route path="/pump/dashboard" element={<PumpDashboardPage />} />

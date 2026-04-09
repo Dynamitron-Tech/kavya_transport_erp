@@ -19,7 +19,7 @@ from app.models.postgres.user import User
 router = APIRouter()
 
 
-def _settlement_to_dict(s, driver=None, trip=None):
+def _settlement_to_dict(s, driver=None, trip=None, driver_user=None):
     """Convert DriverSettlement row to the dict format the Flutter screens expect."""
     gross_paise = int(float(s.gross_amount or 0) * 100)
     advance_paise = int(float(s.advance_deducted or 0) * 100)
@@ -63,6 +63,20 @@ def _settlement_to_dict(s, driver=None, trip=None):
         d["driver_first_name"] = None
         d["driver_last_name"] = None
 
+    # Banking info from User model (for the accountant to know where to transfer)
+    if driver_user:
+        d["driver_bank_name"] = driver_user.bank_name
+        d["driver_account_number"] = driver_user.account_number
+        d["driver_ifsc_code"] = driver_user.ifsc_code
+        d["driver_account_type"] = getattr(driver_user, "account_type", None)
+        d["driver_upi_id"] = driver_user.upi_id
+    else:
+        d["driver_bank_name"] = None
+        d["driver_account_number"] = None
+        d["driver_ifsc_code"] = None
+        d["driver_account_type"] = None
+        d["driver_upi_id"] = None
+
     return d
 
 
@@ -104,8 +118,11 @@ async def get_driver_settlements(
         trip_rows = (await db.execute(select(Trip).where(Trip.id.in_(trip_ids)))).scalars().all()
         trips_map = {t.id: t for t in trip_rows}
 
+    # Load user record for banking info
+    driver_user = await db.get(User, driver.user_id) if driver.user_id else None
+
     data = [
-        _settlement_to_dict(s, driver=driver, trip=trips_map.get(s.trip_id))
+        _settlement_to_dict(s, driver=driver, trip=trips_map.get(s.trip_id), driver_user=driver_user)
         for s in settlements
     ]
     return APIResponse(success=True, data=data)
@@ -113,6 +130,7 @@ async def get_driver_settlements(
 
 # ─── Accountant: list settlements ────────────────────────────────────────────
 
+@router.get("", response_model=APIResponse)  # no-trailing-slash alias (redirect_slashes=False)
 @router.get("/", response_model=APIResponse)
 async def list_payables(
     type: Optional[str] = Query(None),
@@ -144,6 +162,13 @@ async def list_payables(
         rows = (await db.execute(select(Driver).where(Driver.id.in_(driver_ids)))).scalars().all()
         drivers_map = {d.id: d for d in rows}
 
+    # Pre-load User records for banking info
+    user_ids = list({d.user_id for d in drivers_map.values() if d.user_id})
+    users_map = {}
+    if user_ids:
+        u_rows = (await db.execute(select(User).where(User.id.in_(user_ids)))).scalars().all()
+        users_map = {u.id: u for u in u_rows}
+
     trips_map = {}
     if trip_ids:
         rows = (await db.execute(select(Trip).where(Trip.id.in_(trip_ids)))).scalars().all()
@@ -154,6 +179,7 @@ async def list_payables(
             s,
             driver=drivers_map.get(s.driver_id),
             trip=trips_map.get(s.trip_id),
+            driver_user=users_map.get(drivers_map.get(s.driver_id).user_id) if drivers_map.get(s.driver_id) else None,
         )
         for s in settlements
     ]

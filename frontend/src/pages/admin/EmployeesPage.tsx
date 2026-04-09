@@ -49,6 +49,7 @@ const ROLE_OPTIONS = [
   { value: 'manager', label: 'Manager', description: 'Operations & team management', color: 'bg-blue-50 border-blue-200 text-blue-700' },
   { value: 'fleet_manager', label: 'Fleet Manager', description: 'Vehicle & driver oversight', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
   { value: 'accountant', label: 'Accountant', description: 'Finance & billing access', color: 'bg-green-50 border-green-200 text-green-700' },
+  { value: 'finance_manager', label: 'Finance Manager', description: 'Payments, payroll & payouts', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
   { value: 'project_associate', label: 'Project Associate', description: 'Job & trip coordination', color: 'bg-amber-50 border-amber-200 text-amber-700' },
   { value: 'driver', label: 'Driver', description: 'Trip execution & mobile app', color: 'bg-purple-50 border-purple-200 text-purple-700' },
   { value: 'pump_operator', label: 'Pump Operator', description: 'Fuel dispensing & stock management', color: 'bg-orange-50 border-orange-200 text-orange-700' },
