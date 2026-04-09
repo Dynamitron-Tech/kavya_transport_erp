@@ -1,70 +1,62 @@
+/**
+ * Payments Page — INCOMING ONLY
+ *
+ * This page handles Razorpay-collected client payments only:
+ *   - Send a payment link for an unpaid invoice
+ *   - View history of Razorpay-collected payments
+ *
+ * Company OUTGOING expenses (salaries, GPay, etc.) are managed in
+ * AccountantExpensesPage (/accountant/expenses).
+ */
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { financeService } from '@/services/dataService';
+import api from '@/services/api';
 import DataTable, { Column } from '@/components/common/DataTable';
 import { Modal, StatusBadge } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import type { Payment, FilterParams } from '@/types';
 import { safeArray } from '@/utils/helpers';
 import { handleApiError } from '@/utils/handleApiError';
+import { SendHorizonal, CreditCard, IndianRupee, Info } from 'lucide-react';
+import { financeService } from '@/services/dataService';
 
 export default function PaymentsPage() {
   const qc = useQueryClient();
   const [filters, setFilters] = useState<FilterParams>({ page: 1, page_size: 20 });
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [form, setForm] = useState({
-    payment_date: new Date().toISOString().slice(0, 10),
-    payment_type: 'received',
-    amount: '',
-    payment_method: 'cash',
-    invoice_id: '',
-    client_id: '',
-    vendor_id: '',
-    transaction_ref: '',
-    remarks: '',
-  });
+  const [isSendLinkOpen, setIsSendLinkOpen] = useState(false);
+  const [linkForm, setLinkForm] = useState({ invoice_id: '', client_phone: '', notes: '' });
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['payments', filters],
     queryFn: () => financeService.listPayments(filters),
   });
 
-  const createMutation = useMutation({
-    mutationFn: () => financeService.createPayment({
-      payment_date: form.payment_date,
-      amount: Number(form.amount || 0),
-      method: form.payment_method as any,
-      invoice_id: form.invoice_id ? Number(form.invoice_id) : undefined,
-      client_id: form.client_id ? Number(form.client_id) : undefined,
-      vendor_id: form.vendor_id ? Number(form.vendor_id) : undefined,
-      reference_number: form.transaction_ref || undefined,
-      notes: form.remarks || undefined,
-    } as any),
+  const { data: invoicesData } = useQuery({
+    queryKey: ['invoices-unpaid'],
+    queryFn: () => api.get('/finance/invoices', { params: { status: 'sent', limit: 100 } }),
+    enabled: isSendLinkOpen,
+  });
+
+  const sendLinkMutation = useMutation({
+    mutationFn: () =>
+      api.post('/finance/payment-links', {
+        invoice_id: parseInt(linkForm.invoice_id),
+        ...(linkForm.client_phone ? { client_phone: linkForm.client_phone } : {}),
+        ...(linkForm.notes ? { notes: linkForm.notes } : {}),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['payments'] });
-      qc.invalidateQueries({ queryKey: ['ledger'] });
-      qc.invalidateQueries({ queryKey: ['invoices'] });
-      qc.invalidateQueries({ queryKey: ['receivables'] });
-      qc.invalidateQueries({ queryKey: ['payables'] });
-      toast.success('Payment recorded successfully.');
-      setIsCreateOpen(false);
-      setForm({
-        payment_date: new Date().toISOString().slice(0, 10),
-        payment_type: 'received',
-        amount: '',
-        payment_method: 'cash',
-        invoice_id: '',
-        client_id: '',
-        vendor_id: '',
-        transaction_ref: '',
-        remarks: '',
-      });
+      qc.invalidateQueries({ queryKey: ['invoices-unpaid'] });
+      toast.success('Payment link sent to client.');
+      setIsSendLinkOpen(false);
+      setLinkForm({ invoice_id: '', client_phone: '', notes: '' });
     },
-    onError: (error) => handleApiError(error, 'Failed to record payment'),
+    onError: (e) => handleApiError(e, 'Failed to send payment link'),
   });
 
   const payments = safeArray<Payment>((data as any)?.data ?? (data as any)?.items ?? data);
+  const invoices = safeArray<any>((invoicesData as any)?.data?.items ?? (invoicesData as any)?.data ?? invoicesData);
 
   const columns: Column<Payment>[] = [
     {
@@ -77,12 +69,17 @@ export default function PaymentsPage() {
       key: 'amount',
       header: 'Amount',
       sortable: true,
-      render: (p) => <span className="font-semibold">₹{Number((p.amount || 0) ?? 0).toLocaleString('en-IN')}</span>,
+      render: (p) => <span className="font-semibold">₹{Number(p.amount || 0).toLocaleString('en-IN')}</span>,
     },
     {
       key: 'method',
       header: 'Method',
-      render: (p) => <span className="capitalize">{((p as any).payment_method || p.method || '—').toString().replace('_', ' ')}</span>,
+      render: (p) => (
+        <span className="inline-flex items-center gap-1 text-sm">
+          <CreditCard size={12} className="text-gray-400" />
+          {((p as any).payment_method || p.method || 'Razorpay').toString().replace(/_/g, ' ')}
+        </span>
+      ),
     },
     {
       key: 'payment_date',
@@ -92,8 +89,11 @@ export default function PaymentsPage() {
     },
     {
       key: 'reference_number',
-      header: 'Reference',
-      render: (p) => (p as any).transaction_ref || p.reference_number || '—',
+      header: 'Razorpay Ref',
+      render: (p) => {
+        const ref = (p as any).transaction_ref || p.reference_number;
+        return ref ? <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{ref}</span> : <span className="text-gray-400 text-xs">—</span>;
+      },
     },
     {
       key: 'status',
@@ -104,12 +104,27 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="page-header">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="page-title">Payments</h1>
-          <p className="page-subtitle">Track incoming and outgoing payments</p>
+          <h1 className="page-title flex items-center gap-2">
+            <IndianRupee size={22} className="text-primary-600" /> Client Payments
+          </h1>
+          <p className="page-subtitle">Razorpay-collected payments from client invoices</p>
         </div>
+        <button onClick={() => setIsSendLinkOpen(true)} className="btn-primary flex items-center gap-2">
+          <SendHorizonal size={15} /> Send Payment Link
+        </button>
       </div>
+
+      <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <Info size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+        <p className="text-sm text-blue-800">
+          This page shows <strong>incoming</strong> client payments via Razorpay only.
+          For outgoing expenses (salaries, GPay, driver advances), go to{' '}
+          <a href="/accountant/expenses" className="underline font-medium">Company Expenses</a>.
+        </p>
+      </div>
+
       <DataTable
         columns={columns}
         data={payments}
@@ -117,147 +132,57 @@ export default function PaymentsPage() {
         page={filters.page}
         pageSize={filters.page_size}
         isLoading={isLoading}
-        searchPlaceholder="Search payments..."
+        searchPlaceholder="Search by ref or client..."
         onSearch={(q) => setFilters({ ...filters, search: q, page: 1 })}
         onPageChange={(p) => setFilters({ ...filters, page: p })}
-        onAdd={() => setIsCreateOpen(true)}
-        addLabel="Record Payment"
         onRefresh={() => refetch()}
       />
 
-      <Modal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        title="Record Payment"
-        size="md"
-      >
+      <Modal isOpen={isSendLinkOpen} onClose={() => setIsSendLinkOpen(false)} title="Send Payment Link to Client" size="md">
         <form
           className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!form.amount || Number(form.amount) <= 0) {
-              toast.error('Enter a valid amount');
-              return;
-            }
-            createMutation.mutate();
-          }}
+          onSubmit={(e) => { e.preventDefault(); if (!linkForm.invoice_id) { toast.error('Select an invoice'); return; } sendLinkMutation.mutate(); }}
         >
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Payment Date</label>
-              <input
-                type="date"
-                className="input-field"
-                value={form.payment_date}
-                onChange={(e) => setForm({ ...form, payment_date: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="label">Type</label>
-              <select
-                className="input-field"
-                value={form.payment_type}
-                onChange={(e) => setForm({ ...form, payment_type: e.target.value })}
-              >
-                <option value="received">Received</option>
-                <option value="paid">Paid</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Amount</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className="input-field"
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="label">Method</label>
-              <select
-                className="input-field"
-                value={form.payment_method}
-                onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
-              >
-                <option value="cash">Cash</option>
-                <option value="bank_transfer">Bank Transfer</option>
-                <option value="cheque">Cheque</option>
-                <option value="upi">UPI</option>
-                <option value="neft">NEFT</option>
-                <option value="rtgs">RTGS</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="label">Invoice ID</label>
-              <input
-                type="number"
-                min="1"
-                className="input-field"
-                value={form.invoice_id}
-                onChange={(e) => setForm({ ...form, invoice_id: e.target.value })}
-                placeholder="Optional"
-              />
-            </div>
-            <div>
-              <label className="label">Client ID</label>
-              <input
-                type="number"
-                min="1"
-                className="input-field"
-                value={form.client_id}
-                onChange={(e) => setForm({ ...form, client_id: e.target.value })}
-                placeholder="Optional"
-              />
-            </div>
-            <div>
-              <label className="label">Vendor ID</label>
-              <input
-                type="number"
-                min="1"
-                className="input-field"
-                value={form.vendor_id}
-                onChange={(e) => setForm({ ...form, vendor_id: e.target.value })}
-                placeholder="Optional"
-              />
-            </div>
-          </div>
-
           <div>
-            <label className="label">Transaction Ref</label>
+            <label className="label">Invoice *</label>
+            <select
+              className="input-field"
+              value={linkForm.invoice_id}
+              onChange={(e) => setLinkForm({ ...linkForm, invoice_id: e.target.value })}
+              required
+            >
+              <option value="">Select unpaid invoice...</option>
+              {invoices.map((inv: any) => (
+                <option key={inv.id} value={inv.id}>
+                  {inv.invoice_number} — {inv.client_name || `Client #${inv.client_id}`} — ₹{Number(inv.total_amount || 0).toLocaleString('en-IN')}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Client WhatsApp / Phone (optional)</label>
             <input
+              type="tel"
               className="input-field"
-              value={form.transaction_ref}
-              onChange={(e) => setForm({ ...form, transaction_ref: e.target.value })}
-              placeholder="Optional"
+              placeholder="+91 98765 43210"
+              value={linkForm.client_phone}
+              onChange={(e) => setLinkForm({ ...linkForm, client_phone: e.target.value })}
             />
+            <p className="text-xs text-gray-400 mt-1">If provided, the link will be sent via WhatsApp.</p>
           </div>
-
           <div>
-            <label className="label">Remarks</label>
-            <textarea
+            <label className="label">Notes (optional)</label>
+            <input
+              type="text"
               className="input-field"
-              rows={3}
-              value={form.remarks}
-              onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-              placeholder="Optional"
+              placeholder="Description shown on payment link"
+              value={linkForm.notes}
+              onChange={(e) => setLinkForm({ ...linkForm, notes: e.target.value })}
             />
           </div>
-
           <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
-            <button type="button" className="btn-secondary" onClick={() => setIsCreateOpen(false)}>
-              Cancel
-            </button>
-            <SubmitButton isLoading={createMutation.isPending} label="Record Payment" loadingLabel="Saving..." />
+            <button type="button" className="btn-secondary" onClick={() => setIsSendLinkOpen(false)}>Cancel</button>
+            <SubmitButton isLoading={sendLinkMutation.isPending} label="Send Link via Razorpay" loadingLabel="Sending..." />
           </div>
         </form>
       </Modal>

@@ -16,6 +16,8 @@ class AccountantMoreScreen extends StatelessWidget {
       _MenuItem(Icons.receipt_long_outlined, 'GST', 'Tax reports & filing', '/accountant/gst', KTColors.warning),
       _MenuItem(Icons.task_alt_outlined, 'Expense Approvals', 'Review & approve claims', '/accountant/approvals', KTColors.acctAccent),
       _MenuItem(Icons.people_outlined, 'Settlements', 'Driver settlements', '/accountant/settlements', KTColors.roleManager),
+      _MenuItem(Icons.verified_outlined, 'Auditor Report', 'Full financial audit & export', '/accountant/auditor-report', const Color(0xFF6366F1)),
+      _MenuItem(Icons.account_balance_wallet_outlined, 'Payments Hub', 'All outgoing payments', '/accountant/payments-hub', const Color(0xFF059669)),
     ];
     final bankingItem = _MenuItem(
       Icons.account_balance_outlined,

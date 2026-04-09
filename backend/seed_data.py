@@ -100,6 +100,7 @@ async def seed_demo_users(db: AsyncSession):
         {"email": "manager@kavyatransports.com", "first_name": "Senthil", "last_name": "Kumar", "phone": "9876510001", "role": "manager"},
         {"email": "fleet@kavyatransports.com", "first_name": "Murugan", "last_name": "Rajan", "phone": "9876510002", "role": "fleet_manager"},
         {"email": "accountant@kavyatransports.com", "first_name": "Lakshmi", "last_name": "Priya", "phone": "9876510003", "role": "accountant"},
+        {"email": "finance@kavyatransports.com", "first_name": "Deepa", "last_name": "Sundaram", "phone": "9876510007", "role": "finance_manager"},
         {"email": "pa@kavyatransports.com", "first_name": "Arun", "last_name": "Prakash", "phone": "9876510004", "role": "project_associate"},
         {"email": "driver@kavyatransports.com", "first_name": "Karthik", "last_name": "Vel", "phone": "9876510005", "role": "driver"},
         {"email": "pump@kavyatransports.com", "first_name": "Ravi", "last_name": "Kumar", "phone": "9876510006", "role": "pump_operator"},
@@ -1142,7 +1143,7 @@ async def main():
 
             print("\n--- Seed Complete ---")
             print("  Admin:  admin@kavyatransports.com / admin123")
-            print("  Demo:   manager|fleet|accountant|pa|driver|pump@kavyatransports.com / demo123")
+            print("  Demo:   manager|fleet|accountant|finance|pa|driver|pump@kavyatransports.com / demo123")
             print("  Data:   6 clients, 8 vehicles, 6 drivers, 8 routes")
             print("  Jobs:   20 completed + 5 active + 3 pending = 28 total")
             print("  Finance: 10 invoices (7 paid, 3 pending)")

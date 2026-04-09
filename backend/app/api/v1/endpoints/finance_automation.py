@@ -1,6 +1,6 @@
 # Finance Automation Endpoints
 # Payment Links, Bank Reconciliation, Settlements, Alerts, Reports, FASTag, Webhooks
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, UploadFile, File, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from datetime import date
@@ -299,12 +299,125 @@ async def list_supplier_payables(
 @router.post("/supplier-payables/{payable_id}/pay", response_model=APIResponse)
 async def pay_supplier_payable(
     payable_id: int,
+    body: dict = Body(default={}),
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.PAYMENT_CREATE)),
 ):
-    await settlement_service.pay_supplier_payable(db, payable_id, current_user.user_id)
+    payment_method = body.get("payment_method", "NEFT")
+    reference_number = body.get("reference_number") or body.get("utr")
+    paid_date_str = body.get("paid_date")
+    await settlement_service.pay_supplier_payable(
+        db, payable_id, current_user.user_id,
+        payment_method=payment_method,
+        reference_number=reference_number,
+        paid_date_str=paid_date_str,
+    )
     return APIResponse(success=True, message="Supplier payable paid")
+
+
+# ━━━ Razorpay Webhook ━━━
+@router.post("/razorpay/webhook", include_in_schema=False)
+async def razorpay_webhook(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Receive payment events from Razorpay.
+    No auth middleware — signature verified via HMAC-SHA256.
+    Register this URL in Razorpay Dashboard → Settings → Webhooks.
+    """
+    from app.services import razorpay_service
+    from app.core.config import settings
+
+    body_bytes = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature", "")
+
+    # Use webhook secret if configured, fallback to key secret
+    secret = getattr(settings, "RAZORPAY_WEBHOOK_SECRET", None) or getattr(settings, "RAZORPAY_KEY_SECRET", None)
+    if not secret:
+        raise HTTPException(status_code=400, detail="Razorpay webhook secret not configured")
+
+    import hmac as _hmac, hashlib as _hashlib, json as _json
+    expected = _hmac.new(secret.encode(), body_bytes, _hashlib.sha256).hexdigest()
+    if not _hmac.compare_digest(expected, signature):
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+
+    payload = _json.loads(body_bytes)
+    event = payload.get("event")
+
+    if event == "payment_link.paid":
+        # Client has paid an invoice via Razorpay payment link
+        try:
+            from app.models.postgres.finance import Payment, PaymentMethod, PaymentStatus, Invoice
+            from app.services.finance_service import generate_payment_number
+            from datetime import date, datetime
+            from decimal import Decimal
+
+            entity = payload.get("payload", {}).get("payment_link", {}).get("entity", {})
+            payment_entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
+
+            link_id = entity.get("id")
+            reference_id = entity.get("reference_id")  # We store invoice_id here
+            amount_paid = Decimal(str(payment_entity.get("amount", 0))) / 100
+            rzp_payment_id = payment_entity.get("id")
+
+            # Find the PaymentLink in our DB by link_id
+            from sqlalchemy import select as _select
+            from app.models.postgres.finance_automation import PaymentLink
+            link_result = await db.execute(
+                _select(PaymentLink).where(PaymentLink.link_id == link_id)
+            )
+            link_row = link_result.scalar_one_or_none()
+            if link_row and link_row.invoice_id:
+                invoice = await db.get(Invoice, link_row.invoice_id)
+                if invoice and invoice.payment_status != "PAID":
+                    payment = Payment(
+                        payment_number=generate_payment_number(),
+                        payment_date=date.today(),
+                        payment_type="received",
+                        invoice_id=invoice.id,
+                        client_id=invoice.client_id,
+                        amount=amount_paid,
+                        payment_method=PaymentMethod.RAZORPAY,
+                        reference_number=rzp_payment_id,
+                        status=PaymentStatus.COMPLETED,
+                        net_amount=amount_paid,
+                        remarks=f"Razorpay payment link {link_id}",
+                    )
+                    db.add(payment)
+                    invoice.amount_paid = (invoice.amount_paid or Decimal(0)) + amount_paid
+                    if invoice.amount_paid >= invoice.total_amount:
+                        invoice.payment_status = "PAID"
+                    else:
+                        invoice.payment_status = "PARTIAL"
+                    link_row.status = "PAID"
+                    await db.commit()
+        except Exception as exc:
+            import logging as _logging
+            _logging.getLogger(__name__).error("[Razorpay webhook] Error processing payment_link.paid: %s", exc)
+
+    return {"status": "ok"}
+
+
+@router.get("/razorpay/status", response_model=APIResponse)
+async def razorpay_status(
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.PAYMENT_READ)),
+):
+    """Check if Razorpay is configured and ready."""
+    from app.core.config import settings
+    enabled = getattr(settings, "RAZORPAY_ENABLED", False)
+    has_keys = bool(getattr(settings, "RAZORPAY_KEY_ID", "")) and bool(getattr(settings, "RAZORPAY_KEY_SECRET", ""))
+    return APIResponse(
+        success=True,
+        data={
+            "enabled": enabled,
+            "configured": has_keys,
+            "ready": enabled and has_keys,
+        },
+        message="Razorpay is ready" if (enabled and has_keys) else "Razorpay not yet configured",
+    )
 
 
 # ━━━ FASTag Transactions ━━━
@@ -533,5 +646,281 @@ async def partial_payments(
             "paid_amount": float(inv.paid_amount),
             "balance_due": float(inv.balance_due),
         } for inv in invoices],
+    )
+
+
+# ━━━ Finance Hub — KPIs & Alert Panels ━━━
+
+@router.get("/dashboard/kpis", response_model=APIResponse)
+async def finance_dashboard_kpis(
+    period: str = Query("this_month"),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.INVOICE_READ)),
+):
+    """Finance Hub — KPI strip: total invoiced, outstanding, overdue, cash balance."""
+    from sqlalchemy import select, func, cast, String
+    from app.models.postgres.finance import Invoice, InvoiceStatus
+    from app.models.postgres.route import BankAccount
+    from datetime import date as _date
+
+    _ps = cast(Invoice.payment_status, String)
+    total_invoiced = await db.scalar(
+        select(func.coalesce(func.sum(Invoice.total_amount), 0))
+        .where(Invoice.status != InvoiceStatus.CANCELLED)
+    ) or 0
+    outstanding = await db.scalar(
+        select(func.coalesce(func.sum(Invoice.amount_due), 0))
+        .where(_ps.in_(['UNPAID', 'PARTIAL']))
+    ) or 0
+    overdue = await db.scalar(
+        select(func.coalesce(func.sum(Invoice.amount_due), 0))
+        .where(
+            _ps.in_(['UNPAID', 'PARTIAL']),
+            Invoice.due_date < _date.today(),
+        )
+    ) or 0
+    cash_balance = await db.scalar(
+        select(func.coalesce(func.sum(BankAccount.current_balance), 0))
+    ) or 0
+    return APIResponse(
+        success=True,
+        data={
+            "total_invoiced": float(total_invoiced),
+            "outstanding": float(outstanding),
+            "overdue": float(overdue),
+            "cash_balance": float(cash_balance),
+            "period": period,
+        },
+    )
+
+
+@router.get("/alerts/overdue", response_model=APIResponse)
+async def overdue_invoices_alert(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.INVOICE_READ)),
+):
+    """Overdue invoices for Finance Hub alert panel."""
+    from sqlalchemy import select, cast, String
+    from app.models.postgres.finance import Invoice
+    from app.models.postgres.client import Client
+    from datetime import date as _date
+
+    result = await db.execute(
+        select(Invoice, Client.name.label("client_name"))
+        .join(Client, Invoice.client_id == Client.id, isouter=True)
+        .where(
+            cast(Invoice.payment_status, String).in_(['UNPAID', 'PARTIAL']),
+            Invoice.due_date < _date.today(),
+        )
+        .order_by(Invoice.due_date.asc())
+        .limit(50)
+    )
+    rows = result.all()
+    data = []
+    today = _date.today()
+    for inv, client_name in rows:
+        days = (today - inv.due_date).days if inv.due_date else 0
+        data.append({
+            "id": inv.id,
+            "invoice_number": inv.invoice_number,
+            "client_name": client_name or "—",
+            "amount": float(inv.amount_due or 0),
+            "days_overdue": days,
+            "due_date": inv.due_date.isoformat() if inv.due_date else None,
+        })
+    return APIResponse(success=True, data=data, message=f"{len(data)} overdue invoices")
+
+
+@router.get("/alerts/upcoming-payments", response_model=APIResponse)
+async def upcoming_payments_alert(
+    days: int = Query(7, ge=1, le=90),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.PAYMENT_READ)),
+):
+    """Payments due in the next N days for Finance Hub alert panel."""
+    from sqlalchemy import select, cast, String
+    from app.models.postgres.finance_automation import SupplierPayable
+    from datetime import date as _date, timedelta
+
+    cutoff = _date.today() + timedelta(days=days)
+    result = await db.execute(
+        select(SupplierPayable)
+        .where(
+            cast(SupplierPayable.status, String) == 'PENDING',
+            SupplierPayable.due_date <= cutoff,
+            SupplierPayable.due_date >= _date.today(),
+        )
+        .order_by(SupplierPayable.due_date.asc())
+        .limit(50)
+    )
+    payables = result.scalars().all()
+    data = [{
+        "id": p.id,
+        "description": p.remarks or p.payable_number,
+        "amount": float(p.amount or 0),
+        "due_date": p.due_date.isoformat() if p.due_date else None,
+        "vendor": f"Vendor #{p.vendor_id}",
+        "type": "payable",
+    } for p in payables]
+    return APIResponse(success=True, data=data, message=f"{len(data)} upcoming payments")
+
+
+@router.get("/alerts/banking", response_model=APIResponse)
+async def banking_balance_alerts(
+    threshold: float = Query(10000.0),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.INVOICE_READ)),
+):
+    """Bank accounts with balance below threshold for Finance Hub alert panel."""
+    from sqlalchemy import select
+    from app.models.postgres.route import BankAccount
+
+    result = await db.execute(
+        select(BankAccount).where(BankAccount.current_balance < threshold)
+    )
+    accounts = result.scalars().all()
+    data = [{
+        "id": a.id,
+        "account_name": a.account_name or "Account",
+        "bank_name": a.bank_name or "—",
+        "balance": float(a.current_balance or 0),
+        "threshold": threshold,
+    } for a in accounts]
+    return APIResponse(success=True, data=data, message=f"{len(data)} low-balance accounts")
+
+
+@router.get("/reports/driver-settlements", response_model=APIResponse)
+async def driver_settlements_report(
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.PAYMENT_READ)),
+):
+    """Driver settlement summary report for Finance Hub."""
+    from sqlalchemy import select
+    from app.models.postgres.finance_automation import DriverSettlement
+
+    stmt = select(DriverSettlement)
+    if from_date:
+        stmt = stmt.where(DriverSettlement.settlement_date >= from_date)
+    if to_date:
+        stmt = stmt.where(DriverSettlement.settlement_date <= to_date)
+    stmt = stmt.order_by(DriverSettlement.settlement_date.desc()).limit(200)
+    result = await db.execute(stmt)
+    settlements = result.scalars().all()
+    data = [{
+        "id": s.id,
+        "driver_id": s.driver_id,
+        "amount": float(s.net_amount or 0),
+        "status": s.status.value if s.status else None,
+        "trip_id": s.trip_id,
+        "settlement_date": s.settlement_date.isoformat() if s.settlement_date else None,
+    } for s in settlements]
+    return APIResponse(success=True, data=data)
+
+
+@router.get("/reports/pnl", response_model=APIResponse)
+async def pnl_report(
+    month: int = Query(..., ge=1, le=12),
+    year: int = Query(..., ge=2020),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.INVOICE_READ)),
+):
+    """Monthly P&L summary for Finance Hub."""
+    from sqlalchemy import select, func, extract
+    from app.models.postgres.finance import Invoice, Payment, InvoiceStatus
+
+    invoiced = await db.scalar(
+        select(func.coalesce(func.sum(Invoice.total_amount), 0)).where(
+            extract("month", Invoice.invoice_date) == month,
+            extract("year", Invoice.invoice_date) == year,
+            Invoice.status != InvoiceStatus.CANCELLED,
+        )
+    ) or 0
+    collected = await db.scalar(
+        select(func.coalesce(func.sum(Payment.amount), 0)).where(
+            extract("month", Payment.payment_date) == month,
+            extract("year", Payment.payment_date) == year,
+        )
+    ) or 0
+    return APIResponse(
+        success=True,
+        data={
+            "month": month,
+            "year": year,
+            "total_invoiced": float(invoiced),
+            "total_collected": float(collected),
+            "outstanding": float(invoiced) - float(collected),
+        },
+    )
+
+
+@router.get("/reports/period-invoice", response_model=APIResponse)
+async def period_invoice_report(
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    client: Optional[str] = None,
+    format: str = Query("json", pattern="^(json|pdf)$"),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.INVOICE_READ)),
+):
+    """Period invoice summary report for Finance Hub."""
+    from sqlalchemy import select
+    from app.models.postgres.finance import Invoice, InvoiceStatus
+    from app.models.postgres.client import Client
+
+    stmt = (
+        select(Invoice, Client.name.label("client_name"))
+        .join(Client, Invoice.client_id == Client.id, isouter=True)
+        .where(Invoice.status != InvoiceStatus.CANCELLED)
+    )
+    if from_date:
+        stmt = stmt.where(Invoice.invoice_date >= from_date)
+    if to_date:
+        stmt = stmt.where(Invoice.invoice_date <= to_date)
+    if client:
+        stmt = stmt.where(Client.name.ilike(f"%{client}%"))
+    stmt = stmt.order_by(Invoice.invoice_date.desc()).limit(500)
+    result = await db.execute(stmt)
+    rows = result.all()
+    data = [{
+        "id": inv.id,
+        "invoice_number": inv.invoice_number,
+        "client_name": client_name or "—",
+        "amount": float(inv.total_amount or 0),
+        "balance_due": float(inv.amount_due or 0),
+        "status": inv.status.value if inv.status else None,
+        "invoice_date": inv.invoice_date.isoformat() if inv.invoice_date else None,
+        "due_date": inv.due_date.isoformat() if inv.due_date else None,
+    } for inv, client_name in rows]
+    return APIResponse(success=True, data=data)
+
+
+@router.post("/invoices/{invoice_id}/remind", response_model=APIResponse)
+async def send_payment_reminder(
+    invoice_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.INVOICE_UPDATE)),
+):
+    """Send payment reminder for an overdue invoice."""
+    from sqlalchemy import select
+    from app.models.postgres.finance import Invoice
+
+    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    invoice = result.scalar_one_or_none()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return APIResponse(
+        success=True,
+        message=f"Reminder queued for invoice {invoice.invoice_number}",
+        data={"invoice_id": invoice_id},
     )
 

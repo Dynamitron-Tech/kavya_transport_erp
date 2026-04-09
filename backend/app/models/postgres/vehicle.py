@@ -74,6 +74,8 @@ class Vehicle(Base, TimestampMixin, SoftDeleteMixin):
     # GPS Device
     gps_device_id = Column(String(100), nullable=True)
     gps_provider = Column(String(50), nullable=True)
+    gps_provider_status = Column(String(20), nullable=True)  # active/pending/error/disabled
+    last_gps_at = Column(DateTime(timezone=True), nullable=True)
     
     # Fitness & Permits
     fitness_valid_until = Column(Date, nullable=True)

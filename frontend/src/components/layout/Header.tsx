@@ -90,6 +90,7 @@ const resolveRole = (rawRole?: string): HeaderNavRole => {
   if (normalized === 'MANAGER') return 'MANAGER';
   if (normalized === 'FLEET_MANAGER') return 'FLEET_MANAGER';
   if (normalized === 'ACCOUNTANT') return 'ACCOUNTANT';
+  if (normalized === 'FINANCE_MANAGER') return 'FINANCE_MANAGER';
   if (normalized === 'PROJECT_ASSOCIATE' || normalized === 'PROJECT_ASSOCIATES') return 'PROJECT_ASSOCIATES';
   if (normalized === 'DRIVER') return 'DRIVER';
   if (normalized === 'PUMP_OPERATOR') return 'PUMP_OPERATOR';

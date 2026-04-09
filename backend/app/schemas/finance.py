@@ -300,3 +300,81 @@ class RouteResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# --- Auditor Report ---
+
+class AuditorPLSummary(BaseModel):
+    total_invoiced: float
+    total_collected: float
+    total_expenses: float
+    net_profit: float
+    collection_efficiency_percent: float
+
+
+class AuditorPaymentBreakdownItem(BaseModel):
+    method: str
+    amount: float
+    count: int
+
+
+class AuditorGSTSummary(BaseModel):
+    taxable_value: float
+    cgst_amount: float
+    sgst_amount: float
+    igst_amount: float
+    total_gst_collected: float
+    total_vendor_payments: float
+    net_gst_payable: float
+
+
+class AuditorOutstandingReceivables(BaseModel):
+    overdue_amount: float
+    partially_paid_amount: float
+    disputed_amount: float
+    overdue_count: int
+    partially_paid_count: int
+    disputed_count: int
+    total_outstanding: float
+
+
+class AuditorTDSSummary(BaseModel):
+    total_tds_deducted: float
+    payment_count: int
+
+
+class AuditorLedgerEntry(BaseModel):
+    id: int
+    entry_number: str
+    entry_date: Optional[date] = None
+    ledger_type: str
+    account_name: str
+    account_code: Optional[str] = None
+    narration: Optional[str] = None
+    reference_number: Optional[str] = None
+    debit: float
+    credit: float
+    balance: float
+
+
+class AuditorLedgerPage(BaseModel):
+    entries: List[AuditorLedgerEntry]
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
+
+
+class AuditorReportPeriod(BaseModel):
+    from_date: str
+    to_date: str
+
+
+class AuditorReportResponse(BaseModel):
+    period: AuditorReportPeriod
+    pl_summary: AuditorPLSummary
+    payment_breakdown: List[AuditorPaymentBreakdownItem]
+    gst_summary: AuditorGSTSummary
+    outstanding_receivables: AuditorOutstandingReceivables
+    tds_summary: AuditorTDSSummary
+    ledger: AuditorLedgerPage

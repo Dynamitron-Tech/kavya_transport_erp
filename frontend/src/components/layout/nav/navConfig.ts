@@ -21,13 +21,14 @@ export interface NavMenuGroup {
   roles?: RoleType[];
 }
 
-export type HeaderNavRole = 'ADMIN' | 'MANAGER' | 'FLEET_MANAGER' | 'ACCOUNTANT' | 'PROJECT_ASSOCIATES' | 'DRIVER' | 'PUMP_OPERATOR';
+export type HeaderNavRole = 'ADMIN' | 'MANAGER' | 'FLEET_MANAGER' | 'ACCOUNTANT' | 'FINANCE_MANAGER' | 'PROJECT_ASSOCIATES' | 'DRIVER' | 'PUMP_OPERATOR';
 
 export interface HeaderNavItem {
   label: string;
   route: string;
   icon: string;
   description: string;
+  badge?: string;
 }
 
 export interface HeaderNavSection {
@@ -62,26 +63,13 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       {
         label: 'Finance',
         items: [
-          { label: 'Finance Dashboard', route: '/accountant', icon: 'gauge', description: 'Financial overview and KPIs' },
-          { label: 'Invoices', route: '/finance/invoices', icon: 'invoice', description: 'GST invoices and billing' },
-          { label: 'Payments', route: '/finance/payments', icon: 'pay', description: 'Record and track payments' },
-          { label: 'Receivables', route: '/finance/receivables', icon: 'arrowup', description: 'Outstanding client payments' },
-          { label: 'Payables', route: '/finance/payables', icon: 'arrowdown', description: 'Vendor and driver payables' },
-          { label: 'Expenses', route: '/accountant/expenses', icon: 'wallet', description: 'Trip expense verification' },
-          { label: 'Driver Payments', route: '/accountant/payments', icon: 'dollarsign', description: 'Pending trip & expense payments' },
-          { label: 'Fuel Expenses', route: '/accountant/fuel', icon: 'fuel', description: 'Fuel cost analysis' },
-          { label: 'Banking', route: '/accountant/banking', icon: 'bank', description: 'Bank entries and reconciliation' },
-          { label: 'Ledger', route: '/finance/ledger', icon: 'book', description: 'General ledger and accounts' },
-          { label: 'Reconciliation', route: '/finance/reconciliation', icon: 'bank', description: 'Bank statement reconciliation' },
-          { label: 'Settlements', route: '/finance/settlements', icon: 'wallet', description: 'Driver settlement management' },
-          { label: 'Finance Alerts', route: '/finance/alerts', icon: 'alert', description: 'Overdue & payment alerts' },
-          { label: 'Finance Reports', route: '/finance/reports', icon: 'chart', description: 'Daily digest, P&L, GSTR-1' },
+          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts', badge: 'alerts' },
         ],
       },
       {
         label: 'Monitoring',
         items: [
-          { label: 'Live Tracking', route: '/tracking', icon: 'pin', description: 'Real-time vehicle location map' },
+          { label: 'Fleet Tracking', route: '/tracking', icon: 'pin', description: 'Unified GPS tracking — all providers' },
           { label: 'Alerts', route: '/alerts', icon: 'alert', description: 'System alerts and notifications' },
           { label: 'Reports', route: '/reports', icon: 'chart', description: 'Analytics and business reports' },
         ],
@@ -175,21 +163,9 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         ],
       },
       {
-        label: 'Accountant',
+        label: 'Finance',
         items: [
-          { label: 'Finance Dashboard', route: '/accountant', icon: 'gauge', description: 'Financial overview and KPIs' },
-          { label: 'Invoices', route: '/accountant/invoices', icon: 'invoice', description: 'Invoice management and GST' },
-          { label: 'Receivables', route: '/accountant/receivables', icon: 'arrowup', description: 'Client outstanding amounts' },
-          { label: 'Payables', route: '/accountant/payables', icon: 'arrowdown', description: 'Vendor payment tracking' },
-          { label: 'Expenses', route: '/accountant/expenses', icon: 'wallet', description: 'Trip expense verification' },
-          { label: 'Driver Payments', route: '/accountant/payments', icon: 'dollarsign', description: 'Pending trip & expense payments' },
-          { label: 'Fuel Expenses', route: '/accountant/fuel', icon: 'fuel', description: 'Fuel cost analysis' },
-          { label: 'Banking', route: '/accountant/banking', icon: 'bank', description: 'Bank entries and reconciliation' },
-          { label: 'Reconciliation', route: '/finance/reconciliation', icon: 'bank', description: 'Bank statement auto-reconciliation' },
-          { label: 'Settlements', route: '/finance/settlements', icon: 'wallet', description: 'Driver settlement management' },
-          { label: 'Ledger', route: '/accountant/ledger', icon: 'book', description: 'Double-entry bookkeeping' },
-          { label: 'Finance Alerts', route: '/finance/alerts', icon: 'alert', description: 'Overdue invoices & payment alerts' },
-          { label: 'Finance Reports', route: '/finance/reports', icon: 'chart', description: 'Daily digest, P&L, GSTR-1' },
+          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts', badge: 'alerts' },
         ],
       },
       {
@@ -266,24 +242,49 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       },
     ],
   },
+  FINANCE_MANAGER: {
+    sections: [
+      { label: 'Overview', items: [{ label: 'Dashboard', route: '/fm/dashboard', icon: 'gauge', description: 'Finance overview — pending approvals, salary status, payables' }] },
+      {
+        label: 'Payments',
+        items: [
+          { label: 'Salary Payments', route: '/fm/salary', icon: 'banknote', description: 'Staff salary processing via Razorpay' },
+          { label: 'Driver Advances', route: '/fm/advances', icon: 'wallet', description: 'Issue trip advances to drivers' },
+          { label: 'Expense Approvals', route: '/fm/expenses', icon: 'receipt', description: 'Review and approve GPay expense receipts' },
+          { label: 'Payables & Schedules', route: '/fm/payables', icon: 'calendar', description: 'Rent, insurance, tax, permits — recurring payments' },
+          { label: 'Payout History', route: '/fm/history', icon: 'history', description: 'All outgoing payment records and UTR tracking' },
+        ],
+      },
+      {
+        label: 'Banking',
+        items: [
+          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts' },
+        ],
+      },
+      {
+        label: 'System',
+        items: [
+          { label: 'Attendance', route: '/my-work/attendance', icon: 'clock', description: 'Mark daily attendance with camera check-in' },
+          { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
+        ],
+      },
+    ],
+  },
   ACCOUNTANT: {
     sections: [
-      { label: 'Overview', items: [{ label: 'Dashboard', route: '/dashboard', icon: 'home', description: 'Company overview and quick KPIs' }] },
+      { label: 'Overview', items: [{ label: 'Dashboard', route: '/accountant/dashboard', icon: 'home', description: 'Accountant overview — IFIAS status, bank reconciliation' }] },
+      {
+        label: 'IFIAS',
+        items: [
+          { label: 'Invoice Workspace', route: '/accountant/invoice-workspace', icon: 'file', description: 'Britannia invoice automation — parse, validate, writeback', badge: 'new' },
+        ],
+      },
       {
         label: 'Finance',
         items: [
-          { label: 'Finance Dashboard', route: '/accountant', icon: 'gauge', description: 'Financial overview and KPIs' },
-          { label: 'Invoices', route: '/accountant/invoices', icon: 'invoice', description: 'Invoice management and GST' },
-          { label: 'Receivables', route: '/accountant/receivables', icon: 'arrowup', description: 'Client outstanding amounts' },
-          { label: 'Payables', route: '/accountant/payables', icon: 'arrowdown', description: 'Vendor payment tracking' },
-          { label: 'Expenses', route: '/accountant/expenses', icon: 'wallet', description: 'Trip expense verification' },
-          { label: 'Fuel Expenses', route: '/accountant/fuel', icon: 'fuel', description: 'Fuel cost analysis' },
-          { label: 'Banking', route: '/accountant/banking', icon: 'bank', description: 'Bank entries and reconciliation' },
-          { label: 'Ledger', route: '/accountant/ledger', icon: 'book', description: 'Double-entry bookkeeping' },
-          { label: 'Reconciliation', route: '/finance/reconciliation', icon: 'bank', description: 'Bank statement auto-reconciliation' },
-          { label: 'Settlements', route: '/finance/settlements', icon: 'wallet', description: 'Driver settlement management' },
-          { label: 'Finance Alerts', route: '/finance/alerts', icon: 'alert', description: 'Overdue invoices & payment alerts' },
-          { label: 'Finance Reports', route: '/finance/reports', icon: 'chart', description: 'Daily digest, P&L, GSTR-1' },
+          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts', badge: 'alerts' },
+          { label: 'Bank Statement', route: '/accountant/banking', icon: 'bank', description: 'Download statements & Tally reconciliation' },
+          { label: 'Driver Advance', route: '/accountant/payments', icon: 'wallet', description: 'Backup: issue driver advances' },
         ],
       },
       {
@@ -295,7 +296,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       {
         label: 'System',
         items: [
-          { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
           { label: 'Attendance', route: '/my-work/attendance', icon: 'clock', description: 'Mark daily attendance with camera check-in' },
           { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
         ],
@@ -449,6 +449,7 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
     label: 'Accountant',
     items: [
       { label: 'Finance Dashboard', path: '/accountant', roles: ['admin', 'accountant'] },
+      { label: 'Invoice Workspace', path: '/accountant/invoice-workspace', roles: ['admin', 'accountant'] },
       { label: 'Invoices', path: '/accountant/invoices', roles: ['admin', 'accountant'] },
       { label: 'Receivables', path: '/accountant/receivables', roles: ['admin', 'accountant'] },
       { label: 'Payables', path: '/accountant/payables', roles: ['admin', 'accountant'] },

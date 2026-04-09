@@ -125,10 +125,41 @@ class Settings(BaseSettings):
     GPS_TCP_PORT: int = 5000
     GPS_PROVIDER: str = "internal"
     GPS_API_KEY: Optional[str] = None
+
+    # Ashok Leyland iALERT — Data as a Service (GPS Telematics)
+    IALERT_API_URL: str = "https://ialert2.ashokleyland.com/ialert/daas/api/getdata"
+    IALERT_API_TOKEN: Optional[str] = None  # Token shared by AL team
+    IALERT_POLL_INTERVAL_SECONDS: int = 60  # Polling frequency (seconds)
+    IALERT_ENABLED: bool = False  # Enable only after token is configured
+
+    # Tata Motors GPS (fill when API key arrives)
+    TATA_GPS_API_KEY: Optional[str] = None
+    TATA_GPS_API_ENDPOINT: str = "https://fleet.tatamotors.com/api/v1"
+
+    # Third-party GPS (fill when API key arrives)
+    THIRD_PARTY_GPS_API_KEY: Optional[str] = None
+    THIRD_PARTY_GPS_API_ENDPOINT: str = ""
+
+    # GPS feature flags
+    GPS_CACHE_TTL: int = 120  # seconds to show stale data before marking offline
     
     # Push Notifications (Firebase)
     FCM_SERVER_KEY: Optional[str] = None
-    
+
+    # Razorpay — incoming client payment gateway
+    # Set RAZORPAY_ENABLED=true once keys arrive (2-3 days)
+    RAZORPAY_ENABLED: bool = False
+    RAZORPAY_KEY_ID: Optional[str] = None
+    RAZORPAY_KEY_SECRET: Optional[str] = None
+    RAZORPAY_WEBHOOK_SECRET: Optional[str] = None  # Set in Razorpay dashboard → Webhooks
+
+    # Razorpay X — outgoing payout for driver advance (₹1,500 per trip)
+    # Requires Razorpay X (business banking) account — separate from standard Razorpay
+    # NOT used for salaries, rent, insurance, or GPay field expenses
+    RAZORPAY_X_KEY_ID: Optional[str] = None
+    RAZORPAY_X_KEY_SECRET: Optional[str] = None
+    RAZORPAY_X_ACCOUNT_NUMBER: Optional[str] = None  # Linked current account
+
     # Logging
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

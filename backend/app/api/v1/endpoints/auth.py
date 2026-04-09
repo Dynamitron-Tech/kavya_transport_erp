@@ -20,6 +20,7 @@ ROLE_REDIRECT_MAP = {
     "manager": "/dashboard",
     "fleet_manager": "/fleet/dashboard",
     "accountant": "/accountant/dashboard",
+    "finance_manager": "/fm/dashboard",
     "project_associate": "/dashboard",
     "driver": "/driver/trips",
     "pump_operator": "/pump/dashboard",

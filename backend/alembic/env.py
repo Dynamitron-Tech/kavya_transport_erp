@@ -16,6 +16,7 @@ from app.models.postgres.base import Base
 from app.models.postgres.user import User, Role, Permission, RolePermission, UserRole, Branch, Tenant
 from app.models.postgres.client import Client, ClientContact
 from app.models.postgres.vehicle import Vehicle, VehicleDocument, VehicleMaintenance
+from app.models.postgres.gps_provider import GPSProvider
 from app.models.postgres.driver import Driver, DriverDocument, DriverLicense, DriverAttendance
 from app.models.postgres.job import Job, JobStatus, JobType
 from app.models.postgres.lr import LR, LRItem, LRDocument

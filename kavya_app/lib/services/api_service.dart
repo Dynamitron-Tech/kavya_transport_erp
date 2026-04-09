@@ -106,6 +106,16 @@ class ApiService {
     return response.data;
   }
 
+  /// Downloads binary data (PDF / CSV) with auth headers attached.
+  Future<List<int>> downloadBytes(String path, {Map<String, dynamic>? queryParameters}) async {
+    final response = await _dio.get<List<int>>(
+      path,
+      queryParameters: queryParameters,
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return response.data ?? [];
+  }
+
   // --- Named Auth & Profile ---
   Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await _dio.post('/auth/login',

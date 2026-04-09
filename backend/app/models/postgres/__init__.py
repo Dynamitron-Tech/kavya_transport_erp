@@ -26,6 +26,8 @@ from .compliance_alert import ComplianceAlert, AlertType, AlertSeverity
 from .driver_event import DriverEvent, DriverEventType
 from .audit_note import AuditNote, AuditNoteStatus
 from .driver_requests import DriverLeave, DriverAdvanceRequest, DriverSalaryAdvanceRequest, LeaveStatusEnum, AdvanceStatusEnum
+from .expense import Expense, ExpenseCategory as CompanyExpenseCategory, PaymentMethod as CompanyPaymentMethod, ApprovalStatus
+from .payment import PaymentContact, Payout, PaymentSchedule, ExpenseSubmission
 
 __all__ = [
     "Base",
@@ -86,4 +88,12 @@ __all__ = [
     "BankCSVImport",
     "BankCSVTransaction",
     "BankingEntryType",
+    "Expense",
+    "CompanyExpenseCategory",
+    "CompanyPaymentMethod",
+    "ApprovalStatus",
+    "PaymentContact",
+    "Payout",
+    "PaymentSchedule",
+    "ExpenseSubmission",
 ]

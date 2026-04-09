@@ -280,6 +280,10 @@ ROLE_PERMISSIONS = {
         Permissions.CLIENT_READ,
         # Trip (read only for invoicing)
         Permissions.TRIP_READ,
+        # Job (read only - needed for banking/invoicing dropdowns and Finance Hub)
+        Permissions.JOB_READ,
+        # E-way Bill (read only - needed for Finance Hub expiry alerts)
+        Permissions.EWAY_BILL_READ,
         # Reports
         Permissions.REPORT_VIEW, Permissions.REPORT_EXPORT,
         # Expense
@@ -289,6 +293,11 @@ ROLE_PERMISSIONS = {
         # Fuel & Maintenance (read for overview)
         Permissions.FUEL_READ,
         Permissions.MAINTENANCE_READ,
+        # Vehicle & Driver (read only - needed for Finance Hub / expense dropdowns)
+        Permissions.VEHICLE_READ,
+        Permissions.DRIVER_READ,
+        # Documents (read for vehicle/driver compliance view)
+        Permissions.DOCUMENT_READ,
         # Alerts / Notifications
         Permissions.ALERT_VIEW,
     ],
@@ -344,6 +353,36 @@ ROLE_PERMISSIONS = {
         Permissions.SOS_TRIGGER,
         # Offline sync
         Permissions.SYNC_CREATE,
+    ],
+
+    "finance_manager": [
+        # Payment (full access for payroll, payouts)
+        Permissions.PAYMENT_CREATE, Permissions.PAYMENT_READ,
+        Permissions.PAYMENT_UPDATE, Permissions.PAYMENT_DELETE,
+        # Expense (approve / reimburse)
+        Permissions.EXPENSE_READ, Permissions.EXPENSE_APPROVE,
+        Permissions.EXPENSE_CREATE, Permissions.EXPENSE_UPDATE,
+        # Invoice (read for context)
+        Permissions.INVOICE_READ,
+        # Ledger (read)
+        Permissions.LEDGER_READ, Permissions.LEDGER_EXPORT,
+        # Banking
+        Permissions.BANKING_READ,
+        # Settlements
+        Permissions.SETTLEMENT_READ, Permissions.SETTLEMENT_CREATE, Permissions.SETTLEMENT_APPROVE,
+        # Driver / Vehicle (read for salary / advance context)
+        Permissions.DRIVER_READ,
+        Permissions.VEHICLE_READ,
+        # Fuel (read)
+        Permissions.FUEL_READ,
+        # Reports
+        Permissions.REPORT_VIEW, Permissions.REPORT_EXPORT,
+        # User (read for employee list)
+        Permissions.USER_READ,
+        # Documents
+        Permissions.DOCUMENT_READ,
+        # Alerts
+        Permissions.ALERT_VIEW,
     ],
 
     "pump_operator": [

@@ -44,17 +44,8 @@ import CreateTripPage from '@/pages/trips/CreateTripPage';
 import DocumentListPage from '@/pages/documents/DocumentListPage';
 import UploadDocumentPage from '@/pages/documents/UploadDocumentPage';
 
-// Finance
-import InvoicesPage from '@/pages/finance/InvoicesPage';
-import PaymentsPage from '@/pages/finance/PaymentsPage';
-import LedgerPage from '@/pages/finance/LedgerPage';
-import ReceivablesPage from '@/pages/finance/ReceivablesPage';
-import PayablesPage from '@/pages/finance/PayablesPage';
-import BankingEntryPage from '@/pages/finance/BankingEntryPage';
-import ReconciliationPage from '@/pages/finance/ReconciliationPage';
-import SettlementsPage from '@/pages/finance/SettlementsPage';
-import FinanceAlertsPage from '@/pages/finance/FinanceAlertsPage';
-import FinanceReportsPage from '@/pages/finance/FinanceReportsPage';
+// Finance Hub
+import FinanceHubPage from '@/pages/finance/FinanceHubPage';
 
 // Banking Module
 import BankingPage from '@/pages/banking/BankingPage';
@@ -63,9 +54,11 @@ import BankingPage from '@/pages/banking/BankingPage';
 import LiveTrackingPage from '@/pages/tracking/LiveTrackingPage';
 import GPSLiveMapPage from '@/pages/tracking/GPSLiveMapPage';
 import TripReplayPage from '@/pages/tracking/TripReplayPage';
+import UnifiedTrackingPage from '@/pages/tracking/UnifiedTrackingPage';
 
 // Reports
 import ReportsPage from '@/pages/reports/ReportsPage';
+import AuditorReportPage from '@/pages/reports/AuditorReportPage';
 
 // Compliance & Tools
 import VehicleCompliancePage from '@/pages/fleet/VehicleCompliancePage';
@@ -74,6 +67,7 @@ import GSTVerificationPage from '@/pages/fleet/GSTVerificationPage';
 import FuelPricePage from '@/pages/fleet/FuelPricePage';
 import RouteCalculatorPage from '@/pages/trips/RouteCalculatorPage';
 import PaymentLinkPage from '@/pages/finance/PaymentLinkPage';
+import PaymentsHubPage from '@/pages/finance/PaymentsHubPage';
 import NotificationCenterPage from '@/pages/settings/NotificationCenterPage';
 import DocumentUploadPage from '@/pages/documents/DocumentUploadPage';
 
@@ -128,6 +122,16 @@ import AccountantFuelExpensePage from '@/pages/accountant/AccountantFuelExpenseP
 import AccountantBankingPage from '@/pages/accountant/AccountantBankingPage';
 import AccountantLedgerPage from '@/pages/accountant/AccountantLedgerPage';
 import AccountantReportsPage from '@/pages/accountant/AccountantReportsPage';
+// Finance Manager
+import FinanceManagerDashboardPage from '@/pages/finance-manager/FinanceManagerDashboardPage';
+import SalaryPaymentsPage from '@/pages/finance-manager/SalaryPaymentsPage';
+import ExpenseApprovalsPage from '@/pages/finance-manager/ExpenseApprovalsPage';
+import PayablesDashboardPage from '@/pages/finance-manager/PayablesDashboardPage';
+import PayoutHistoryPage from '@/pages/finance-manager/PayoutHistoryPage';
+
+// IFIAS (Accountant)
+import InvoiceWorkspacePage from '@/pages/finance/InvoiceWorkspacePage';
+
 import ConnectivityPage from '@/pages/admin/ConnectivityPage';
 import EmployeesPage from '@/pages/admin/EmployeesPage';
 import AttendancePage from '@/pages/admin/AttendancePage';
@@ -204,29 +208,37 @@ function App() {
           <Route path="/documents/upload" element={<UploadDocumentPage />} />
           <Route path="/documents/:id/edit" element={<UploadDocumentPage />} />
 
-          {/* Finance */}
-          <Route path="/finance/invoices" element={<InvoicesPage />} />
-          <Route path="/finance/payments" element={<PaymentsPage />} />
-          <Route path="/finance/ledger" element={<LedgerPage />} />
-          <Route path="/finance/receivables" element={<ReceivablesPage />} />
-          <Route path="/finance/payables" element={<PayablesPage />} />
-          <Route path="/finance/banking/new" element={<BankingEntryPage />} />
-          <Route path="/finance/reconciliation" element={<ReconciliationPage />} />
-          <Route path="/finance/settlements" element={<SettlementsPage />} />
-          <Route path="/finance/alerts" element={<FinanceAlertsPage />} />
-          <Route path="/finance/reports" element={<FinanceReportsPage />} />
+          {/* Finance Hub — single route with tab-based navigation */}
+          <Route path="/finance" element={<FinanceHubPage />} />
+          {/* Backward-compat redirects from old finance routes */}
+          <Route path="/finance/invoices" element={<Navigate to="/finance?tab=invoices" replace />} />
+          <Route path="/finance/invoice-workspace" element={<Navigate to="/finance?tab=invoices" replace />} />
+          <Route path="/finance/payments" element={<Navigate to="/finance?tab=transactions&sub=receivables" replace />} />
+          <Route path="/finance/receivables" element={<Navigate to="/finance?tab=transactions&sub=receivables" replace />} />
+          <Route path="/finance/payables" element={<Navigate to="/finance?tab=transactions&sub=payables" replace />} />
+          <Route path="/finance/ledger" element={<Navigate to="/finance?tab=banking&view=ledger" replace />} />
+          <Route path="/finance/reconciliation" element={<Navigate to="/finance?tab=banking&view=reconciliation" replace />} />
+          <Route path="/finance/settlements" element={<Navigate to="/finance?tab=transactions&sub=settlements" replace />} />
+          <Route path="/finance/alerts" element={<Navigate to="/finance?tab=overview" replace />} />
+          <Route path="/finance/reports" element={<Navigate to="/finance?tab=reports" replace />} />
+          {/* Banking entry form stays as dedicated page */}
+          <Route path="/finance/banking/new" element={<Navigate to="/finance?tab=banking" replace />} />
+
 
           {/* Banking Module */}
           <Route path="/banking" element={<BankingPage />} />
 
           {/* Tracking */}
-          <Route path="/tracking" element={<LiveTrackingPage />} />
+          <Route path="/tracking" element={<UnifiedTrackingPage />} />
+          <Route path="/tracking/unified" element={<UnifiedTrackingPage />} />
+          <Route path="/tracking/live" element={<LiveTrackingPage />} />
           <Route path="/tracking/gps" element={<GPSLiveMapPage />} />
           <Route path="/tracking/replay" element={<TripReplayPage />} />
           <Route path="/alerts" element={<FleetAlertsPage />} />
 
           {/* Reports */}
           <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/reports/auditor" element={<AuditorReportPage />} />
 
           {/* Settings */}
           <Route path="/settings" element={<SettingsPage />} />
@@ -238,6 +250,7 @@ function App() {
           <Route path="/fleet/fuel-prices" element={<FuelPricePage />} />
           <Route path="/trips/route-calculator" element={<RouteCalculatorPage />} />
           <Route path="/finance/payment-link" element={<PaymentLinkPage />} />
+          <Route path="/finance/payments-hub" element={<PaymentsHubPage />} />
           <Route path="/settings/notifications" element={<NotificationCenterPage />} />
           <Route path="/documents/new-upload" element={<DocumentUploadPage />} />
 
@@ -273,6 +286,7 @@ function App() {
           {/* Accountant */}
           <Route path="/accountant/dashboard" element={<AccountantDashboardPage />} />
           <Route path="/accountant" element={<AccountantDashboardPage />} />
+          <Route path="/accountant/invoice-workspace" element={<InvoiceWorkspacePage />} />
           <Route path="/accountant/invoices" element={<AuthGuard requiredPermission="invoice:read"><AccountantInvoicesPage /></AuthGuard>} />
           <Route path="/accountant/receivables" element={<AuthGuard requiredPermission="invoice:read"><AccountantReceivablesPage /></AuthGuard>} />
           <Route path="/accountant/payables" element={<AuthGuard requiredPermission="payment:read"><AccountantPayablesPage /></AuthGuard>} />
@@ -282,6 +296,15 @@ function App() {
           <Route path="/accountant/banking" element={<AccountantBankingPage />} />
           <Route path="/accountant/ledger" element={<AuthGuard requiredPermission="ledger:read"><AccountantLedgerPage /></AuthGuard>} />
           <Route path="/accountant/reports" element={<AccountantReportsPage />} />
+
+          {/* Finance Manager */}
+          <Route path="/fm/dashboard" element={<FinanceManagerDashboardPage />} />
+          <Route path="/fm" element={<FinanceManagerDashboardPage />} />
+          <Route path="/fm/salary" element={<SalaryPaymentsPage />} />
+          <Route path="/fm/advances" element={<SalaryPaymentsPage />} />
+          <Route path="/fm/expenses" element={<ExpenseApprovalsPage />} />
+          <Route path="/fm/payables" element={<PayablesDashboardPage />} />
+          <Route path="/fm/history" element={<PayoutHistoryPage />} />
 
           {/* Pump Operator */}
           <Route path="/pump/dashboard" element={<PumpDashboardPage />} />

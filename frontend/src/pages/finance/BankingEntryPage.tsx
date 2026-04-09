@@ -10,6 +10,25 @@ import {
 type EntryType = 'payment_received' | 'payment_made' | 'bank_transfer' | 'cash_deposit' | 'cash_withdrawal' | 'journal';
 type PaymentMethod = 'cash' | 'cheque' | 'neft' | 'rtgs' | 'upi' | 'dd';
 
+type ExpenseCategory =
+  | 'market_vehicle_rent' | 'driver_salary' | 'driver_advance'
+  | 'staff_salary' | 'tax' | 'insurance' | 'permit_compliance'
+  | 'vehicle_spare_part' | 'loading_unloading' | 'misc_field' | 'fuel';
+
+const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+  market_vehicle_rent: 'Market Vehicle Rent',
+  driver_salary:       'Driver Salary',
+  driver_advance:      'Driver Advance',
+  staff_salary:        'Staff Salary',
+  tax:                 'Tax Payment',
+  insurance:           'Vehicle Insurance',
+  permit_compliance:   'Permit / Compliance',
+  vehicle_spare_part:  'Vehicle Spare Parts',
+  loading_unloading:   'Loading / Unloading',
+  misc_field:          'Misc Field Expense',
+  fuel:                'Fuel',
+};
+
 const ENTRY_TYPES: { value: EntryType; label: string; color: string }[] = [
   { value: 'payment_received', label: 'Payment Received', color: 'bg-green-50 text-green-700 ring-green-600/20' },
   { value: 'payment_made', label: 'Payment Made', color: 'bg-red-50 text-red-700 ring-red-600/20' },
@@ -42,6 +61,9 @@ interface FormData {
   cheque_number: string;
   cheque_date: string;
   bank_name: string;
+  // Expense linking fields (only for payment_made)
+  link_expense_category: string;
+  link_expense_payee: string;
 }
 
 export default function BankingEntryPage() {
@@ -62,6 +84,8 @@ export default function BankingEntryPage() {
     cheque_number: '',
     cheque_date: '',
     bank_name: '',
+    link_expense_category: '',
+    link_expense_payee: '',
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
@@ -107,6 +131,21 @@ export default function BankingEntryPage() {
       client_id: form.client_id ? parseInt(form.client_id) : undefined,
       invoice_id: form.invoice_id ? parseInt(form.invoice_id) : undefined,
       job_id: form.job_id ? parseInt(form.job_id) : undefined,
+      // Expense linking: for payment_made, auto-create a linked company expense
+      ...(form.entry_type === 'payment_made' && form.link_expense_category
+        ? {
+            linked_expense: {
+              expense_category: form.link_expense_category,
+              payment_method: 'netbanking',
+              amount_paise: Math.round(parseFloat(form.amount) * 100),
+              expense_date: form.date,
+              netbanking_ref: form.reference_number || undefined,
+              bank_name: form.bank_name || undefined,
+              payee_name: form.link_expense_payee || undefined,
+              description: form.description || undefined,
+            },
+          }
+        : {}),
     });
   };
 
@@ -325,6 +364,46 @@ export default function BankingEntryPage() {
               className="input-field w-full"
             />
           </div>
+
+          {/* Expense Category Link — only for Payment Made */}
+          {form.entry_type === 'payment_made' && (
+            <>
+              <div className="md:col-span-2 border-t pt-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">E</span>
+                  Link to Company Expense (optional)
+                </p>
+                <p className="text-xs text-gray-500 mb-3">
+                  Linking this payment to an expense category automatically records it in Company Expenses for reconciliation.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Expense Category</label>
+                <select
+                  className="input-field w-full"
+                  value={form.link_expense_category}
+                  onChange={(e) => update('link_expense_category', e.target.value)}
+                >
+                  <option value="">— Don't link (manual entry only) —</option>
+                  {(Object.entries(EXPENSE_CATEGORY_LABELS) as [ExpenseCategory, string][]).map(([val, label]) => (
+                    <option key={val} value={val}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              {form.link_expense_category && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payee / Vendor Name</label>
+                  <input
+                    type="text"
+                    value={form.link_expense_payee}
+                    onChange={(e) => update('link_expense_payee', e.target.value)}
+                    placeholder="Who was paid?"
+                    className="input-field w-full"
+                  />
+                </div>
+              )}
+            </>
+          )}
 
           {/* Description - full width */}
           <div className="md:col-span-2">

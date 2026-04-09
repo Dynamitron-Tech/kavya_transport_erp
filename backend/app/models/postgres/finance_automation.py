@@ -229,6 +229,7 @@ class DriverSettlement(Base, TimestampMixin, SoftDeleteMixin):
     paid_at = Column(DateTime, nullable=True)
     paid_date = Column(Date, nullable=True)
     payment_method_str = Column(String(50), nullable=True)
+    payment_reference = Column(String(100), nullable=True)  # UTR / cheque no / UPI txn ID
     payment_id = Column(Integer, ForeignKey("payments.id"), nullable=True)
 
     # Remarks

@@ -56,7 +56,8 @@ export default function AccountantBankingPage() {
 
   const { data: jobsData } = useQuery({
     queryKey: ['banking-create-jobs'],
-    queryFn: () => jobService.list({ page: 1, page_size: 500 }),
+    queryFn: () => jobService.list({ page: 1, page_size: 500 }).catch(() => ({ items: [], data: [] })),
+    retry: false,
   });
 
   const { data: tripsData } = useQuery({
