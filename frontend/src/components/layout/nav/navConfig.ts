@@ -28,6 +28,7 @@ export interface HeaderNavItem {
   route: string;
   icon: string;
   description: string;
+  badge?: string;
 }
 
 export interface HeaderNavSection {
@@ -62,26 +63,13 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       {
         label: 'Finance',
         items: [
-          { label: 'Finance Dashboard', route: '/accountant', icon: 'gauge', description: 'Financial overview and KPIs' },
-          { label: 'Invoices', route: '/finance/invoices', icon: 'invoice', description: 'GST invoices and billing' },
-          { label: 'Payments', route: '/finance/payments', icon: 'pay', description: 'Record and track payments' },
-          { label: 'Receivables', route: '/finance/receivables', icon: 'arrowup', description: 'Outstanding client payments' },
-          { label: 'Payables', route: '/finance/payables', icon: 'arrowdown', description: 'Vendor and driver payables' },
-          { label: 'Expenses', route: '/accountant/expenses', icon: 'wallet', description: 'Trip expense verification' },
-          { label: 'Driver Payments', route: '/accountant/payments', icon: 'dollarsign', description: 'Pending trip & expense payments' },
-          { label: 'Fuel Expenses', route: '/accountant/fuel', icon: 'fuel', description: 'Fuel cost analysis' },
-          { label: 'Banking', route: '/accountant/banking', icon: 'bank', description: 'Bank entries and reconciliation' },
-          { label: 'Ledger', route: '/finance/ledger', icon: 'book', description: 'General ledger and accounts' },
-          { label: 'Reconciliation', route: '/finance/reconciliation', icon: 'bank', description: 'Bank statement reconciliation' },
-          { label: 'Settlements', route: '/finance/settlements', icon: 'wallet', description: 'Driver settlement management' },
-          { label: 'Finance Alerts', route: '/finance/alerts', icon: 'alert', description: 'Overdue & payment alerts' },
-          { label: 'Finance Reports', route: '/finance/reports', icon: 'chart', description: 'Daily digest, P&L, GSTR-1' },
+          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts', badge: 'alerts' },
         ],
       },
       {
         label: 'Monitoring',
         items: [
-          { label: 'Live Tracking', route: '/tracking', icon: 'pin', description: 'Real-time vehicle location map' },
+          { label: 'Fleet Tracking', route: '/tracking', icon: 'pin', description: 'Unified GPS tracking — all providers' },
           { label: 'Alerts', route: '/alerts', icon: 'alert', description: 'System alerts and notifications' },
           { label: 'Reports', route: '/reports', icon: 'chart', description: 'Analytics and business reports' },
         ],
@@ -175,21 +163,9 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         ],
       },
       {
-        label: 'Accountant',
+        label: 'Finance',
         items: [
-          { label: 'Finance Dashboard', route: '/accountant', icon: 'gauge', description: 'Financial overview and KPIs' },
-          { label: 'Invoices', route: '/accountant/invoices', icon: 'invoice', description: 'Invoice management and GST' },
-          { label: 'Receivables', route: '/accountant/receivables', icon: 'arrowup', description: 'Client outstanding amounts' },
-          { label: 'Payables', route: '/accountant/payables', icon: 'arrowdown', description: 'Vendor payment tracking' },
-          { label: 'Expenses', route: '/accountant/expenses', icon: 'wallet', description: 'Trip expense verification' },
-          { label: 'Driver Payments', route: '/accountant/payments', icon: 'dollarsign', description: 'Pending trip & expense payments' },
-          { label: 'Fuel Expenses', route: '/accountant/fuel', icon: 'fuel', description: 'Fuel cost analysis' },
-          { label: 'Banking', route: '/accountant/banking', icon: 'bank', description: 'Bank entries and reconciliation' },
-          { label: 'Reconciliation', route: '/finance/reconciliation', icon: 'bank', description: 'Bank statement auto-reconciliation' },
-          { label: 'Settlements', route: '/finance/settlements', icon: 'wallet', description: 'Driver settlement management' },
-          { label: 'Ledger', route: '/accountant/ledger', icon: 'book', description: 'Double-entry bookkeeping' },
-          { label: 'Finance Alerts', route: '/finance/alerts', icon: 'alert', description: 'Overdue invoices & payment alerts' },
-          { label: 'Finance Reports', route: '/finance/reports', icon: 'chart', description: 'Daily digest, P&L, GSTR-1' },
+          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts', badge: 'alerts' },
         ],
       },
       {
@@ -272,18 +248,7 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       {
         label: 'Finance',
         items: [
-          { label: 'Finance Dashboard', route: '/accountant', icon: 'gauge', description: 'Financial overview and KPIs' },
-          { label: 'Invoices', route: '/accountant/invoices', icon: 'invoice', description: 'Invoice management and GST' },
-          { label: 'Receivables', route: '/accountant/receivables', icon: 'arrowup', description: 'Client outstanding amounts' },
-          { label: 'Payables', route: '/accountant/payables', icon: 'arrowdown', description: 'Vendor payment tracking' },
-          { label: 'Expenses', route: '/accountant/expenses', icon: 'wallet', description: 'Trip expense verification' },
-          { label: 'Fuel Expenses', route: '/accountant/fuel', icon: 'fuel', description: 'Fuel cost analysis' },
-          { label: 'Banking', route: '/accountant/banking', icon: 'bank', description: 'Bank entries and reconciliation' },
-          { label: 'Ledger', route: '/accountant/ledger', icon: 'book', description: 'Double-entry bookkeeping' },
-          { label: 'Reconciliation', route: '/finance/reconciliation', icon: 'bank', description: 'Bank statement auto-reconciliation' },
-          { label: 'Settlements', route: '/finance/settlements', icon: 'wallet', description: 'Driver settlement management' },
-          { label: 'Finance Alerts', route: '/finance/alerts', icon: 'alert', description: 'Overdue invoices & payment alerts' },
-          { label: 'Finance Reports', route: '/finance/reports', icon: 'chart', description: 'Daily digest, P&L, GSTR-1' },
+          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts', badge: 'alerts' },
         ],
       },
       {

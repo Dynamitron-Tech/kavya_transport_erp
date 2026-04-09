@@ -13,11 +13,13 @@ Jobs:
   SCH-04  08:00 1st/mth — monthly P&L summary to admin/manager
   SCH-05  06:00 Sunday  — fuel efficiency anomaly detection
   SCH-06  09:00 daily   — stale trip detection
+  GPS-01  every 60s     — iALERT GPS poll (Ashok Leyland telematics)
 """
 
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +109,22 @@ def start_tms_scheduler() -> None:
         replace_existing=True,
         name="SCH-06: Stale trip detection",
     )
+
+    # GPS-01: iALERT GPS poll — every N seconds (Ashok Leyland telematics)
+    from app.core.config import settings
+    if settings.IALERT_ENABLED and settings.IALERT_API_TOKEN:
+        from app.services.ialert_gps_service import poll_and_ingest
+        scheduler.add_job(
+            poll_and_ingest,
+            trigger=IntervalTrigger(seconds=settings.IALERT_POLL_INTERVAL_SECONDS),
+            id="gps_01_ialert_poll",
+            replace_existing=True,
+            name="GPS-01: iALERT GPS poll",
+            max_instances=1,  # Prevent overlapping polls
+        )
+        logger.info("GPS-01: iALERT polling enabled (every %ds)", settings.IALERT_POLL_INTERVAL_SECONDS)
+    else:
+        logger.info("GPS-01: iALERT polling disabled (IALERT_ENABLED=False or no token)")
 
     scheduler.start()
     logger.info("TMS Automation Scheduler started with 7 jobs")

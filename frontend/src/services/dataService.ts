@@ -816,8 +816,45 @@ export const financeService = {
     const data = await api.post(`/finance/settlements/${id}/approve`);
     return data;
   },
+  listDriverSettlements: async (params?: FilterParams) => {
+    const data = await api.get('/payables', { params });
+    return data;
+  },
+  approveDriverSettlement: async (id: number) => {
+    const data = await api.patch(`/payables/${id}/approve`);
+    return data;
+  },
+  payDriverSettlement: async (id: number, paymentData: {
+    payment_method: string;
+    reference_number?: string;
+    paid_date?: string;
+  }) => {
+    const data = await api.patch(`/payables/${id}/mark-paid`, paymentData);
+    return data;
+  },
   paySettlement: async (id: number) => {
     const data = await api.post(`/finance/settlements/${id}/pay`);
+    return data;
+  },
+
+  // Trip Expenses
+  listExpenses: async (params?: FilterParams) => {
+    const data = await api.get('/accountant/expenses', { params });
+    return data;
+  },
+  approveExpense: async (id: number) => {
+    const data = await api.put(`/accountant/expenses/${id}/approve`);
+    return data;
+  },
+  rejectExpense: async (id: number, reason: string) => {
+    const data = await api.put(`/accountant/expenses/${id}/reject`, { reason });
+    return data;
+  },
+  payExpense: async (id: number, paymentData: {
+    payment_mode: string;
+    reference_number?: string;
+  }) => {
+    const data = await api.put(`/accountant/expenses/${id}/mark-paid`, paymentData);
     return data;
   },
 
@@ -830,9 +867,38 @@ export const financeService = {
     const data = await api.get('/finance/supplier-payables', { params });
     return data;
   },
-  paySupplierPayable: async (id: number) => {
-    const data = await api.post(`/finance/supplier-payables/${id}/pay`);
+  paySupplierPayable: async (id: number, paymentData: {
+    payment_method: string;
+    reference_number?: string;
+    paid_date?: string;
+  }) => {
+    const data = await api.post(`/finance/supplier-payables/${id}/pay`, paymentData);
     return data;
+  },
+
+  // Market Trips (hired/contracted vehicles)
+  listMarketTrips: async (params?: FilterParams) => {
+    const data = await api.get('/market-trips', { params });
+    return data;
+  },
+  settleMarketTrip: async (id: number, paymentData: {
+    settlement_reference: string;
+    settlement_remarks?: string;
+  }) => {
+    const data = await api.post(`/market-trips/${id}/settle`, paymentData);
+    return data;
+  },
+
+  // Razorpay
+  razorpayStatus: async () => {
+    const data = await api.get('/finance/razorpay/status');
+    return data;
+  },
+  createRazorpayLink: async (payload: {
+    invoice_id: number;
+  }) => {
+    const data = await api.post('/finance/payment-links', payload);
+    return unwrap(data);
   },
 
   // FASTag
@@ -967,6 +1033,17 @@ export const reportService = {
   },
   exportReport: async (reportType: string, format: string, params?: FilterParams) => {
     const data = await api.get(`/reports/export/${reportType}`, {
+      params: { format, ...params },
+      responseType: 'blob',
+    });
+    return data;
+  },
+  auditorReport: async (params?: { from_date?: string; to_date?: string; ledger_page?: number; ledger_per_page?: number }) => {
+    const data = await api.get('/reports/auditor', { params });
+    return data;
+  },
+  exportAuditorReport: async (format: 'csv' | 'pdf', params?: { from_date?: string; to_date?: string }) => {
+    const data = await api.get('/reports/auditor/export', {
       params: { format, ...params },
       responseType: 'blob',
     });
@@ -1701,6 +1778,26 @@ export const gpsTrackingService = {
   },
   getVehiclePath: async (vehicleId: string, hours = 24) => {
     const data = await api.get(`/tracking/gps/path/${vehicleId}`, { params: { hours } });
+    return unwrap(data);
+  },
+};
+
+// ---- Unified Tracking ----
+export const unifiedTrackingService = {
+  getVehicles: async (params?: Record<string, string>) => {
+    const data = await api.get('/tracking/unified/vehicles', { params });
+    return unwrap(data);
+  },
+  getProviders: async () => {
+    const data = await api.get('/tracking/unified/providers');
+    return unwrap(data);
+  },
+  activateProvider: async (providerId: string, payload: { api_key: string; api_endpoint?: string }) => {
+    const data = await api.post(`/tracking/unified/providers/${providerId}/activate`, payload);
+    return unwrap(data);
+  },
+  pollAll: async () => {
+    const data = await api.post('/tracking/unified/poll');
     return unwrap(data);
   },
 };

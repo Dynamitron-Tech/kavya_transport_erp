@@ -280,6 +280,10 @@ ROLE_PERMISSIONS = {
         Permissions.CLIENT_READ,
         # Trip (read only for invoicing)
         Permissions.TRIP_READ,
+        # Job (read only - needed for banking/invoicing dropdowns and Finance Hub)
+        Permissions.JOB_READ,
+        # E-way Bill (read only - needed for Finance Hub expiry alerts)
+        Permissions.EWAY_BILL_READ,
         # Reports
         Permissions.REPORT_VIEW, Permissions.REPORT_EXPORT,
         # Expense
@@ -289,6 +293,11 @@ ROLE_PERMISSIONS = {
         # Fuel & Maintenance (read for overview)
         Permissions.FUEL_READ,
         Permissions.MAINTENANCE_READ,
+        # Vehicle & Driver (read only - needed for Finance Hub / expense dropdowns)
+        Permissions.VEHICLE_READ,
+        Permissions.DRIVER_READ,
+        # Documents (read for vehicle/driver compliance view)
+        Permissions.DOCUMENT_READ,
         # Alerts / Notifications
         Permissions.ALERT_VIEW,
     ],

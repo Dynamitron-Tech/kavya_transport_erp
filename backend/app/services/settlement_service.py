@@ -208,19 +208,41 @@ async def create_supplier_payable(
     return payable
 
 
-async def pay_supplier_payable(db: AsyncSession, payable_id: int, user_id: int) -> SupplierPayable | None:
+async def pay_supplier_payable(
+    db: AsyncSession, payable_id: int, user_id: int,
+    payment_method: str = "NEFT",
+    reference_number: str = None,
+    paid_date_str: str = None,
+) -> SupplierPayable | None:
     """Mark supplier payable as paid."""
     payable = await db.get(SupplierPayable, payable_id)
     if not payable or payable.status == SettlementStatus.PAID:
         return None
 
+    paid_date_val = date.today()
+    if paid_date_str:
+        try:
+            from datetime import date as date_cls
+            paid_date_val = date_cls.fromisoformat(paid_date_str)
+        except (ValueError, TypeError):
+            pass
+
+    # Map method string to enum
+    method_map = {
+        "NEFT": PaymentMethod.NEFT, "RTGS": PaymentMethod.RTGS,
+        "UPI": PaymentMethod.UPI, "CHEQUE": PaymentMethod.CHEQUE,
+        "CASH": PaymentMethod.CASH, "BANK_TRANSFER": PaymentMethod.BANK_TRANSFER,
+    }
+    pay_method_enum = method_map.get(payment_method.upper(), PaymentMethod.BANK_TRANSFER)
+
     payment = Payment(
         payment_number=generate_payment_number(),
-        payment_date=date.today(),
+        payment_date=paid_date_val,
         payment_type="paid",
         vendor_id=payable.vendor_id,
         amount=payable.net_payable,
-        payment_method=PaymentMethod.BANK_TRANSFER,
+        payment_method=pay_method_enum,
+        reference_number=reference_number,
         status=PaymentStatus.COMPLETED,
         net_amount=payable.net_payable,
         remarks=f"Supplier payable {payable.payable_number}",
@@ -232,11 +254,11 @@ async def pay_supplier_payable(db: AsyncSession, payable_id: int, user_id: int) 
     await db.flush()
 
     payable.status = SettlementStatus.PAID
-    payable.paid_date = date.today()
+    payable.paid_date = paid_date_val
     payable.payment_id = payment.id
 
     await create_ledger_entry(db, {
-        "entry_date": date.today(),
+        "entry_date": paid_date_val,
         "ledger_type": "payable",
         "account_name": "Accounts Payable",
         "vendor_id": payable.vendor_id,
@@ -245,7 +267,7 @@ async def pay_supplier_payable(db: AsyncSession, payable_id: int, user_id: int) 
         "credit": 0,
         "narration": f"Supplier payment: {payable.payable_number}",
         "reference_type": "supplier_payable",
-        "reference_number": payable.payable_number,
+        "reference_number": reference_number or payable.payable_number,
         "tenant_id": payable.tenant_id,
         "branch_id": payable.branch_id,
     }, user_id)

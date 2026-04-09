@@ -5,7 +5,10 @@ const unwrap = <T = any>(payload: any): T => (payload?.data ?? payload) as T;
 
 export const authService = {
   login: async (credentials: LoginRequest): Promise<LoginResponse> => {
-    const data = await api.post<LoginResponse>('/auth/login', credentials);
+    const data = await api.post<LoginResponse>('/auth/login', {
+      identifier: credentials.email,
+      password: credentials.password,
+    });
     return unwrap(data);
   },
 

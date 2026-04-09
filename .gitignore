@@ -39,9 +39,12 @@ frontend/test-results/
 # Playwright artifacts
 frontend/test-results/
 frontend/playwright-report/
+frontend/test-artifacts/
 frontend/.playwright/
 **/test-results/
 **/playwright-report/
+**/test-artifacts/
+**/tests/setup/.auth/
 
 # Gradle
 .gradle/

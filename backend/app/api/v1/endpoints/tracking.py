@@ -36,8 +36,6 @@ async def get_live_tracking(
     _perm=Depends(require_any_permission([Permissions.TRACKING_LIVE, Permissions.TRACKING_VIEW])),
 ):
     """Get all active tracked trips/vehicles with their GPS coordinates."""
-    import math, time as _time
-    now_ts = _time.time()
     result = await db.execute(
         select(Trip, Vehicle.current_latitude, Vehicle.current_longitude, Vehicle.odometer_reading)
         .outerjoin(Vehicle, Vehicle.id == Trip.vehicle_id)
@@ -49,17 +47,10 @@ async def get_live_tracking(
     items = []
     for t, lat, lng, odo in result.all():
         is_moving = t.status in (TripStatusEnum.IN_TRANSIT, TripStatusEnum.STARTED)
-        speed = 45 if is_moving else 0
         flat = float(lat) if lat else None
         flng = float(lng) if lng else None
-        # Simulate real-time drift for moving vehicles
-        if is_moving and flat and flng:
-            vid = t.vehicle_id or t.id
-            flat += 0.0003 * math.sin(now_ts / 10 + vid * 1.7)
-            flng += 0.0003 * math.cos(now_ts / 10 + vid * 2.3)
-            speed = round(25 + 30 * abs(math.sin(now_ts / 15 + vid)), 1)
-            flat = round(flat, 6)
-            flng = round(flng, 6)
+        # Speed comes from the GPS provider (iALERT/device); default 0 if no live data
+        speed = 0
         items.append({
             "trip_id": t.id,
             "trip_number": t.trip_number,
@@ -425,3 +416,220 @@ async def proxy_map_tile(z: int, x: int, y: int):
         raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Tile proxy error: {str(e)}")
+
+
+# ── iALERT GPS Admin Endpoints ──────────────────────────────────
+
+@router.get("/ialert/status", response_model=APIResponse)
+async def ialert_status(
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.TRACKING_LIVE)),
+):
+    """Check iALERT integration status and config (admin only)."""
+    from app.core.config import settings
+    return APIResponse(success=True, data={
+        "enabled": settings.IALERT_ENABLED,
+        "token_configured": bool(settings.IALERT_API_TOKEN),
+        "api_url": settings.IALERT_API_URL,
+        "poll_interval_seconds": settings.IALERT_POLL_INTERVAL_SECONDS,
+    })
+
+
+@router.post("/ialert/poll", response_model=APIResponse)
+async def ialert_manual_poll(
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.TRACKING_LIVE)),
+):
+    """Manually trigger an iALERT poll cycle (admin/debug use)."""
+    from app.core.config import settings
+    if not settings.IALERT_ENABLED or not settings.IALERT_API_TOKEN:
+        raise HTTPException(status_code=400, detail="iALERT not configured. Set IALERT_ENABLED=true and IALERT_API_TOKEN in .env")
+
+    from app.services.ialert_gps_service import poll_and_ingest
+    result = await poll_and_ingest()
+    return APIResponse(success=True, data=result, message="iALERT poll completed")
+
+
+# ── Unified Multi-Provider Tracking Endpoints ────────────────────
+
+class ProviderActivatePayload(BaseModel):
+    api_key: str
+    endpoint: str
+
+
+@router.get("/unified/vehicles", response_model=APIResponse)
+async def get_unified_vehicles(
+    status: Optional[str] = Query(None, description="Filter: moving|idle|stopped|offline|no-gps"),
+    provider: Optional[str] = Query(None, description="Filter: ialert|tata_gps|third_party"),
+    search: Optional[str] = Query(None, description="Search reg/driver"),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_any_permission([Permissions.TRACKING_LIVE, Permissions.TRACKING_VIEW])),
+):
+    """Get ALL vehicles across ALL GPS providers in a single normalised list."""
+    from datetime import datetime, timedelta, timezone
+    from app.models.postgres.driver import Driver
+
+    # Build query
+    q = select(Vehicle).where(Vehicle.is_deleted == False)
+    if provider:
+        q = q.where(Vehicle.gps_provider == provider)
+    if search:
+        q = q.where(Vehicle.registration_number.ilike(f"%{search}%"))
+
+    result = await db.execute(q.order_by(Vehicle.registration_number))
+    vehicles = result.scalars().all()
+
+    # Get active trips for trip info
+    active_trips = await db.execute(
+        select(Trip).where(
+            Trip.is_deleted == False,
+            Trip.status.in_([TripStatusEnum.STARTED, TripStatusEnum.IN_TRANSIT,
+                             TripStatusEnum.LOADING, TripStatusEnum.UNLOADING])
+        )
+    )
+    trip_by_vehicle = {}
+    for t in active_trips.scalars().all():
+        if t.vehicle_id:
+            trip_by_vehicle[t.vehicle_id] = t
+
+    # Get provider statuses
+    from app.services.gps.provider_registry import get_all_provider_statuses
+    provider_statuses = await get_all_provider_statuses()
+    provider_status_map = {p["id"]: p for p in provider_statuses}
+
+    now = datetime.now(timezone.utc)
+    items = []
+
+    for v in vehicles:
+        # Determine GPS status
+        has_gps = v.current_latitude is not None and v.current_longitude is not None
+        gps_prov = (v.gps_provider or "none").lower()
+        prov_info = provider_status_map.get(gps_prov, {})
+        prov_is_active = prov_info.get("status") == "active" if prov_info else False
+
+        # Determine vehicle tracking status
+        last_gps = getattr(v, "last_gps_at", None) or v.updated_at
+        if last_gps and last_gps.tzinfo is None:
+            from datetime import timezone as tz
+            last_gps = last_gps.replace(tzinfo=tz.utc)
+        minutes_ago = (now - last_gps).total_seconds() / 60 if last_gps else 9999
+
+        if not has_gps:
+            veh_status = "no-gps" if gps_prov != "none" else "offline"
+        elif minutes_ago > 120:
+            veh_status = "offline"
+        else:
+            # Read from MongoDB trip_tracking or derive from vehicle
+            trip = trip_by_vehicle.get(v.id)
+            if trip and trip.status in (TripStatusEnum.IN_TRANSIT, TripStatusEnum.STARTED):
+                veh_status = "moving"
+            elif trip and trip.status in (TripStatusEnum.LOADING, TripStatusEnum.UNLOADING):
+                veh_status = "idle"
+            else:
+                veh_status = "stopped"
+
+        # Apply status filter
+        if status and veh_status != status:
+            continue
+
+        trip = trip_by_vehicle.get(v.id)
+        items.append({
+            "id": v.id,
+            "registration_number": v.registration_number,
+            "make": v.make,
+            "model": v.model,
+            "vehicle_type": v.vehicle_type.value if hasattr(v.vehicle_type, "value") else str(v.vehicle_type),
+            "gps_provider": gps_prov,
+            "gps_provider_name": prov_info.get("name", gps_prov),
+            "gps_provider_status": v.gps_provider_status or ("active" if prov_is_active else "pending"),
+            "provider_live": prov_is_active and has_gps and minutes_ago < 10,
+            "lat": float(v.current_latitude) if v.current_latitude else None,
+            "lng": float(v.current_longitude) if v.current_longitude else None,
+            "speed": 0,  # Will come from MongoDB/WebSocket
+            "heading": 0,
+            "odometer": float(v.odometer_reading or 0),
+            "ignition_on": veh_status in ("moving", "idle"),
+            "engine_on": veh_status in ("moving", "idle"),
+            "fuel_level": None,
+            "battery_voltage": None,
+            "status": veh_status,
+            "last_update": str(last_gps) if last_gps else None,
+            "minutes_since_update": round(minutes_ago, 1) if minutes_ago < 9999 else None,
+            # Trip info
+            "trip_id": trip.id if trip else None,
+            "trip_number": trip.trip_number if trip else None,
+            "driver_name": trip.driver_name if trip else None,
+            "route": f"{trip.origin} → {trip.destination}" if trip else None,
+            "origin": trip.origin if trip else None,
+            "destination": trip.destination if trip else None,
+            "trip_status": trip.status.value if trip and hasattr(trip.status, "value") else None,
+        })
+
+    # Summary counts
+    summary = {
+        "total": len(items),
+        "moving": sum(1 for i in items if i["status"] == "moving"),
+        "stopped": sum(1 for i in items if i["status"] == "stopped"),
+        "idle": sum(1 for i in items if i["status"] == "idle"),
+        "offline": sum(1 for i in items if i["status"] == "offline"),
+        "no_gps": sum(1 for i in items if i["status"] == "no-gps"),
+    }
+
+    return APIResponse(success=True, data={
+        "vehicles": items,
+        "providers": provider_statuses,
+        "summary": summary,
+    })
+
+
+@router.get("/unified/providers", response_model=APIResponse)
+async def get_provider_statuses(
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Get GPS provider status info (for the provider pills in the UI)."""
+    from app.services.gps.provider_registry import get_all_provider_statuses
+    providers = await get_all_provider_statuses()
+    return APIResponse(success=True, data=providers)
+
+
+@router.post("/unified/providers/{provider_id}/activate", response_model=APIResponse)
+async def activate_gps_provider(
+    provider_id: str,
+    payload: ProviderActivatePayload,
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.TRACKING_LIVE)),
+):
+    """Activate a GPS provider when its API key arrives."""
+    valid_ids = ("ialert", "tata_gps", "third_party")
+    if provider_id not in valid_ids:
+        raise HTTPException(status_code=400, detail=f"Invalid provider_id. Must be one of: {valid_ids}")
+
+    from app.services.gps.provider_registry import activate_provider
+    result = await activate_provider(provider_id, payload.api_key, payload.endpoint)
+    return APIResponse(success=True, data=result, message=f"Provider {provider_id} activated")
+
+
+@router.post("/unified/poll", response_model=APIResponse)
+async def unified_poll_all(
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.TRACKING_LIVE)),
+):
+    """Manually poll ALL active GPS providers (admin/debug)."""
+    from app.services.gps.provider_registry import get_active_providers, mark_provider_error, mark_provider_success
+    from app.services.gps.ingest import ingest_gps_points
+
+    providers = await get_active_providers()
+    results = {}
+
+    for pid, provider in providers.items():
+        try:
+            points = await provider.fetch_all_positions()
+            summary = await ingest_gps_points(points, pid)
+            await mark_provider_success(pid, summary["updated"])
+            results[pid] = summary
+        except Exception as e:
+            await mark_provider_error(pid, str(e))
+            results[pid] = {"error": str(e)}
+
+    return APIResponse(success=True, data=results, message="Unified poll completed")

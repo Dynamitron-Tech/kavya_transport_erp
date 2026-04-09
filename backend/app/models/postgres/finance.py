@@ -51,6 +51,7 @@ class PaymentMethod(enum.Enum):
     NEFT = "NEFT"
     RTGS = "RTGS"
     ADJUST = "ADJUST"
+    RAZORPAY = "RAZORPAY"
 
 
 class LedgerType(enum.Enum):

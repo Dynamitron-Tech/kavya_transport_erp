@@ -55,6 +55,8 @@ import '../../screens/accountant/accountant_statements_screen.dart';
 import '../../screens/accountant/accountant_expense_approval_screen.dart';
 import '../../screens/accountant/accountant_settlement_screen.dart';
 import '../../screens/accountant/accountant_banking_screen.dart';
+import '../../screens/accountant/auditor_report_screen.dart';
+import '../../screens/accountant/accountant_payments_hub_screen.dart';
 // Driver settlement
 import '../../screens/driver/driver_settlement_screen.dart';
 // Pump Shift screen
@@ -471,6 +473,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/accountant/banking',
         parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const AccountantBankingScreen(),
+      ),
+      GoRoute(
+        path: '/accountant/auditor-report',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const AuditorReportScreen(),
+      ),
+      GoRoute(
+        path: '/accountant/payments-hub',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const AccountantPaymentsHubScreen(),
       ),
       
       // --- Associate Routes (legacy redirects → PA screens) ---

@@ -1,11 +1,12 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { reportService } from '@/services/dataService';
 import { useAuthStore } from '@/store/authStore';
 import {
   BarChart3, Truck, Users, Fuel, DollarSign, TrendingUp,
   MapPin, Building2, Wrench, Download,
-  FileSpreadsheet
+  FileSpreadsheet, ShieldCheck
 } from 'lucide-react';
 
 interface ReportCard {
@@ -18,6 +19,7 @@ interface ReportCard {
 }
 
 const reportCards: ReportCard[] = [
+  { id: 'auditor-report', title: 'Auditor Report', description: 'Full audit — P&L, payment methods, GST, receivables, TDS & ledger with PDF/CSV export', icon: <ShieldCheck size={24} />, color: 'bg-indigo-100 text-indigo-600', permission: 'finance:read' },
   { id: 'trip-summary', title: 'Trip Summary', description: 'Overview of all trips with completion rates, distances, and timelines', icon: <MapPin size={24} />, color: 'bg-blue-100 text-blue-600', permission: 'reports:read' },
   { id: 'vehicle-performance', title: 'Vehicle Performance', description: 'Vehicle utilization, mileage analysis, and operational efficiency', icon: <Truck size={24} />, color: 'bg-green-100 text-green-600', permission: 'reports:read' },
   { id: 'driver-performance', title: 'Driver Performance', description: 'Driver ratings, trip counts, fuel efficiency, and safety metrics', icon: <Users size={24} />, color: 'bg-purple-100 text-purple-600', permission: 'reports:read' },
@@ -31,6 +33,7 @@ const reportCards: ReportCard[] = [
 
 export default function ReportsPage() {
   const { hasPermission } = useAuthStore();
+  const navigate = useNavigate();
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const reportParams = {
@@ -78,6 +81,14 @@ export default function ReportsPage() {
 
   const visibleReports = reportCards.filter((r) => hasPermission(r.permission));
 
+  const handleReportClick = (id: string) => {
+    if (id === 'auditor-report') {
+      navigate('/reports/auditor');
+      return;
+    }
+    setSelectedReport(id);
+  };
+
   return (
     <div className="space-y-5">
       <div className="page-header">
@@ -110,7 +121,7 @@ export default function ReportsPage() {
           {visibleReports.map((report) => (
             <button
               key={report.id}
-              onClick={() => setSelectedReport(report.id)}
+              onClick={() => handleReportClick(report.id)}
               className="card text-left hover:shadow-md hover:border-primary-200 transition-all group"
             >
               <div className={`w-12 h-12 rounded-xl ${report.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>

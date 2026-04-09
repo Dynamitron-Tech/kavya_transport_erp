@@ -72,3 +72,8 @@ pytesseract>=0.3.10
 # OCR Image Pre-processing
 opencv-python-headless>=4.8.0
 numpy>=1.24.0
+
+# IFIAS — Invoice Automation
+watchdog>=4.0.0
+pdfplumber>=0.10.3
+pandas>=2.2.0

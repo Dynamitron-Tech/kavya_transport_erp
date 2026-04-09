@@ -138,6 +138,20 @@ celery_app.conf.update(
             "task": "app.tasks.notification_tasks.check_overdue_invoices_notify",
             "schedule": crontab(hour=9, minute=0),  # 9 AM daily
         },
+        # ── iALERT GPS Polling (legacy, kept for backward compat) ──
+        "poll-ialert-gps": {
+            "task": "app.tasks.ialert_tasks.poll_ialert_gps",
+            "schedule": float(settings.IALERT_POLL_INTERVAL_SECONDS),
+        },
+        # ── Unified GPS Polling (all providers) ──
+        "gps-unified-poll": {
+            "task": "gps.poll_all_providers",
+            "schedule": float(settings.IALERT_POLL_INTERVAL_SECONDS),
+        },
+        "gps-provider-health": {
+            "task": "gps.check_provider_health",
+            "schedule": 300.0,  # every 5 min
+        },
     },
 )
 

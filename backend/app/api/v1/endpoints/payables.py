@@ -216,6 +216,7 @@ async def mark_settlement_paid(
         raise HTTPException(status_code=400, detail="Only approved settlements can be marked paid")
 
     payment_method = body.get("payment_method", "NEFT")
+    reference_number = body.get("reference_number") or body.get("utr") or body.get("ref_no")
     paid_date_str = body.get("paid_date")
     paid_date_val = date.today()
     if paid_date_str:
@@ -228,5 +229,6 @@ async def mark_settlement_paid(
     settlement.paid_at = datetime.utcnow()
     settlement.paid_date = paid_date_val
     settlement.payment_method_str = payment_method
+    settlement.payment_reference = reference_number
     await db.commit()
     return APIResponse(success=True, message="Settlement marked as paid")

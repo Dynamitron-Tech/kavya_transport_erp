@@ -7,6 +7,8 @@ from app.api.v1.endpoints import (
     aliases,
     compat,
     admin,
+    invoice_batches,
+    batch_progress,
     admin_dashboard,
     auth,
     users,
@@ -177,3 +179,7 @@ api_router.include_router(sync.router, prefix="/sync", tags=["Sync"])
 #   POST /receivables/record-payment
 #   GET  /receivables/{id}/payments
 api_router.include_router(receivable_payments.router, tags=["Receivable Payments"])
+
+# IFIAS — Intelligent Freight Invoice Automation
+api_router.include_router(invoice_batches.router, prefix="", tags=["IFIAS Invoice Automation"])
+api_router.include_router(batch_progress.router, tags=["IFIAS WebSocket Progress"])

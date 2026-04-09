@@ -6,7 +6,7 @@ from typing import Any, Optional, Tuple
 import csv
 import io
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +16,7 @@ from app.db.postgres.connection import get_db
 from app.middleware.permissions import Permissions, require_permission
 from app.models.postgres.client import Client
 from app.models.postgres.driver import Driver, DriverAttendance
-from app.models.postgres.finance import Invoice
+from app.models.postgres.finance import Invoice, Ledger, Payment, GSTEntry
 from app.models.postgres.job import Job
 from app.models.postgres.trip import Trip, TripExpense, TripFuelEntry
 from app.models.postgres.vehicle import Vehicle
@@ -755,3 +755,494 @@ async def branch_summary_report(
         "total_trips": total_trips,
         "total_revenue": total_revenue,
     })
+
+
+# ---------------------------------------------------------------------------
+# AUDITOR REPORT
+# ---------------------------------------------------------------------------
+
+@router.get("/auditor", response_model=APIResponse)
+async def auditor_report(
+    from_date_raw: Optional[str] = Query(None, alias="from_date"),
+    to_date_raw: Optional[str] = Query(None, alias="to_date"),
+    ledger_page: int = Query(1, ge=1),
+    ledger_per_page: int = Query(100, ge=10, le=500),
+    db: AsyncSession = Depends(get_db),
+    _perm: TokenData = Depends(require_permission(Permissions.REPORT_VIEW)),
+):
+    """Comprehensive auditor report: P&L, payments, GST, receivables, TDS, ledger."""
+    from_date, to_date = _resolve_date_range(from_date_raw, to_date_raw)
+    today = date.today()
+
+    # ---- 1. P&L Summary ----
+    inv_pl_stmt = select(
+        func.coalesce(func.sum(Invoice.total_amount), 0).label("total_invoiced"),
+        func.coalesce(func.sum(Invoice.amount_paid), 0).label("total_collected"),
+        func.coalesce(func.sum(Invoice.amount_due), 0).label("total_outstanding"),
+    ).where(
+        Invoice.is_deleted.is_(False),
+        Invoice.invoice_date >= from_date,
+        Invoice.invoice_date <= to_date,
+    )
+    inv_pl = (await db.execute(inv_pl_stmt)).one()
+    total_invoiced = _to_number(inv_pl.total_invoiced)
+    total_collected = _to_number(inv_pl.total_collected)
+
+    exp_stmt = select(
+        func.coalesce(func.sum(TripExpense.amount), 0)
+    ).where(
+        func.date(TripExpense.expense_date) >= from_date,
+        func.date(TripExpense.expense_date) <= to_date,
+    )
+    total_expenses = _to_number((await db.execute(exp_stmt)).scalar())
+    net_profit = total_collected - total_expenses
+    collection_efficiency = round((total_collected / total_invoiced * 100), 2) if total_invoiced > 0 else 0.0
+
+    pl_summary = {
+        "total_invoiced": total_invoiced,
+        "total_collected": total_collected,
+        "total_expenses": total_expenses,
+        "net_profit": net_profit,
+        "collection_efficiency_percent": collection_efficiency,
+    }
+
+    # ---- 2. Payment Method Breakdown ----
+    pay_stmt = select(
+        Payment.payment_method,
+        func.coalesce(func.sum(Payment.amount), 0).label("total"),
+        func.count(Payment.id).label("count"),
+    ).where(
+        Payment.is_deleted.is_(False),
+        Payment.payment_type == "received",
+        Payment.payment_date >= from_date,
+        Payment.payment_date <= to_date,
+    ).group_by(Payment.payment_method)
+    pay_rows = (await db.execute(pay_stmt)).all()
+    payment_breakdown = [
+        {
+            "method": row.payment_method.value if hasattr(row.payment_method, "value") else str(row.payment_method or ""),
+            "amount": _to_number(row.total),
+            "count": int(row.count or 0),
+        }
+        for row in pay_rows
+    ]
+
+    # ---- 3. GST Summary ----
+    gst_stmt = select(
+        func.coalesce(func.sum(Invoice.cgst_amount), 0).label("cgst"),
+        func.coalesce(func.sum(Invoice.sgst_amount), 0).label("sgst"),
+        func.coalesce(func.sum(Invoice.igst_amount), 0).label("igst"),
+        func.coalesce(func.sum(Invoice.taxable_amount), 0).label("taxable"),
+    ).where(
+        Invoice.is_deleted.is_(False),
+        Invoice.invoice_date >= from_date,
+        Invoice.invoice_date <= to_date,
+    )
+    gst_row = (await db.execute(gst_stmt)).one()
+    cgst = _to_number(gst_row.cgst)
+    sgst = _to_number(gst_row.sgst)
+    igst = _to_number(gst_row.igst)
+    total_gst_collected = cgst + sgst + igst
+
+    # GST paid to vendors (from payable payments)
+    gst_paid_stmt = select(
+        func.coalesce(func.sum(Payment.amount), 0)
+    ).where(
+        Payment.is_deleted.is_(False),
+        Payment.payment_type == "paid",
+        Payment.payment_date >= from_date,
+        Payment.payment_date <= to_date,
+    )
+    gst_payable_total = _to_number((await db.execute(gst_paid_stmt)).scalar())
+    gst_summary = {
+        "taxable_value": _to_number(gst_row.taxable),
+        "cgst_amount": cgst,
+        "sgst_amount": sgst,
+        "igst_amount": igst,
+        "total_gst_collected": total_gst_collected,
+        "total_vendor_payments": gst_payable_total,
+        "net_gst_payable": round(total_gst_collected, 2),
+    }
+
+    # ---- 4. Outstanding Receivables ----
+    overdue_amt = func.coalesce(
+        func.sum(case((and_(Invoice.due_date < today, Invoice.amount_due > 0), Invoice.amount_due), else_=0)), 0
+    )
+    partial_amt = func.coalesce(
+        func.sum(case((Invoice.status == "PARTIALLY_PAID", Invoice.amount_due), else_=0)), 0
+    )
+    disputed_amt = func.coalesce(
+        func.sum(case((Invoice.status == "DISPUTED", Invoice.amount_due), else_=0)), 0
+    )
+    overdue_cnt = func.coalesce(
+        func.sum(case((and_(Invoice.due_date < today, Invoice.amount_due > 0), 1), else_=0)), 0
+    )
+    partial_cnt = func.coalesce(
+        func.sum(case((Invoice.status == "PARTIALLY_PAID", 1), else_=0)), 0
+    )
+    disputed_cnt = func.coalesce(
+        func.sum(case((Invoice.status == "DISPUTED", 1), else_=0)), 0
+    )
+    outstanding_stmt = select(
+        overdue_amt, partial_amt, disputed_amt,
+        overdue_cnt, partial_cnt, disputed_cnt,
+    ).where(
+        Invoice.is_deleted.is_(False),
+        Invoice.invoice_date >= from_date,
+        Invoice.invoice_date <= to_date,
+    )
+    os_row = (await db.execute(outstanding_stmt)).one()
+    outstanding_receivables = {
+        "overdue_amount": _to_number(os_row[0]),
+        "partially_paid_amount": _to_number(os_row[1]),
+        "disputed_amount": _to_number(os_row[2]),
+        "overdue_count": int(os_row[3] or 0),
+        "partially_paid_count": int(os_row[4] or 0),
+        "disputed_count": int(os_row[5] or 0),
+        "total_outstanding": _to_number(inv_pl.total_outstanding),
+    }
+
+    # ---- 5. TDS Summary ----
+    tds_stmt = select(
+        func.coalesce(func.sum(Payment.tds_amount), 0).label("total_tds"),
+        func.count(Payment.id).label("payment_count"),
+    ).where(
+        Payment.is_deleted.is_(False),
+        Payment.tds_amount > 0,
+        Payment.payment_date >= from_date,
+        Payment.payment_date <= to_date,
+    )
+    tds_row = (await db.execute(tds_stmt)).one()
+    tds_summary = {
+        "total_tds_deducted": _to_number(tds_row.total_tds),
+        "payment_count": int(tds_row.payment_count or 0),
+    }
+
+    # ---- 6. Ledger Entries (paginated) ----
+    offset = (ledger_page - 1) * ledger_per_page
+    ledger_count_stmt = select(func.count(Ledger.id)).where(
+        Ledger.entry_date >= from_date,
+        Ledger.entry_date <= to_date,
+    )
+    total_ledger_rows = int((await db.execute(ledger_count_stmt)).scalar() or 0)
+
+    ledger_stmt = (
+        select(Ledger)
+        .where(Ledger.entry_date >= from_date, Ledger.entry_date <= to_date)
+        .order_by(Ledger.entry_date.desc(), Ledger.id.desc())
+        .offset(offset)
+        .limit(ledger_per_page)
+    )
+    ledger_rows = (await db.execute(ledger_stmt)).scalars().all()
+    ledger_entries = [
+        {
+            "id": row.id,
+            "entry_number": row.entry_number,
+            "entry_date": row.entry_date.isoformat() if row.entry_date else None,
+            "ledger_type": row.ledger_type.value if hasattr(row.ledger_type, "value") else str(row.ledger_type or ""),
+            "account_name": row.account_name,
+            "account_code": row.account_code,
+            "narration": row.narration,
+            "reference_number": row.reference_number,
+            "debit": _to_number(row.debit),
+            "credit": _to_number(row.credit),
+            "balance": _to_number(row.balance),
+        }
+        for row in ledger_rows
+    ]
+
+    return APIResponse(success=True, data={
+        "period": {"from_date": from_date.isoformat(), "to_date": to_date.isoformat()},
+        "pl_summary": pl_summary,
+        "payment_breakdown": payment_breakdown,
+        "gst_summary": gst_summary,
+        "outstanding_receivables": outstanding_receivables,
+        "tds_summary": tds_summary,
+        "ledger": {
+            "entries": ledger_entries,
+            "total": total_ledger_rows,
+            "page": ledger_page,
+            "per_page": ledger_per_page,
+            "total_pages": max(1, (total_ledger_rows + ledger_per_page - 1) // ledger_per_page),
+        },
+    }, message="ok")
+
+
+@router.get("/auditor/export")
+async def auditor_report_export(
+    format: str = Query("csv", pattern="^(csv|pdf)$"),
+    from_date_raw: Optional[str] = Query(None, alias="from_date"),
+    to_date_raw: Optional[str] = Query(None, alias="to_date"),
+    db: AsyncSession = Depends(get_db),
+    _perm: TokenData = Depends(require_permission(Permissions.REPORT_VIEW)),
+):
+    """Export auditor report as CSV or PDF."""
+    from_date, to_date = _resolve_date_range(from_date_raw, to_date_raw)
+    today = date.today()
+
+    # ---- gather all data (same queries as above) ----
+    inv_pl_stmt = select(
+        func.coalesce(func.sum(Invoice.total_amount), 0),
+        func.coalesce(func.sum(Invoice.amount_paid), 0),
+        func.coalesce(func.sum(Invoice.amount_due), 0),
+    ).where(Invoice.is_deleted.is_(False), Invoice.invoice_date >= from_date, Invoice.invoice_date <= to_date)
+    inv_pl = (await db.execute(inv_pl_stmt)).one()
+    total_invoiced = _to_number(inv_pl[0])
+    total_collected = _to_number(inv_pl[1])
+    exp_stmt = select(func.coalesce(func.sum(TripExpense.amount), 0)).where(
+        func.date(TripExpense.expense_date) >= from_date, func.date(TripExpense.expense_date) <= to_date)
+    total_expenses = _to_number((await db.execute(exp_stmt)).scalar())
+    net_profit = total_collected - total_expenses
+    collection_eff = round((total_collected / total_invoiced * 100), 2) if total_invoiced > 0 else 0.0
+
+    pay_stmt = select(Payment.payment_method, func.coalesce(func.sum(Payment.amount), 0), func.count(Payment.id)).where(
+        Payment.is_deleted.is_(False), Payment.payment_type == "received",
+        Payment.payment_date >= from_date, Payment.payment_date <= to_date).group_by(Payment.payment_method)
+    pay_rows = (await db.execute(pay_stmt)).all()
+
+    gst_stmt = select(
+        func.coalesce(func.sum(Invoice.cgst_amount), 0), func.coalesce(func.sum(Invoice.sgst_amount), 0),
+        func.coalesce(func.sum(Invoice.igst_amount), 0), func.coalesce(func.sum(Invoice.taxable_amount), 0),
+    ).where(Invoice.is_deleted.is_(False), Invoice.invoice_date >= from_date, Invoice.invoice_date <= to_date)
+    gst_row = (await db.execute(gst_stmt)).one()
+
+    overdue_amt = func.coalesce(func.sum(case((and_(Invoice.due_date < today, Invoice.amount_due > 0), Invoice.amount_due), else_=0)), 0)
+    partial_amt = func.coalesce(func.sum(case((Invoice.status == "PARTIALLY_PAID", Invoice.amount_due), else_=0)), 0)
+    disputed_amt = func.coalesce(func.sum(case((Invoice.status == "DISPUTED", Invoice.amount_due), else_=0)), 0)
+    os_stmt = select(overdue_amt, partial_amt, disputed_amt).where(
+        Invoice.is_deleted.is_(False), Invoice.invoice_date >= from_date, Invoice.invoice_date <= to_date)
+    os_row = (await db.execute(os_stmt)).one()
+
+    tds_stmt = select(func.coalesce(func.sum(Payment.tds_amount), 0), func.count(Payment.id)).where(
+        Payment.is_deleted.is_(False), Payment.tds_amount > 0, Payment.payment_date >= from_date, Payment.payment_date <= to_date)
+    tds_row = (await db.execute(tds_stmt)).one()
+
+    ledger_stmt = (select(Ledger).where(Ledger.entry_date >= from_date, Ledger.entry_date <= to_date)
+                   .order_by(Ledger.entry_date.desc()).limit(1000))
+    ledger_rows = (await db.execute(ledger_stmt)).scalars().all()
+
+    filename_base = f"auditor_report_{from_date}_{to_date}"
+
+    if format == "csv":
+        output = io.StringIO()
+        w = csv.writer(output)
+
+        w.writerow(["AUDITOR REPORT", f"Period: {from_date} to {to_date}"])
+        w.writerow([])
+
+        w.writerow(["=== P&L SUMMARY ==="])
+        w.writerow(["Metric", "Amount (INR)"])
+        w.writerow(["Total Invoiced", f"{total_invoiced:.2f}"])
+        w.writerow(["Total Collected", f"{total_collected:.2f}"])
+        w.writerow(["Total Expenses", f"{total_expenses:.2f}"])
+        w.writerow(["Net Profit", f"{net_profit:.2f}"])
+        w.writerow(["Collection Efficiency (%)", f"{collection_eff:.2f}"])
+        w.writerow([])
+
+        w.writerow(["=== PAYMENT METHOD BREAKDOWN ==="])
+        w.writerow(["Method", "Amount (INR)", "Count"])
+        for row in pay_rows:
+            method = row[0].value if hasattr(row[0], "value") else str(row[0] or "")
+            w.writerow([method, f"{_to_number(row[1]):.2f}", int(row[2] or 0)])
+        w.writerow([])
+
+        w.writerow(["=== GST SUMMARY ==="])
+        w.writerow(["Component", "Amount (INR)"])
+        w.writerow(["Taxable Value", f"{_to_number(gst_row[3]):.2f}"])
+        w.writerow(["CGST Collected", f"{_to_number(gst_row[0]):.2f}"])
+        w.writerow(["SGST Collected", f"{_to_number(gst_row[1]):.2f}"])
+        w.writerow(["IGST Collected", f"{_to_number(gst_row[2]):.2f}"])
+        w.writerow(["Net GST Payable", f"{(_to_number(gst_row[0]) + _to_number(gst_row[1]) + _to_number(gst_row[2])):.2f}"])
+        w.writerow([])
+
+        w.writerow(["=== OUTSTANDING RECEIVABLES ==="])
+        w.writerow(["Category", "Amount (INR)"])
+        w.writerow(["Overdue", f"{_to_number(os_row[0]):.2f}"])
+        w.writerow(["Partially Paid", f"{_to_number(os_row[1]):.2f}"])
+        w.writerow(["Disputed", f"{_to_number(os_row[2]):.2f}"])
+        w.writerow([])
+
+        w.writerow(["=== TDS SUMMARY ==="])
+        w.writerow(["Total TDS Deducted", f"{_to_number(tds_row[0]):.2f}"])
+        w.writerow(["Number of Payments", int(tds_row[1] or 0)])
+        w.writerow([])
+
+        w.writerow(["=== LEDGER ENTRIES ==="])
+        w.writerow(["Date", "Entry No.", "Type", "Account", "Narration", "Reference", "Debit (INR)", "Credit (INR)", "Balance (INR)"])
+        for row in ledger_rows:
+            w.writerow([
+                row.entry_date.isoformat() if row.entry_date else "",
+                row.entry_number,
+                row.ledger_type.value if hasattr(row.ledger_type, "value") else str(row.ledger_type or ""),
+                row.account_name,
+                row.narration or "",
+                row.reference_number or "",
+                f"{_to_number(row.debit):.2f}",
+                f"{_to_number(row.credit):.2f}",
+                f"{_to_number(row.balance):.2f}",
+            ])
+
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename_base}.csv"},
+        )
+
+    else:  # PDF using reportlab
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import cm
+        from reportlab.platypus import (
+            Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+        )
+
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=1.5 * cm, bottomMargin=2 * cm,
+                                 leftMargin=2 * cm, rightMargin=2 * cm)
+        styles = getSampleStyleSheet()
+        elements = []
+
+        NAVY = colors.HexColor("#0F172A")
+        AMBER = colors.HexColor("#F59E0B")
+        SUCCESS = colors.HexColor("#10B981")
+        DANGER = colors.HexColor("#EF4444")
+        LIGHT = colors.HexColor("#F8FAFC")
+        HEADER_BG = colors.HexColor("#1B2A4A")
+
+        title_style = ParagraphStyle("title", parent=styles["Heading1"], fontSize=18,
+                                      textColor=NAVY, spaceAfter=4)
+        sub_style = ParagraphStyle("sub", parent=styles["Normal"], fontSize=10,
+                                    textColor=colors.gray, spaceAfter=12)
+        section_style = ParagraphStyle("section", parent=styles["Heading2"], fontSize=12,
+                                        textColor=NAVY, spaceBefore=14, spaceAfter=6,
+                                        borderPad=4)
+
+        def section_table(data, col_widths, header_bg=HEADER_BG):
+            t = Table(data, colWidths=col_widths)
+            t.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), header_bg),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, 0), 9),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 1), (-1, -1), 8),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [LIGHT, colors.white]),
+                ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CBD5E1")),
+                ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ]))
+            return t
+
+        # Title
+        elements.append(Paragraph("Kavya Transports — Auditor Report", title_style))
+        elements.append(Paragraph(f"Period: {from_date.strftime('%d %b %Y')} to {to_date.strftime('%d %b %Y')}  |  Generated: {today.strftime('%d %b %Y')}", sub_style))
+
+        # 1. P&L
+        elements.append(Paragraph("1. Profit & Loss Summary", section_style))
+        pl_data = [
+            ["Metric", "Amount (₹)"],
+            ["Total Invoiced", f"{total_invoiced:,.2f}"],
+            ["Total Collected", f"{total_collected:,.2f}"],
+            ["Total Expenses", f"{total_expenses:,.2f}"],
+            ["Net Profit / (Loss)", f"{net_profit:,.2f}"],
+            ["Collection Efficiency", f"{collection_eff:.1f}%"],
+        ]
+        elements.append(section_table(pl_data, [10 * cm, 6 * cm]))
+        elements.append(Spacer(1, 0.3 * cm))
+
+        # 2. Payment Breakdown
+        elements.append(Paragraph("2. Payment Method Breakdown", section_style))
+        pay_data = [["Method", "Amount (₹)", "Transactions"]]
+        for row in pay_rows:
+            method = row[0].value if hasattr(row[0], "value") else str(row[0] or "")
+            pay_data.append([method, f"{_to_number(row[1]):,.2f}", str(int(row[2] or 0))])
+        if len(pay_data) == 1:
+            pay_data.append(["No payment records", "—", "—"])
+        elements.append(section_table(pay_data, [7 * cm, 5.5 * cm, 3.5 * cm]))
+        elements.append(Spacer(1, 0.3 * cm))
+
+        # 3. GST
+        elements.append(Paragraph("3. GST Summary", section_style))
+        gst_data = [
+            ["Component", "Amount (₹)"],
+            ["Taxable Value", f"{_to_number(gst_row[3]):,.2f}"],
+            ["CGST Collected", f"{_to_number(gst_row[0]):,.2f}"],
+            ["SGST Collected", f"{_to_number(gst_row[1]):,.2f}"],
+            ["IGST Collected", f"{_to_number(gst_row[2]):,.2f}"],
+            ["Net GST Payable", f"{(_to_number(gst_row[0]) + _to_number(gst_row[1]) + _to_number(gst_row[2])):,.2f}"],
+        ]
+        gt = section_table(gst_data, [10 * cm, 6 * cm])
+        gt.setStyle(TableStyle([
+            ("BACKGROUND", (0, len(gst_data) - 1), (-1, len(gst_data) - 1), AMBER),
+            ("TEXTCOLOR", (0, len(gst_data) - 1), (-1, len(gst_data) - 1), colors.white),
+            ("FONTNAME", (0, len(gst_data) - 1), (-1, len(gst_data) - 1), "Helvetica-Bold"),
+        ]))
+        elements.append(gt)
+        elements.append(Spacer(1, 0.3 * cm))
+
+        # 4. Outstanding
+        elements.append(Paragraph("4. Outstanding Receivables", section_style))
+        os_data = [
+            ["Category", "Amount (₹)"],
+            ["Overdue", f"{_to_number(os_row[0]):,.2f}"],
+            ["Partially Paid", f"{_to_number(os_row[1]):,.2f}"],
+            ["Disputed", f"{_to_number(os_row[2]):,.2f}"],
+            ["Total Outstanding", f"{_to_number(inv_pl[2]):,.2f}"],
+        ]
+        elements.append(section_table(os_data, [10 * cm, 6 * cm]))
+        elements.append(Spacer(1, 0.3 * cm))
+
+        # 5. TDS
+        elements.append(Paragraph("5. TDS Summary", section_style))
+        tds_data = [
+            ["Description", "Value"],
+            ["Total TDS Deducted", f"₹ {_to_number(tds_row[0]):,.2f}"],
+            ["Number of Payments with TDS", str(int(tds_row[1] or 0))],
+        ]
+        elements.append(section_table(tds_data, [10 * cm, 6 * cm]))
+        elements.append(Spacer(1, 0.3 * cm))
+
+        # 6. Ledger
+        elements.append(Paragraph("6. Ledger Entries", section_style))
+        ledger_data = [["Date", "Entry No.", "Type", "Account", "Narration", "Debit (₹)", "Credit (₹)", "Balance (₹)"]]
+        for row in ledger_rows[:200]:  # cap at 200 in PDF
+            ledger_data.append([
+                row.entry_date.strftime("%d/%m/%y") if row.entry_date else "",
+                row.entry_number or "",
+                (row.ledger_type.value if hasattr(row.ledger_type, "value") else str(row.ledger_type or ""))[:10],
+                (row.account_name or "")[:20],
+                (row.narration or "")[:25],
+                f"{_to_number(row.debit):,.2f}",
+                f"{_to_number(row.credit):,.2f}",
+                f"{_to_number(row.balance):,.2f}",
+            ])
+        if len(ledger_data) == 1:
+            ledger_data.append(["No ledger entries", "", "", "", "", "", "", ""])
+        ledger_t = Table(ledger_data, colWidths=[1.6 * cm, 2.2 * cm, 1.8 * cm, 3.2 * cm, 3.6 * cm, 2.2 * cm, 2.2 * cm, 2.2 * cm])
+        ledger_t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), HEADER_BG),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 7),
+            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [LIGHT, colors.white]),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#CBD5E1")),
+            ("ALIGN", (5, 0), (-1, -1), "RIGHT"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        elements.append(ledger_t)
+
+        doc.build(elements)
+        buf.seek(0)
+
+        return StreamingResponse(
+            iter([buf.getvalue()]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename_base}.pdf"},
+        )

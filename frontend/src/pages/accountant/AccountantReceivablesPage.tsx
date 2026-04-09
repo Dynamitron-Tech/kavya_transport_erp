@@ -43,38 +43,54 @@ export default function AccountantReceivablesPage() {
         const receivables = await api.get('/accountant/receivables');
         const baseItems = safeArray<any>(receivables?.items ?? receivables);
 
-        const items = baseItems.map((item: any, index: number) => {
-          const oldestDue = item.oldest_due || item.due_date || null;
-          const computedAging = oldestDue
-            ? Math.max(0, Math.floor((Date.now() - new Date(oldestDue).getTime()) / (1000 * 60 * 60 * 24)))
+        // API returns per-invoice rows — group them by client so each client
+        // appears only once in the accordion and gets a unique React key.
+        const grouped: Record<string, any> = {};
+        baseItems.forEach((item: any) => {
+          const clientKey = String(item.client_id ?? item.client_name ?? item.id ?? 'unknown');
+          const clientName = item.client_name || item.client?.name || `Client #${item.client_id}`;
+          const due = Number(item.amount_due || item.pending_amount || item.total_due || 0);
+          const total = Number(item.total_amount || due);
+          const dueDate = item.due_date ? new Date(item.due_date) : null;
+          const agingDays = dueDate
+            ? Math.max(0, Math.floor((Date.now() - dueDate.getTime()) / (1000 * 60 * 60 * 24)))
             : 0;
-          const totalDue = Number(item.pending_amount || item.total_due || 0);
-          const agingDays = Number(item.aging_days ?? computedAging);
 
-          const b0 = Number(item.aging_0_30 ?? 0);
-          const b1 = Number(item.aging_31_60 ?? 0);
-          const b2 = Number(item.aging_61_90 ?? 0);
-          const b3 = Number(item.aging_over_90 ?? 0);
-          const hasBuckets = (b0 + b1 + b2 + b3) > 0;
+          if (!grouped[clientKey]) {
+            grouped[clientKey] = {
+              id: item.client_id ?? clientKey,
+              client_name: clientName,
+              total_invoices: 0,
+              total_amount: 0,
+              received_amount: 0,
+              pending_amount: 0,
+              credit_limit: Number(item.credit_limit || 0),
+              credit_utilization: 0,
+              aging_days: 0,
+              aging_0_30: 0, aging_31_60: 0, aging_61_90: 0, aging_over_90: 0,
+              oldest_due: item.due_date || null,
+              last_payment_date: item.last_payment_date || null,
+            };
+          }
 
-          return {
-            id: item.client_id ?? item.id ?? index + 1,
-            client_name: item.client_name || item.client?.name || `Client #${item.client_id ?? index + 1}`,
-            total_invoices: Number(item.invoice_count || 0),
-            total_amount: Number(item.total_amount || item.total_due || 0),
-            received_amount: Number(item.received_amount || item.amount_received || 0),
-            pending_amount: totalDue,
-            credit_limit: Number(item.credit_limit || 0),
-            credit_utilization: Number(item.credit_utilization || 0),
-            aging_days: agingDays,
-            aging_0_30: hasBuckets ? b0 : (agingDays <= 30 ? totalDue : 0),
-            aging_31_60: hasBuckets ? b1 : (agingDays > 30 && agingDays <= 60 ? totalDue : 0),
-            aging_61_90: hasBuckets ? b2 : (agingDays > 60 && agingDays <= 90 ? totalDue : 0),
-            aging_over_90: hasBuckets ? b3 : (agingDays > 90 ? totalDue : 0),
-            oldest_due: oldestDue,
-            last_payment_date: item.last_payment_date || null,
-          };
+          const g = grouped[clientKey];
+          g.total_invoices += 1;
+          g.total_amount += total;
+          g.pending_amount += due;
+          g.aging_days = Math.max(g.aging_days, agingDays);
+          if (agingDays <= 30) g.aging_0_30 += due;
+          else if (agingDays <= 60) g.aging_31_60 += due;
+          else if (agingDays <= 90) g.aging_61_90 += due;
+          else g.aging_over_90 += due;
+          if (dueDate && (!g.oldest_due || dueDate < new Date(g.oldest_due))) {
+            g.oldest_due = item.due_date;
+          }
         });
+
+        const items = Object.values(grouped).map((g: any) => ({
+          ...g,
+          credit_utilization: g.credit_limit > 0 ? (g.pending_amount / g.credit_limit) * 100 : 0,
+        }));
 
         const summary = {
           total_receivable: items.reduce((sum: number, item: any) => sum + item.pending_amount, 0),
@@ -199,7 +215,7 @@ export default function AccountantReceivablesPage() {
           <div className="card text-center py-12 text-gray-400">No outstanding receivables</div>
         ) : (
           items.map((client) => (
-            <div key={client.id} className="card p-0 overflow-hidden">
+            <div key={`${client.client_name}-${client.id}`} className="card p-0 overflow-hidden">
               {/* Client Header */}
               <div
                 className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"

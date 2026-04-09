@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { useAppStore } from '@/store/appStore';
+import { useFinanceAlertStore } from '@/store/financeAlertStore';
 import { NAV_CONFIG, type HeaderNavRole } from './nav/navConfig';
 import {
   LayoutDashboard, Building2, Truck, UserCheck, ClipboardList,
@@ -71,13 +72,14 @@ const iconMap: Record<string, React.ReactNode> = {
 export default function Sidebar() {
   const { user, logout } = useAuthStore();
   const { sidebarCollapsed, toggleSidebarCollapse } = useAppStore();
+  const { alertCount } = useFinanceAlertStore();
   const location = useLocation();
   const userRole = resolveRole((user as any)?.role || user?.roles?.[0]);
   const sections = [
     ...(NAV_CONFIG[userRole]?.sections ?? []),
     {
       label: 'ACCOUNT',
-      items: [{ label: 'Profile', route: '/profile', icon: 'user' }],
+      items: [{ label: 'Profile', route: '/profile', icon: 'user', description: 'My profile and preferences' }],
     },
   ];
 
@@ -150,7 +152,15 @@ export default function Sidebar() {
                         {iconMap[item.icon] || <FileText size={20} />}
                       </span>
                       {!sidebarCollapsed && (
-                        <span className="truncate">{item.label}</span>
+                        <span className="truncate flex-1">{item.label}</span>
+                      )}
+                      {!sidebarCollapsed && item.badge === 'alerts' && alertCount > 0 && (
+                        <span className="ml-auto flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                          {alertCount > 9 ? '9+' : alertCount}
+                        </span>
+                      )}
+                      {sidebarCollapsed && item.badge === 'alerts' && alertCount > 0 && (
+                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500" />
                       )}
                       {/* Tooltip for collapsed */}
                       {sidebarCollapsed && (

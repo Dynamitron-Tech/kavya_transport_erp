@@ -307,6 +307,7 @@ async def accountant_reject_expense(
 @router.put("/expenses/{expense_id}/mark-paid", response_model=APIResponse)
 async def accountant_mark_expense_paid(
     expense_id: int,
+    body: dict = Body(default={}),
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.EXPENSE_APPROVE)),
@@ -325,6 +326,10 @@ async def accountant_mark_expense_paid(
     expense.paid_by = current_user.user_id
     expense.paid_at = datetime.utcnow()
     expense.expense_status = ExpenseStatusEnum.PAID
+    if body.get("payment_mode"):
+        expense.payment_mode = body["payment_mode"]
+    if body.get("reference_number"):
+        expense.reference_number = body["reference_number"]
     await db.commit()
     return APIResponse(success=True, message="Expense marked as paid")
 
