@@ -62,10 +62,14 @@ kavya_app/.dart_tool/
 kavya_app/.flutter-plugins
 kavya_app/.flutter-plugins-dependencies
 
-# General generated
+# General generated / debug artifacts
 *.webm
 *.zip
 **/test-results/**/*.png
+# Debug/inspection screenshots from test scripts
+frontend/inspect_*.png
+frontend/ui_clickthrough_result.png
+frontend/*_result.png
 
 # Uploaded user files (binaries, not source code)
 backend/uploads/documents/
