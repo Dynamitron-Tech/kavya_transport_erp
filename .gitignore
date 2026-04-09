@@ -32,24 +32,35 @@ backend/migrations/versions/
 # Uploads
 backend/uploads/
 
-# Build outputs
+# Playwright artifacts (generated test output — never commit these)
 frontend/dist/
 frontend/test-results/
-
-# Playwright artifacts
-frontend/test-results/
 frontend/playwright-report/
+frontend/tests/playwright-report/
+frontend/playwright-report/
+frontend/tests/playwright-report/
 frontend/test-artifacts/
 frontend/.playwright/
 **/test-results/
 **/playwright-report/
 **/test-artifacts/
+
+# Playwright auth state — contains session tokens (SECURITY RISK if committed)
 **/tests/setup/.auth/
 
-# Gradle
-.gradle/
-build/
+# Gradle — Android build caches (machine-specific binaries, will crash other devs)
+**/.gradle/
+**/build/
 gradle-cache/
+kavya_app/android/.gradle/
+kavya_app/android/build/
+kavya_app/android/app/build/
+
+# Flutter tool-generated files (contain absolute paths from dev machine)
+kavya_app/.dart_tool/
+**/.dart_tool/
+kavya_app/.flutter-plugins
+kavya_app/.flutter-plugins-dependencies
 
 # General generated
 *.webm
