@@ -16,6 +16,18 @@ import '../../core/widgets/section_header.dart';
 import '../../core/localization/locale_provider.dart';
 import '../fleet/fleet_vehicles_screen.dart' show fleetVehiclesProvider;
 
+// Provider to fetch LR details for a trip
+final tripLRsProvider = FutureProvider.autoDispose.family<List<Map<String, dynamic>>, int>(
+  (ref, tripId) async {
+    final api = ref.read(apiServiceProvider);
+    final res = await api.get('/lr', queryParameters: {'trip_id': tripId, 'limit': 100});
+    final data = res is Map ? (res['data'] ?? res) : res;
+    if (data is List) return List<Map<String, dynamic>>.from(data);
+    if (data is Map && data['items'] is List) return List<Map<String, dynamic>>.from(data['items']);
+    return [];
+  },
+);
+
 class DriverTripDetailScreen extends ConsumerWidget {
   final int tripId;
 
@@ -157,6 +169,9 @@ class DriverTripDetailScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
+
+          // LR (Lorry Receipt) Details
+          _buildLRSection(ref, trip),
 
           // Remarks
           if (trip.remarks != null && trip.remarks!.isNotEmpty) ...[
@@ -603,6 +618,118 @@ class DriverTripDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLRSection(WidgetRef ref, Trip trip) {
+    final lrAsync = ref.watch(tripLRsProvider(trip.id));
+    return lrAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (lrs) {
+        if (lrs.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionHeader(title: 'Lorry Receipt (LR)'),
+            ...lrs.map((lr) => Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // LR Number & Status
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'LR# ${lr['lr_number'] ?? lr['id'] ?? ''}',
+                          style: KTTextStyles.h3,
+                        ),
+                        if (lr['status'] != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: KTColors.info.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              (lr['status'] as String).replaceAll('_', ' ').toUpperCase(),
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: KTColors.info),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const Divider(height: 20),
+                    // Consignor
+                    if (lr['consignor_name'] != null) ...[
+                      _infoRow(Icons.business_outlined, 'Consignor', lr['consignor_name']),
+                      if (lr['consignor_gstin'] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 30, top: 2),
+                          child: Text('GSTIN: ${lr['consignor_gstin']}',
+                              style: const TextStyle(fontSize: 11, color: KTColors.textMuted)),
+                        ),
+                      const Divider(height: 20),
+                    ],
+                    // Consignee
+                    if (lr['consignee_name'] != null) ...[
+                      _infoRow(Icons.store_outlined, 'Consignee', lr['consignee_name']),
+                      if (lr['consignee_gstin'] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 30, top: 2),
+                          child: Text('GSTIN: ${lr['consignee_gstin']}',
+                              style: const TextStyle(fontSize: 11, color: KTColors.textMuted)),
+                        ),
+                      const Divider(height: 20),
+                    ],
+                    // Route
+                    if (lr['origin'] != null || lr['destination'] != null) ...[
+                      _infoRow(Icons.route, 'Route',
+                          '${lr['origin'] ?? ''} → ${lr['destination'] ?? ''}'),
+                      const Divider(height: 20),
+                    ],
+                    // Cargo / Material
+                    if (lr['material_name'] != null || lr['description'] != null)
+                      _infoRow(Icons.inventory_2_outlined, 'Material',
+                          lr['material_name'] ?? lr['description'] ?? ''),
+                    if (lr['weight'] != null || lr['total_weight'] != null) ...[
+                      const SizedBox(height: 8),
+                      _infoRow(Icons.scale_outlined, 'Weight',
+                          '${lr['weight'] ?? lr['total_weight']} ${lr['weight_unit'] ?? 'kg'}'),
+                    ],
+                    if (lr['no_of_packages'] != null || lr['packages'] != null) ...[
+                      const SizedBox(height: 8),
+                      _infoRow(Icons.widgets_outlined, 'Packages',
+                          '${lr['no_of_packages'] ?? lr['packages']}'),
+                    ],
+                    // Freight
+                    if (lr['freight_amount'] != null || lr['total_amount'] != null) ...[
+                      const Divider(height: 20),
+                      _infoRow(Icons.currency_rupee, 'Freight',
+                          '₹${(lr['freight_amount'] ?? lr['total_amount'] ?? 0).toString()}'),
+                    ],
+                    if (lr['payment_mode'] != null) ...[
+                      const SizedBox(height: 8),
+                      _infoRow(Icons.payment_outlined, 'Payment', lr['payment_mode']),
+                    ],
+                    // EWB
+                    if (lr['eway_bill_number'] != null || lr['ewb_number'] != null) ...[
+                      const Divider(height: 20),
+                      _infoRow(Icons.description_outlined, 'E-Way Bill',
+                          lr['eway_bill_number'] ?? lr['ewb_number'] ?? ''),
+                    ],
+                  ],
+                ),
+              ),
+            )),
+            const SizedBox(height: 24),
+          ],
+        );
+      },
     );
   }
 

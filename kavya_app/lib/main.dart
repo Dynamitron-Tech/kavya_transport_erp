@@ -8,12 +8,15 @@ import 'services/notification_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive (offline cache + queue)
   final offlineSync = OfflineSyncService();
-  await offlineSync.init();
+  // Do not block app startup on background service initialization.
+  offlineSync.init().catchError((e) {
+    debugPrint('[Startup] Offline sync init failed: $e');
+  });
 
-  // Initialize local notifications (system banners)
-  await NotificationService().initialize();
+  NotificationService().initialize().catchError((e) {
+    debugPrint('[Startup] Notification init failed: $e');
+  });
 
   runApp(ProviderScope(
     overrides: [

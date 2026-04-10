@@ -39,6 +39,15 @@ class _FleetAddVehicleScreenState
     'insurance': null,
     'pollution_certificate': null,
     'fitness_certificate': null,
+    'permit': null,
+  };
+
+  final Map<String, DateTime?> _docExpiry = {
+    'rc_book': null,
+    'insurance': null,
+    'pollution_certificate': null,
+    'fitness_certificate': null,
+    'permit': null,
   };
 
   static const _docMeta = <String, _DocMeta>{
@@ -46,13 +55,14 @@ class _FleetAddVehicleScreenState
     'insurance': _DocMeta('Insurance', Icons.shield_outlined),
     'pollution_certificate': _DocMeta('Pollution Certificate', Icons.eco_outlined),
     'fitness_certificate': _DocMeta('Fitness Certificate', Icons.health_and_safety_outlined),
+    'permit': _DocMeta('Permit', Icons.badge_outlined),
   };
 
   static const _vehicleTypes = [
-    'truck', 'trailer', 'tanker', 'container', 'lcv', 'mini_truck',
+    'truck', 'trailer', 'tanker', 'container', 'lcv', 'mini_truck', 'pickup',
   ];
   static const _ownershipTypes = ['owned', 'leased', 'attached', 'market'];
-  static const _fuelTypes = ['diesel', 'petrol', 'cng', 'electric'];
+  static const _fuelTypes = ['diesel', 'petrol', 'cng', 'electric', 'lpg'];
 
   @override
   void dispose() {
@@ -113,7 +123,11 @@ class _FleetAddVehicleScreenState
           final file = entry.value;
           if (file != null) {
             try {
-              await api.uploadVehicleDocument(vehicleId, file, entry.key);
+              final expiry = _docExpiry[entry.key];
+              await api.uploadVehicleDocument(
+                vehicleId, file, entry.key,
+                expiryDate: expiry?.toIso8601String().split('T').first,
+              );
             } catch (_) {
               // Document upload is non-critical; vehicle is already created
             }
@@ -270,9 +284,24 @@ class _FleetAddVehicleScreenState
     );
   }
 
+  Future<void> _pickExpiryDate(String type) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _docExpiry[type] ?? DateTime.now().add(const Duration(days: 365)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+    );
+    if (picked != null) setState(() => _docExpiry[type] = picked);
+  }
+
   Widget _buildDocTile(String type, _DocMeta meta) {
     final picked = _docFiles[type];
     final fileName = picked?.path.split('/').last;
+    final expiry = _docExpiry[type];
+    final expiryText = expiry != null
+        ? '${expiry.day.toString().padLeft(2, '0')}/${expiry.month.toString().padLeft(2, '0')}/${expiry.year}'
+        : null;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Container(
@@ -281,34 +310,68 @@ class _FleetAddVehicleScreenState
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: KTColors.borderColor),
         ),
-        child: ListTile(
-          leading: Icon(meta.icon,
-              color: picked != null ? KTColors.fleetAccent : KTColors.textMuted,
-              size: 22),
-          title: Text(meta.label,
-              style: KTTextStyles.body.copyWith(color: KTColors.textHeading)),
-          subtitle: picked != null
-              ? Text(fileName ?? 'File selected',
-                  style: KTTextStyles.label
-                      .copyWith(color: KTColors.fleetAccent),
-                  overflow: TextOverflow.ellipsis)
-              : Text('PDF, JPG or PNG',
-                  style: KTTextStyles.label
-                      .copyWith(color: KTColors.textMuted)),
-          trailing: picked != null
-              ? IconButton(
-                  icon: const Icon(Icons.close, size: 18,
-                      color: KTColors.textMuted),
-                  onPressed: () => setState(() => _docFiles[type] = null),
-                )
-              : TextButton(
-                  onPressed: () => _pickDocument(type),
-                  child: Text('Browse',
-                      style: KTTextStyles.label.copyWith(
-                          color: KTColors.fleetAccent,
-                          fontWeight: FontWeight.w600)),
+        child: Column(
+          children: [
+            ListTile(
+              leading: Icon(meta.icon,
+                  color: picked != null ? KTColors.fleetAccent : KTColors.textMuted,
+                  size: 22),
+              title: Text(meta.label,
+                  style: KTTextStyles.body.copyWith(color: KTColors.textHeading)),
+              subtitle: picked != null
+                  ? Text(fileName ?? 'File selected',
+                      style: KTTextStyles.label
+                          .copyWith(color: KTColors.fleetAccent),
+                      overflow: TextOverflow.ellipsis)
+                  : Text('PDF, JPG or PNG',
+                      style: KTTextStyles.label
+                          .copyWith(color: KTColors.textMuted)),
+              trailing: picked != null
+                  ? IconButton(
+                      icon: const Icon(Icons.close, size: 18,
+                          color: KTColors.textMuted),
+                      onPressed: () => setState(() {
+                        _docFiles[type] = null;
+                        _docExpiry[type] = null;
+                      }),
+                    )
+                  : TextButton(
+                      onPressed: () => _pickDocument(type),
+                      child: Text('Browse',
+                          style: KTTextStyles.label.copyWith(
+                              color: KTColors.fleetAccent,
+                              fontWeight: FontWeight.w600)),
+                    ),
+              onTap: picked == null ? () => _pickDocument(type) : null,
+            ),
+            if (picked != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: GestureDetector(
+                  onTap: () => _pickExpiryDate(type),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: KTColors.lightBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: KTColors.borderColor),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today, size: 16, color: KTColors.fleetAccent),
+                        const SizedBox(width: 8),
+                        Text(
+                          expiryText != null ? 'Expires: $expiryText' : 'Set Expiry Date',
+                          style: KTTextStyles.label.copyWith(
+                            color: expiryText != null ? KTColors.textHeading : KTColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-          onTap: picked == null ? () => _pickDocument(type) : null,
+              ),
+          ],
         ),
       ),
     );
