@@ -467,6 +467,30 @@ async def get_trip_document_photos(
     return APIResponse(success=True, data=docs)
 
 
+@router.get("/{trip_id}/trip-photos", response_model=APIResponse)
+async def get_trip_photos(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.TRIP_READ)),
+):
+    """Return URLs for driver-uploaded trip photos (loaded, reached, unloaded)."""
+    import os, glob as _glob
+    from pathlib import Path as _Path
+
+    photo_dir = _Path(__file__).resolve().parents[4] / "uploads" / "trip_photos"
+    photos = []
+    for pattern, photo_type in [
+        (f"loaded_{trip_id}_*", "loaded"),
+        (f"reached_{trip_id}_*", "reached"),
+        (f"unloaded_{trip_id}_*", "unloaded"),
+    ]:
+        matches = sorted(_glob.glob(str(photo_dir / pattern)))
+        for match in matches:
+            filename = os.path.basename(match)
+            photos.append({"type": photo_type, "url": f"/uploads/trip_photos/{filename}"})
+    return APIResponse(success=True, data=photos)
+
+
 # --- SOS Emergency ---
 class SOSPayload(BaseModel):
     latitude: Optional[float] = None

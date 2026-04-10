@@ -53,15 +53,6 @@ class _FleetDriverListScreenState extends ConsumerState<FleetDriverListScreen> {
         surfaceTintColor: Colors.transparent,
         foregroundColor: KTColors.textHeading,
         title: Text('Drivers', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add, color: KTColors.fleetAccent),
-            onPressed: () async {
-              final result = await context.push('/fleet/driver/add');
-              if (result == true) ref.invalidate(fleetDriversProvider);
-            },
-          ),
-        ],
       ),
       body: Column(
         children: [

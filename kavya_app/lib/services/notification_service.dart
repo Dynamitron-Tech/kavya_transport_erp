@@ -40,6 +40,11 @@ class NotificationService {
           requestBadgePermission: true,
           requestSoundPermission: true,
         ),
+        windows: WindowsInitializationSettings(
+          appName: 'Kavya Transports',
+          appUserModelId: 'com.kavya.transports.app',
+          guid: '2f4f63dc-d022-4e0d-a0ea-6a1fb60d6b16',
+        ),
       ),
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         debugPrint('[Notifications] Tapped: ${response.payload}');
