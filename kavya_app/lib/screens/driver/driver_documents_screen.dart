@@ -17,7 +17,6 @@ class DriverDocumentsScreen extends ConsumerStatefulWidget {
 }
 
 class _DriverDocumentsScreenState extends ConsumerState<DriverDocumentsScreen> {
-  final ImagePicker _picker = ImagePicker();
   bool _loading = true;
   String? _error;
   Map<String, _DriverDoc?> _docs = {};

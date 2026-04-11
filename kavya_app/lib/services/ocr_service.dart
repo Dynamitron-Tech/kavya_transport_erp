@@ -152,10 +152,6 @@ class OcrService {
     caseSensitive: false,
   );
   // Engine & chassis
-  static final _engineNo = RegExp(
-    r'(?:engine\s*[no#.:]+\s*)([A-Z0-9]{6,20})',
-    caseSensitive: false,
-  );
   static final _chassisNo = RegExp(
     r'(?:chassis\s*[no#.:]+\s*)([A-Z0-9]{9,25})',
     caseSensitive: false,

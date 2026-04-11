@@ -78,4 +78,28 @@ class UpdatePhotoRequest(BaseModel):
     avatar_url: str = Field(..., min_length=1)
 
 
+# ── Market Driver OTP ──────────────────────────────────────────────────────────
+
+class MarketDriverOtpSendRequest(BaseModel):
+    """Client sends phone number; server calls MSG91 and returns session_id."""
+    phone: str = Field(..., description="10-digit Indian mobile number (without +91)")
+
+
+class MarketDriverOtpSendResponse(BaseModel):
+    session_id: str
+    phone_masked: str
+    message: str = "OTP sent"
+
+
+class MarketDriverOtpVerifyRequest(BaseModel):
+    """Client sends session_id, the MSG91 access-token, and the 6-digit OTP code."""
+    session_id: str
+    access_token: str  # token returned by backend send-otp (from MSG91 initiate)
+    otp_code: str       # 6-digit OTP entered by the user
+
+
+class MarketDriverOtpResendRequest(BaseModel):
+    session_id: str  # the session_id from the initial send call
+
+
 TokenResponse.model_rebuild()

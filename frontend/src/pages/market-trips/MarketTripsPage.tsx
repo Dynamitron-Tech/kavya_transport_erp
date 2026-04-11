@@ -169,8 +169,8 @@ export default function MarketTripsPage() {
   const createMutation = useMutation({
     mutationFn: () =>
       marketTripService.create({
-        job_id: Number(payload.job_id),
-        supplier_id: Number(payload.supplier_id),
+        job_id: payload.job_id ? Number(payload.job_id) : undefined,
+        supplier_id: payload.supplier_id ? Number(payload.supplier_id) : undefined,
         client_rate: Number(payload.client_rate),
         contractor_rate: Number(payload.contractor_rate),
         advance_amount: Number(payload.advance_amount || 0),
@@ -304,7 +304,9 @@ export default function MarketTripsPage() {
                   <tr key={trip.id} onClick={() => navigate(`/market-trips/${trip.id}`)}
                     className="hover:bg-gray-50 cursor-pointer transition-colors">
                     <td className="px-4 py-3">
-                      <span className="font-semibold text-sm text-primary-600">Job #{trip.job_id}</span>
+                      {trip.job_id
+                        ? <span className="font-semibold text-sm text-primary-600">Job #{trip.job_id}</span>
+                        : <span className="text-sm text-gray-400 italic">No job</span>}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
@@ -327,7 +329,7 @@ export default function MarketTripsPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-sm text-gray-600">{(trip as any).supplier?.name || `#${trip.supplier_id}` || '—'}</span>
+                      <span className="text-sm text-gray-600">{(trip as any).supplier?.name || (trip.supplier_id ? `#${trip.supplier_id}` : '—')}</span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${sc.bg} ${sc.text}`}>
@@ -368,14 +370,14 @@ export default function MarketTripsPage() {
             <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">Trip Details</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Job ID *</label>
-                <input type="number" required value={payload.job_id} onChange={set('job_id')}
+                <label className="block text-xs font-medium text-gray-700 mb-1">Job ID</label>
+                <input type="number" value={payload.job_id} onChange={set('job_id')}
                   className="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
-                  placeholder="e.g. 101" />
+                  placeholder="Optional" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Supplier *</label>
-                <select required value={payload.supplier_id} onChange={set('supplier_id')}
+                <label className="block text-xs font-medium text-gray-700 mb-1">Supplier</label>
+                <select value={payload.supplier_id} onChange={set('supplier_id')}
                   className="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
                   <option value="">Select supplier</option>
                   {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -583,7 +585,7 @@ export default function MarketTripsPage() {
         onCancel={() => setCancelTarget(null)}
         onConfirm={() => cancelTarget && cancelMutation.mutate(cancelTarget.id)}
         title="Cancel Market Trip"
-        message={`Are you sure you want to cancel the market trip for Job #${cancelTarget?.job_id}?`}
+        message={`Are you sure you want to cancel the market trip${cancelTarget?.job_id ? ` for Job #${cancelTarget.job_id}` : ''}?`}
         confirmLabel="Cancel Trip"
         isDangerous
       />

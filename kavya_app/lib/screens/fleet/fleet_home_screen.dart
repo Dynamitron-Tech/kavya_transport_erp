@@ -253,6 +253,13 @@ class FleetHomeScreen extends ConsumerWidget {
                       color: KTColors.fleetAccent,
                       onTap: () => context.push('/fleet/approvals'),
                     ),
+                    _ActionTile(
+                      context: context,
+                      label: 'Assign',
+                      icon: Icons.link_rounded,
+                      color: const Color(0xFF7C4DFF),
+                      onTap: () => context.push('/fleet/assign'),
+                    ),
                   ],
                 ),
               ),

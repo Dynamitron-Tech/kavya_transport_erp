@@ -237,6 +237,8 @@ ROLE_PERMISSIONS = {
         Permissions.VEHICLE_CREATE, Permissions.VEHICLE_READ, Permissions.VEHICLE_UPDATE,
         # Driver
         Permissions.DRIVER_CREATE, Permissions.DRIVER_READ, Permissions.DRIVER_UPDATE,
+        # Client (read-only, needed to fill consignee on LR creation)
+        Permissions.CLIENT_READ,
         # LR
         Permissions.LR_READ,
         # Invoice (view only for trip reference)

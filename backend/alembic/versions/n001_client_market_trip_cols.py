@@ -19,7 +19,7 @@ Market Trips: vehicle_type, fuel_type, vehicle_make, vehicle_model,
 from alembic import op
 import sqlalchemy as sa
 
-revision = "n001_client_market_cols"
+revision = "n001_client_market_trip_cols"
 down_revision = "m001_ifias_tables"
 branch_labels = None
 depends_on = None

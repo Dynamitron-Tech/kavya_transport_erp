@@ -97,6 +97,18 @@ class ApiService {
     return response.data;
   }
 
+  /// Sends a multipart/form-data POST request (e.g. file uploads).
+  Future<dynamic> postMultipart(String path, FormData formData) async {
+    final response = await _dio.post(
+      path,
+      data: formData,
+      options: Options(
+        headers: {'Content-Type': 'multipart/form-data'},
+      ),
+    );
+    return response.data;
+  }
+
   Future<dynamic> patch(String path, {dynamic data}) async {
     final response = await _dio.patch(path, data: data);
     return response.data;
@@ -292,6 +304,24 @@ class ApiService {
   Future<Map<String, dynamic>> extendEWB(String ewbId) async { // [cite: 33]
     final response = await _dio.post('/eway-bills/$ewbId/extend');
     return response.data;
+  }
+
+  /// Run OCR on an uploaded file (RC, Driving License, etc.).
+  /// [docType]: 'rc', 'driving_license', 'insurance', 'auto'
+  /// Returns extracted [fields] map: { registration_number, owner_name, chassis_number, ... }
+  Future<Map<String, dynamic>> ocrDocument(File file, String docType) async {
+    final fileName = file.path.split('/').last;
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path, filename: fileName),
+    });
+    final response = await _dio.post(
+      '/documents/ocr',
+      data: formData,
+      queryParameters: {'doc_type': docType, 'lang': 'eng+hin'},
+    );
+    final resp = response.data;
+    if (resp is Map && resp['data'] != null) return Map<String, dynamic>.from(resp['data'] as Map);
+    return {};
   }
 
   /// Upload a document (rc_book, insurance, pollution_certificate, fitness_certificate)

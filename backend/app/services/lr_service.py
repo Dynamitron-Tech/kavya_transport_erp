@@ -38,18 +38,47 @@ def _coerce_enum(enum_cls, raw_value):
 
 
 async def get_next_eway_bill_number(db: AsyncSession) -> str:
-    """Return the next sequential E-way bill number based on the max in the lrs table."""
+    """Return the next sequential E-way bill number, auto-incremented from the last used one."""
+    _BASE = 254733886084
     result = await db.execute(
-        select(func.max(LR.eway_bill_number)).where(
-            LR.is_deleted == False,
-            LR.eway_bill_number.isnot(None),
-            LR.eway_bill_number != "",
-        )
+        select(func.max(LR.eway_bill_number)).where(LR.eway_bill_number.isnot(None))
     )
-    last_number = result.scalar_one_or_none()
-    if last_number and last_number.isdigit():
-        return str(int(last_number) + 1)
-    return "254733886084"  # default starting number
+    max_ewb = result.scalar_one_or_none()
+    if max_ewb is None:
+        return str(_BASE)
+    try:
+        return str(int(max_ewb) + 1)
+    except (ValueError, TypeError):
+        return str(_BASE)
+
+
+async def get_last_cargo_items_for_client(db: AsyncSession, client_id: int) -> list:
+    """Return cargo items from the most recent LR for a given client, for auto-fill suggestions."""
+    result = await db.execute(
+        select(LR)
+        .join(Job, LR.job_id == Job.id)
+        .where(Job.client_id == client_id)
+        .order_by(LR.created_at.desc())
+        .limit(1)
+    )
+    lr = result.scalar_one_or_none()
+    if not lr:
+        return []
+    items_result = await db.execute(
+        select(LRItem).where(LRItem.lr_id == lr.id).order_by(LRItem.item_number)
+    )
+    items = items_result.scalars().all()
+    return [
+        {
+            "description": item.description or "",
+            "hsn_code": item.hsn_code or "",
+            "packages": str(item.packages) if item.packages else "",
+            "package_type": item.package_type or "boxes",
+            "actual_weight": str(int(item.actual_weight)) if item.actual_weight else "",
+            "charged_weight": str(int(item.charged_weight)) if item.charged_weight else "",
+        }
+        for item in items
+    ]
 
 
 async def list_lrs(db: AsyncSession, page: int = 1, limit: int = 20, search: str = None, status: str = None, job_id: int = None, trip_id: int = None):

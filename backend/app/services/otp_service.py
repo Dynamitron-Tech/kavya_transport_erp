@@ -86,3 +86,63 @@ async def verify_otp(session_id: str, otp: str) -> tuple[bool, int | None]:
         {"$set": {"verified": True}},
     )
     return True, doc["user_id"]
+
+
+# ── Market Driver OTP Sessions ──────────────────────────────────────────────
+# These sessions link a phone number to a MSG91 Widget session so we can look
+# up which market trips belong to that phone after verification.
+
+MARKET_DRIVER_OTP_TTL_MINUTES = 10
+
+
+async def create_market_driver_otp_session(phone: str) -> str:
+    """
+    Store a pending market-driver OTP session keyed by phone.
+    Returns a session_id that the client must echo back during verification.
+    """
+    from app.db.mongodb.connection import MongoDB
+    mongo_db = MongoDB.db
+
+    session_id = str(uuid.uuid4())
+    now = datetime.utcnow()
+    # Remove any existing pending sessions for this phone
+    await mongo_db.market_driver_otp_sessions.delete_many({"phone": phone})
+    await mongo_db.market_driver_otp_sessions.insert_one({
+        "session_id": session_id,
+        "phone": phone,
+        "verified": False,
+        "created_at": now,
+        "expires_at": now + timedelta(minutes=MARKET_DRIVER_OTP_TTL_MINUTES),
+    })
+    return session_id
+
+
+async def get_market_driver_otp_session(session_id: str):
+    """Return the session document or None if not found / expired."""
+    from app.db.mongodb.connection import MongoDB
+    mongo_db = MongoDB.db
+
+    doc = await mongo_db.market_driver_otp_sessions.find_one({"session_id": session_id})
+    if not doc:
+        return None
+    if datetime.utcnow() > doc["expires_at"]:
+        return None
+    return doc
+
+
+async def mark_market_driver_otp_verified(session_id: str):
+    """Mark a market driver OTP session as verified so it cannot be reused."""
+    from app.db.mongodb.connection import MongoDB
+    mongo_db = MongoDB.db
+    await mongo_db.market_driver_otp_sessions.update_one(
+        {"session_id": session_id},
+        {"$set": {"verified": True}},
+    )
+
+
+async def get_phone_from_session(session_id: str) -> str | None:
+    """Retrieve the phone number stored in a market driver OTP session."""
+    doc = await get_market_driver_otp_session(session_id)
+    if doc and not doc.get("verified"):
+        return doc["phone"]
+    return None

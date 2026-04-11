@@ -33,13 +33,27 @@ async def list_lrs(
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 
 
-@router.get("/next-eway-number", response_model=APIResponse)
-async def get_next_eway_number(
+@router.get("/next-eway-bill-number", response_model=APIResponse)
+async def get_next_eway_bill_number(
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.LR_READ)),
 ):
-    next_number = await lr_service.get_next_eway_bill_number(db)
-    return APIResponse(success=True, data={"eway_bill_number": next_number})
+    """Return the next auto-incremented E-way bill number for new LRs."""
+    next_num = await lr_service.get_next_eway_bill_number(db)
+    return APIResponse(success=True, data={"next_eway_bill_number": next_num})
+
+
+@router.get("/client/{client_id}/last-cargo-items", response_model=APIResponse)
+async def get_last_cargo_items(
+    client_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.LR_READ)),
+):
+    """Return cargo items from the most recent LR for a client, used for auto-fill suggestions."""
+    items = await lr_service.get_last_cargo_items_for_client(db, client_id)
+    return APIResponse(success=True, data=items)
 
 
 @router.get("/{lr_id}", response_model=APIResponse)

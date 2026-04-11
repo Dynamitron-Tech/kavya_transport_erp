@@ -23,7 +23,6 @@ import '../../core/widgets/section_header.dart';
 import '../../core/localization/locale_provider.dart';
 import '../../core/localization/driver_strings.dart';
 import '../../providers/checklist_provider.dart';
-import 'driver_apply_leave_screen.dart';
 import 'driver_request_advance_sheet.dart';
 import 'driver_salary_advance_sheet.dart';
 

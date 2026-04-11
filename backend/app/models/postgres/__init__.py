@@ -28,6 +28,7 @@ from .audit_note import AuditNote, AuditNoteStatus
 from .driver_requests import DriverLeave, DriverAdvanceRequest, DriverSalaryAdvanceRequest, LeaveStatusEnum, AdvanceStatusEnum
 from .expense import Expense, ExpenseCategory as CompanyExpenseCategory, PaymentMethod as CompanyPaymentMethod, ApprovalStatus
 from .payment import PaymentContact, Payout, PaymentSchedule, ExpenseSubmission
+from .reconciliation import ReconciliationSession, ReconciliationLine
 
 __all__ = [
     "Base",
@@ -96,4 +97,6 @@ __all__ = [
     "Payout",
     "PaymentSchedule",
     "ExpenseSubmission",
+    "ReconciliationSession",
+    "ReconciliationLine",
 ]

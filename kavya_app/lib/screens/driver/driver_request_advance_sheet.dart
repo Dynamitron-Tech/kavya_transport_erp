@@ -4,7 +4,6 @@ import '../../core/theme/kt_colors.dart';
 import '../../models/trip.dart';
 import '../../providers/driver_requests_provider.dart';
 import '../../providers/fleet_dashboard_provider.dart';
-import '../../providers/trip_provider.dart';
 
 /// Shows a bottom sheet for requesting a ₹1500 advance.
 /// Pass [activeTrip] if the driver has an ongoing trip.

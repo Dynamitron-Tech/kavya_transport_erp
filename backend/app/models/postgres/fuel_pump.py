@@ -132,6 +132,54 @@ class FuelStockTransaction(Base, TimestampMixin):
         return f"<FuelStockTransaction {self.transaction_type.value} {self.quantity_litres}L>"
 
 
+class MileageRating(enum.Enum):
+    GOOD = "good"        # >= 90% of expected mileage
+    MEDIUM = "medium"    # 75–89% of expected
+    BAD = "bad"          # < 75% of expected
+
+
+class VehicleFuelLog(Base, TimestampMixin):
+    """Driver self-reported full-tank fill-up log for mileage & driving-style tracking.
+    
+    Mileage is calculated full-tank → full-tank:
+      km_per_litre = (current_odometer - prev_odometer) / litres_filled
+    Rating is benchmarked against vehicle.mileage_per_litre.
+    """
+
+    __tablename__ = "vehicle_fuel_logs"
+
+    vehicle_id = Column(Integer, ForeignKey('vehicles.id'), nullable=False, index=True)
+    driver_id = Column(Integer, ForeignKey('drivers.id'), nullable=False, index=True)
+
+    fill_date = Column(DateTime, nullable=False)
+    odometer_km = Column(Numeric(10, 1), nullable=False)   # reading at THIS fill-up
+    litres_filled = Column(Numeric(8, 2), nullable=False)
+    fuel_type = Column(String(20), default='diesel')
+
+    pump_name = Column(String(120), nullable=True)
+    pump_location = Column(String(255), nullable=True)
+    notes = Column(Text, nullable=True)
+
+    # Calculated fields (computed when logged, requires a previous entry)
+    prev_log_id = Column(Integer, ForeignKey('vehicle_fuel_logs.id'), nullable=True)
+    km_since_last_fill = Column(Numeric(10, 1), nullable=True)
+    km_per_litre = Column(Numeric(6, 2), nullable=True)
+    expected_km_per_litre = Column(Numeric(6, 2), nullable=True)  # snapshot of vehicle.mileage_per_litre
+    mileage_rating = Column(SQLEnum(MileageRating), nullable=True)
+
+    # Multi-tenant
+    branch_id = Column(Integer, ForeignKey('branches.id'), nullable=True)
+    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
+
+    # Relationships
+    vehicle = relationship("Vehicle", foreign_keys=[vehicle_id])
+    driver = relationship("Driver", foreign_keys=[driver_id])
+    prev_log = relationship("VehicleFuelLog", foreign_keys=[prev_log_id], remote_side="VehicleFuelLog.id")
+
+    def __repr__(self):
+        return f"<VehicleFuelLog v={self.vehicle_id} d={self.driver_id} {self.odometer_km}km>"
+
+
 class FuelTheftAlert(Base, TimestampMixin):
     """Fuel theft/anomaly detection alerts."""
 
