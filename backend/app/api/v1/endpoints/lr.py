@@ -33,6 +33,15 @@ async def list_lrs(
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 
 
+@router.get("/next-eway-number", response_model=APIResponse)
+async def get_next_eway_number(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    next_number = await lr_service.get_next_eway_bill_number(db)
+    return APIResponse(success=True, data={"eway_bill_number": next_number})
+
+
 @router.get("/{lr_id}", response_model=APIResponse)
 async def get_lr(lr_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
     lr = await lr_service.get_lr(db, lr_id)

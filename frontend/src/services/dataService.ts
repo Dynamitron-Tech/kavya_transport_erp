@@ -296,6 +296,10 @@ export const lrService = {
   delete: async (id: number): Promise<void> => {
     await api.delete(`/lr/${id}`);
   },
+  getNextEwayNumber: async (): Promise<string> => {
+    const data = await api.get('/lr/next-eway-number');
+    return unwrap(data)?.eway_bill_number ?? '';
+  },
   // Lookups — reuse trip lookup endpoints (same data shape)
   getJobs: async (search?: string): Promise<any> => {
     const data = await api.get('/trips/lookup/jobs', { params: { search } });
