@@ -37,6 +37,21 @@ def _coerce_enum(enum_cls, raw_value):
     return raw_value
 
 
+async def get_next_eway_bill_number(db: AsyncSession) -> str:
+    """Return the next sequential E-way bill number based on the max in the lrs table."""
+    result = await db.execute(
+        select(func.max(LR.eway_bill_number)).where(
+            LR.is_deleted == False,
+            LR.eway_bill_number.isnot(None),
+            LR.eway_bill_number != "",
+        )
+    )
+    last_number = result.scalar_one_or_none()
+    if last_number and last_number.isdigit():
+        return str(int(last_number) + 1)
+    return "254733886084"  # default starting number
+
+
 async def list_lrs(db: AsyncSession, page: int = 1, limit: int = 20, search: str = None, status: str = None, job_id: int = None, trip_id: int = None):
     query = select(LR).where(LR.is_deleted == False)
     count_query = select(func.count(LR.id)).where(LR.is_deleted == False)

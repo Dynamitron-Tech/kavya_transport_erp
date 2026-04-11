@@ -271,9 +271,9 @@ function FormField({ label, required, error, hint, children, className = '' }: {
   );
 }
 
-function TextInput({ value, onChange, placeholder, type = 'text', error, disabled, prefix, suffix }: {
+function TextInput({ value, onChange, placeholder, type = 'text', error, disabled, prefix, suffix, onKeyDown }: {
   value: string | number | null | undefined; onChange: (v: string) => void; placeholder?: string; type?: string;
-  error?: boolean; disabled?: boolean; prefix?: React.ReactNode; suffix?: React.ReactNode;
+  error?: boolean; disabled?: boolean; prefix?: React.ReactNode; suffix?: React.ReactNode; onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }) {
   const normalizedValue = value ?? '';
 
@@ -283,7 +283,7 @@ function TextInput({ value, onChange, placeholder, type = 'text', error, disable
     } ${disabled ? 'bg-gray-50 opacity-60' : 'bg-white'}`}>
       {prefix && <div className="pl-3 text-gray-400">{prefix}</div>}
       <input type={type} value={normalizedValue} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        disabled={disabled} className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none placeholder-gray-400" />
+        disabled={disabled} onKeyDown={onKeyDown} className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none placeholder-gray-400" />
       {suffix && <div className="pr-3 text-gray-400 text-sm">{suffix}</div>}
     </div>
   );
@@ -392,6 +392,7 @@ export default function CreateLRPage() {
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleOption | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<DriverOption | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<number>(0);
+  const [lastClientItems, setLastClientItems] = useState<ConsignmentItem[]>([]);
   const [createdLrId, setCreatedLrId] = useState<number | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [vehicleMode, setVehicleMode] = useState<'fleet' | 'market'>('fleet');
@@ -516,23 +517,20 @@ export default function CreateLRPage() {
   // Auto-generate E-way bill number for new LRs
   useEffect(() => {
     if (!isEdit && !form.eway_bill_number) {
-      const num = String(Math.floor(100000000000 + Math.random() * 900000000000));
-      setForm((prev) => ({ ...prev, eway_bill_number: num }));
+      lrService.getNextEwayNumber().then((num) => {
+        if (num) setForm((prev) => ({ ...prev, eway_bill_number: num }));
+      }).catch(() => {
+        // fallback: leave empty for manual entry
+      });
     }
   }, [isEdit]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-fill consignment items from last LR when a regular client is selected
+  // Fetch last consignment items for the selected client and store as suggestions
   useEffect(() => {
-    if (!selectedClientId || isEdit) return;
-    const isDefaultItems =
-      items.length === 1 &&
-      !items[0].description.trim() &&
-      items[0].actual_weight === 0 &&
-      items[0].charged_weight === 0;
-    if (!isDefaultItems) return; // don't overwrite if user has already entered items
+    if (!selectedClientId || isEdit) { setLastClientItems([]); return; }
 
     const selectedClient = clients.find((c: any) => Number(c.id) === selectedClientId);
-    if (!selectedClient) return;
+    if (!selectedClient) { setLastClientItems([]); return; }
 
     lrService.list({ search: selectedClient.name, limit: 5 } as any)
       .then((res: any) => {
@@ -542,8 +540,8 @@ export default function CreateLRPage() {
             String(lr.consignee_name || '').toLowerCase().includes(selectedClient.name.toLowerCase()) &&
             lr.items && lr.items.length > 0
         );
-        if (!lastLr) return;
-        const prefilled: ConsignmentItem[] = lastLr.items.map((it: any) => ({
+        if (!lastLr) { setLastClientItems([]); return; }
+        const suggestions: ConsignmentItem[] = lastLr.items.map((it: any) => ({
           id: crypto.randomUUID(),
           description: it.description || '',
           hsn_code: it.hsn_code || '',
@@ -559,11 +557,20 @@ export default function CreateLRPage() {
           invoice_date: '',
           invoice_value: 0,
         }));
-        setItems(prefilled);
-        toast.success(`Pre-filled consignment from last order (${lastLr.lr_number})`, { duration: 4000 });
+        setLastClientItems(suggestions);
+        toast(`Last order data available — press Space in empty fields to auto-fill`, { icon: '💡', duration: 4000 });
       })
-      .catch(() => {}); // silently ignore if history fetch fails
+      .catch(() => { setLastClientItems([]); });
   }, [selectedClientId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Helper: get suggestion value for an item field from last client order
+  const getSuggestion = useCallback((index: number, field: keyof ConsignmentItem): string => {
+    const s = lastClientItems[index];
+    if (!s) return '';
+    const val = s[field];
+    if (val === undefined || val === null || val === '' || val === 0) return '';
+    return String(val);
+  }, [lastClientItems]);
 
   // ── Helpers ──
   const updateField = useCallback((field: string, value: any) => {
@@ -584,6 +591,18 @@ export default function CreateLRPage() {
       return updated;
     }));
   }, []);
+
+  // Helper: handle Space key to auto-fill from suggestion
+  const handleSuggestionKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>, itemId: string, field: string, index: number) => {
+    if (e.key !== ' ') return;
+    const input = e.currentTarget;
+    if (input.value && String(input.value) !== '0') return; // only auto-fill if field is empty or zero
+    const suggestion = getSuggestion(index, field as keyof ConsignmentItem);
+    if (!suggestion) return;
+    e.preventDefault();
+    const isNumeric = ['packages', 'actual_weight', 'charged_weight', 'rate', 'amount', 'quantity', 'invoice_value'].includes(field);
+    updateItem(itemId, field, isNumeric ? parseFloat(suggestion) || 0 : suggestion);
+  }, [getSuggestion, updateItem]);
 
   const addItem = useCallback(() => {
     setItems(prev => [...prev, { ...EMPTY_ITEM, id: crypto.randomUUID() }]);
@@ -1271,40 +1290,33 @@ export default function CreateLRPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <FormField label="Description" required className="sm:col-span-2">
                         <TextInput value={item.description} onChange={(v) => updateItem(item.id, 'description', v)}
-                          placeholder="e.g. Auto Parts, Electronics" disabled={isReadonly} />
+                          placeholder={getSuggestion(index, 'description') ? `⏎ ${getSuggestion(index, 'description')}` : 'e.g. Auto Parts, Electronics'}
+                          disabled={isReadonly} onKeyDown={(e) => handleSuggestionKeyDown(e, item.id, 'description', index)} />
                       </FormField>
                       <FormField label="HSN Code">
                         <TextInput value={item.hsn_code} onChange={(v) => updateItem(item.id, 'hsn_code', v)}
-                          placeholder="e.g. 87089900" disabled={isReadonly} />
+                          placeholder={getSuggestion(index, 'hsn_code') ? `⏎ ${getSuggestion(index, 'hsn_code')}` : 'e.g. 87089900'}
+                          disabled={isReadonly} onKeyDown={(e) => handleSuggestionKeyDown(e, item.id, 'hsn_code', index)} />
                       </FormField>
                       <FormField label="No. of Packages">
                         <TextInput type="number" value={item.packages} onChange={(v) => updateItem(item.id, 'packages', parseInt(v) || 0)}
-                          disabled={isReadonly} />
+                          placeholder={getSuggestion(index, 'packages') || undefined}
+                          disabled={isReadonly} onKeyDown={(e) => handleSuggestionKeyDown(e, item.id, 'packages', index)} />
                       </FormField>
                       <FormField label="Product Type">
                         <TextInput value={item.package_type} onChange={(v) => updateItem(item.id, 'package_type', v)}
-                          placeholder="Type product" disabled={isReadonly} />
-                      </FormField>
-                      <FormField label="Quantity">
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            <TextInput type="number" value={item.quantity} onChange={(v) => updateItem(item.id, 'quantity', parseFloat(v) || 0)}
-                              disabled={isReadonly} />
-                          </div>
-                          <div className="w-28">
-                            <SelectInput value={item.quantity_unit} onChange={(v) => updateItem(item.id, 'quantity_unit', v)}
-                              options={quantityUnits.map((u: any) => ({ value: u.value, label: u.label }))}
-                              disabled={isReadonly} />
-                          </div>
-                        </div>
+                          placeholder={getSuggestion(index, 'package_type') ? `⏎ ${getSuggestion(index, 'package_type')}` : 'Type product'}
+                          disabled={isReadonly} onKeyDown={(e) => handleSuggestionKeyDown(e, item.id, 'package_type', index)} />
                       </FormField>
                       <FormField label="Actual Weight (Kgs)" hint="As measured">
                         <TextInput type="number" value={item.actual_weight} onChange={(v) => updateItem(item.id, 'actual_weight', parseFloat(v) || 0)}
-                          disabled={isReadonly} suffix="Kgs" />
+                          placeholder={getSuggestion(index, 'actual_weight') || undefined}
+                          disabled={isReadonly} suffix="Kgs" onKeyDown={(e) => handleSuggestionKeyDown(e, item.id, 'actual_weight', index)} />
                       </FormField>
                       <FormField label="Charged Weight (Kgs)" hint="Weight for billing">
                         <TextInput type="number" value={item.charged_weight} onChange={(v) => updateItem(item.id, 'charged_weight', parseFloat(v) || 0)}
-                          disabled={isReadonly} suffix="Kgs" />
+                          placeholder={getSuggestion(index, 'charged_weight') || undefined}
+                          disabled={isReadonly} suffix="Kgs" onKeyDown={(e) => handleSuggestionKeyDown(e, item.id, 'charged_weight', index)} />
                       </FormField>
                     </div>
 
@@ -1328,7 +1340,7 @@ export default function CreateLRPage() {
               )}
 
               {/* Item totals summary */}
-              <div className="mt-5 bg-gray-100 rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="mt-5 bg-gray-100 rounded-xl p-4 grid grid-cols-3 gap-4">
                 <div className="text-center">
                   <p className="text-xs text-gray-500">Total Packages</p>
                   <p className="text-lg font-bold text-gray-900">{itemTotals.totalPackages}</p>
@@ -1340,10 +1352,6 @@ export default function CreateLRPage() {
                 <div className="text-center">
                   <p className="text-xs text-gray-500">Total Charged Weight</p>
                   <p className="text-lg font-bold text-gray-900">{(itemTotals.totalChargedWeight ?? 0).toLocaleString('en-IN')} Kgs</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-gray-500">Total Invoice Value</p>
-                  <p className="text-lg font-bold text-gray-900">₹{(itemTotals.totalInvoiceValue ?? 0).toLocaleString('en-IN')}</p>
                 </div>
               </div>
             </SectionCard>
