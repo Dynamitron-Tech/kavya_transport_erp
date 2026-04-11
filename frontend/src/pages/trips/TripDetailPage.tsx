@@ -68,6 +68,18 @@ export default function TripDetailPage() {
     retry: false,
   });
 
+  const { data: tripDocuments = [] } = useQuery({
+    queryKey: ['trip-documents', id],
+    queryFn: () => tripService.getTripDocuments(Number(id)),
+    enabled: !!id,
+  });
+
+  const { data: tripPhotos = [] } = useQuery({
+    queryKey: ['trip-photos', id],
+    queryFn: () => tripService.getTripPhotos(Number(id)),
+    enabled: !!id,
+  });
+
   const expenses = safeArray<any>(expensesData);
 
   // Helper: resolve file URL through Vite proxy
@@ -1048,6 +1060,67 @@ export default function TripDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Trip Documents (LR & E-way files uploaded by driver) */}
+      {(tripDocuments.length > 0 || tripPhotos.length > 0) && (
+        <div className="card">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><Paperclip size={18} /> Driver Uploads</h3>
+
+          {/* LR & E-way Documents */}
+          {tripDocuments.length > 0 && (
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-600 mb-2">Documents</p>
+              <div className="flex flex-wrap gap-2">
+                {tripDocuments.map((doc: any, i: number) => (
+                  <button
+                    key={i}
+                    onClick={() => setViewDoc({ url: fileUrl(doc.url) || '', title: `${(doc.type || 'Document').toUpperCase()} File` })}
+                    className="flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg text-xs font-medium text-blue-700 transition"
+                  >
+                    <FileText size={14} />
+                    {(doc.type || 'doc').toUpperCase()} File
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Trip Photos (loaded, reached, unloaded) */}
+          {tripPhotos.length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-2">Trip Photos</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {tripPhotos.map((photo: any, i: number) => {
+                  const label = (photo.type || 'photo').charAt(0).toUpperCase() + (photo.type || 'photo').slice(1);
+                  const colorMap: Record<string, string> = {
+                    loaded: 'bg-amber-50 border-amber-200 text-amber-700',
+                    reached: 'bg-green-50 border-green-200 text-green-700',
+                    unloaded: 'bg-blue-50 border-blue-200 text-blue-700',
+                  };
+                  const colorClass = colorMap[photo.type] || 'bg-gray-50 border-gray-200 text-gray-700';
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setViewDoc({ url: fileUrl(photo.url) || '', title: `${label} Photo` })}
+                      className={`relative rounded-lg border overflow-hidden ${colorClass} hover:opacity-80 transition`}
+                    >
+                      <img
+                        src={fileUrl(photo.url) || ''}
+                        alt={`${label} photo`}
+                        className="w-full h-28 object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                      <div className="px-2 py-1.5 text-xs font-medium text-center">
+                        <Image size={12} className="inline mr-1" />{label}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Expenses */}
       <div className="card p-0">

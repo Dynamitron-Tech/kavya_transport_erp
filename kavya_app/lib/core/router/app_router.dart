@@ -37,6 +37,7 @@ import '../../screens/fleet/fleet_edit_vehicle_screen.dart';
 import '../../screens/fleet/fleet_driver_detail_screen.dart';
 import '../../screens/fleet/fleet_add_driver_screen.dart';
 import '../../screens/fleet/fleet_create_trip_screen.dart';
+import '../../screens/fleet/fleet_create_lr_screen.dart';
 import '../../screens/fleet/fleet_service_log_screen.dart';
 import '../../screens/fleet/fleet_tyre_event_screen.dart';
 // Accountant screens
@@ -374,6 +375,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/fleet/trip/create', builder: (context, state) => const FleetCreateTripScreen()),
+      GoRoute(path: '/fleet/lr/create', builder: (context, state) => const FleetCreateLRScreen()),
       GoRoute(path: '/fleet/expenses', builder: (context, state) => const Scaffold()),
       GoRoute(path: '/fleet/service/new', builder: (context, state) => const FleetServiceLogScreen()),
       GoRoute(path: '/fleet/tyre/new', builder: (context, state) => const FleetTyreEventScreen()),

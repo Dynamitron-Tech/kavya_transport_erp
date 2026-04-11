@@ -55,8 +55,9 @@ class _FleetTripManagementScreenState extends ConsumerState<FleetTripManagementS
         actions: [
           IconButton(
             icon: const Icon(Icons.add, color: KTColors.fleetAccent),
+            tooltip: 'Create LR',
             onPressed: () async {
-              final result = await context.push('/fleet/trip/create');
+              final result = await context.push('/fleet/lr/create');
               if (result == true) ref.invalidate(fleetTripsProvider(_dateFilter));
             },
           ),

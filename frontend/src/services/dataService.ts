@@ -653,6 +653,16 @@ export const tripService = {
     const data = await api.post(`/trips/${id}/approve-payment`);
     return data;
   },
+  getTripDocuments: async (tripId: number): Promise<any[]> => {
+    const data = await api.get(`/trips/${tripId}/trip-documents`);
+    const items = (data as any)?.data ?? (Array.isArray(data) ? data : []);
+    return Array.isArray(items) ? items : [];
+  },
+  getTripPhotos: async (tripId: number): Promise<any[]> => {
+    const data = await api.get(`/trips/${tripId}/trip-photos`);
+    const items = (data as any)?.data ?? (Array.isArray(data) ? data : []);
+    return Array.isArray(items) ? items : [];
+  },
 };
 
 // ---- Finance ----

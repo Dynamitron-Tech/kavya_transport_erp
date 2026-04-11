@@ -5,11 +5,17 @@ import 'package:go_router/go_router.dart';
 import '../core/router/app_router.dart';
 
 class ApiService {
-  // Base URL from environment [cite: 31]
-  static const baseUrl = String.fromEnvironment(
+  static const _envBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000/api/v1',
+    defaultValue: '',
   );
+
+  // Android emulator cannot reach host via localhost; use 10.0.2.2 by default.
+  static String get baseUrl {
+    if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
+    if (Platform.isAndroid) return 'http://10.0.2.2:8000/api/v1';
+    return 'http://localhost:8000/api/v1';
+  }
 
   final Dio _dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
