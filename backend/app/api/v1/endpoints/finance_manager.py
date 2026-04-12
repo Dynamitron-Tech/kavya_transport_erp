@@ -10,6 +10,7 @@ from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user
 from app.schemas.base import APIResponse, PaginationMeta
 from app.models.postgres.payment import PaymentContact, Payout, PaymentSchedule, ExpenseSubmission
+from app.models.postgres.trip import Trip, TripExpense, TripStatusEnum, ExpenseStatusEnum
 from app.models.postgres.user import User
 from app.services import payment_service
 
@@ -413,6 +414,130 @@ async def reject_expense(
     sub.approved_at = datetime.utcnow()
     await db.commit()
     return APIResponse(success=True, data={"id": sub.id, "status": "rejected"})
+
+
+# ─── Trip Expense Queue ────────────────────────────────────────────────────────
+
+
+@router.get("/trip-expense-queue", response_model=APIResponse)
+async def trip_expense_queue(
+    status: Optional[str] = Query("PENDING"),
+    trip_id: Optional[int] = None,
+    category: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """List trip expenses from completed trips for finance review and payment."""
+    _require_finance(current_user)
+
+    q = (
+        select(TripExpense, Trip)
+        .join(Trip, TripExpense.trip_id == Trip.id)
+        .where(Trip.is_deleted == False)
+    )
+
+    # Only show from completed/closed trips unless filtering all
+    if status and status.upper() != "ALL":
+        try:
+            q = q.where(TripExpense.expense_status == ExpenseStatusEnum(status.upper()))
+        except ValueError:
+            pass
+        # For PENDING, only show from completed trips
+        if status.upper() == "PENDING":
+            q = q.where(Trip.status == TripStatusEnum.COMPLETED)
+    
+    if trip_id:
+        q = q.where(TripExpense.trip_id == trip_id)
+    if category:
+        q = q.where(TripExpense.category.ilike(f"%{category}%"))
+
+    q = q.order_by(TripExpense.created_at.desc())
+
+    total_r = await db.execute(select(func.count()).select_from(q.subquery()))
+    total = total_r.scalar() or 0
+
+    result = await db.execute(q.offset((page - 1) * limit).limit(limit))
+    rows = result.all()
+
+    items = []
+    for expense, trip in rows:
+        items.append({
+            "id": expense.id,
+            "trip_id": expense.trip_id,
+            "trip_number": trip.trip_number,
+            "origin": trip.origin,
+            "destination": trip.destination,
+            "vehicle_registration": trip.vehicle_registration,
+            "driver_name": trip.driver_name,
+            "category": expense.category.value if expense.category else None,
+            "sub_category": expense.sub_category,
+            "description": expense.description,
+            "amount": float(expense.amount),
+            "payment_mode": expense.payment_mode,
+            "reference_number": expense.reference_number,
+            "receipt_url": expense.receipt_url,
+            "expense_status": expense.expense_status.value if expense.expense_status else "PENDING",
+            "is_verified": expense.is_verified,
+            "entry_source": expense.entry_source,
+            "expense_date": expense.expense_date.isoformat() if expense.expense_date else None,
+            "created_at": expense.created_at.isoformat() if expense.created_at else None,
+            "paid_at": expense.paid_at.isoformat() if expense.paid_at else None,
+        })
+
+    pages = (total + limit - 1) // limit
+    return APIResponse(
+        success=True,
+        data=items,
+        pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages),
+    )
+
+
+@router.patch("/trip-expenses/{expense_id}/pay", response_model=APIResponse)
+async def pay_trip_expense(
+    expense_id: int,
+    notes: Optional[str] = Body(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Mark a trip expense as PAID."""
+    _require_finance(current_user)
+    result = await db.execute(select(TripExpense).where(TripExpense.id == expense_id))
+    expense = result.scalar_one_or_none()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Trip expense not found.")
+    if expense.expense_status == ExpenseStatusEnum.PAID:
+        raise HTTPException(status_code=400, detail="Expense already marked as paid.")
+
+    expense.expense_status = ExpenseStatusEnum.PAID
+    expense.is_verified = True
+    expense.paid_by = current_user.id
+    expense.paid_at = datetime.utcnow()
+    if notes:
+        expense.description = (expense.description or "") + f" [Finance: {notes}]"
+    await db.commit()
+    return APIResponse(success=True, data={"id": expense.id, "status": "PAID"})
+
+
+@router.patch("/trip-expenses/{expense_id}/reject", response_model=APIResponse)
+async def reject_trip_expense(
+    expense_id: int,
+    reason: str = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Reject a trip expense."""
+    _require_finance(current_user)
+    result = await db.execute(select(TripExpense).where(TripExpense.id == expense_id))
+    expense = result.scalar_one_or_none()
+    if not expense:
+        raise HTTPException(status_code=404, detail="Trip expense not found.")
+
+    expense.expense_status = ExpenseStatusEnum.REJECTED
+    expense.description = (expense.description or "") + f" [Rejected: {reason}]"
+    await db.commit()
+    return APIResponse(success=True, data={"id": expense.id, "status": "REJECTED"})
 
 
 # ─── Payment Contacts ──────────────────────────────────────────────────────────

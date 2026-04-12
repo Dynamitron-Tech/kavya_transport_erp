@@ -104,6 +104,29 @@ export interface PaymentContactItem {
   razorpay_fund_account_id: string | null;
 }
 
+export interface TripExpenseItem {
+  id: number;
+  trip_id: number;
+  trip_number: string;
+  origin: string;
+  destination: string;
+  vehicle_registration: string | null;
+  driver_name: string | null;
+  category: string;
+  sub_category: string | null;
+  description: string | null;
+  amount: number;
+  payment_mode: string;
+  reference_number: string | null;
+  receipt_url: string | null;
+  expense_status: string;
+  is_verified: boolean;
+  entry_source: string;
+  expense_date: string | null;
+  created_at: string | null;
+  paid_at: string | null;
+}
+
 // ─── API calls ─────────────────────────────────────────────────────────────────
 
 const BASE = '/finance-manager';
@@ -133,6 +156,16 @@ export const financeManagerService = {
     api.patch(`${BASE}/expense-submissions/${id}/approve`, { reimburse_now }),
   rejectExpense: (id: number, reason: string) =>
     api.patch(`${BASE}/expense-submissions/${id}/reject`, { reason }),
+
+  // Trip Expense Queue
+  getTripExpenseQueue: (status?: string, trip_id?: number, category?: string, page?: number) =>
+    api.get(`${BASE}/trip-expense-queue`, {
+      params: { status, trip_id, category, page },
+    }).then((r: any) => (r.data as TripExpenseItem[]) ?? []),
+  payTripExpense: (id: number, notes?: string) =>
+    api.patch(`${BASE}/trip-expenses/${id}/pay`, { notes }),
+  rejectTripExpense: (id: number, reason: string) =>
+    api.patch(`${BASE}/trip-expenses/${id}/reject`, reason, { headers: { 'Content-Type': 'application/json' } }),
 
   // Payment Contacts
   getPaymentContacts: (entity_type?: string, entity_id?: number) =>

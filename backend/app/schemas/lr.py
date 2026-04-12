@@ -77,6 +77,7 @@ class LRUpdate(BaseModel):
     consignee_gstin: Optional[str] = None
     vehicle_id: Optional[int] = None
     driver_id: Optional[int] = None
+    transport_type: Optional[str] = None
     eway_bill_number: Optional[str] = None
     payment_mode: Optional[str] = None
     freight_amount: Optional[float] = None

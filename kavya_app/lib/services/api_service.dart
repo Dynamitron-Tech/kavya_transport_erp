@@ -489,6 +489,16 @@ class ApiService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  /// Upload POD (proof of delivery) image or PDF for a specific LR.
+  Future<Map<String, dynamic>> uploadLRPOD(int lrId, File file) async {
+    final fileName = file.path.split('/').last;
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path, filename: fileName),
+    });
+    final response = await _dio.post('/lr/$lrId/pod', data: formData);
+    return Map<String, dynamic>.from(response.data is Map ? response.data as Map : {'success': true});
+  }
+
   // --- Expenses & Finance ---
 
   /// Verify the driver's 6-digit security PIN against the backend.
@@ -574,7 +584,7 @@ class ApiService {
       'amount': amount,
       if (subCategory != null) 'sub_category': subCategory,
       if (description != null) 'description': description,
-      'expense_date': DateTime.now().toIso8601String(),
+      'expense_date': DateTime.now().toUtc().toIso8601String(),
     });
   }
 

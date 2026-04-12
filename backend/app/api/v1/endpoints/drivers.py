@@ -593,6 +593,9 @@ async def mark_trip_reached(
     # Save arrival odometer on the trip and update the vehicle's odometer reading
     if end_odometer is not None:
         trip.end_odometer = end_odometer
+        # Compute actual distance from odometer difference
+        if trip.start_odometer:
+            trip.actual_distance_km = end_odometer - float(trip.start_odometer)
         if trip.vehicle_id:
             vehicle_result = await db.execute(
                 select(Vehicle).where(Vehicle.id == trip.vehicle_id)
@@ -1213,6 +1216,15 @@ async def upload_driver_document_for_fleet(
             is_verified=False,
         )
         db.add(doc)
+
+    # If driver_photo, also update driver.photo_url and linked user.avatar_url
+    if document_type == "driver_photo" and file_url:
+        driver.photo_url = file_url
+        if driver.user_id:
+            user_result = await db.execute(select(User).where(User.id == driver.user_id))
+            linked_user = user_result.scalar_one_or_none()
+            if linked_user:
+                linked_user.avatar_url = file_url
 
     await db.commit()
     await db.refresh(doc)

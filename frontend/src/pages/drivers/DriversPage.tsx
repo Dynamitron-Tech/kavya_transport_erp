@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -9,12 +9,22 @@ import DataTable, { Column } from '@/components/common/DataTable';
 import { StatusBadge, KPICard, Modal } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import type { Driver, DriverDashboard, FilterParams } from '@/types';
-import { Star, Users, UserCheck, Truck, Clock, AlertTriangle, LayoutDashboard } from 'lucide-react';
+import { Star, Users, UserCheck, Truck, Clock, AlertTriangle, LayoutDashboard, Camera } from 'lucide-react';
 import { safeArray } from '@/utils/helpers';
 import { handleApiError } from '../../utils/handleApiError';
 import { DocumentChecklist } from '@/components/documents/DocumentChecklist';
 import type { ExtractionResult } from '@/components/documents/DocumentUploadWithExtraction';
 import { DocAutoFill } from '@/components/documents/DocAutoFill';
+
+// Upload driver_photo document and sync driver.photo_url + user.avatar_url via backend
+async function uploadDriverPhoto(driverId: number, file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('document_type', 'driver_photo');
+  await api.post(`/drivers/${driverId}/documents`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
 
 const STATUS_TABS = [
   { key: '', label: 'All' },
@@ -33,9 +43,15 @@ export default function DriversPage() {
   const [deleteDriver, setDeleteDriver] = useState<Driver | null>(null);
   const [editDriver, setEditDriver] = useState<Driver | null>(null);
   const [editName, setEditName] = useState('');
+  const [editPhotoFile, setEditPhotoFile] = useState<File | null>(null);
+  const [editPhotoPreview, setEditPhotoPreview] = useState<string | null>(null);
+  const editPhotoRef = useRef<HTMLInputElement>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createStep, setCreateStep] = useState<1 | 2>(1);
   const [createdDriverId, setCreatedDriverId] = useState<number | null>(null);
+  const [createPhotoFile, setCreatePhotoFile] = useState<File | null>(null);
+  const [createPhotoPreview, setCreatePhotoPreview] = useState<string | null>(null);
+  const createPhotoRef = useRef<HTMLInputElement>(null);
   const [createForm, setCreateForm] = useState({
     employee_id: '',
     full_name: '',
@@ -64,11 +80,16 @@ export default function DriversPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<Driver> }) => driverService.update(id, payload),
-    onSuccess: () => {
+    onSuccess: async (_, { id }) => {
+      if (editPhotoFile) {
+        try { await uploadDriverPhoto(id, editPhotoFile); } catch { /* non-critical */ }
+      }
       qc.invalidateQueries({ queryKey: ['drivers'] });
       toast.success('Driver updated successfully.');
       setEditDriver(null);
       setEditName('');
+      setEditPhotoFile(null);
+      setEditPhotoPreview(null);
     },
     onError: (error) => {
       handleApiError(error, 'Operation failed');
@@ -94,7 +115,7 @@ export default function DriversPage() {
       rating: 0,
       is_active: true,
     }),
-    onSuccess: (data: any) => {
+    onSuccess: async (data: any) => {
       qc.invalidateQueries({ queryKey: ['drivers'] });
       qc.invalidateQueries({ queryKey: ['admin-employees'] });
       const driverId = data?.id ?? data?.data?.id;
@@ -106,6 +127,10 @@ export default function DriversPage() {
       }
       if (driverId) {
         setCreatedDriverId(driverId);
+        // Upload photo if selected
+        if (createPhotoFile) {
+          try { await uploadDriverPhoto(driverId, createPhotoFile); } catch { /* non-critical */ }
+        }
         setCreateStep(2);
       } else {
         resetCreate();
@@ -132,6 +157,8 @@ export default function DriversPage() {
     setCreateStep(1);
     setCreatedDriverId(null);
     setIsCreateOpen(false);
+    setCreatePhotoFile(null);
+    setCreatePhotoPreview(null);
   };
 
   const handleDriverExtracted = (result: ExtractionResult) => {
@@ -346,7 +373,7 @@ export default function DriversPage() {
 
       <Modal
         isOpen={!!editDriver}
-        onClose={() => { setEditDriver(null); setEditName(''); }}
+        onClose={() => { setEditDriver(null); setEditName(''); setEditPhotoFile(null); setEditPhotoPreview(null); }}
         title="Edit Driver"
         size="md"
       >
@@ -358,6 +385,39 @@ export default function DriversPage() {
             updateMutation.mutate({ id: editDriver.id, payload: { full_name: editName.trim() } });
           }}
         >
+          {/* Profile Photo */}
+          <div>
+            <label className="label">Profile Photo</label>
+            <div className="flex items-center gap-4">
+              <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center">
+                {editPhotoPreview || editDriver?.photo_url ? (
+                  <img src={editPhotoPreview || editDriver?.photo_url || ''} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <Camera size={22} className="text-gray-400" />
+                )}
+              </div>
+              <div>
+                <input
+                  ref={editPhotoRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    setEditPhotoFile(f);
+                    setEditPhotoPreview(URL.createObjectURL(f));
+                  }}
+                />
+                <button type="button" className="btn-secondary text-sm" onClick={() => editPhotoRef.current?.click()}>
+                  {editPhotoPreview ? 'Change Photo' : 'Upload Photo'}
+                </button>
+                {editPhotoPreview && (
+                  <button type="button" className="ml-2 text-xs text-red-500 hover:underline" onClick={() => { setEditPhotoFile(null); setEditPhotoPreview(null); }}>Remove</button>
+                )}
+              </div>
+            </div>
+          </div>
           <div>
             <label className="label">Employee ID</label>
             <input className="input-field" value={editDriver?.employee_id || ''} disabled />
@@ -414,6 +474,39 @@ export default function DriversPage() {
               <div>
                 <label className="label">Full Name</label>
                 <input className="input-field" value={createForm.full_name} onChange={(e) => setCreateForm((p) => ({ ...p, full_name: e.target.value }))} required />
+              </div>
+            </div>
+            {/* Profile Photo */}
+            <div>
+              <label className="label">Profile Photo <span className="text-gray-400 font-normal">(optional)</span></label>
+              <div className="flex items-center gap-4">
+                <div className="relative w-14 h-14 rounded-full overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center">
+                  {createPhotoPreview ? (
+                    <img src={createPhotoPreview} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera size={20} className="text-gray-400" />
+                  )}
+                </div>
+                <div>
+                  <input
+                    ref={createPhotoRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      setCreatePhotoFile(f);
+                      setCreatePhotoPreview(URL.createObjectURL(f));
+                    }}
+                  />
+                  <button type="button" className="btn-secondary text-sm" onClick={() => createPhotoRef.current?.click()}>
+                    {createPhotoPreview ? 'Change Photo' : 'Upload Photo'}
+                  </button>
+                  {createPhotoPreview && (
+                    <button type="button" className="ml-2 text-xs text-red-500 hover:underline" onClick={() => { setCreatePhotoFile(null); setCreatePhotoPreview(null); }}>Remove</button>
+                  )}
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

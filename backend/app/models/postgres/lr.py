@@ -59,6 +59,9 @@ class LR(Base, TimestampMixin, SoftDeleteMixin):
     
     # Trip Reference
     trip_id = Column(Integer, ForeignKey('trips.id'), nullable=True)
+
+    # Transport type: 'fleet' (own vehicle) or 'market' (hired/market vehicle)
+    transport_type = Column(String(10), default='fleet', nullable=True)
     
     # E-way Bill
     eway_bill_number = Column(String(20), nullable=True, index=True)

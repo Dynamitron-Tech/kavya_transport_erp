@@ -298,6 +298,8 @@ ROLE_PERMISSIONS = {
         # Vehicle & Driver (read only - needed for Finance Hub / expense dropdowns)
         Permissions.VEHICLE_READ,
         Permissions.DRIVER_READ,
+        # User (read only - needed for employee dropdowns and user pages)
+        Permissions.USER_READ,
         # Documents (read for vehicle/driver compliance view)
         Permissions.DOCUMENT_READ,
         # Alerts / Notifications
@@ -372,9 +374,14 @@ ROLE_PERMISSIONS = {
         Permissions.BANKING_READ,
         # Settlements
         Permissions.SETTLEMENT_READ, Permissions.SETTLEMENT_CREATE, Permissions.SETTLEMENT_APPROVE,
+        # Trip & Job (read only - needed for Finance Hub / expense context)
+        Permissions.TRIP_READ,
+        Permissions.JOB_READ,
         # Driver / Vehicle (read for salary / advance context)
         Permissions.DRIVER_READ,
         Permissions.VEHICLE_READ,
+        # E-way Bill (read only - needed for Finance Hub expiry alerts)
+        Permissions.EWAY_BILL_READ,
         # Fuel (read)
         Permissions.FUEL_READ,
         # Reports

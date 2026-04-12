@@ -170,18 +170,25 @@ export default function TripsPage() {
       key: 'planned_start',
       header: 'Start Date',
       sortable: true,
-      render: (t) => new Date(t.planned_start).toLocaleDateString('en-IN'),
+      render: (t) => {
+        const d = (t as any).actual_start || t.planned_start;
+        if (!d) return <span className="text-gray-400">—</span>;
+        return new Date(d).toLocaleDateString('en-IN');
+      },
     },
     {
       key: 'total_distance',
       header: 'Distance',
       sortable: true,
-      render: (t) => t.total_distance ? `${t.total_distance} km` : '—',
+      render: (t) => {
+        const dist = (t as any).total_distance || (t as any).actual_distance_km || (t as any).planned_distance_km;
+        return dist ? `${dist} km` : '—';
+      },
     },
     {
       key: 'total_expenses',
       header: 'Expenses',
-      render: (t) => t.total_expenses ? `₹${(t.total_expenses ?? 0).toLocaleString('en-IN')}` : '—',
+      render: (t) => (t as any).total_expenses ? `₹${Number((t as any).total_expenses).toLocaleString('en-IN')}` : '—',
     },
     {
       key: 'status',
@@ -208,11 +215,7 @@ export default function TripsPage() {
           >
             <Pencil size={14} className="text-gray-600" />
           </button>
-          {normalizeTripStatus(t.status) === 'SCHEDULED' && (
-            <button type="button" onClick={() => updateTripStatus(String(t.id), 'start')} className="text-xs px-2 py-1 bg-green-600 text-white rounded-full" title="Start">
-              Start
-            </button>
-          )}
+
           {normalizeTripStatus(t.status) === 'IN_TRANSIT' && (
             <button type="button" onClick={() => updateTripStatus(String(t.id), 'reach')} className="text-xs px-2 py-1 bg-orange-600 text-white rounded-full" title="Mark Reached">
               Mark Reached
@@ -241,10 +244,7 @@ export default function TripsPage() {
 
   const statusTabs = [
     { key: 'all', label: 'All' },
-    { key: 'planned', label: 'Planned' },
-    { key: 'started', label: 'Started' },
-    { key: 'in_transit', label: 'In Transit' },
-    { key: 'unloading', label: 'Reached' },
+    { key: 'pending', label: 'Pending' },
     { key: 'completed', label: 'Completed' },
   ];
 
@@ -261,7 +261,7 @@ export default function TripsPage() {
         { header: 'Driver', accessor: (t: any) => getDriverLabel(t) },
         { header: 'Origin', accessor: (t: any) => t.origin },
         { header: 'Destination', accessor: (t: any) => t.destination },
-        { header: 'Start Date', accessor: (t: any) => (t.planned_start ? new Date(t.planned_start).toLocaleDateString('en-IN') : '-') },
+        { header: 'Start Date', accessor: (t: any) => { const d = t.actual_start || t.planned_start; return d ? new Date(d).toLocaleDateString('en-IN') : '—'; } },
         { header: 'Distance', accessor: (t: any) => (t.total_distance ? `${t.total_distance} km` : '-') },
         { header: 'Expenses', accessor: (t: any) => (t.total_expenses ? `INR ${Number(t.total_expenses).toLocaleString('en-IN')}` : '-') },
         { header: 'Status', accessor: (t: any) => normalizeTripStatus(t.status).replace('_', ' ') },

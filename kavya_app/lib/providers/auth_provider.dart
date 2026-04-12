@@ -78,6 +78,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final phone = await _storage.read(key: 'user_phone');
     final role = await _storage.read(key: 'primary_role') ?? 'unknown';
     final isActive = (await _storage.read(key: 'user_is_active')) != 'false';
+    final avatarUrl = await _storage.read(key: 'user_avatar_url');
 
     if (!mounted) return;
     state = state.copyWith(
@@ -88,6 +89,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         roles: [role],
         phone: phone?.isNotEmpty == true ? phone : null,
         isActive: isActive,
+        avatarUrl: avatarUrl?.isNotEmpty == true ? avatarUrl : null,
       ),
     );
   }

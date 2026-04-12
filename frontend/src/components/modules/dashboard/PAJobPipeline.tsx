@@ -57,12 +57,7 @@ export default function PAJobPipeline({ data, isLoading, navigate }: Props) {
           <h3 className="font-bold text-gray-900 text-lg">Job Pipeline</h3>
           <p className="text-sm text-gray-500">{totalJobs} jobs across all stages</p>
         </div>
-        <button
-          onClick={() => navigate('/jobs')}
-          className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
-        >
-          View All Jobs <ChevronRight size={16} />
-        </button>
+
       </div>
 
       {/* Kanban Board */}
@@ -102,7 +97,7 @@ export default function PAJobPipeline({ data, isLoading, navigate }: Props) {
                     {displayJobs.map((job: any) => (
                       <div
                         key={job.id}
-                        onClick={() => navigate(`/jobs`)}
+                        onClick={() => navigate('/lr')}
                         className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
                       >
                         {/* Job Number & Priority */}

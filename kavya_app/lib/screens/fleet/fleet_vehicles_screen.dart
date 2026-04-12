@@ -210,10 +210,7 @@ class _FleetVehiclesScreenState extends ConsumerState<FleetVehiclesScreen> {
     final statusColor = _getStatusColor(status);
 
     return GestureDetector(
-      onTap: () async {
-        final result = await context.push('/fleet/vehicle/$id/edit');
-        if (result == true) ref.invalidate(fleetVehiclesProvider);
-      },
+      onTap: () => context.push('/fleet/vehicle/$id'),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(

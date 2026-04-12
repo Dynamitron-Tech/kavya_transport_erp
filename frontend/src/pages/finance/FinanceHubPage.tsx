@@ -4,16 +4,19 @@
  *       &sub=receivables|payables|expenses|fuel|settlements
  *       &view=accounts|ledger|reconciliation
  */
-import { Suspense, lazy, useCallback, useEffect } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Receipt, ArrowUpDown, Landmark, BarChart3,
   TrendingDown, AlertTriangle, Wallet, Clock, RefreshCw,
-  Download, Bell, DollarSign, FileText,
+  Download, Bell, DollarSign, FileText, IndianRupee, XCircle,
+  ThumbsDown, CheckCircle2, Car,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '@/services/api';
 import { useFinanceAlertStore } from '@/store/financeAlertStore';
+import { financeManagerService, type ExpenseSubmission } from '@/services/financeManagerService';
 import type {
   FinanceKPI, OverdueAlert, UpcomingPayment, EWBAlert, BankingAlert,
 } from '@/types/finance';
@@ -31,9 +34,10 @@ const AccountantLedgerPage = lazy(() => import('../accountant/AccountantLedgerPa
 const ReconciliationPage = lazy(() => import('./ReconciliationPage'));
 const AccountantReportsPage = lazy(() => import('../accountant/AccountantReportsPage'));
 const InvoiceWorkspacePage = lazy(() => import('./InvoiceWorkspacePage'));
+const TripExpensesPage = lazy(() => import('../finance-manager/TripExpensesPage'));
 
 type Tab = 'overview' | 'transactions' | 'invoices' | 'banking' | 'reports';
-type TransactionSub = 'receivables' | 'payables' | 'expenses' | 'fuel' | 'settlements' | 'payments';
+type TransactionSub = 'receivables' | 'payables' | 'expenses' | 'fuel' | 'settlements' | 'payments' | 'trip-expenses';
 type BankingView = 'accounts' | 'ledger' | 'reconciliation';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -47,6 +51,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 const TXN_SUBS: { id: TransactionSub; label: string }[] = [
   { id: 'receivables', label: 'Receivables' },
   { id: 'payables', label: 'Payables' },
+  { id: 'trip-expenses', label: 'Trip Expenses' },
   { id: 'expenses', label: 'Expenses' },
   { id: 'fuel', label: 'Fuel' },
   { id: 'settlements', label: 'Settlements' },
@@ -303,6 +308,202 @@ function AlertPanel({
 }
 
 // ──────────────────────────────────────────────
+// Category labels for expense submissions
+// ──────────────────────────────────────────────
+const CATEGORY_LABELS: Record<string, string> = {
+  fuel: 'Fuel', spare_part: 'Spare Part', loading: 'Loading / Unloading',
+  rto_fine: 'RTO Fine', toll: 'Toll', police: 'Police', food: 'Food',
+  parking: 'Parking', tyre_puncture: 'Tyre Puncture', misc: 'Misc',
+  other: 'Other',
+};
+
+// ──────────────────────────────────────────────
+// Driver Expenses Panel
+// ──────────────────────────────────────────────
+function DriverExpensesPanel() {
+  const qc = useQueryClient();
+  const [rejectId, setRejectId] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['finance-hub-driver-expenses'],
+    queryFn: () => financeManagerService.getExpenseQueue('pending'),
+    refetchInterval: 30_000,
+  });
+  const items: ExpenseSubmission[] = Array.isArray(data) ? data : [];
+
+  const payMutation = useMutation({
+    mutationFn: (id: number) => financeManagerService.approveExpense(id, true),
+    onSuccess: (_res, id) => {
+      toast.success('Expense paid & reimbursed');
+      qc.invalidateQueries({ queryKey: ['finance-hub-driver-expenses'] });
+      qc.invalidateQueries({ queryKey: ['expense-queue'] });
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.detail || 'Payment failed'),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: number) => financeManagerService.rejectExpense(id, rejectReason || 'Rejected by finance'),
+    onSuccess: () => {
+      toast.success('Expense rejected');
+      qc.invalidateQueries({ queryKey: ['finance-hub-driver-expenses'] });
+      qc.invalidateQueries({ queryKey: ['expense-queue'] });
+      setRejectId(null);
+      setRejectReason('');
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.detail || 'Rejection failed'),
+  });
+
+  return (
+    <>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm md:col-span-2">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Car size={15} className="text-blue-500" />
+            <span className="text-sm font-semibold text-gray-700">Driver Expense Submissions</span>
+            <span className="text-xs text-gray-400">(pending payment)</span>
+          </div>
+          {items.length > 0 && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
+              {items.length}
+            </span>
+          )}
+        </div>
+
+        <div className="overflow-x-auto">
+          {isLoading ? (
+            <div className="py-6 flex justify-center">
+              <RefreshCw size={16} className="text-gray-400 animate-spin" />
+            </div>
+          ) : items.length === 0 ? (
+            <p className="text-xs text-gray-400 py-6 text-center">No pending driver expenses</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                  <th className="px-4 py-2 text-left font-medium">Driver</th>
+                  <th className="px-4 py-2 text-left font-medium">Category</th>
+                  <th className="px-4 py-2 text-left font-medium">Trip</th>
+                  <th className="px-4 py-2 text-left font-medium">Date</th>
+                  <th className="px-4 py-2 text-right font-medium">Amount</th>
+                  <th className="px-4 py-2 text-left font-medium">Method</th>
+                  <th className="px-4 py-2 text-left font-medium">Receipt</th>
+                  <th className="px-4 py-2 text-center font-medium">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {items.map((exp) => (
+                  <tr key={exp.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-2.5">
+                      <p className="font-medium text-gray-800">{exp.submitter_name || exp.driver_name || `#${exp.submitted_by}`}</p>
+                      {exp.upi_ref_number && <p className="text-[10px] text-gray-400">UPI: {exp.upi_ref_number}</p>}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                        {CATEGORY_LABELS[exp.category] || exp.category}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-600">
+                      {exp.trip_id ? `#${exp.trip_id}` : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-500 text-xs">
+                      {exp.submitted_at ? new Date(exp.submitted_at).toLocaleDateString('en-IN') : '—'}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">
+                      {fmt(exp.amount_paise)}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className="text-xs text-gray-500 capitalize">{exp.payment_method || 'gpay'}</span>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {exp.receipt_image_s3 ? (
+                        <button
+                          onClick={() => setViewingReceipt(exp.receipt_image_s3!)}
+                          className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                        >
+                          <CheckCircle2 size={11} className="text-green-500" /> View
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-300">No receipt</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => payMutation.mutate(exp.id)}
+                          disabled={payMutation.isPending}
+                          title="Pay & Reimburse"
+                          className="flex items-center gap-1 px-2.5 py-1 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                        >
+                          <IndianRupee size={11} /> Pay
+                        </button>
+                        <button
+                          onClick={() => setRejectId(exp.id)}
+                          title="Reject"
+                          className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 transition-colors"
+                        >
+                          <ThumbsDown size={11} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* Receipt viewer modal */}
+      {viewingReceipt && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setViewingReceipt(null)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <span className="font-semibold text-sm">Receipt</span>
+              <button onClick={() => setViewingReceipt(null)}><XCircle size={18} className="text-gray-400 hover:text-gray-600" /></button>
+            </div>
+            <div className="p-4">
+              <img src={viewingReceipt} alt="Expense receipt" className="w-full rounded-lg border" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject modal */}
+      {rejectId !== null && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setRejectId(null)}>
+          <div className="bg-white rounded-xl shadow-xl p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-semibold mb-3">Reject Expense</h3>
+            <textarea
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder="Reason (optional)…"
+              className="w-full border rounded-lg p-3 text-sm h-20 resize-none focus:outline-none focus:ring-2 focus:ring-red-300"
+            />
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => { setRejectId(null); setRejectReason(''); }}
+                className="flex-1 border rounded-lg py-2 text-sm font-medium hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => rejectMutation.mutate(rejectId!)}
+                disabled={rejectMutation.isPending}
+                className="flex-1 bg-red-500 text-white rounded-lg py-2 text-sm font-medium hover:bg-red-600 disabled:opacity-50"
+              >
+                Confirm Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ──────────────────────────────────────────────
 // Overview Tab
 // ──────────────────────────────────────────────
 function OverviewTab() {
@@ -340,6 +541,7 @@ function OverviewTab() {
         <UpcomingPaymentsPanel />
         <EWBExpiryPanel />
         <LowBalancePanel />
+        <DriverExpensesPanel />
       </div>
     </div>
   );
@@ -370,6 +572,7 @@ function TransactionsTab({ sub, setSub }: { sub: TransactionSub; setSub: (s: Tra
       <Suspense fallback={<LoadingPane />}>
         {sub === 'receivables' && <AccountantReceivablesPage />}
         {sub === 'payables' && <AccountantPayablesPage />}
+        {sub === 'trip-expenses' && <TripExpensesPage />}
         {sub === 'expenses' && <AccountantExpensesPage />}
         {sub === 'fuel' && <AccountantFuelExpensePage />}
         {sub === 'settlements' && <SettlementsPage />}

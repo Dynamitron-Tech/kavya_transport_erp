@@ -28,10 +28,6 @@ class AdminQuickActionsScreen extends StatelessWidget {
                 color: KTColors.info,
                 onTap: () => context.push('/pa/jobs')),
             QuickActionTile(
-                label: 'New trip',
-                color: KTColors.amber600,
-                onTap: () => context.push('/fleet/trips')),
-            QuickActionTile(
                 label: 'Upload doc',
                 color: Colors.teal,
                 onTap: () => context.push('/pa/jobs')),

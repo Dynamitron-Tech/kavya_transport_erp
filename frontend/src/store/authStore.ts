@@ -112,6 +112,21 @@ export const useAuthStore = create<AuthState>()(
         }
         set({ isLoading: true });
         try {
+          // First, silently refresh the access token so roles/permissions are always current
+          const refreshToken = localStorage.getItem('refresh_token');
+          if (refreshToken) {
+            try {
+              const { default: axios } = await import('axios');
+              const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api/v1';
+              const refreshRes = await axios.post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refreshToken });
+              const newToken = refreshRes.data?.data?.access_token ?? refreshRes.data?.access_token;
+              if (newToken) {
+                localStorage.setItem('access_token', newToken);
+                set({ token: newToken });
+              }
+            } catch { /* ignore — will still try getMe with existing token */ }
+          }
+
           const user = await authService.getMe();
           set({ user, permissions: user.permissions || [], isAuthenticated: true, isLoading: false });
         } catch {

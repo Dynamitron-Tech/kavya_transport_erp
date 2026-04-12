@@ -35,6 +35,7 @@ import '../../screens/fleet/fleet_trip_management_screen.dart';
 import '../../screens/fleet/fleet_profile_screen.dart';
 import '../../screens/fleet/fleet_add_vehicle_screen.dart';
 import '../../screens/fleet/fleet_edit_vehicle_screen.dart';
+import '../../screens/fleet/fleet_vehicle_hub_screen.dart';
 import '../../screens/fleet/fleet_driver_detail_screen.dart';
 import '../../screens/fleet/fleet_add_driver_screen.dart';
 import '../../screens/fleet/fleet_create_trip_screen.dart';
@@ -105,7 +106,6 @@ import '../../features/admin/screens/admin_vehicle_detail_screen.dart';
 import '../../features/admin/screens/admin_driver_detail_screen.dart';
 import '../../features/admin/screens/admin_invoice_detail_screen.dart';
 import '../../features/admin/screens/admin_compliance_detail_screen.dart';
-import '../../features/admin/screens/admin_create_lr_screen.dart';
 import '../../features/admin/screens/admin_create_trip_screen.dart';
 import '../../features/admin/screens/admin_upload_doc_screen.dart';
 import '../../features/admin/screens/admin_reports_screen.dart';
@@ -383,7 +383,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/fleet/vehicle/:id',
-        builder: (context, state) => FleetEditVehicleScreen(
+        builder: (context, state) => FleetVehicleHubScreen(
           vehicleId: int.parse(state.pathParameters['id']!),
         ),
       ),
@@ -742,7 +742,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin/lr/create',
         parentNavigatorKey: appNavigatorKey,
-        builder: (context, state) => const AdminCreateLRScreen(),
+        builder: (context, state) => const FleetCreateLRScreen(),
       ),
       GoRoute(
         path: '/admin/trip/create',

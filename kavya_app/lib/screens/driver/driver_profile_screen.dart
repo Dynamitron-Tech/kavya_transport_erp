@@ -14,6 +14,7 @@ class DriverProfileScreen extends ConsumerWidget {
     final s = ref.watch(sProvider);
     final name = user?.fullName ?? 'Driver';
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'D';
+    final avatarUrl = user?.avatarUrl;
 
     return ListView(
       padding: EdgeInsets.zero,
@@ -38,11 +39,13 @@ class DriverProfileScreen extends ConsumerWidget {
                     height: 88,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFFFF8C00), Color(0xFFFFB347)],
-                      ),
+                      gradient: avatarUrl == null
+                          ? const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFFFF8C00), Color(0xFFFFB347)],
+                            )
+                          : null,
                       boxShadow: [
                         BoxShadow(
                           color: KTColors.driverAccent.withValues(alpha: 0.45),
@@ -51,12 +54,27 @@ class DriverProfileScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    child: Center(
-                      child: Text(
-                        initial,
-                        style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white),
-                      ),
-                    ),
+                    child: avatarUrl != null
+                        ? ClipOval(
+                            child: Image.network(
+                              avatarUrl,
+                              width: 88,
+                              height: 88,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Center(
+                                child: Text(
+                                  initial,
+                                  style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              initial,
+                              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white),
+                            ),
+                          ),
                   ),
                   Container(
                     width: 24,

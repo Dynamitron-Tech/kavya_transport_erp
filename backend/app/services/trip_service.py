@@ -67,9 +67,19 @@ async def list_trips(db: AsyncSession, page: int = 1, limit: int = 20, search: s
         count_query = count_query.where(sf)
 
     if status:
-        normalized_status = _coerce_enum(TripStatusEnum, status)
-        query = query.where(Trip.status == normalized_status)
-        count_query = count_query.where(Trip.status == normalized_status)
+        if status.lower() == 'pending':
+            pending_statuses = [
+                TripStatusEnum.PLANNED, TripStatusEnum.VEHICLE_ASSIGNED,
+                TripStatusEnum.DRIVER_ASSIGNED, TripStatusEnum.READY,
+                TripStatusEnum.STARTED, TripStatusEnum.LOADING,
+                TripStatusEnum.IN_TRANSIT, TripStatusEnum.UNLOADING,
+            ]
+            query = query.where(Trip.status.in_(pending_statuses))
+            count_query = count_query.where(Trip.status.in_(pending_statuses))
+        else:
+            normalized_status = _coerce_enum(TripStatusEnum, status)
+            query = query.where(Trip.status == normalized_status)
+            count_query = count_query.where(Trip.status == normalized_status)
 
     if vehicle_id:
         query = query.where(Trip.vehicle_id == vehicle_id)
@@ -253,6 +263,9 @@ async def change_trip_status(db: AsyncSession, trip_id: int, new_status: str, us
             trip.end_odometer = odometer_reading
             if trip.start_odometer:
                 trip.actual_distance_km = float(odometer_reading) - float(trip.start_odometer)
+        # Backfill actual_distance_km if odometer readings already on the trip but distance was never computed
+        if not trip.actual_distance_km and trip.end_odometer and trip.start_odometer:
+            trip.actual_distance_km = float(trip.end_odometer) - float(trip.start_odometer)
 
         # Backfill revenue from linked LR/job if it is missing so financials are meaningful.
         current_revenue = float(trip.revenue or 0)
@@ -475,6 +488,7 @@ async def get_trip_with_details(db: AsyncSession, trip: Trip) -> dict:
 
     lr_count = (await db.execute(select(func.count(LR.id)).where(LR.trip_id == trip.id))).scalar() or 0
     expense_count = (await db.execute(select(func.count(TripExpense.id)).where(TripExpense.trip_id == trip.id))).scalar() or 0
+    total_expenses = (await db.execute(select(func.sum(TripExpense.amount)).where(TripExpense.trip_id == trip.id))).scalar() or 0
 
     vehicle_data = None
     if trip.vehicle_id:
@@ -580,6 +594,14 @@ async def get_trip_with_details(db: AsyncSession, trip: Trip) -> dict:
         "status": trip.status.value if hasattr(trip.status, 'value') else str(trip.status),
         "lr_count": lr_count,
         "expense_count": expense_count,
+        "total_expenses": float(total_expenses) if total_expenses else 0,
+        "total_distance": float(
+            trip.actual_distance_km
+            or trip.planned_distance_km
+            or (route_data["distance_km"] if route_data and route_data.get("distance_km") else None)
+            or (float(trip.end_odometer) - float(trip.start_odometer) if trip.end_odometer and trip.start_odometer else None)
+            or 0
+        ) or None,
         "vehicle": vehicle_data,
         "driver": driver_data,
         "status_history": status_history_data,

@@ -64,6 +64,7 @@ class AuthService {
     await _storage.write(key: 'user_email', value: user['email']?.toString() ?? '');
     await _storage.write(key: 'user_phone', value: user['phone']?.toString() ?? phoneRaw);
     await _storage.write(key: 'user_is_active', value: (user['is_active'] as bool? ?? true).toString());
+    await _storage.write(key: 'user_avatar_url', value: user['avatar_url']?.toString() ?? '');
 
     _ref.read(authProvider.notifier).setUser(User(
       id: user['id'].toString(),
@@ -72,6 +73,7 @@ class AuthService {
       roles: roles.map((r) => r.toString()).toList(),
       phone: user['phone']?.toString(),
       isActive: user['is_active'] as bool? ?? true,
+      avatarUrl: user['avatar_url']?.toString(),
     ));
 
     _navigateForRole(primaryRole);

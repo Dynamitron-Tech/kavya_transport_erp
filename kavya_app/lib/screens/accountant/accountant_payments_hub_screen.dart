@@ -422,29 +422,73 @@ class _MarketTripCard extends StatelessWidget {
 
 // ─── Trip Expenses Tab ────────────────────────────────────────────────────────
 
-class _TripExpensesTab extends ConsumerWidget {
+class _TripExpensesTab extends ConsumerStatefulWidget {
   const _TripExpensesTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(_expensesProvider('approved'));
-    return async.when(
-      loading: () => _loadingList(),
-      error: (e, _) =>
-          _errorView(e.toString(), () => ref.invalidate(_expensesProvider('approved'))),
-      data: (items) => items.isEmpty
-          ? _emptyView('No approved expenses pending payment')
-          : RefreshIndicator(
-              color: const Color(0xFF059669),
-              onRefresh: () async =>
-                  ref.invalidate(_expensesProvider('approved')),
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: items.length,
-                itemBuilder: (ctx, i) =>
-                    _ExpenseCard(item: items[i], ref: ref),
-              ),
+  ConsumerState<_TripExpensesTab> createState() => _TripExpensesTabState();
+}
+
+class _TripExpensesTabState extends ConsumerState<_TripExpensesTab> {
+  String _status = 'pending';
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(_expensesProvider(_status));
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: ['pending', 'approved', 'paid', 'rejected'].map((s) {
+                final sel = _status == s;
+                return GestureDetector(
+                  onTap: () => setState(() => _status = s),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: sel ? KTColors.acctAccent : KTColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: sel ? KTColors.acctAccent : KTColors.borderColor,
+                      ),
+                    ),
+                    child: Text(
+                      s[0].toUpperCase() + s.substring(1),
+                      style: KTTextStyles.bodySmall.copyWith(
+                        color: sel ? Colors.white : KTColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
+          ),
+        ),
+        Expanded(
+          child: async.when(
+            loading: () => _loadingList(),
+            error: (e, _) =>
+                _errorView(e.toString(), () => ref.invalidate(_expensesProvider(_status))),
+            data: (items) => items.isEmpty
+                ? _emptyView('No $_status expenses')
+                : RefreshIndicator(
+                    color: KTColors.acctAccent,
+                    onRefresh: () async => ref.invalidate(_expensesProvider(_status)),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      itemCount: items.length,
+                      itemBuilder: (ctx, i) =>
+                          _ExpenseCard(item: items[i], ref: ref),
+                    ),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -458,9 +502,15 @@ class _ExpenseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final inr = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
     final amount = (item['amount'] as num? ?? 0).toDouble();
-    final category = item['category']?.toString() ?? item['expense_type']?.toString() ?? '—';
+    final category = (item['category']?.toString() ?? item['expense_type']?.toString() ?? '—')
+        .replaceAll('_', ' ');
     final driver = item['driver_name']?.toString() ?? '—';
+    final vehicle = item['vehicle_registration']?.toString() ?? '';
     final tripRef = item['trip_number']?.toString() ?? '';
+    final status =
+        (item['status'] ?? item['expense_status'] ?? '').toString().toLowerCase();
+    final isPending = status == 'pending';
+    final isApproved = status == 'approved';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -489,41 +539,109 @@ class _ExpenseCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   fontSize: 16)),
         ]),
-        if (tripRef.isNotEmpty) ...[
+        if (tripRef.isNotEmpty || vehicle.isNotEmpty) ...[
           const SizedBox(height: 4),
-          Text('Trip: $tripRef',
-              style: KTTextStyles.bodySmall
-                  .copyWith(color: KTColors.textMuted, fontFamily: 'monospace')),
+          Text(
+            [if (tripRef.isNotEmpty) 'Trip: $tripRef', if (vehicle.isNotEmpty) vehicle]
+                .join(' · '),
+            style: KTTextStyles.bodySmall
+                .copyWith(color: KTColors.textMuted, fontFamily: 'monospace'),
+          ),
         ],
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
-            icon: const Icon(Icons.send_outlined, size: 14),
-            label: const Text('Record Payment'),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF059669),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(fontSize: 12),
+        const SizedBox(height: 10),
+        if (isPending)
+          Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.close, size: 14),
+                label: const Text('Reject'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: KTColors.danger,
+                  side: const BorderSide(color: KTColors.danger),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                onPressed: () async {
+                  try {
+                    final api = ref.read(apiServiceProvider);
+                    await api.put('/accountant/expenses/${item['id']}/reject');
+                    ref.invalidate(_expensesProvider);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Expense rejected')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
+                  }
+                },
+              ),
             ),
-            onPressed: () => _RecordPaymentSheet.show(
-              context,
-              title: 'Pay: $category',
-              onConfirm: (method, refNum, date) async {
-                final api = ref.read(apiServiceProvider);
-                await api.put(
-                  '/accountant/expenses/${item['id']}/mark-paid',
-                  data: {
-                    'payment_mode': method,
-                    'reference_number': refNum,
-                  },
-                );
-                ref.invalidate(_expensesProvider('approved'));
-              },
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton.icon(
+                icon: const Icon(Icons.check, size: 14),
+                label: const Text('Approve'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: KTColors.acctAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                onPressed: () async {
+                  try {
+                    final api = ref.read(apiServiceProvider);
+                    await api.put('/accountant/expenses/${item['id']}/approve');
+                    ref.invalidate(_expensesProvider);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Expense approved ✓')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
+                  }
+                },
+              ),
+            ),
+          ])
+        else if (isApproved)
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              icon: const Icon(Icons.send_outlined, size: 14),
+              label: const Text('Record Payment'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF059669),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                textStyle: const TextStyle(fontSize: 12),
+              ),
+              onPressed: () => _RecordPaymentSheet.show(
+                context,
+                title: 'Pay: $category',
+                onConfirm: (method, refNum, date) async {
+                  final api = ref.read(apiServiceProvider);
+                  await api.put(
+                    '/accountant/expenses/${item['id']}/mark-paid',
+                    data: {
+                      'payment_mode': method,
+                      'reference_number': refNum,
+                    },
+                  );
+                  ref.invalidate(_expensesProvider);
+                },
+              ),
             ),
           ),
-        ),
       ]),
     );
   }

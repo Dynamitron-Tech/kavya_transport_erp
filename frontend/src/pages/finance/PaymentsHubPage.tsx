@@ -433,7 +433,7 @@ function MarketVehiclesTab() {
 
 function TripExpensesTab() {
   const qc = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState('approved');
+  const [statusFilter, setStatusFilter] = useState('pending');
   const [paying, setPaying] = useState<any>(null);
 
   const { data: raw, isLoading } = useQuery({
@@ -453,18 +453,36 @@ function TripExpensesTab() {
     onError: (err: any) => toast.error(err?.response?.data?.detail || 'Failed to pay'),
   });
 
-  const pendingTotal = expenses
+  const approveMut = useMutation({
+    mutationFn: (id: number) => financeService.approveExpense(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['expenses-hub'] });
+      toast.success('Expense approved ✓');
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.detail || 'Failed to approve'),
+  });
+
+  const rejectMut = useMutation({
+    mutationFn: (id: number) => financeService.rejectExpense(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['expenses-hub'] });
+      toast.success('Expense rejected');
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.detail || 'Failed to reject'),
+  });
+
+  const approvedTotal = expenses
     .filter((e: any) => (e.expense_status || e.status || '').toLowerCase() === 'approved')
     .reduce((s: number, e: any) => s + Number(e.amount || 0), 0);
 
   return (
     <div className="space-y-4">
-      {statusFilter === 'approved' && pendingTotal > 0 && (
+      {statusFilter === 'approved' && approvedTotal > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
           <Package className="h-5 w-5 text-amber-600" />
           <div>
             <p className="text-sm font-medium text-amber-900">Approved — Awaiting Payment</p>
-            <p className="text-xs text-amber-600">Total {fmt(pendingTotal)}</p>
+            <p className="text-xs text-amber-600">Total {fmt(approvedTotal)}</p>
           </div>
         </div>
       )}
@@ -500,29 +518,63 @@ function TripExpensesTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-gray-900 text-sm capitalize">
-                        {(e.category || '').replace('_', ' ')}
+                        {(e.category || '').replace(/_/g, ' ')}
                       </span>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusBadge(status)}`}>
                         {status.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {e.description || '—'} {e.location ? `· ${e.location}` : ''}
-                    </p>
+                    <div className="mt-1 space-y-0.5">
+                      {e.driver_name && (
+                        <p className="text-xs text-gray-600 flex items-center gap-1">
+                          <User className="h-3 w-3" /> {e.driver_name}
+                        </p>
+                      )}
+                      {(e.trip_number || e.vehicle_registration) && (
+                        <p className="text-xs text-gray-500 font-mono">
+                          {e.trip_number && `Trip ${e.trip_number}`}
+                          {e.trip_number && e.vehicle_registration && ' · '}
+                          {e.vehicle_registration}
+                        </p>
+                      )}
+                      {e.description && (
+                        <p className="text-xs text-gray-400">{e.description}{e.location ? ` · ${e.location}` : ''}</p>
+                      )}
+                    </div>
                     {e.reference_number && (
                       <p className="text-xs text-green-600 mt-0.5">Ref: {e.reference_number}</p>
                     )}
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="font-semibold text-gray-900">{fmt(e.amount)}</p>
-                    {status === 'approved' && (
-                      <button
-                        onClick={() => setPaying(e)}
-                        className="mt-2 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700"
-                      >
-                        Record Payment
-                      </button>
-                    )}
+                    <div className="mt-2 flex flex-col gap-1.5">
+                      {status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => approveMut.mutate(e.id)}
+                            disabled={approveMut.isPending}
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => rejectMut.mutate(e.id)}
+                            disabled={rejectMut.isPending}
+                            className="px-3 py-1.5 border border-red-300 text-red-600 rounded-lg text-xs font-medium hover:bg-red-50 disabled:opacity-50"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {status === 'approved' && (
+                        <button
+                          onClick={() => setPaying(e)}
+                          className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700"
+                        >
+                          Record Payment
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -533,7 +585,7 @@ function TripExpensesTab() {
 
       {paying && (
         <RecordPaymentModal
-          title={`${(paying.category || '').replace('_', ' ')} · ${paying.description || ''}`}
+          title={`${(paying.category || '').replace(/_/g, ' ')} · ${paying.description || ''}`}
           amount={Number(paying.amount)}
           loading={payMut.isPending}
           onClose={() => setPaying(null)}

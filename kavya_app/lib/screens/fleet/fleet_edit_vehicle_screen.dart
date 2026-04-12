@@ -12,7 +12,12 @@ final _vehicleDetailProvider =
   (ref, id) async {
     final api = ref.read(apiServiceProvider);
     final res = await api.get('/vehicles/$id');
-    return (res is Map<String, dynamic>) ? res : <String, dynamic>{};
+    if (res is Map<String, dynamic>) {
+      final inner = res['data'];
+      if (inner is Map<String, dynamic>) return inner;
+      return res;
+    }
+    return <String, dynamic>{};
   },
 );
 
@@ -81,25 +86,23 @@ class _FleetEditVehicleScreenState
     _chassisCtrl.text = v['chassis_number']?.toString() ?? '';
     _engineCtrl.text = v['engine_number']?.toString() ?? '';
     _capacityCtrl.text = v['capacity_tons']?.toString() ?? '';
-    _odometerCtrl.text = v['odometer_reading']?.toString() ?? '';
+    // odometer_reading can come back as a String ("18500.00") — strip decimal
+    final odomRaw = v['odometer_reading']?.toString() ?? '';
+    final odomNum = num.tryParse(odomRaw);
+    _odometerCtrl.text = odomNum != null ? odomNum.toInt().toString() : odomRaw;
     _tankCapCtrl.text = v['fuel_tank_capacity']?.toString() ?? '';
     _mileageCtrl.text = v['mileage_per_litre']?.toString() ?? '';
-    _vehicleType =
-        _vehicleTypes.contains(v['vehicle_type']?.toString().toLowerCase())
-            ? v['vehicle_type'].toString().toLowerCase()
-            : 'truck';
-    _ownershipType =
-        _ownershipTypes.contains(v['ownership_type']?.toString().toLowerCase())
-            ? v['ownership_type'].toString().toLowerCase()
-            : 'owned';
-    _fuelType =
-        _fuelTypes.contains(v['fuel_type']?.toString().toLowerCase())
-            ? v['fuel_type'].toString().toLowerCase()
-            : 'diesel';
-    _status =
-        _statuses.contains(v['status']?.toString().toLowerCase())
-            ? v['status'].toString().toLowerCase()
-            : 'available';
+
+    // API returns values in uppercase; normalise to lowercase for matching
+    final vType = (v['vehicle_type'] ?? '').toString().toLowerCase();
+    final oType = (v['ownership_type'] ?? '').toString().toLowerCase();
+    final fType = (v['fuel_type'] ?? '').toString().toLowerCase();
+    final sType = (v['status'] ?? '').toString().toLowerCase();
+
+    _vehicleType = _vehicleTypes.contains(vType) ? vType : 'truck';
+    _ownershipType = _ownershipTypes.contains(oType) ? oType : 'owned';
+    _fuelType = _fuelTypes.contains(fType) ? fType : 'diesel';
+    _status = _statuses.contains(sType) ? sType : 'available';
   }
 
   Future<void> _submit() async {
