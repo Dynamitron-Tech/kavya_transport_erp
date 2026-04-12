@@ -73,7 +73,8 @@ pytesseract>=0.3.10
 opencv-python-headless>=4.8.0
 numpy>=1.24.0
 
-# IFIAS — Invoice Automation
-watchdog>=4.0.0
-pdfplumber>=0.10.3
-pandas>=2.2.0
+# Donut OCR + Presentation extraction
+torch>=2.2.0
+transformers>=4.44.0
+sentencepiece>=0.2.0
+python-pptx>=1.0.2

@@ -22,8 +22,8 @@ class TyreWebSocketService {
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const host = window.location.hostname;
-    const wsUrl = `${protocol}://${host}:8000/ws?token=${encodeURIComponent(token)}`;
+    const host = window.location.host;
+    const wsUrl = `${protocol}://${host}/ws?token=${encodeURIComponent(token)}`;
 
     this.ws = new WebSocket(wsUrl);
 

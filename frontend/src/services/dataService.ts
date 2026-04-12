@@ -1258,11 +1258,7 @@ export const documentService = {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000, // AI extraction can take up to 2 minutes
     });
-    const result = unwrap<any>(data);
-    if (result && result.extracted === false) {
-      throw new Error(result.message || 'Extraction failed');
-    }
-    return result;
+    return unwrap<any>(data);
   },
   getRequirements: async (entityType: string): Promise<Record<string, any>> => {
     const data = await api.get('/documents/requirements', { params: { entity_type: entityType } });

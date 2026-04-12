@@ -24,7 +24,7 @@ export default function NavItem({ group, forceClose }: NavItemProps) {
   const GROUP_BASE_PREFIXES: Record<string, string[]> = {
     Overview: ['/dashboard'],
     Masters: ['/clients', '/vehicles', '/drivers', '/routes'],
-    Operations: ['/jobs', '/lr', '/trips', '/documents', '/ewb', '/lr/eway-bill'],
+    Operations: ['/jobs', '/lr', '/trips', '/ewb', '/lr/eway-bill'],
     Finance: ['/finance'],
     Monitoring: ['/tracking', '/alerts'],
     Reports: ['/reports'],

@@ -9,7 +9,7 @@ import DataTable, { Column } from '@/components/common/DataTable';
 import { StatusBadge, KPICard, Modal } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import type { Driver, DriverDashboard, FilterParams } from '@/types';
-import { Star, Users, UserCheck, Truck, Clock, AlertTriangle, LayoutDashboard } from 'lucide-react';
+import { Star, Users, UserCheck, Truck, Clock, AlertTriangle, LayoutDashboard, Plus } from 'lucide-react';
 import { safeArray } from '@/utils/helpers';
 import { handleApiError } from '../../utils/handleApiError';
 import { DocumentChecklist } from '@/components/documents/DocumentChecklist';
@@ -281,9 +281,14 @@ export default function DriversPage() {
           <h1 className="page-title">Drivers</h1>
           <p className="page-subtitle">Manage your driver workforce</p>
         </div>
-        <button onClick={() => navigate('/drivers/dashboard')} className="btn-secondary flex items-center gap-2">
-          <LayoutDashboard size={16} /> Dashboard
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate('/drivers/dashboard')} className="btn-secondary flex items-center gap-2">
+            <LayoutDashboard size={16} /> Dashboard
+          </button>
+          <button onClick={() => setIsCreateOpen(true)} className="btn-primary flex items-center gap-2">
+            <Plus size={16} /> Add Driver
+          </button>
+        </div>
       </div>
 
       {/* KPI Strip */}

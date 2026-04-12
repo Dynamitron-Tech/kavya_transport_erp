@@ -27,12 +27,16 @@ logger = logging.getLogger(__name__)
 ALLOWED_MIME_TYPES = {
     "image/jpeg", "image/png", "image/webp",
     "image/heic", "application/pdf",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.ms-powerpoint",
 }
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 DOC_TYPE_ALIASES = {
     "license": "driving_license",
+    "bank_passbook": "passbook",
+    "bank_account": "passbook",
 }
 
 DOCUMENT_NUMBER_FIELDS = {
@@ -93,7 +97,7 @@ async def extract_document(
     if file.content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=400,
-            detail="Unsupported file type. Upload JPEG, PNG, WEBP, HEIC, or PDF.",
+            detail="Unsupported file type. Upload JPEG, PNG, WEBP, HEIC, PDF, PPT, or PPTX.",
         )
 
     file_bytes = await file.read()
@@ -333,6 +337,28 @@ async def upload_document(
             parsed_extracted = json.loads(extracted_data)
         except (json.JSONDecodeError, TypeError):
             logger.warning("Invalid extracted_data JSON in upload, ignoring.")
+
+    # Auto-run extraction on uploaded file when client does not send extracted_data.
+    # This keeps upload UX simple: upload file once, backend extracts what it can.
+    if not parsed_extracted:
+        try:
+            extraction_service = DocumentExtractionService()
+            extraction_result = await extraction_service.extract(
+                document_type=_normalize_doc_type(document_type),
+                file_bytes=content,
+                media_type=file.content_type or "application/octet-stream",
+            )
+            extracted_payload = extraction_result.get("data")
+            if extraction_result.get("extracted") and isinstance(extracted_payload, dict):
+                parsed_extracted = extracted_payload
+            else:
+                logger.info(
+                    "Auto extraction skipped for '%s': %s",
+                    document_type,
+                    extraction_result.get("reason") or extraction_result.get("message"),
+                )
+        except Exception as e:
+            logger.warning("Auto extraction failed during upload for '%s': %s", document_type, e)
 
     # Resolve DocumentType enum (support both lowercase API types and existing uppercase values)
     normalized_doc_type = _normalize_doc_type(document_type)

@@ -84,6 +84,10 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     pay_type = Column(String(20), nullable=True)
     aadhaar_file_url = Column(Text, nullable=True)
     aadhaar_file_name = Column(String(255), nullable=True)
+    pan_file_url = Column(Text, nullable=True)
+    pan_file_name = Column(String(255), nullable=True)
+    passbook_file_url = Column(Text, nullable=True)
+    passbook_file_name = Column(String(255), nullable=True)
 
     # Driving License fields
     dl_file_url = Column(Text, nullable=True)
