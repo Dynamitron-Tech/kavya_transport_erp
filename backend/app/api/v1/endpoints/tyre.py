@@ -1,14 +1,19 @@
 from datetime import datetime, date, timedelta
 from typing import Optional, List
+import json
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select, case, or_, and_
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from sqlalchemy import func, select, case, or_, and_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import TokenData, get_current_user
 from app.db.postgres.connection import get_db
 from app.middleware.permissions import Permissions, require_permission
-from app.models.postgres.vehicle import Vehicle, VehicleTyre, TyreLifecycleEvent, TyreSensorReading
+from app.models.postgres.vehicle import (
+    Vehicle, VehicleTyre, TyreLifecycleEvent, TyreSensorReading,
+    TyreReading, TyreAlert, TyreThreshold, TyreSimulationSession,
+    TyreReadingCondition, TyreAlertType, TyreAlertSeverity, TyreAlertStatus,
+)
 from app.schemas.base import APIResponse, PaginationMeta
 from app.schemas.tyre import TyreCreate, TyreEvent, TyreUpdate, TyreRetreadRequest
 
@@ -831,3 +836,874 @@ async def tyre_cost_analytics(
             "by_vehicle": vehicle_list,
         },
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION: DRIVER FIELD READINGS — POST /tyre/readings, GET, PATCH
+# ═══════════════════════════════════════════════════════════════════════════
+
+async def _get_threshold(db: AsyncSession, vehicle_id: int) -> dict:
+    """Fetch per-vehicle threshold or fall back to fleet default."""
+    result = await db.execute(
+        select(TyreThreshold)
+        .where(TyreThreshold.vehicle_id == vehicle_id)
+        .limit(1)
+    )
+    threshold = result.scalar_one_or_none()
+    if not threshold:
+        result = await db.execute(
+            select(TyreThreshold).where(TyreThreshold.vehicle_id == None).limit(1)
+        )
+        threshold = result.scalar_one_or_none()
+    if threshold:
+        return {
+            "min_psi": float(threshold.min_psi or 80),
+            "critical_psi": float(threshold.critical_psi or 60),
+            "min_tread_mm": float(threshold.min_tread_mm or 3.0),
+            "worn_tread_mm": float(threshold.worn_tread_mm or 1.6),
+        }
+    return {"min_psi": 80.0, "critical_psi": 60.0, "min_tread_mm": 3.0, "worn_tread_mm": 1.6}
+
+
+async def _auto_create_alerts(
+    db: AsyncSession,
+    reading: TyreReading,
+    threshold: dict,
+    tyre_id: Optional[int],
+):
+    """Auto-create tyre alerts after a field reading. Deduplicates open alerts."""
+    psi = float(reading.psi or 0)
+    tread = float(reading.tread_depth_mm or 0) if reading.tread_depth_mm else None
+    condition = str(reading.condition.value if hasattr(reading.condition, 'value') else reading.condition)
+
+    alerts_to_create = []
+
+    if psi > 0 and psi < threshold["critical_psi"]:
+        alerts_to_create.append((TyreAlertType.CRITICAL_PSI, TyreAlertSeverity.CRITICAL, psi, threshold["critical_psi"]))
+    elif psi > 0 and psi < threshold["min_psi"]:
+        alerts_to_create.append((TyreAlertType.LOW_PSI, TyreAlertSeverity.WARNING, psi, threshold["min_psi"]))
+
+    if tread is not None and tread > 0:
+        if tread < threshold["worn_tread_mm"]:
+            alerts_to_create.append((TyreAlertType.WORN, TyreAlertSeverity.CRITICAL, tread, threshold["worn_tread_mm"]))
+        elif tread < threshold["min_tread_mm"]:
+            alerts_to_create.append((TyreAlertType.LOW_TREAD, TyreAlertSeverity.WARNING, tread, threshold["min_tread_mm"]))
+
+    if condition == "DAMAGED":
+        alerts_to_create.append((TyreAlertType.DAMAGED, TyreAlertSeverity.CRITICAL, None, None))
+
+    for alert_type, severity, current_val, threshold_val in alerts_to_create:
+        # De-duplicate: check if open alert already exists for this tyre position
+        existing = await db.execute(
+            select(TyreAlert).where(
+                TyreAlert.vehicle_id == reading.vehicle_id,
+                TyreAlert.position == reading.position,
+                TyreAlert.alert_type == alert_type,
+                TyreAlert.status == TyreAlertStatus.OPEN,
+            ).limit(1)
+        )
+        if not existing.scalar_one_or_none():
+            db.add(TyreAlert(
+                vehicle_tyre_id=tyre_id,
+                vehicle_id=reading.vehicle_id,
+                position=reading.position,
+                alert_type=alert_type,
+                severity=severity,
+                current_value=current_val,
+                threshold_value=threshold_val,
+                status=TyreAlertStatus.OPEN,
+                source="field",
+            ))
+
+
+@router.post("/readings", response_model=APIResponse, status_code=201)
+async def submit_tyre_reading(
+    payload: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Submit a driver field tyre reading. Auto-triggers alerts on threshold breach."""
+    vehicle_id = payload.get("vehicle_id")
+    position = payload.get("position")
+    psi = payload.get("psi")
+
+    if not vehicle_id or not position or psi is None:
+        raise HTTPException(status_code=422, detail="vehicle_id, position, psi required")
+
+    # Find matching tyre record (optional — position may not have a VehicleTyre record)
+    tyre_result = await db.execute(
+        select(VehicleTyre).where(
+            VehicleTyre.vehicle_id == vehicle_id,
+            VehicleTyre.position == position,
+            VehicleTyre.is_active == True,
+        ).limit(1)
+    )
+    tyre = tyre_result.scalar_one_or_none()
+
+    condition_raw = str(payload.get("condition", "GOOD")).upper()
+    try:
+        condition_enum = TyreReadingCondition[condition_raw]
+    except KeyError:
+        condition_enum = TyreReadingCondition.GOOD
+
+    reading = TyreReading(
+        vehicle_tyre_id=tyre.id if tyre else None,
+        vehicle_id=vehicle_id,
+        position=position,
+        psi=psi,
+        tread_depth_mm=payload.get("tread_depth_mm"),
+        condition=condition_enum,
+        temperature_c=payload.get("temperature_c"),
+        notes=payload.get("notes"),
+        photo_url=payload.get("photo_url"),
+        driver_id=payload.get("driver_id") or current_user.user_id,
+        odometer_at_reading=payload.get("odometer_at_reading"),
+    )
+    db.add(reading)
+
+    # Update tyre's last_psi and tread_depth if we have a matching record
+    if tyre:
+        tyre.last_psi = psi
+        if payload.get("tread_depth_mm"):
+            tyre.tread_depth_mm = payload["tread_depth_mm"]
+        tyre.last_reading_at = datetime.utcnow()
+
+    await db.flush()
+
+    # Auto-create alerts
+    threshold = await _get_threshold(db, vehicle_id)
+    await _auto_create_alerts(db, reading, threshold, tyre.id if tyre else None)
+
+    await db.commit()
+    await db.refresh(reading)
+
+    alerts_created = bool(threshold)  # simplified flag for response
+    return APIResponse(
+        success=True,
+        data={"id": reading.id},
+        message="Reading submitted" + (" — alerts raised" if alerts_created else ""),
+    )
+
+
+@router.get("/readings", response_model=APIResponse)
+async def list_tyre_readings(
+    vehicle_id: Optional[int] = None,
+    driver_id: Optional[int] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """List all field readings with optional filters."""
+    from app.models.postgres.user import User
+    q = (
+        select(TyreReading, Vehicle.registration_number, User.full_name)
+        .join(Vehicle, Vehicle.id == TyreReading.vehicle_id)
+        .outerjoin(User, User.id == TyreReading.driver_id)
+    )
+    if vehicle_id:
+        q = q.where(TyreReading.vehicle_id == vehicle_id)
+    if driver_id:
+        q = q.where(TyreReading.driver_id == driver_id)
+
+    total_q = select(func.count()).select_from(q.subquery())
+    total = (await db.execute(total_q)).scalar() or 0
+
+    q = q.order_by(TyreReading.created_at.desc()).offset((page - 1) * limit).limit(limit)
+    result = await db.execute(q)
+
+    items = []
+    for reading, reg_no, driver_name in result.all():
+        items.append({
+            "id": reading.id,
+            "vehicle_id": reading.vehicle_id,
+            "vehicle_number": reg_no,
+            "position": reading.position,
+            "psi": float(reading.psi),
+            "tread_depth_mm": float(reading.tread_depth_mm) if reading.tread_depth_mm else None,
+            "condition": reading.condition.value if hasattr(reading.condition, 'value') else str(reading.condition),
+            "temperature_c": float(reading.temperature_c) if reading.temperature_c else None,
+            "notes": reading.notes,
+            "photo_url": reading.photo_url,
+            "driver_id": reading.driver_id,
+            "driver_name": driver_name,
+            "odometer_at_reading": float(reading.odometer_at_reading) if reading.odometer_at_reading else None,
+            "created_at": reading.created_at.isoformat() if reading.created_at else None,
+        })
+
+    return APIResponse(
+        success=True,
+        data={"items": items},
+        pagination=PaginationMeta(page=page, limit=limit, total=total, pages=(total + limit - 1) // limit),
+    )
+
+
+@router.get("/readings/vehicle/{vehicle_id}", response_model=APIResponse)
+async def get_vehicle_readings(
+    vehicle_id: int,
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Get all field readings for a specific vehicle."""
+    result = await db.execute(
+        select(TyreReading)
+        .where(TyreReading.vehicle_id == vehicle_id)
+        .order_by(TyreReading.created_at.desc())
+        .limit(200)
+    )
+    readings = result.scalars().all()
+    items = [
+        {
+            "id": r.id,
+            "position": r.position,
+            "psi": float(r.psi),
+            "tread_depth_mm": float(r.tread_depth_mm) if r.tread_depth_mm else None,
+            "condition": r.condition.value if hasattr(r.condition, 'value') else str(r.condition),
+            "temperature_c": float(r.temperature_c) if r.temperature_c else None,
+            "driver_id": r.driver_id,
+            "odometer_at_reading": float(r.odometer_at_reading) if r.odometer_at_reading else None,
+            "photo_url": r.photo_url,
+            "notes": r.notes,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in readings
+    ]
+    return APIResponse(success=True, data={"vehicle_id": vehicle_id, "readings": items})
+
+
+@router.patch("/readings/{reading_id}", response_model=APIResponse)
+async def update_tyre_reading(
+    reading_id: int,
+    payload: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_UPDATE)),
+):
+    """Edit a reading (admin only)."""
+    reading = await db.get(TyreReading, reading_id)
+    if not reading:
+        raise HTTPException(status_code=404, detail="Reading not found")
+    for field in ("psi", "tread_depth_mm", "condition", "notes", "photo_url", "temperature_c"):
+        if field in payload:
+            if field == "condition":
+                try:
+                    setattr(reading, field, TyreReadingCondition[str(payload[field]).upper()])
+                except KeyError:
+                    pass
+            else:
+                setattr(reading, field, payload[field])
+    await db.commit()
+    return APIResponse(success=True, message="Reading updated")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION: TYRE ALERTS — GET, PATCH acknowledge/resolve
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.get("/field-alerts", response_model=APIResponse)
+async def list_field_alerts(
+    status: str = Query("OPEN"),
+    vehicle_id: Optional[int] = None,
+    severity: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """List structured tyre alerts (field readings + sensors)."""
+    q = (
+        select(TyreAlert, Vehicle.registration_number)
+        .join(Vehicle, Vehicle.id == TyreAlert.vehicle_id)
+    )
+    if vehicle_id:
+        q = q.where(TyreAlert.vehicle_id == vehicle_id)
+    if status and status != "all":
+        try:
+            q = q.where(TyreAlert.status == TyreAlertStatus[status.upper()])
+        except KeyError:
+            pass
+    if severity:
+        try:
+            q = q.where(TyreAlert.severity == TyreAlertSeverity[severity.upper()])
+        except KeyError:
+            pass
+
+    total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar() or 0
+    q = q.order_by(TyreAlert.created_at.desc()).offset((page - 1) * limit).limit(limit)
+    result = await db.execute(q)
+
+    items = []
+    for alert, reg_no in result.all():
+        items.append({
+            "id": alert.id,
+            "vehicle_id": alert.vehicle_id,
+            "vehicle_number": reg_no,
+            "position": alert.position,
+            "alert_type": alert.alert_type.value if hasattr(alert.alert_type, 'value') else str(alert.alert_type),
+            "severity": alert.severity.value if hasattr(alert.severity, 'value') else str(alert.severity),
+            "current_value": float(alert.current_value) if alert.current_value else None,
+            "threshold_value": float(alert.threshold_value) if alert.threshold_value else None,
+            "status": alert.status.value if hasattr(alert.status, 'value') else str(alert.status),
+            "source": alert.source,
+            "acknowledged_by": alert.acknowledged_by,
+            "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
+            "created_at": alert.created_at.isoformat() if alert.created_at else None,
+        })
+
+    return APIResponse(
+        success=True,
+        data={"items": items},
+        pagination=PaginationMeta(page=page, limit=limit, total=total, pages=(total + limit - 1) // limit),
+    )
+
+
+@router.get("/field-alerts/vehicle/{vehicle_id}", response_model=APIResponse)
+async def get_vehicle_field_alerts(
+    vehicle_id: int,
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Get open tyre alerts for a specific vehicle."""
+    result = await db.execute(
+        select(TyreAlert)
+        .where(TyreAlert.vehicle_id == vehicle_id, TyreAlert.status == TyreAlertStatus.OPEN)
+        .order_by(TyreAlert.created_at.desc())
+    )
+    alerts = result.scalars().all()
+    return APIResponse(success=True, data=[
+        {
+            "id": a.id,
+            "position": a.position,
+            "alert_type": a.alert_type.value if hasattr(a.alert_type, 'value') else str(a.alert_type),
+            "severity": a.severity.value if hasattr(a.severity, 'value') else str(a.severity),
+            "current_value": float(a.current_value) if a.current_value else None,
+            "status": a.status.value if hasattr(a.status, 'value') else str(a.status),
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+        }
+        for a in alerts
+    ])
+
+
+@router.patch("/field-alerts/{alert_id}/acknowledge", response_model=APIResponse)
+async def acknowledge_alert(
+    alert_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.VEHICLE_UPDATE)),
+):
+    """Fleet manager acknowledges a tyre alert."""
+    alert = await db.get(TyreAlert, alert_id)
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    if alert.status != TyreAlertStatus.OPEN:
+        raise HTTPException(status_code=400, detail="Alert is not in OPEN state")
+    alert.status = TyreAlertStatus.ACKNOWLEDGED
+    alert.acknowledged_by = current_user.user_id
+    await db.commit()
+    return APIResponse(success=True, message="Alert acknowledged")
+
+
+@router.patch("/field-alerts/{alert_id}/resolve", response_model=APIResponse)
+async def resolve_alert(
+    alert_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.VEHICLE_UPDATE)),
+):
+    """Admin resolves a tyre alert."""
+    alert = await db.get(TyreAlert, alert_id)
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    alert.status = TyreAlertStatus.RESOLVED
+    alert.resolved_at = datetime.utcnow()
+    await db.commit()
+    return APIResponse(success=True, message="Alert resolved")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION: THRESHOLDS — GET, POST, PUT
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.get("/thresholds", response_model=APIResponse)
+async def get_thresholds(
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Get fleet default + per-vehicle threshold overrides."""
+    result = await db.execute(
+        select(TyreThreshold, Vehicle.registration_number)
+        .outerjoin(Vehicle, Vehicle.id == TyreThreshold.vehicle_id)
+        .order_by(TyreThreshold.vehicle_id.nullsfirst())
+    )
+    items = []
+    for threshold, reg_no in result.all():
+        items.append({
+            "id": threshold.id,
+            "vehicle_id": threshold.vehicle_id,
+            "vehicle_number": reg_no,
+            "is_fleet_default": threshold.vehicle_id is None,
+            "min_psi": float(threshold.min_psi or 80),
+            "critical_psi": float(threshold.critical_psi or 60),
+            "min_tread_mm": float(threshold.min_tread_mm or 3.0),
+            "worn_tread_mm": float(threshold.worn_tread_mm or 1.6),
+            "inspection_interval_days": threshold.inspection_interval_days or 7,
+            "rotation_interval_km": threshold.rotation_interval_km or 20000,
+        })
+    return APIResponse(success=True, data={"items": items})
+
+
+@router.post("/thresholds", response_model=APIResponse, status_code=201)
+async def create_threshold(
+    payload: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.VEHICLE_UPDATE)),
+):
+    """Create a new threshold config (vehicle-specific or fleet default)."""
+    vehicle_id = payload.get("vehicle_id")
+    # Check if one already exists for this vehicle_id
+    existing = await db.execute(
+        select(TyreThreshold).where(TyreThreshold.vehicle_id == vehicle_id).limit(1)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Threshold already exists for this vehicle. Use PUT to update.")
+
+    threshold = TyreThreshold(
+        vehicle_id=vehicle_id,
+        min_psi=payload.get("min_psi", 80.0),
+        critical_psi=payload.get("critical_psi", 60.0),
+        min_tread_mm=payload.get("min_tread_mm", 3.0),
+        worn_tread_mm=payload.get("worn_tread_mm", 1.6),
+        inspection_interval_days=payload.get("inspection_interval_days", 7),
+        rotation_interval_km=payload.get("rotation_interval_km", 20000),
+        created_by=current_user.user_id,
+    )
+    db.add(threshold)
+    await db.commit()
+    await db.refresh(threshold)
+    return APIResponse(success=True, data={"id": threshold.id}, message="Threshold created")
+
+
+@router.put("/thresholds/{threshold_id}", response_model=APIResponse)
+async def update_threshold(
+    threshold_id: int,
+    payload: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_UPDATE)),
+):
+    """Update an existing threshold config."""
+    threshold = await db.get(TyreThreshold, threshold_id)
+    if not threshold:
+        raise HTTPException(status_code=404, detail="Threshold not found")
+    for field in ("min_psi", "critical_psi", "min_tread_mm", "worn_tread_mm",
+                  "inspection_interval_days", "rotation_interval_km"):
+        if field in payload:
+            setattr(threshold, field, payload[field])
+    await db.commit()
+    return APIResponse(success=True, message="Threshold updated")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION: SIMULATION — POST /tyre/simulate, GET history
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _calc_position_factor(position: str) -> float:
+    """Return wear factor based on axle position."""
+    if not position:
+        return 1.0
+    axle = int(position[0]) if position[0].isdigit() else 1
+    inner = "1" in position[2:] if len(position) > 2 else False
+    if axle == 1:
+        return 1.3   # Front steer — highest wear
+    if axle == 2 and not inner:
+        return 1.1   # Drive axle outer
+    if axle == 2 and inner:
+        return 0.9   # Drive axle inner
+    return 0.85      # Rear trailer axles
+
+
+def _run_simulation(
+    tyres: list,
+    simulated_km: int,
+    simulated_load_kg: int,
+    road_type: str,
+    climate: str,
+    max_load_kg: int = 25000,
+) -> list:
+    """Tyre wear simulation algorithm."""
+    BASE_WEAR = 0.0003  # mm/km baseline
+    ROAD_FACTORS = {"HIGHWAY": 1.0, "CITY": 1.4, "OFFROAD": 2.1, "MIXED": 1.3}
+    CLIMATE_FACTORS = {"NORMAL": 1.0, "EXTREME_HEAT": 1.35, "MONSOON": 1.2}
+    WORN_THRESHOLD = 1.6
+
+    load_ratio = max(simulated_load_kg / max(max_load_kg, 1), 0.1)
+    load_factor = load_ratio ** 1.2
+    road_factor = ROAD_FACTORS.get(road_type.upper(), 1.0)
+    climate_factor = CLIMATE_FACTORS.get(climate.upper(), 1.0)
+
+    results = []
+    for tyre in tyres:
+        pos = tyre.get("position", "")
+        current_tread = float(tyre.get("tread_depth_mm") or 8.0)
+        pos_factor = _calc_position_factor(pos)
+        wear_per_km = BASE_WEAR * load_factor * road_factor * climate_factor * pos_factor
+        predicted_tread = max(0.0, current_tread - (wear_per_km * simulated_km))
+        km_to_replacement = (current_tread - WORN_THRESHOLD) / wear_per_km if wear_per_km > 0 else 999999
+
+        if predicted_tread <= 0:
+            status = "REPLACE_NOW"
+        elif predicted_tread < WORN_THRESHOLD:
+            status = "REPLACE_SOON"
+        elif predicted_tread < 3.0:
+            status = "INSPECT"
+        else:
+            status = "OK"
+
+        remaining_life_pct = max(0, round((predicted_tread / 10.0) * 100, 1))
+
+        # Timeline: tread at each 5000 km milestone
+        milestones = []
+        step = max(simulated_km // 10, 1000)
+        km = 0
+        while km <= simulated_km:
+            t = max(0.0, current_tread - wear_per_km * km)
+            milestones.append({"km": km, "tread_mm": round(t, 2)})
+            km += step
+
+        results.append({
+            "position": pos,
+            "current_tread": round(current_tread, 2),
+            "predicted_tread": round(predicted_tread, 2),
+            "wear_per_km": round(wear_per_km, 6),
+            "km_to_replacement": round(max(0, km_to_replacement)),
+            "remaining_life_pct": remaining_life_pct,
+            "status": status,
+            "recommended_action": (
+                "Replace immediately" if status == "REPLACE_NOW" else
+                "Schedule replacement" if status == "REPLACE_SOON" else
+                "Monitor closely" if status == "INSPECT" else
+                "Continue monitoring"
+            ),
+            "timeline": milestones,
+        })
+
+    return results
+
+
+@router.post("/simulate", response_model=APIResponse)
+async def run_tyre_simulation(
+    payload: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Run tyre wear simulation and optionally save session."""
+    vehicle_id = payload.get("vehicle_id")
+    simulated_km = int(payload.get("simulated_km", 20000))
+    simulated_load_kg = int(payload.get("simulated_load_kg", 15000))
+    road_type = payload.get("road_type", "HIGHWAY")
+    climate = payload.get("climate", "NORMAL")
+    save_session = bool(payload.get("save_session", False))
+
+    # Fetch current tyres for this vehicle
+    result = await db.execute(
+        select(VehicleTyre)
+        .where(VehicleTyre.vehicle_id == vehicle_id, VehicleTyre.is_active == True)
+        .order_by(VehicleTyre.position)
+    )
+    db_tyres = result.scalars().all()
+
+    tyres_input = [
+        {
+            "position": t.position,
+            "tread_depth_mm": float(t.tread_depth_mm or 8.0),
+            "condition": t.condition,
+            "brand": t.brand,
+        }
+        for t in db_tyres
+    ]
+
+    # Get vehicle capacity for load factor
+    vehicle = await db.get(Vehicle, vehicle_id)
+    max_load_kg = int(float(vehicle.capacity_tons or 25) * 1000) if vehicle else 25000
+
+    sim_results = _run_simulation(
+        tyres_input, simulated_km, simulated_load_kg, road_type, climate, max_load_kg
+    )
+
+    # Fleet-level summary
+    replace_count = sum(1 for r in sim_results if r["status"] in ("REPLACE_NOW", "REPLACE_SOON"))
+    ok_count = len(sim_results) - replace_count
+    est_cost = replace_count * 15000  # Approximate ₹15,000 per tyre
+
+    summary = {
+        "total_tyres": len(sim_results),
+        "tyres_ok": ok_count,
+        "tyres_needing_replacement": replace_count,
+        "estimated_replacement_cost": est_cost,
+        "cost_per_km": round(est_cost / max(simulated_km, 1), 2),
+    }
+
+    # Optionally persist session
+    session_id = None
+    if save_session and vehicle_id:
+        session = TyreSimulationSession(
+            vehicle_id=vehicle_id,
+            simulated_km=simulated_km,
+            simulated_load_kg=simulated_load_kg,
+            road_type=road_type,
+            climate=climate,
+            result_json=json.dumps(sim_results),
+            created_by=current_user.user_id,
+        )
+        db.add(session)
+        await db.commit()
+        await db.refresh(session)
+        session_id = session.id
+
+    return APIResponse(
+        success=True,
+        data={
+            "session_id": session_id,
+            "vehicle_id": vehicle_id,
+            "simulated_km": simulated_km,
+            "road_type": road_type,
+            "climate": climate,
+            "load_kg": simulated_load_kg,
+            "summary": summary,
+            "tyre_results": sim_results,
+        },
+    )
+
+
+@router.get("/simulate/history", response_model=APIResponse)
+async def simulation_history(
+    vehicle_id: Optional[int] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Get past simulation sessions."""
+    q = select(TyreSimulationSession, Vehicle.registration_number).join(
+        Vehicle, Vehicle.id == TyreSimulationSession.vehicle_id
+    )
+    if vehicle_id:
+        q = q.where(TyreSimulationSession.vehicle_id == vehicle_id)
+
+    total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar() or 0
+    q = q.order_by(TyreSimulationSession.created_at.desc()).offset((page - 1) * limit).limit(limit)
+    result = await db.execute(q)
+
+    items = []
+    for session, reg_no in result.all():
+        items.append({
+            "id": session.id,
+            "vehicle_id": session.vehicle_id,
+            "vehicle_number": reg_no,
+            "simulated_km": session.simulated_km,
+            "simulated_load_kg": session.simulated_load_kg,
+            "road_type": session.road_type.value if hasattr(session.road_type, 'value') else str(session.road_type),
+            "climate": session.climate,
+            "created_at": session.created_at.isoformat() if session.created_at else None,
+        })
+
+    return APIResponse(
+        success=True,
+        data={"items": items},
+        pagination=PaginationMeta(page=page, limit=limit, total=total, pages=(total + limit - 1) // limit),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SECTION: ANALYTICS — Predictions, driver compliance, inspection coverage
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.get("/analytics/predictions", response_model=APIResponse)
+async def tyre_predictions(
+    days: int = Query(90, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Predict tyre replacements within the next N days based on recent wear rate."""
+    result = await db.execute(
+        select(VehicleTyre, Vehicle.registration_number)
+        .join(Vehicle, Vehicle.id == VehicleTyre.vehicle_id)
+        .where(VehicleTyre.is_active == True)
+    )
+    tyres = result.all()
+
+    predictions = []
+    today = date.today()
+
+    for tyre, reg_no in tyres:
+        tread = float(tyre.tread_depth_mm or 6.0)
+        km_run = float((tyre.current_km or 0) - (tyre.km_at_fitment or 0))
+        if km_run < 0:
+            km_run = 0
+
+        # Estimate wear rate: assume 100k km life → initial 10mm tread
+        # Simpler: use km_run as proxy
+        WORN_THRESHOLD = 1.6
+        if tread <= WORN_THRESHOLD:
+            # Already worn
+            predictions.append({
+                "tyre_id": tyre.id,
+                "vehicle_id": tyre.vehicle_id,
+                "registration_number": reg_no,
+                "position": tyre.position,
+                "serial_number": tyre.tyre_number,
+                "brand": tyre.brand,
+                "current_tread_mm": round(tread, 1),
+                "days_remaining": 0,
+                "km_remaining": None,
+                "predicted_replacement_date": today.isoformat(),
+                "estimated_cost": 15000,
+                "reason": "Tread below legal minimum",
+                "urgency": "critical",
+            })
+            continue
+
+        # Estimate daily wear: km_run over tyre age → wear per km
+        fit_date = tyre.purchase_date
+        if fit_date:
+            days_on_vehicle = max((today - fit_date).days, 1)
+            km_per_day = float(km_run) / days_on_vehicle
+        else:
+            km_per_day = 200  # default assumption
+
+        wear_per_km = (10.0 - tread) / max(km_run, 1.0) if km_run > 0 else 0.0001
+        tread_remaining = tread - WORN_THRESHOLD
+        km_to_worn = tread_remaining / max(wear_per_km, 0.0001)
+        days_to_worn = km_to_worn / max(km_per_day, 1)
+
+        if days_to_worn <= days:
+            urgency = "critical" if days_to_worn <= 30 else ("high" if days_to_worn <= 60 else "medium")
+            predictions.append({
+                "tyre_id": tyre.id,
+                "vehicle_id": tyre.vehicle_id,
+                "registration_number": reg_no,
+                "position": tyre.position,
+                "serial_number": tyre.tyre_number,
+                "brand": tyre.brand,
+                "current_tread_mm": round(tread, 1),
+                "days_remaining": round(days_to_worn),
+                "km_remaining": None,
+                "predicted_replacement_date": (today + timedelta(days=days_to_worn)).isoformat(),
+                "estimated_cost": 15000,
+                "reason": "Estimated wear-rate projection",
+                "urgency": urgency,
+            })
+
+    predictions.sort(key=lambda x: x["days_remaining"])
+    return APIResponse(success=True, data={"predictions": predictions, "days_horizon": days})
+
+
+@router.get("/analytics/inspection-coverage", response_model=APIResponse)
+async def inspection_coverage(
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Per-vehicle last inspection date and overdue status."""
+    # Get fleet default threshold for interval
+    threshold_result = await db.execute(
+        select(TyreThreshold).where(TyreThreshold.vehicle_id == None).limit(1)
+    )
+    fleet_threshold = threshold_result.scalar_one_or_none()
+    interval_days = fleet_threshold.inspection_interval_days if fleet_threshold else 7
+
+    # Get all vehicles
+    vehicles_result = await db.execute(
+        select(Vehicle).where(Vehicle.is_deleted == False).order_by(Vehicle.registration_number)
+    )
+    vehicles = vehicles_result.scalars().all()
+
+    today = datetime.utcnow()
+    items = []
+    for v in vehicles:
+        # Get latest reading for this vehicle
+        latest_result = await db.execute(
+            select(TyreReading.created_at)
+            .where(TyreReading.vehicle_id == v.id)
+            .order_by(TyreReading.created_at.desc())
+            .limit(1)
+        )
+        last_reading_at = latest_result.scalar_one_or_none()
+        if last_reading_at:
+            days_since = (today - last_reading_at).days
+        else:
+            days_since = 9999
+
+        overdue = days_since > interval_days
+        due_soon = not overdue and days_since > (interval_days - 2)
+
+        items.append({
+            "vehicle_id": v.id,
+            "registration_number": v.registration_number,
+            "vehicle_type": v.vehicle_type.value if hasattr(v.vehicle_type, 'value') else str(v.vehicle_type or ""),
+            "last_inspection": last_reading_at.isoformat() if last_reading_at else None,
+            "days_since_inspection": days_since if days_since < 9999 else None,
+            "overdue": overdue,
+            "due_soon": due_soon,
+        })
+
+    overdue_count = sum(1 for i in items if i["overdue"])
+    due_soon_count = sum(1 for i in items if i["due_soon"])
+    return APIResponse(success=True, data={
+        "items": items,
+        "overdue_count": overdue_count,
+        "due_soon_count": due_soon_count,
+        "inspection_interval_days": interval_days,
+    })
+
+
+@router.get("/analytics/driver-compliance", response_model=APIResponse)
+async def driver_inspection_compliance(
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Driver inspection compliance: how often each driver submits readings on time."""
+    from app.models.postgres.user import User, Role, user_roles, RoleType
+    # Get all drivers via role join
+    drivers_result = await db.execute(
+        select(User)
+        .join(user_roles, user_roles.c.user_id == User.id)
+        .join(Role, Role.id == user_roles.c.role_id)
+        .where(Role.role_type == RoleType.DRIVER)
+        .distinct()
+    )
+    drivers = drivers_result.scalars().all()
+
+    # For each driver, count readings in last 30 days vs expected
+    cutoff = datetime.utcnow() - timedelta(days=30)
+    results = []
+    for driver in drivers:
+        reading_count = (await db.execute(
+            select(func.count()).where(
+                TyreReading.driver_id == driver.id,
+                TyreReading.created_at >= cutoff,
+            )
+        )).scalar() or 0
+
+        last_reading_result = await db.execute(
+            select(TyreReading.created_at)
+            .where(TyreReading.driver_id == driver.id)
+            .order_by(TyreReading.created_at.desc())
+            .limit(1)
+        )
+        last_reading = last_reading_result.scalar_one_or_none()
+
+        # Expected: 1 inspection every 7 days = ~4 inspections per 30 days
+        expected = 4
+        compliance_pct = min(100, round((reading_count / expected) * 100))
+        driver_name = f"{driver.first_name} {driver.last_name or ''}".strip() or driver.email
+
+        results.append({
+            "driver_id": driver.id,
+            "driver_name": driver_name,
+            "phone": driver.phone,
+            "readings_last_30_days": reading_count,
+            "expected_readings": expected,
+            "compliance_pct": compliance_pct,
+            "last_inspection": last_reading.isoformat() if last_reading else None,
+        })
+
+    results.sort(key=lambda x: x["compliance_pct"])
+    return APIResponse(success=True, data={"drivers": results})
+

@@ -69,7 +69,7 @@ class LR(Base, TimestampMixin, SoftDeleteMixin):
     eway_bill_valid_until = Column(DateTime, nullable=True)
     
     # Payment
-    payment_mode = Column(SQLEnum(PaymentMode), default=PaymentMode.TO_BE_BILLED)
+    payment_mode = Column(SQLEnum(PaymentMode, native_enum=False), default=PaymentMode.TO_BE_BILLED)
     freight_amount = Column(Numeric(12, 2), default=0)
     loading_charges = Column(Numeric(10, 2), default=0)
     unloading_charges = Column(Numeric(10, 2), default=0)
@@ -86,7 +86,7 @@ class LR(Base, TimestampMixin, SoftDeleteMixin):
     declared_value = Column(Numeric(15, 2), nullable=True)
     
     # Status
-    status = Column(SQLEnum(LRStatus), default=LRStatus.DRAFT)
+    status = Column(SQLEnum(LRStatus, native_enum=False), default=LRStatus.DRAFT)
     
     # Delivery
     delivered_at = Column(DateTime, nullable=True)

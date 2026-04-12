@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -6,16 +6,12 @@ import { marketTripService, lrService } from '@/services/dataService';
 import { Modal } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
-import { getStatusLabel } from '@/services/workflowService';
 import { handleApiError } from '../../utils/handleApiError';
-import type { MarketTripStatus } from '@/types';
 import {
   ArrowLeft, Truck, User, IndianRupee,
   CheckCircle, XCircle, Play, PackageCheck, CreditCard,
-  FileText, X, ExternalLink, Building2
+  FileText, X, ExternalLink, Building2, Upload
 } from 'lucide-react';
-
-const STATUS_FLOW: MarketTripStatus[] = ['pending', 'assigned', 'in_transit', 'delivered', 'settled'];
 
 export default function MarketTripDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +22,7 @@ export default function MarketTripDetailPage() {
   const [settleOpen, setSettleOpen] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [viewDoc, setViewDoc] = useState<{ url: string; title: string } | null>(null);
+  const podFileRef = useRef<HTMLInputElement>(null);
 
   const [assignPayload, setAssignPayload] = useState({
     vehicle_registration: '',
@@ -97,6 +94,12 @@ export default function MarketTripDetailPage() {
     onError: (error) => handleApiError(error, 'Failed to cancel'),
   });
 
+  const uploadPodMutation = useMutation({
+    mutationFn: (file: File) => marketTripService.uploadPod(Number(id), file),
+    onSuccess: () => { invalidate(); toast.success('POD uploaded successfully'); },
+    onError: (error) => handleApiError(error, 'Failed to upload POD'),
+  });
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" /></div>;
   }
@@ -109,7 +112,6 @@ export default function MarketTripDetailPage() {
   const p: any = pnl;
   const lrs: any[] = Array.isArray(jobLRs) ? jobLRs : [];
   const firstLR: any = lrs[0] ?? null;
-  const currentIdx = STATUS_FLOW.indexOf(t.status);
   const margin = Number(t.client_rate || 0) - Number(t.contractor_rate || 0);
 
   // Document chip — image thumbnail or PDF icon, opens lightbox
@@ -203,36 +205,11 @@ export default function MarketTripDetailPage() {
         </div>
       </div>
 
-      {/* Status Timeline */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">Status Timeline</h3>
-        <div className="flex items-center">
-          {STATUS_FLOW.map((status, idx) => {
-            const isActive = idx <= currentIdx;
-            const isCurrent = status === t.status;
-            return (
-              <div key={status} className="flex items-center flex-1">
-                <div className="flex flex-col items-center flex-1">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isActive ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-400'} ${isCurrent ? 'ring-4 ring-primary-100' : ''}`}>
-                    {isActive ? <CheckCircle size={16} /> : <span className="text-xs font-medium">{idx + 1}</span>}
-                  </div>
-                  <span className={`mt-2 text-xs font-medium ${isActive ? 'text-gray-900' : 'text-gray-400'}`}>
-                    {getStatusLabel(status)}
-                  </span>
-                </div>
-                {idx < STATUS_FLOW.length - 1 && (
-                  <div className={`h-0.5 w-full -mt-5 ${idx < currentIdx ? 'bg-primary-600' : 'bg-gray-200'}`} />
-                )}
-              </div>
-            );
-          })}
+      {t.status === 'cancelled' && (
+        <div className="p-3 bg-red-50 rounded-lg text-sm text-red-600 font-medium border border-red-200">
+          This trip has been cancelled.
         </div>
-        {t.status === 'cancelled' && (
-          <div className="mt-4 p-3 bg-red-50 rounded-lg text-sm text-red-600 font-medium">
-            This trip has been cancelled.
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Details Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -281,6 +258,76 @@ export default function MarketTripDetailPage() {
               {!(t.driver_name || t.driver_phone) && <p className="text-gray-400 text-xs italic">No driver details yet</p>}
             </div>
           </div>
+          {/* POD Section */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2"><FileText size={15} /> POD Status</h3>
+            <div className="flex flex-col items-center py-2">
+              {t.pod_uploaded && t.pod_file_url ? (
+                <div className="w-full">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle size={15} className="text-green-500" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-green-700 text-sm leading-tight">POD Uploaded</p>
+                      {t.pod_uploaded_at && <p className="text-xs text-gray-400">{new Date(t.pod_uploaded_at).toLocaleDateString('en-IN')}</p>}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setViewDoc({ url: t.pod_file_url, title: `POD — Market Trip #${t.id}` })}
+                    className="w-full mt-1 rounded-lg overflow-hidden border border-green-200 hover:border-green-400 transition-colors group relative"
+                  >
+                    {/\.(jpe?g|png|gif|webp|heic)$/i.test(t.pod_file_url) ? (
+                      <img src={t.pod_file_url} alt="POD" className="w-full h-36 object-cover group-hover:opacity-90 transition-opacity" />
+                    ) : (
+                      <div className="w-full h-20 flex flex-col items-center justify-center bg-green-50 gap-1">
+                        <FileText size={28} className="text-green-400" />
+                        <span className="text-xs text-green-600">View POD Document</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 transition-opacity rounded-lg">
+                      <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded">Click to view</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => podFileRef.current?.click()}
+                    disabled={uploadPodMutation.isPending}
+                    className="mt-2 w-full text-xs text-gray-500 hover:text-gray-700 underline text-center disabled:opacity-50"
+                  >
+                    Replace POD
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+                    <Upload size={22} className="text-gray-400" />
+                  </div>
+                  <p className="font-semibold text-gray-500 text-sm">No POD yet</p>
+                  <p className="text-xs text-gray-400 mt-0.5 mb-3">Upload proof of delivery</p>
+                  <button
+                    onClick={() => podFileRef.current?.click()}
+                    disabled={uploadPodMutation.isPending}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-600 text-white text-xs font-medium hover:bg-primary-700 disabled:opacity-50"
+                  >
+                    <Upload size={14} />
+                    {uploadPodMutation.isPending ? 'Uploading…' : 'Upload POD'}
+                  </button>
+                </>
+              )}
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                ref={podFileRef}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadPodMutation.mutate(file);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+          </div>
+
           {/* Timestamps */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h3 className="text-sm font-semibold text-gray-900 mb-3">Timeline</h3>

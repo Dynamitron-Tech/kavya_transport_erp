@@ -113,12 +113,12 @@ class EwayBill(Base, TimestampMixin, SoftDeleteMixin):
     eway_bill_date = Column(Date, nullable=False)
 
     # Status
-    status = Column(SQLEnum(EwayBillStatus), default=EwayBillStatus.DRAFT, nullable=False)
+    status = Column(SQLEnum(EwayBillStatus, native_enum=False), default=EwayBillStatus.DRAFT, nullable=False)
 
     # Transaction Info
-    transaction_type = Column(SQLEnum(TransactionType), default=TransactionType.OUTWARD)
+    transaction_type = Column(SQLEnum(TransactionType, native_enum=False), default=TransactionType.OUTWARD)
     transaction_sub_type = Column(String(30), nullable=True)  # supply, export, job_work, etc.
-    document_type = Column(SQLEnum(DocumentType), default=DocumentType.TAX_INVOICE)
+    document_type = Column(SQLEnum(DocumentType, native_enum=False), default=DocumentType.TAX_INVOICE)
     document_number = Column(String(50), nullable=True)
     document_date = Column(Date, nullable=True)
 
@@ -147,9 +147,9 @@ class EwayBill(Base, TimestampMixin, SoftDeleteMixin):
     recipient_phone = Column(String(20), nullable=True)
 
     # Transport Details
-    transport_mode = Column(SQLEnum(TransportMode), default=TransportMode.ROAD)
+    transport_mode = Column(SQLEnum(TransportMode, native_enum=False), default=TransportMode.ROAD)
     vehicle_number = Column(String(20), nullable=True)
-    vehicle_type = Column(SQLEnum(VehicleCategory), default=VehicleCategory.REGULAR)
+    vehicle_type = Column(SQLEnum(VehicleCategory, native_enum=False), default=VehicleCategory.REGULAR)
     transporter_id = Column(String(20), nullable=True)  # Transporter GSTIN or ID
     transporter_name = Column(String(200), nullable=True)
     transporter_gstin = Column(String(20), nullable=True)

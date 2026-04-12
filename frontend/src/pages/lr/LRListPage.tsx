@@ -17,7 +17,8 @@ import { handleApiError } from '../../utils/handleApiError';
 export default function LRListPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, hasRole } = useAuthStore();
+  const isAdmin = hasRole('admin');
   const [filters, setFilters] = useState<FilterParams>({ page: 1, page_size: 20 });
   const [transportTab, setTransportTab] = useState<'' | 'fleet' | 'market'>('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -317,10 +318,10 @@ export default function LRListPage() {
         onPageChange={(p) => setFilters({ ...filters, page: p })}
         onSort={(key, order) => setFilters({ ...filters, sort_by: key, sort_order: order })}
         onRowClick={(lr) => navigate(`/lr/${lr.id}`)}
-        onAdd={hasPermission('lr:create') ? () => setIsCreateOpen(true) : undefined}
+        onAdd={!isAdmin && hasPermission('lr:create') ? () => setIsCreateOpen(true) : undefined}
         addLabel="Create LR"
         onRefresh={() => refetch()}
-        onExport={handleExportPdf}
+        onExport={isAdmin ? undefined : handleExportPdf}
       />
 
       <ConfirmDialog

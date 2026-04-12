@@ -38,7 +38,7 @@ def upgrade():
         sa.Column('vehicle_id',       sa.Integer(), sa.ForeignKey('vehicles.id'),       nullable=True),
         sa.Column('driver_id',        sa.Integer(), sa.ForeignKey('drivers.id'),         nullable=True),
         sa.Column('trip_id',          sa.Integer(), sa.ForeignKey('trips.id'),           nullable=True),
-        sa.Column('banking_entry_id', sa.Integer(), sa.ForeignKey('banking_entries.id'), nullable=True),
+        sa.Column('banking_entry_id', sa.Integer(), nullable=True),  # FK omitted: banking_entries not accessible by migration user
         sa.Column('branch_id',        sa.Integer(), sa.ForeignKey('branches.id'),        nullable=True),
         sa.Column('created_by',       sa.Integer(), sa.ForeignKey('users.id'),           nullable=False, server_default='1'),
 

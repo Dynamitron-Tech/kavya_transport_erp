@@ -25,6 +25,9 @@ import DriverTripsPage from '@/pages/driver/DriverTripsPage';
 import DriverAttendancePage from '@/pages/driver/DriverAttendancePage';
 import DriverExpensesPage from '@/pages/driver/DriverExpensesPage';
 import DriverDocumentsPage from '@/pages/driver/DriverDocumentsPage';
+import DriverTyreDashboardPage from '@/pages/driver/DriverTyreDashboardPage';
+import DriverInspectPage from '@/pages/driver/DriverInspectPage';
+import DriverTyreHistoryPage from '@/pages/driver/DriverTyreHistoryPage';
 
 // Operations
 import LRListPage from '@/pages/lr/LRListPage';
@@ -176,6 +179,9 @@ function App() {
           <Route path="/my-work/attendance" element={<DriverAttendancePage />} />
           <Route path="/driver/expenses" element={<DriverExpensesPage />} />
           <Route path="/driver/documents" element={<DriverDocumentsPage />} />
+          <Route path="/driver/tyre" element={<DriverTyreDashboardPage />} />
+          <Route path="/driver/inspect/:vehicleId" element={<DriverInspectPage />} />
+          <Route path="/driver/tyre-history" element={<DriverTyreHistoryPage />} />
 
           {/* LR */}
           <Route path="/lr" element={<LRListPage />} />

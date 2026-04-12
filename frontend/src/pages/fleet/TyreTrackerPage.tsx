@@ -4,13 +4,18 @@
  */
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import {
   CircleDot, Truck, AlertTriangle, Search, ChevronRight,
-  Thermometer, Gauge, Package, ShoppingCart, RotateCw,
-  ArrowLeftRight, RefreshCw, Trash2, X,
-  Activity, MapPin,
+  Package, ShoppingCart, RotateCw,
+  RefreshCw, X,
+  Activity, MapPin, PlayCircle, Settings,
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import SimulationPanel from '@/components/tyres/SimulationPanel';
+import InspectionCoverageGrid from '@/components/tyres/InspectionCoverageGrid';
+import DriverComplianceTable from '@/components/tyres/DriverComplianceTable';
+import ReplacementForecastTable from '@/components/tyres/ReplacementForecastTable';
+import TyreAlertFeed from '@/components/tyres/TyreAlertFeed';
 import { LoadingSpinner } from '@/components/common/Modal';
 import { tyreTrackerService, tpmsService, vehicleService } from '@/services/dataService';
 import VehicleTyreDiagram, { tyreLifeColor, getPSIStatus, layoutForVehicleType, mapDbPositions, type VehicleLayout } from '@/components/fleet/VehicleTyreDiagram';
@@ -21,7 +26,7 @@ import type {
   TyreCatalogueItem, TyreCompareItem, TPMSReading,
 } from '@/types';
 
-const TYRE_TAB_KEYS = ['tracker', 'vehicles', 'retreading', 'stock', 'buy'] as const;
+const TYRE_TAB_KEYS = ['tracker', 'vehicles', 'retreading', 'stock', 'buy', 'simulate', 'settings'] as const;
 type TyreTab = typeof TYRE_TAB_KEYS[number];
 
 export default function TyreTrackerPage() {
@@ -52,6 +57,8 @@ export default function TyreTrackerPage() {
           { key: 'retreading', label: 'Retreading', icon: <RotateCw className="w-4 h-4" /> },
           { key: 'stock', label: 'In Stock', icon: <Package className="w-4 h-4" /> },
           { key: 'buy', label: 'Buy Tyres', icon: <ShoppingCart className="w-4 h-4" /> },
+          { key: 'simulate', label: 'Simulate', icon: <PlayCircle className="w-4 h-4" /> },
+          { key: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
         ] as { key: TyreTab; label: string; icon: React.ReactNode }[]).map(t => (
           <button
             key={t.key}
@@ -73,6 +80,16 @@ export default function TyreTrackerPage() {
       {activeTab === 'retreading' && <RetreadingTab />}
       {activeTab === 'stock' && <InStockTab />}
       {activeTab === 'buy' && <BuyTyresTab />}
+      {activeTab === 'simulate' && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Wear Simulation</h2>
+            <p className="text-sm text-gray-500">Simulate tyre wear across distance, load, road and climate conditions.</p>
+          </div>
+          <SimulationPanel />
+        </div>
+      )}
+      {activeTab === 'settings' && <TyreSettingsTab />}
     </div>
   );
 }
@@ -231,6 +248,27 @@ function TyreTrackerTab() {
           </div>
         </div>
       )}
+
+      {/* Inspection Coverage */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-4">Inspection Coverage</h3>
+        <InspectionCoverageGrid />
+      </div>
+
+      {/* Driver Compliance */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-4">Driver Inspection Compliance</h3>
+        <DriverComplianceTable />
+      </div>
+
+      {/* Replacement Forecast */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <h3 className="font-semibold text-gray-900 mb-4">Replacement Forecast</h3>
+        <ReplacementForecastTable />
+      </div>
+
+      {/* Field Alert Feed */}
+      <FieldAlertSection />
     </div>
   );
 }
@@ -243,6 +281,123 @@ function StatusCard({ label, value, color, dot }: { label: string; value: number
         <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
       </div>
       <p className="text-2xl font-bold mt-1">{value} <span className="text-xs font-normal opacity-70">tyre(s)</span></p>
+    </div>
+  );
+}
+
+/* Field alert section using TyreAlertFeed */
+function FieldAlertSection() {
+  const { data, refetch } = useQuery({
+    queryKey: ['field-alerts-tracker'],
+    queryFn: async () => {
+      const res = await (await import('@/services/api')).default.get('/tyre/field-alerts', { params: { limit: 20 } });
+      return (res as any)?.data?.items || (res as any)?.items || [];
+    },
+    refetchInterval: 60000,
+  });
+  const alerts = (data || []).map((a: any) => ({
+    id: a.id,
+    vehicle_reg: a.registration_number,
+    position: a.position,
+    alert_type: a.alert_type,
+    severity: a.severity,
+    status: a.status,
+    current_value: a.current_value,
+    source: a.source || 'field',
+    created_at: a.created_at,
+  }));
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <h3 className="font-semibold text-gray-900 mb-4">Field Inspection Alerts</h3>
+      <TyreAlertFeed alerts={alerts} onRefresh={refetch} />
+    </div>
+  );
+}
+
+/* Settings tab — threshold configuration */
+function TyreSettingsTab() {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['tyre-thresholds'],
+    queryFn: async () => {
+      const res = await (await import('@/services/api')).default.get('/tyre/thresholds');
+      const d = (res as any)?.data;
+      return d?.items?.find((i: any) => i.is_fleet_default) || d?.items?.[0] || null;
+    },
+  });
+
+  // Populate form when data loads
+  if (data && !form) setForm({ ...data });
+
+  const handleSave = async () => {
+    if (!form) return;
+    setSaving(true);
+    try {
+      const apiMod = (await import('@/services/api')).default;
+      if (form.id) {
+        await apiMod.put(`/tyre/thresholds/${form.id}`, form);
+      } else {
+        await apiMod.post('/tyre/thresholds', form);
+      }
+      queryClient.invalidateQueries({ queryKey: ['tyre-thresholds'] });
+      toast.success('Thresholds saved!');
+    } catch { toast.error('Failed to save thresholds'); }
+    finally { setSaving(false); }
+  };
+
+  if (isLoading) return <div className="flex justify-center py-16"><LoadingSpinner /></div>;
+
+  const field = (label: string, key: string, unit: string, step = 1) => (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+        <input
+          type="number"
+          className="flex-1 px-3 py-2 text-sm focus:outline-none"
+          value={form?.[key] ?? ''}
+          step={step}
+          onChange={e => setForm((f: any) => ({ ...f, [key]: Number(e.target.value) }))}
+        />
+        <span className="px-3 text-xs text-gray-400 bg-gray-50 border-l border-gray-300">{unit}</span>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h2 className="text-lg font-bold text-gray-900">Fleet Threshold Settings</h2>
+        <p className="text-sm text-gray-500">Default alert thresholds applied to all vehicles (vehicle-specific overrides take priority).</p>
+      </div>
+      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+        <h3 className="font-semibold text-gray-800">Pressure</h3>
+        <div className="grid grid-cols-2 gap-4">
+          {field('Minimum PSI', 'min_psi', 'PSI')}
+          {field('Critical PSI', 'critical_psi', 'PSI')}
+        </div>
+        <h3 className="font-semibold text-gray-800 pt-2">Tread Depth</h3>
+        <div className="grid grid-cols-2 gap-4">
+          {field('Minimum Tread', 'min_tread_mm', 'mm', 0.1)}
+          {field('Worn Threshold', 'worn_tread_mm', 'mm', 0.1)}
+        </div>
+        <h3 className="font-semibold text-gray-800 pt-2">Schedule</h3>
+        <div className="grid grid-cols-2 gap-4">
+          {field('Inspection Interval', 'inspection_interval_days', 'days')}
+          {field('Rotation Interval', 'rotation_interval_km', 'km', 500)}
+        </div>
+        <div className="pt-2">
+          <button
+            onClick={handleSave}
+            disabled={saving || !form}
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-medium"
+          >
+            {saving ? 'Saving…' : 'Save Thresholds'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -316,13 +471,15 @@ function VehiclesTab() {
         size: t.size,
         life_percent: estimateLife(t),
         psi: t.last_psi || 0,
-        target_psi: 32,
+        target_psi: 80,
         temperature: t.last_temperature_c || 0,
         km_run: t.km_run || 0,
         fitted_date: t.installed_date || t.purchase_date,
         has_sensor: !!t.sensor_id,
         alert: null,
         vehicle_id: t.vehicle_id,
+        condition: t.condition || null,
+        tread_depth_mm: t.tread_depth_mm ?? null,
       });
     }
     // From TPMS dashboard
@@ -483,16 +640,35 @@ function AssetView({
             <ChevronRight className="w-5 h-5 text-gray-400 rotate-180" />
           </button>
           <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-gray-900">{vehicle.registration_number}</h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xl font-bold text-gray-900">{vehicle.registration_number}</h2>
               <ConnectionBadge status={connectionStatus} />
+              <span className="text-xs font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                {(vehicle.vehicle_type || 'TRUCK').toUpperCase()}
+              </span>
             </div>
-            <div className="flex items-center gap-4 text-xs text-gray-500 mt-0.5">
-              <span>Type: {vehicle.vehicle_type || 'TRUCK'}</span>
+            <div className="flex items-center gap-4 text-xs text-gray-500 mt-0.5 flex-wrap">
               <span>Odometer: {Number(vehicle.current_odometer || 0).toLocaleString('en-IN')} km</span>
               <span>Location: {vehicle.current_location || vehicle.branch_name || '—'}</span>
               <span>Updated: {secondsAgo(lastUpdate)}</span>
             </div>
+            {/* Fleet health mini bar */}
+            {stats.total > 0 && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[10px] text-gray-400 shrink-0">Fleet health:</span>
+                <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-green-500 transition-all"
+                    style={{ width: `${(stats.healthy / stats.total) * 100}%` }} />
+                  <div className="h-full bg-amber-400 transition-all"
+                    style={{ width: `${(stats.warnings / stats.total) * 100}%` }} />
+                  <div className="h-full bg-red-500 transition-all"
+                    style={{ width: `${(stats.critical / stats.total) * 100}%` }} />
+                </div>
+                <span className="text-[10px] text-gray-400 shrink-0">
+                  {stats.healthy}✓ {stats.warnings}△ {stats.critical}✕
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -508,11 +684,11 @@ function AssetView({
             selectedPosition={selectedPosition}
           />
           <div className="mt-4 flex flex-wrap gap-3 justify-center text-[10px]">
-            <Legend color="#4CAF50" label="Normal" />
-            <Legend color="#8BC34A" label="Good" />
-            <Legend color="#FFC107" label="Warning" />
-            <Legend color="#F44336" label="Critical" />
-            <Legend color="#9E9E9E" label="No Sensor" />
+            <Legend color="#22c55e" label="Good" />
+            <Legend color="#eab308" label="Average" />
+            <Legend color="#f97316" label="Worn/Low PSI" />
+            <Legend color="#ef4444" label="Damaged/Critical" />
+            <Legend color="#9ca3af" label="No data" />
           </div>
         </div>
 
@@ -564,100 +740,218 @@ function TyreDetailPanel({
   onClose: () => void;
 }) {
   const psi = tyre.psi || 0;
-  const targetPsi = tyre.target_psi || 32;
+  const targetPsi = tyre.target_psi || 80;
   const psiStatus = getPSIStatus(psi, targetPsi);
   const life = tyre.life_percent ?? 100;
+  const treadMm = tyre.tread_depth_mm ?? null;
+  const condition = tyre.condition ? String(tyre.condition).toUpperCase() : null;
+
+  const conditionStyle = condition === 'DAMAGED' || condition === 'WORN'
+    ? 'bg-red-50 text-red-700'
+    : condition === 'AVERAGE' ? 'bg-amber-50 text-amber-700'
+    : 'bg-green-50 text-green-700';
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-y-auto max-h-[82vh]">
       {/* Header */}
       <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-lg font-bold text-gray-900">Position {position}</span>
-          {tyre.alert && (
-            <span className="ml-2 text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-              {tyre.alert.replace(/_/g, ' ').toUpperCase()}
+          {condition && (
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${conditionStyle}`}>
+              {condition}
             </span>
+          )}
+          {tyre.has_sensor && (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">SENSOR</span>
           )}
         </div>
         <button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
       </div>
 
-      {/* Info section */}
-      <div className="p-4 space-y-3 text-sm">
+      {/* PSI Gauge */}
+      <div className="p-4 border-b border-gray-100">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Pressure</p>
+        <div className="flex items-center gap-4">
+          <PsiGauge psi={psi} target={targetPsi} />
+          <div>
+            <p className="text-2xl font-bold" style={{ color: psiStatus.color }}>
+              {psi > 0 ? psi.toFixed(0) : '—'}
+            </p>
+            <p className="text-xs text-gray-400">PSI</p>
+            <p className="text-xs mt-1 font-semibold" style={{ color: psiStatus.color }}>
+              {psi > 0 ? psiStatus.label : 'No reading'}
+            </p>
+            <p className="text-xs text-gray-400">Target: {targetPsi} PSI</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Tread depth + Life */}
+      <div className="p-4 border-b border-gray-100">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tread Depth</p>
+            <TreadBar mm={treadMm} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Life Remaining</p>
+            <div className="flex items-center gap-2 mt-1">
+              <div className="flex-1 flex flex-col gap-0.5">
+                {[80, 60, 40, 20, 0].map(thresh => (
+                  <div key={thresh} className="h-2 rounded-sm"
+                    style={{ backgroundColor: life > thresh ? tyreLifeColor(life) : '#e5e7eb' }} />
+                ))}
+              </div>
+              <span className="text-sm font-bold" style={{ color: tyreLifeColor(life) }}>
+                {life.toFixed(0)}%
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="p-4 space-y-2 text-sm border-b border-gray-100">
         <InfoRow label="Serial No" value={tyre.serial_number || '—'} />
         <InfoRow label="Brand" value={tyre.brand || '—'} />
         <InfoRow label="Size" value={tyre.size || tyre.model || '—'} />
-        <InfoRow label="Fitted On" value={tyre.fitted_date ? new Date(tyre.fitted_date).toLocaleDateString('en-IN') : '—'} />
         <InfoRow label="KMs Run" value={`${Number(tyre.km_run || 0).toLocaleString('en-IN')} km`} />
-
-        {/* Life bar */}
-        <div>
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-gray-500">Tyre Life</span>
-            <span className="font-bold" style={{ color: tyreLifeColor(life) }}>{life.toFixed(0)}%</span>
-          </div>
-          <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all" style={{ width: `${life}%`, backgroundColor: tyreLifeColor(life) }} />
-          </div>
-        </div>
+        <InfoRow label="Fitted On" value={tyre.fitted_date ? new Date(tyre.fitted_date).toLocaleDateString('en-IN') : '—'} />
+        {(tyre.temperature || 0) > 0 && (
+          <InfoRow
+            label="Temperature"
+            value={`${tyre.temperature.toFixed(0)}°C${tyre.temperature > 85 ? ' ⚠️' : ''}`}
+          />
+        )}
       </div>
 
-      {/* Live Readings */}
-      <div className="p-4 border-t border-gray-100">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Live Readings</p>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-50 rounded-lg p-3">
-            <div className="flex items-center gap-1 mb-1">
-              <Gauge className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-[10px] text-gray-500">PSI</span>
-            </div>
-            <span className="text-lg font-bold" style={{ color: psiStatus.color }}>
-              {psi > 0 ? psi.toFixed(1) : '—'}
-            </span>
-            {psi > 0 && (
-              <span className="text-[10px] ml-1" style={{ color: psiStatus.color }}>
-                ({psiStatus.label}) Target: {targetPsi}
-              </span>
-            )}
-          </div>
-          <div className="bg-gray-50 rounded-lg p-3">
-            <div className="flex items-center gap-1 mb-1">
-              <Thermometer className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-[10px] text-gray-500">Temperature</span>
-            </div>
-            <span className={`text-lg font-bold ${(tyre.temperature || 0) > 85 ? 'text-red-600' : 'text-gray-900'}`}>
-              {tyre.temperature > 0 ? `${tyre.temperature.toFixed(0)}°C` : '—'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* PSI History Sparkline */}
-      {historyData && historyData.length > 0 && (
-        <div className="p-4 border-t border-gray-100">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">PSI History (Last 2h)</p>
-          <ResponsiveContainer width="100%" height={120}>
-            <LineChart data={historyData.map(r => ({
-              ...r,
-              time: new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            }))}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="time" tick={{ fontSize: 9 }} />
-              <YAxis tick={{ fontSize: 9 }} domain={['auto', 'auto']} />
-              <Tooltip />
-              <Line type="monotone" dataKey="psi" stroke="#2563eb" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
+      {/* PSI Sparkline */}
+      {historyData && historyData.length >= 2 && (
+        <div className="p-4 border-b border-gray-100">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">PSI History</p>
+          <PsiSparkline data={historyData} />
         </div>
       )}
 
       {/* Action buttons */}
-      <div className="p-4 border-t border-gray-100 flex flex-wrap gap-2">
-        <ActionBtn icon={<RefreshCw className="w-3.5 h-3.5" />} label="Replace" />
-        <ActionBtn icon={<ArrowLeftRight className="w-3.5 h-3.5" />} label="Move" />
+      <div className="p-4 flex flex-wrap gap-2">
+        <ActionBtn icon={<RefreshCw className="w-3.5 h-3.5" />} label="Log Reading" />
+        <ActionBtn icon={<AlertTriangle className="w-3.5 h-3.5" />} label="Flag Inspection" />
+        <ActionBtn icon={<Activity className="w-3.5 h-3.5" />} label="View History" />
         <ActionBtn icon={<RotateCw className="w-3.5 h-3.5" />} label="Retread" />
-        <ActionBtn icon={<Trash2 className="w-3.5 h-3.5" />} label="Remove" color="red" />
+      </div>
+    </div>
+  );
+}
+
+/* ── PSI semicircle gauge (inline SVG) ────────────────── */
+function PsiGauge({ psi, target }: { psi: number; target: number }) {
+  const MAX = 160;
+  const cx = 65, cy = 60, r = 50;
+
+  function arc(fromP: number, toP: number): string {
+    const a1 = (1 - fromP / MAX) * Math.PI;
+    const a2 = (1 - toP / MAX) * Math.PI;
+    const x1 = +(cx + r * Math.cos(a1)).toFixed(2);
+    const y1 = +(cy - r * Math.sin(a1)).toFixed(2);
+    const x2 = +(cx + r * Math.cos(a2)).toFixed(2);
+    const y2 = +(cy - r * Math.sin(a2)).toFixed(2);
+    return `M ${x1} ${y1} A ${r} ${r} 0 0 0 ${x2} ${y2}`;
+  }
+
+  const clamped = Math.min(Math.max(psi, 0), MAX);
+  const na = (1 - clamped / MAX) * Math.PI;
+  const nLen = r - 10;
+  const nx = +(cx + nLen * Math.cos(na)).toFixed(2);
+  const ny = +(cy - nLen * Math.sin(na)).toFixed(2);
+
+  // Target tick
+  const ta = (1 - target / MAX) * Math.PI;
+  const tx1 = +(cx + (r - 13) * Math.cos(ta)).toFixed(2);
+  const ty1 = +(cy - (r - 13) * Math.sin(ta)).toFixed(2);
+  const tx2 = +(cx + (r + 1) * Math.cos(ta)).toFixed(2);
+  const ty2 = +(cy - (r + 1) * Math.sin(ta)).toFixed(2);
+
+  return (
+    <svg viewBox={`0 0 ${cx * 2} ${cy + 14}`} className="w-28 flex-shrink-0">
+      <path d={arc(0, MAX)} fill="none" stroke="#e5e7eb" strokeWidth={11} />
+      <path d={arc(0, 60)} fill="none" stroke="#dc2626" strokeWidth={11} />
+      <path d={arc(60, 80)} fill="none" stroke="#f97316" strokeWidth={11} />
+      <path d={arc(80, 120)} fill="none" stroke="#22c55e" strokeWidth={11} />
+      <path d={arc(120, 140)} fill="none" stroke="#f97316" strokeWidth={11} />
+      <path d={arc(140, MAX)} fill="none" stroke="#dc2626" strokeWidth={11} />
+      {/* Target tick */}
+      <line x1={tx1} y1={ty1} x2={tx2} y2={ty2} stroke="#111827" strokeWidth={2} />
+      {/* Needle */}
+      {psi > 0 && (
+        <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="#111827" strokeWidth={2.5} strokeLinecap="round" />
+      )}
+      <circle cx={cx} cy={cy} r={4} fill="#111827" />
+    </svg>
+  );
+}
+
+/* ── Tread depth 5-segment visual ─────────────────────── */
+function TreadBar({ mm }: { mm: number | null }) {
+  if (mm === null || mm === undefined) {
+    return <p className="text-xs text-gray-400 mt-2">No reading</p>;
+  }
+  const segs = [
+    { label: '>8mm', min: 8, color: '#22c55e' },
+    { label: '6mm', min: 6, color: '#84cc16' },
+    { label: '4mm', min: 4, color: '#eab308' },
+    { label: '2.5mm', min: 2.5, color: '#f97316' },
+    { label: '1.6mm', min: 0, color: '#ef4444' },
+  ];
+  const activeColor = segs.find(s => mm >= s.min)?.color ?? '#ef4444';
+  return (
+    <div>
+      {segs.map((seg, i) => (
+        <div key={i} className="flex items-center gap-1.5 mb-0.5">
+          <div className="h-3 w-full rounded-sm" style={{
+            backgroundColor: mm >= seg.min ? activeColor : '#e5e7eb',
+          }} />
+          <span className="text-[9px] text-gray-400 w-9 shrink-0">{seg.label}</span>
+        </div>
+      ))}
+      <p className="text-xs font-bold mt-1" style={{ color: activeColor }}>{mm.toFixed(1)} mm</p>
+    </div>
+  );
+}
+
+/* ── Inline SVG PSI sparkline ─────────────────────────── */
+function PsiSparkline({ data }: { data: { psi?: number; timestamp?: string }[] }) {
+  const pts = data.slice(-7).filter(r => (r as any).psi > 0);
+  if (pts.length < 2) return null;
+  const vals = pts.map(r => (r as any).psi as number);
+  const minV = Math.min(...vals);
+  const maxV = Math.max(...vals);
+  const W = 200, H = 44;
+  const toXY = (v: number, i: number) => {
+    const x = +(i / (vals.length - 1) * W).toFixed(1);
+    const y = +(maxV === minV ? H / 2 : H - 4 - (v - minV) / (maxV - minV) * (H - 8)).toFixed(1);
+    return { x, y };
+  };
+  const points = vals.map((v, i) => { const { x, y } = toXY(v, i); return `${x},${y}`; }).join(' ');
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
+        <polyline points={points} fill="none" stroke="#2563eb" strokeWidth={2}
+          strokeLinecap="round" strokeLinejoin="round" />
+        {vals.map((v, i) => {
+          const { x, y } = toXY(v, i);
+          return <circle key={i} cx={x} cy={y} r={2.5} fill="#2563eb" />;
+        })}
+      </svg>
+      <div className="flex justify-between text-[9px] text-gray-400 mt-0.5">
+        {pts.slice(0, 2).map((r, i) => (
+          <span key={i}>{r.timestamp ? new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+        ))}
+        {pts.length > 2 && <span className="text-center flex-1">···</span>}
+        {pts.length >= 2 && (
+          <span>{pts[pts.length - 1].timestamp ? new Date(pts[pts.length - 1].timestamp!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+        )}
       </div>
     </div>
   );

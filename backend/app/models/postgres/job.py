@@ -76,9 +76,9 @@ class Job(Base, TimestampMixin, SoftDeleteMixin):
     estimated_distance_km = Column(Numeric(10, 2), nullable=True)
     
     # Job Type & Priority
-    job_type = Column(SQLEnum(JobType), default=JobType.OWN, nullable=False, server_default='OWN')
-    contract_type = Column(SQLEnum(ContractType), default=ContractType.SPOT)
-    priority = Column(SQLEnum(JobPriority), default=JobPriority.NORMAL)
+    job_type = Column(SQLEnum(JobType, native_enum=False), default=JobType.OWN, nullable=False, server_default='OWN')
+    contract_type = Column(SQLEnum(ContractType, native_enum=False), default=ContractType.SPOT)
+    priority = Column(SQLEnum(JobPriority, native_enum=False), default=JobPriority.NORMAL)
     
     # Cargo/Material Details
     material_type = Column(String(100), nullable=True)
@@ -113,7 +113,7 @@ class Job(Base, TimestampMixin, SoftDeleteMixin):
     latest_eway_bill_number = Column(String(50), nullable=True)
     
     # Status
-    status = Column(SQLEnum(JobStatusEnum), default=JobStatusEnum.DRAFT)
+    status = Column(SQLEnum(JobStatusEnum, native_enum=False), default=JobStatusEnum.DRAFT)
     
     # Approval
     approved_by = Column(Integer, ForeignKey('users.id'), nullable=True)

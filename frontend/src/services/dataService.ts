@@ -1948,6 +1948,14 @@ export const marketTripService = {
     const data = await api.get(`/market-trips/${id}/pnl`);
     return unwrap(data);
   },
+  uploadPod: async (id: number, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    const data = await api.post(`/market-trips/${id}/pod`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return unwrap(data);
+  },
 };
 
 // ---- Geofences ----
@@ -2281,6 +2289,67 @@ export const tyreTrackerService = {
   },
   getTyreHistory: async (tyreId: number) => {
     const data = await api.get(`/tyre/${tyreId}/history`);
+    return unwrap(data);
+  },
+  // ── Field Readings ──
+  submitReading: async (payload: any) => {
+    const data = await api.post('/tyre/readings', payload);
+    return unwrap(data);
+  },
+  getReadings: async (params?: any) => {
+    const data = await api.get('/tyre/readings', { params });
+    return unwrap(data);
+  },
+  getVehicleReadings: async (vehicleId: number) => {
+    const data = await api.get(`/tyre/readings/vehicle/${vehicleId}`);
+    return unwrap(data);
+  },
+  // ── Field Alerts ──
+  getFieldAlerts: async (params?: any) => {
+    const data = await api.get('/tyre/field-alerts', { params });
+    return unwrap(data);
+  },
+  acknowledgeAlert: async (id: number) => {
+    const data = await api.patch(`/tyre/field-alerts/${id}/acknowledge`, {});
+    return unwrap(data);
+  },
+  resolveAlert: async (id: number) => {
+    const data = await api.patch(`/tyre/field-alerts/${id}/resolve`, {});
+    return unwrap(data);
+  },
+  // ── Thresholds ──
+  getThresholds: async () => {
+    const data = await api.get('/tyre/thresholds');
+    return unwrap(data);
+  },
+  createThreshold: async (payload: any) => {
+    const data = await api.post('/tyre/thresholds', payload);
+    return unwrap(data);
+  },
+  updateThreshold: async (id: number, payload: any) => {
+    const data = await api.put(`/tyre/thresholds/${id}`, payload);
+    return unwrap(data);
+  },
+  // ── Simulation ──
+  runSimulation: async (payload: any) => {
+    const data = await api.post('/tyre/simulate', payload);
+    return unwrap(data);
+  },
+  getSimulationHistory: async () => {
+    const data = await api.get('/tyre/simulate/history');
+    return unwrap(data);
+  },
+  // ── Analytics ──
+  getPredictions: async (days = 90) => {
+    const data = await api.get('/tyre/analytics/predictions', { params: { days } });
+    return unwrap(data);
+  },
+  getInspectionCoverage: async () => {
+    const data = await api.get('/tyre/analytics/inspection-coverage');
+    return unwrap(data);
+  },
+  getDriverCompliance: async () => {
+    const data = await api.get('/tyre/analytics/driver-compliance');
     return unwrap(data);
   },
 };

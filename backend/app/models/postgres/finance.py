@@ -72,7 +72,7 @@ class Invoice(Base, TimestampMixin, SoftDeleteMixin):
     invoice_number = Column(String(30), unique=True, nullable=False, index=True)
     invoice_date = Column(Date, nullable=False)
     due_date = Column(Date, nullable=False)
-    invoice_type = Column(SQLEnum(InvoiceType), default=InvoiceType.TAX_INVOICE)
+    invoice_type = Column(SQLEnum(InvoiceType, native_enum=False), default=InvoiceType.TAX_INVOICE)
     
     # Client
     client_id = Column(Integer, ForeignKey('clients.id'), nullable=False)
@@ -118,13 +118,13 @@ class Invoice(Base, TimestampMixin, SoftDeleteMixin):
 
     # Payment status (UNPAID / PARTIAL / PAID — simpler than workflow status)
     payment_status = Column(
-        SQLEnum(InvoicePaymentStatus),
+        SQLEnum(InvoicePaymentStatus, native_enum=False),
         default=InvoicePaymentStatus.UNPAID,
         nullable=True,
     )
 
     # Status
-    status = Column(SQLEnum(InvoiceStatus), default=InvoiceStatus.DRAFT)
+    status = Column(SQLEnum(InvoiceStatus, native_enum=False), default=InvoiceStatus.DRAFT)
     
     # Payment tracking
     paid_at = Column(DateTime, nullable=True)
@@ -214,7 +214,7 @@ class Payment(Base, TimestampMixin, SoftDeleteMixin):
     currency = Column(String(5), default='INR')
     
     # Payment Method
-    payment_method = Column(SQLEnum(PaymentMethod), nullable=False)
+    payment_method = Column(SQLEnum(PaymentMethod, native_enum=False), nullable=False)
     
     # Bank Details
     bank_name = Column(String(100), nullable=True)
@@ -226,7 +226,7 @@ class Payment(Base, TimestampMixin, SoftDeleteMixin):
     upi_txn_id = Column(String(100), nullable=True)
     
     # Status
-    status = Column(SQLEnum(PaymentStatus), default=PaymentStatus.COMPLETED)
+    status = Column(SQLEnum(PaymentStatus, native_enum=False), default=PaymentStatus.COMPLETED)
     
     # TDS
     tds_rate = Column(Numeric(5, 2), default=0)
@@ -260,7 +260,7 @@ class Ledger(Base, TimestampMixin):
     # Entry Details
     entry_number = Column(String(30), unique=True, nullable=False, index=True)
     entry_date = Column(Date, nullable=False)
-    ledger_type = Column(SQLEnum(LedgerType), nullable=False)
+    ledger_type = Column(SQLEnum(LedgerType, native_enum=False), nullable=False)
     
     # Account
     account_name = Column(String(200), nullable=False)

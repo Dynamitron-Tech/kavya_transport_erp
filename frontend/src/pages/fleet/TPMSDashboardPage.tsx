@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { KPICard, LoadingSpinner, TabPills } from '@/components/common/Modal';
 import { tpmsService, vehicleService } from '@/services/dataService';
+import TyreAlertFeed from '@/components/tyres/TyreAlertFeed';
 import type { TPMSVehicleDashboard, TPMSFleetHealth, TPMSAlert, TPMSWheel, TPMSReading } from '@/types';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -182,8 +183,37 @@ function FleetOverviewTab({
           )}
         </div>
       </div>
+
+      {/* Field Inspection Alerts — unified sensor + manual */}
+      <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
+        <h3 className="font-semibold text-gray-900 mb-4">Field Inspection Alerts</h3>
+        <FieldInspectionAlertFeed />
+      </div>
     </div>
   );
+}
+
+function FieldInspectionAlertFeed() {
+  const { data, refetch } = useQuery({
+    queryKey: ['tpms-field-alerts'],
+    queryFn: async () => {
+      const res = await (await import('@/services/api')).default.get('/tyre/field-alerts', { params: { limit: 20 } });
+      return (res as any)?.data?.items || (res as any)?.items || [];
+    },
+    refetchInterval: 60000,
+  });
+  const alerts = (data || []).map((a: any) => ({
+    id: a.id,
+    vehicle_reg: a.registration_number,
+    position: a.position,
+    alert_type: a.alert_type,
+    severity: a.severity,
+    status: a.status,
+    current_value: a.current_value,
+    source: a.source || 'field',
+    created_at: a.created_at,
+  }));
+  return <TyreAlertFeed alerts={alerts} onRefresh={refetch} />;
 }
 
 /* ── Vehicle View ──────────────────────────────────── */

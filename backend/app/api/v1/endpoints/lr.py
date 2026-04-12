@@ -245,7 +245,7 @@ async def upload_pod(
 
     # Save file — use absolute path anchored to this file's location (backend/uploads/)
     from pathlib import Path as _Path
-    pod_dir = _Path(__file__).resolve().parents[3] / "uploads" / "trip_documents"
+    pod_dir = _Path(__file__).resolve().parents[4] / "uploads" / "trip_documents"
     pod_dir.mkdir(parents=True, exist_ok=True)
     ext = (file.filename or "pod.jpg").rsplit(".", 1)[-1].lower()
     filename = f"pod_{lr_id}_{uuid.uuid4().hex[:8]}.{ext}"

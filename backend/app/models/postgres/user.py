@@ -113,7 +113,7 @@ class Role(Base, TimestampMixin):
     name = Column(String(50), unique=True, nullable=False)
     display_name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
-    role_type = Column(SQLEnum(RoleType), nullable=False)
+    role_type = Column(SQLEnum(RoleType, native_enum=False), nullable=False)
     is_system = Column(Boolean, default=False)  # System roles cannot be deleted
     
     # Relationships
@@ -130,7 +130,7 @@ class Permission(Base, TimestampMixin):
     __tablename__ = "permissions"
     
     module = Column(String(50), nullable=False)  # e.g., 'clients', 'trips', 'invoices'
-    action = Column(SQLEnum(PermissionAction), nullable=False)
+    action = Column(SQLEnum(PermissionAction, native_enum=False), nullable=False)
     resource = Column(String(100), nullable=True)  # Specific resource within module
     description = Column(Text, nullable=True)
     

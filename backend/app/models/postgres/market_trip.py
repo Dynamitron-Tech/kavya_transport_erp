@@ -52,6 +52,11 @@ class MarketTrip(Base, TimestampMixin, SoftDeleteMixin):
     driver_license_valid = Column(String(20), nullable=True)
     dl_file_url = Column(String(500), nullable=True)
 
+    # POD
+    pod_file_url = Column(String(500), nullable=True)
+    pod_uploaded = Column(Boolean, default=False)
+    pod_uploaded_at = Column(DateTime, nullable=True)
+
     # Rates
     client_rate = Column(Numeric(15, 2), nullable=False, default=0)  # What client pays us
     contractor_rate = Column(Numeric(15, 2), nullable=False, default=0)  # What we pay supplier
@@ -69,7 +74,7 @@ class MarketTrip(Base, TimestampMixin, SoftDeleteMixin):
     net_payable = Column(Numeric(15, 2), default=0)
 
     # Status
-    status = Column(SQLEnum(MarketTripStatus), default=MarketTripStatus.PENDING, nullable=False)
+    status = Column(SQLEnum(MarketTripStatus, native_enum=False), default=MarketTripStatus.PENDING, nullable=False)
 
     # Timestamps for lifecycle
     assigned_at = Column(DateTime, nullable=True)

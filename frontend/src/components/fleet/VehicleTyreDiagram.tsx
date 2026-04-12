@@ -1,8 +1,9 @@
 /**
  * VehicleTyreDiagram — SVG top-down vehicle diagram with live tyre data
+ * Enhanced: condition-based colours, hover tooltips, pulse animations, tread display
  */
-import React, { memo } from 'react';
-import type { TyreData, TyreAlertType } from '@/types';
+import React, { memo, useState, useCallback } from 'react';
+import type { TyreData } from '@/types';
 
 export type VehicleLayout = 'LCV_4' | 'TRUCK_2AXLE' | 'TRUCK_3AXLE' | 'TRAILER_3AXLE' | 'BUS_5AXLE';
 
@@ -47,15 +48,21 @@ interface Props {
 // ── Color helpers ───────────────────────────────────────
 
 export function getTyreColor(tyre: Partial<TyreData>): string {
-  if (!tyre.has_sensor && tyre.has_sensor !== undefined) return '#9E9E9E';
-  if (tyre.alert === 'critical_pressure') return '#F44336';
-  if (tyre.alert === 'low_pressure') return '#FF9800';
-  if (tyre.alert === 'high_temp') return '#FF5722';
+  // Alert-based overrides (highest priority)
+  if (tyre.alert === 'critical_pressure' || tyre.alert === 'critical') return '#dc2626';
+  if (tyre.alert === 'low_pressure') return '#f97316';
+  if (tyre.alert === 'high_temp') return '#ef4444';
+  // Condition-based (works for manual readings with no sensor)
+  const condition = String((tyre as any).condition || '').toLowerCase();
+  if (condition === 'damaged') return '#ef4444';
+  if (condition === 'worn') return '#f97316';
+  if (condition === 'average') return '#eab308';
+  // Life-percent fallback
   const life = tyre.life_percent ?? 100;
-  if (life >= 70) return '#4CAF50';
-  if (life >= 50) return '#8BC34A';
-  if (life >= 30) return '#FFC107';
-  return '#F44336';
+  if (life >= 70) return '#22c55e';
+  if (life >= 50) return '#84cc16';
+  if (life >= 30) return '#eab308';
+  return '#ef4444';
 }
 
 export function tyreLifeColor(life: number): string {
@@ -179,10 +186,19 @@ function getLayout(type: VehicleLayout): { positions: TyrePosition[]; width: num
   }
 }
 
+// ── Tooltip data type ───────────────────────────────────
+
+interface TooltipData {
+  pos: string;
+  tyre: Partial<TyreData> | undefined;
+  x: number;
+  y: number;
+}
+
 // ── Single tyre SVG ─────────────────────────────────────
 
 const TyreRect = memo(function TyreRect({
-  pos, tyre, x, y, isSelected, onClick,
+  pos, tyre, x, y, isSelected, onClick, onHover,
 }: {
   pos: string;
   tyre: Partial<TyreData> | undefined;
@@ -190,72 +206,132 @@ const TyreRect = memo(function TyreRect({
   y: number;
   isSelected: boolean;
   onClick: () => void;
+  onHover: (d: TooltipData | null) => void;
 }) {
   const w = 48, h = 64;
-  const color = tyre ? getTyreColor(tyre) : '#9E9E9E';
-  const hasAlert = tyre?.alert && tyre.alert !== null;
+  const color = tyre ? getTyreColor(tyre) : '#9ca3af';
+  const condition = String((tyre as any)?.condition || '').toLowerCase();
+  const isCritical = tyre &&
+    (tyre.alert === 'critical_pressure' || tyre.alert === 'critical' ||
+     condition === 'damaged' || condition === 'worn' || (tyre.life_percent ?? 100) < 20);
   const psi = tyre?.psi;
+  const treadMm = (tyre as any)?.tread_depth_mm;
   const temp = tyre?.temperature;
 
   return (
-    <g onClick={onClick} style={{ cursor: 'pointer' }}>
-      {/* Alert pulse animation */}
-      {hasAlert && (
-        <rect
-          x={x - 3} y={y - 3} width={w + 6} height={h + 6} rx={8}
-          fill="none" stroke="#F44336" strokeWidth={2}
-          opacity={0.8}
-        >
-          <animate attributeName="opacity" values="0.8;0.2;0.8" dur="1.5s" repeatCount="indefinite" />
+    <g
+      onClick={onClick}
+      onMouseEnter={() => onHover({ pos, tyre, x, y })}
+      onMouseLeave={() => onHover(null)}
+      style={{ cursor: 'pointer' }}
+    >
+      {/* Pulse animation ring for critical/damaged tyres */}
+      {isCritical && (
+        <rect x={x - 4} y={y - 4} width={w + 8} height={h + 8} rx={10}
+          fill="none" stroke="#dc2626" strokeWidth={2} opacity={0.85}>
+          <animate attributeName="opacity" values="0.85;0.15;0.85" dur="1.5s" repeatCount="indefinite" />
         </rect>
       )}
 
+      {/* Selected ring */}
+      {isSelected && !isCritical && (
+        <rect x={x - 2} y={y - 2} width={w + 4} height={h + 4} rx={9}
+          fill="none" stroke="#1d4ed8" strokeWidth={2.5} />
+      )}
+
       {/* Tyre body */}
-      <rect
-        x={x} y={y} width={w} height={h} rx={6}
+      <rect x={x} y={y} width={w} height={h} rx={7}
         fill={color}
-        stroke={isSelected ? '#1976D2' : '#333'}
-        strokeWidth={isSelected ? 2.5 : 1}
-        opacity={0.9}
+        stroke={isSelected ? '#1d4ed8' : 'rgba(0,0,0,0.2)'}
+        strokeWidth={isSelected ? 2 : 1}
+        opacity={0.93}
       />
 
       {/* Position label */}
-      <text x={x + w / 2} y={y + 15} textAnchor="middle" fontSize={11} fontWeight={700} fill="#fff">
+      <text x={x + w / 2} y={y + 14} textAnchor="middle" fontSize={10} fontWeight={700} fill="#fff">
         {pos}
       </text>
 
-      {/* PSI */}
-      {psi !== undefined && psi > 0 ? (
-        <text x={x + w / 2} y={y + 33} textAnchor="middle" fontSize={12} fontWeight={700} fill="#fff">
-          {psi.toFixed(1)}
-        </text>
+      {/* Primary reading: PSI if sensor, else tread depth, else dashes */}
+      {tyre?.has_sensor && psi !== undefined && psi > 0 ? (
+        <>
+          <text x={x + w / 2} y={y + 34} textAnchor="middle" fontSize={13} fontWeight={700} fill="#fff">
+            {psi.toFixed(0)}
+          </text>
+          <text x={x + w / 2} y={y + 46} textAnchor="middle" fontSize={8} fill="rgba(255,255,255,0.75)">PSI</text>
+        </>
+      ) : treadMm != null ? (
+        <>
+          <text x={x + w / 2} y={y + 34} textAnchor="middle" fontSize={13} fontWeight={700} fill="#fff">
+            {Number(treadMm).toFixed(1)}
+          </text>
+          <text x={x + w / 2} y={y + 46} textAnchor="middle" fontSize={8} fill="rgba(255,255,255,0.75)">mm</text>
+        </>
       ) : (
-        <text x={x + w / 2} y={y + 33} textAnchor="middle" fontSize={10} fill="rgba(255,255,255,0.7)">
-          —
+        <text x={x + w / 2} y={y + 38} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.6)">—</text>
+      )}
+
+      {/* Condition bottom label */}
+      {condition && condition !== 'good' && condition !== 'new' && (
+        <text x={x + w / 2} y={y + h - 6} textAnchor="middle" fontSize={7} fill="rgba(255,255,255,0.8)">
+          {condition.slice(0, 4).toUpperCase()}
         </text>
       )}
 
-      {/* Temperature */}
-      {temp !== undefined && temp > 0 && (
-        <text x={x + w / 2} y={y + 50} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.85)">
-          {temp.toFixed(0)}°C
-        </text>
-      )}
-
-      {/* No sensor indicator */}
-      {(!tyre || (!tyre.has_sensor && tyre.has_sensor !== undefined)) && (
-        <text x={x + w / 2} y={y + 50} textAnchor="middle" fontSize={8} fill="rgba(255,255,255,0.6)">
-          No sensor
+      {/* Temperature badge (sensor-based) */}
+      {tyre?.has_sensor && temp !== undefined && temp > 0 && (
+        <text x={x + w / 2} y={y + h - 6} textAnchor="middle" fontSize={8} fill="rgba(255,255,255,0.85)">
+          {temp.toFixed(0)}°
         </text>
       )}
     </g>
   );
 });
 
+// ── Tooltip overlay ─────────────────────────────────────
+
+function TyreTooltip({ data, svgWidth }: { data: TooltipData; svgWidth: number }) {
+  const { pos, tyre, x, y } = data;
+  const TW = 48;
+  const tipW = 148, tipH = tyre ? 100 : 54;
+  const tipX = x + TW + 6 + tipW > svgWidth ? x - tipW - 6 : x + TW + 6;
+  const tipY = Math.max(4, y - 10);
+  const psi = tyre?.psi ?? 0;
+  const treadMm = (tyre as any)?.tread_depth_mm;
+  const cond = tyre ? String((tyre as any)?.condition || '—').toUpperCase() : '—';
+  const life = tyre?.life_percent != null ? `${tyre.life_percent.toFixed(0)}%` : '—';
+
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      <rect x={tipX} y={tipY} width={tipW} height={tipH} rx={8} fill="#111827" opacity={0.95} />
+      <text x={tipX + 10} y={tipY + 18} fontSize={11} fontWeight={700} fill="#f9fafb">{pos}</text>
+      {tyre ? (
+        <>
+          <text x={tipX + 10} y={tipY + 34} fontSize={9} fill="#d1d5db">
+            PSI: {psi > 0 ? psi.toFixed(0) : '—'}
+          </text>
+          <text x={tipX + 10} y={tipY + 48} fontSize={9} fill="#d1d5db">
+            Tread: {treadMm != null ? `${Number(treadMm).toFixed(1)} mm` : '—'}
+          </text>
+          <text x={tipX + 10} y={tipY + 62} fontSize={9} fill="#d1d5db">Cond: {cond}</text>
+          <text x={tipX + 10} y={tipY + 76} fontSize={9} fill="#d1d5db">Life: {life}</text>
+          <text x={tipX + 10} y={tipY + 90} fontSize={8} fill="#6b7280">
+            {tyre.has_sensor ? 'Sensor data' : 'Manual reading'}
+          </text>
+        </>
+      ) : (
+        <text x={tipX + 10} y={tipY + 38} fontSize={9} fill="#6b7280">No tyre data</text>
+      )}
+    </g>
+  );
+}
+
 // ── Main diagram ────────────────────────────────────────
 
 function VehicleTyreDiagram({ vehicleType, tyres, onTyreClick, selectedPosition }: Props) {
   const layout = getLayout(vehicleType);
+  const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+  const handleHover = useCallback((d: TooltipData | null) => setTooltip(d), []);
 
   return (
     <svg
@@ -264,52 +340,44 @@ function VehicleTyreDiagram({ vehicleType, tyres, onTyreClick, selectedPosition 
       style={{ maxHeight: layout.height }}
     >
       {/* Vehicle body */}
-      <path d={layout.bodyPath} fill="#f3f4f6" stroke="#d1d5db" strokeWidth={1.5} />
+      <path d={layout.bodyPath} fill="#f8f9fa" stroke="#d1d5db" strokeWidth={1.5} />
 
       {/* Cab indicator (windshield) — skip for trailers */}
       {vehicleType !== 'TRAILER_3AXLE' && (
         <>
           <rect
-            x={layout.width / 2 - 40}
-            y={8}
-            width={80}
-            height={20}
-            rx={6}
-            fill="#e5e7eb"
-            stroke="#d1d5db"
-            strokeWidth={1}
+            x={layout.width / 2 - 44} y={5} width={88} height={26} rx={7}
+            fill="#e9ecef" stroke="#ced4da" strokeWidth={1}
           />
-          <text x={layout.width / 2} y={22} textAnchor="middle" fontSize={9} fill="#6b7280">CAB</text>
+          <line
+            x1={layout.width / 2 - 18} y1={8}
+            x2={layout.width / 2 - 18} y2={28}
+            stroke="#ced4da" strokeWidth={1}
+          />
+          <line
+            x1={layout.width / 2 + 18} y1={8}
+            x2={layout.width / 2 + 18} y2={28}
+            stroke="#ced4da" strokeWidth={1}
+          />
+          <text x={layout.width / 2} y={23} textAnchor="middle" fontSize={9} fill="#6b7280" fontWeight={600}>
+            {vehicleType === 'BUS_5AXLE' ? 'BUS' : 'CAB'}
+          </text>
         </>
       )}
       {vehicleType === 'TRAILER_3AXLE' && (
         <>
           <rect
-            x={layout.width / 2 - 44}
-            y={4}
-            width={88}
-            height={20}
-            rx={6}
-            fill="#fef3c7"
-            stroke="#f59e0b"
-            strokeWidth={1}
+            x={layout.width / 2 - 44} y={4} width={88} height={20} rx={6}
+            fill="#fef3c7" stroke="#f59e0b" strokeWidth={1}
           />
           <text x={layout.width / 2} y={18} textAnchor="middle" fontSize={9} fill="#92400e" fontWeight={600}>TRAILER</text>
         </>
       )}
 
       {/* Axle lines */}
-      {getAxleYPositions(layout.positions).map((y, i) => (
-        <line
-          key={i}
-          x1={40}
-          y1={y + 32}
-          x2={layout.width - 40}
-          y2={y + 32}
-          stroke="#d1d5db"
-          strokeWidth={1}
-          strokeDasharray="4 4"
-        />
+      {getAxleYPositions(layout.positions).map((ay, i) => (
+        <line key={i} x1={52} y1={ay + 32} x2={layout.width - 52} y2={ay + 32}
+          stroke="#e5e7eb" strokeWidth={1.5} />
       ))}
 
       {/* Tyres */}
@@ -322,8 +390,14 @@ function VehicleTyreDiagram({ vehicleType, tyres, onTyreClick, selectedPosition 
           y={p.y}
           isSelected={selectedPosition === p.position}
           onClick={() => onTyreClick(p.position)}
+          onHover={handleHover}
         />
       ))}
+
+      {/* Tooltip overlay — rendered last so it's on top */}
+      {tooltip && (
+        <TyreTooltip data={tooltip} svgWidth={layout.width} />
+      )}
     </svg>
   );
 }
