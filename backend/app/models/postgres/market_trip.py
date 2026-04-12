@@ -24,8 +24,8 @@ class MarketTrip(Base, TimestampMixin, SoftDeleteMixin):
 
     __tablename__ = "market_trips"
 
-    # Linked job
-    job_id = Column(Integer, ForeignKey('jobs.id', ondelete='CASCADE'), nullable=False)
+    # Linked job (nullable for ad-hoc market trips created from mobile without a job)
+    job_id = Column(Integer, ForeignKey('jobs.id', ondelete='SET NULL'), nullable=True)
 
     # Supplier
     supplier_id = Column(Integer, ForeignKey('suppliers.id'), nullable=True)
@@ -39,6 +39,9 @@ class MarketTrip(Base, TimestampMixin, SoftDeleteMixin):
     year_of_manufacture = Column(Integer, nullable=True)
     chassis_number = Column(String(50), nullable=True)
     engine_number = Column(String(50), nullable=True)
+    owner_name = Column(String(200), nullable=True)
+    rc_issue_date = Column(String(20), nullable=True)
+    rc_validity_date = Column(String(20), nullable=True)
     rc_file_url = Column(String(500), nullable=True)
     driver_name = Column(String(200), nullable=True)
     driver_phone = Column(String(20), nullable=True)
@@ -50,8 +53,8 @@ class MarketTrip(Base, TimestampMixin, SoftDeleteMixin):
     dl_file_url = Column(String(500), nullable=True)
 
     # Rates
-    client_rate = Column(Numeric(15, 2), nullable=False)  # What client pays us
-    contractor_rate = Column(Numeric(15, 2), nullable=False)  # What we pay supplier
+    client_rate = Column(Numeric(15, 2), nullable=False, default=0)  # What client pays us
+    contractor_rate = Column(Numeric(15, 2), nullable=False, default=0)  # What we pay supplier
     advance_amount = Column(Numeric(15, 2), default=0)
     loading_charges = Column(Numeric(12, 2), default=0)
     unloading_charges = Column(Numeric(12, 2), default=0)

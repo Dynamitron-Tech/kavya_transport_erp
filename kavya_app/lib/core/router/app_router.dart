@@ -23,6 +23,7 @@ import '../../screens/driver/driver_gps_tracking_screen.dart';
 import '../../screens/driver/driver_epod_screen.dart';
 import '../../screens/driver/language_settings_screen.dart';
 import '../../screens/driver/driver_apply_leave_screen.dart';
+import '../../screens/driver/driver_fuel_entry_screen.dart';
 import '../../screens/fleet/fleet_driver_approvals_screen.dart';
 // Fleet Manager screens
 import '../../screens/fleet/fleet_home_screen.dart';
@@ -34,12 +35,14 @@ import '../../screens/fleet/fleet_trip_management_screen.dart';
 import '../../screens/fleet/fleet_profile_screen.dart';
 import '../../screens/fleet/fleet_add_vehicle_screen.dart';
 import '../../screens/fleet/fleet_edit_vehicle_screen.dart';
+import '../../screens/fleet/fleet_vehicle_hub_screen.dart';
 import '../../screens/fleet/fleet_driver_detail_screen.dart';
 import '../../screens/fleet/fleet_add_driver_screen.dart';
 import '../../screens/fleet/fleet_create_trip_screen.dart';
 import '../../screens/fleet/fleet_create_lr_screen.dart';
 import '../../screens/fleet/fleet_service_log_screen.dart';
 import '../../screens/fleet/fleet_tyre_event_screen.dart';
+import '../../screens/fleet/fleet_assign_driver_screen.dart';
 // Accountant screens
 import '../../screens/accountant/accountant_home_screen.dart';
 import '../../screens/accountant/accountant_shell_screen.dart';
@@ -103,7 +106,6 @@ import '../../features/admin/screens/admin_vehicle_detail_screen.dart';
 import '../../features/admin/screens/admin_driver_detail_screen.dart';
 import '../../features/admin/screens/admin_invoice_detail_screen.dart';
 import '../../features/admin/screens/admin_compliance_detail_screen.dart';
-import '../../features/admin/screens/admin_create_lr_screen.dart';
 import '../../features/admin/screens/admin_create_trip_screen.dart';
 import '../../features/admin/screens/admin_upload_doc_screen.dart';
 import '../../features/admin/screens/admin_reports_screen.dart';
@@ -130,6 +132,10 @@ import '../../features/manager/screens/manager_vehicle_detail_screen.dart';
 import '../../features/manager/screens/manager_reports_screen.dart';
 import '../../features/manager/screens/manager_approvals_screen.dart';
 import '../../features/manager/screens/manager_notifications_screen.dart';
+// Market Driver screens
+import '../../screens/market_driver/market_driver_otp_screen.dart';
+import '../../screens/market_driver/market_driver_trips_screen.dart';
+import '../../screens/market_driver/market_driver_trip_detail_screen.dart';
 
 final appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -142,7 +148,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (BuildContext context, GoRouterState state) async {
       final token = await storage.read(key: 'access_token');
       final role = await storage.read(key: 'primary_role');
-      final isLoginPage = state.matchedLocation == '/login';
+      final isLoginPage = state.matchedLocation == '/login' ||
+          state.matchedLocation == '/market-driver-login';
 
       if (token == null && !isLoginPage) {
         return '/login';
@@ -154,12 +161,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           case 'driver': return '/driver/today';
           case 'fleet_manager': return '/fleet/home';
           case 'accountant': return '/accountant/home';
+          case 'finance_manager':
+          case 'FINANCE_MANAGER': return '/accountant/home';
           case 'project_associate': return '/pa/dashboard';
           case 'admin':
           case 'super_admin': return '/admin/dashboard';
           case 'pump_operator': return '/pump/home';
           case 'manager': return '/manager/dashboard';
           case 'branch_manager': return '/branch/home';
+          case 'market_driver': return '/market-driver/trips';
           default: return '/web-only';
         }
       }
@@ -204,6 +214,16 @@ final routerProvider = Provider<GoRouter>((ref) {
                 context: context,
                 state: state,
                 child: const DriverTripListScreen(),
+              ),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/driver/fuel',
+              pageBuilder: (context, state) => PageTransitionPreset.fast(
+                context: context,
+                state: state,
+                child: const DriverFuelEntryScreen(),
               ),
             ),
           ]),
@@ -363,7 +383,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/fleet/vehicle/:id',
-        builder: (context, state) => FleetEditVehicleScreen(
+        builder: (context, state) => FleetVehicleHubScreen(
           vehicleId: int.parse(state.pathParameters['id']!),
         ),
       ),
@@ -380,6 +400,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/fleet/service/new', builder: (context, state) => const FleetServiceLogScreen()),
       GoRoute(path: '/fleet/tyre/new', builder: (context, state) => const FleetTyreEventScreen()),
       GoRoute(path: '/fleet/approvals', builder: (context, state) => const FleetDriverApprovalsScreen()),
+      GoRoute(path: '/fleet/assign', builder: (context, state) => const FleetAssignDriverScreen()),
       
       // --- Accountant Routes --- (Stateful shell with bottom nav)
       StatefulShellRoute.indexedStack(
@@ -721,7 +742,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/admin/lr/create',
         parentNavigatorKey: appNavigatorKey,
-        builder: (context, state) => const AdminCreateLRScreen(),
+        builder: (context, state) => const FleetCreateLRScreen(),
       ),
       GoRoute(
         path: '/admin/trip/create',
@@ -883,6 +904,24 @@ final routerProvider = Provider<GoRouter>((ref) {
             GoRoute(path: '/branch/reports', builder: (context, state) => const BranchReportsScreen()),
           ]),
         ],
+      ),
+
+      // --- Market Driver Routes (phone OTP login → trips → detail) ---
+      GoRoute(
+        path: '/market-driver-login',
+        builder: (context, state) => const MarketDriverOtpScreen(),
+      ),
+      GoRoute(
+        path: '/market-driver/trips',
+        builder: (context, state) => const MarketDriverTripsScreen(),
+      ),
+      GoRoute(
+        path: '/market-driver/trip/:id',
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '0') ?? 0;
+          final extra = state.extra as Map<String, dynamic>?;
+          return MarketDriverTripDetailScreen(tripId: id, initialData: extra);
+        },
       ),
     ],
   );

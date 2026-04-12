@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { FileSpreadsheet, AlertCircle, CheckCircle2, Clock, IndianRupee } from 'lucide-react';
+import { FileSpreadsheet, AlertCircle, CheckCircle2, Clock, IndianRupee, Keyboard } from 'lucide-react';
 import { invoiceWorkspaceService, ProcessingBatch, IfiasLineItem } from '@/services/invoiceWorkspaceService';
 import BatchSelector from '@/components/InvoiceWorkspace/BatchSelector';
 import LineItemTable from '@/components/InvoiceWorkspace/LineItemTable';
@@ -25,6 +25,12 @@ export default function InvoiceWorkspacePage() {
   const [page, setPage] = useState(1);
   const [previewItem, setPreviewItem] = useState<IfiasLineItem | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+
+  // Keyboard mode state
+  const [keyboardMode, setKeyboardMode] = useState(false);
+  const [focusedItemIdx, setFocusedItemIdx] = useState<number | null>(null);
+  const kbStartTimeRef = useRef<number | null>(null);
+  const [confirmedInSession, setConfirmedInSession] = useState(0);
 
   // Batches list
   const { data: batchesRes, isLoading: batchesLoading } = useQuery({
@@ -84,6 +90,43 @@ export default function InvoiceWorkspacePage() {
     };
   }, [selectedBatchId, qc]);
 
+  // Keyboard mode – Escape exits, ArrowUp/Down navigate rows without focusing a field
+  useEffect(() => {
+    if (!keyboardMode) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setKeyboardMode(false);
+        setFocusedItemIdx(null);
+        return;
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        // Only move row focus when no input is active
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+        e.preventDefault();
+        setFocusedItemIdx(prev => {
+          const next = (prev ?? -1) + (e.key === 'ArrowDown' ? 1 : -1);
+          return Math.max(0, Math.min(items.length - 1, next));
+        });
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [keyboardMode, items.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Start keyboard mode
+  const startKeyboardMode = () => {
+    setKeyboardMode(true);
+    setFocusedItemIdx(0);
+    setConfirmedInSession(0);
+    kbStartTimeRef.current = Date.now();
+  };
+
+  const exitKeyboardMode = () => {
+    setKeyboardMode(false);
+    setFocusedItemIdx(null);
+  };
+
   // Confirm mutation (for PDF panel)
   const confirmMutation = useMutation({
     mutationFn: (item: IfiasLineItem) =>
@@ -131,15 +174,30 @@ export default function InvoiceWorkspacePage() {
             </div>
           </div>
 
-          {/* Summary stats cards */}
-          {selectedBatchId && batchDetail && (
-            <div className="hidden lg:flex gap-3">
-              <StatCard label="Payable" value={formatINR(totalPayable)} icon={<IndianRupee size={14} />} color="blue" />
-              <StatCard label="Detention" value={formatINR(totalDetention)} icon={<Clock size={14} />} color="yellow" />
-              <StatCard label="Shortages" value={`${shortageItems} rows`} icon={<AlertCircle size={14} />} color="red" />
-              <StatCard label="Pending Review" value={String(batchDetail.review_lrs)} icon={<CheckCircle2 size={14} />} color="orange" />
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {/* Summary stats cards */}
+            {selectedBatchId && batchDetail && (
+              <div className="hidden lg:flex gap-3">
+                <StatCard label="Payable" value={formatINR(totalPayable)} icon={<IndianRupee size={14} />} color="blue" />
+                <StatCard label="Detention" value={formatINR(totalDetention)} icon={<Clock size={14} />} color="yellow" />
+                <StatCard label="Shortages" value={`${shortageItems} rows`} icon={<AlertCircle size={14} />} color="red" />
+                <StatCard label="Pending Review" value={String(batchDetail.review_lrs)} icon={<CheckCircle2 size={14} />} color="orange" />
+              </div>
+            )}
+            {/* Keyboard mode toggle */}
+            {selectedBatchId && (
+              <button
+                onClick={keyboardMode ? exitKeyboardMode : startKeyboardMode}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  keyboardMode ? 'bg-blue-600 text-white shadow' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+                title="Keyboard review mode (Tab + Enter)"
+              >
+                <Keyboard size={14} />
+                {keyboardMode ? 'Exit keyboard mode' : 'Keyboard mode'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Batch Selector */}
@@ -183,6 +241,47 @@ export default function InvoiceWorkspacePage() {
               })}
             </div>
 
+            {/* Keyboard mode progress bar + hint (Step 2C) */}
+            {keyboardMode && (
+              <div className="bg-blue-600 text-white rounded-lg px-4 py-3 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-3">
+                    <Keyboard size={14} />
+                    <span className="font-medium">Keyboard review mode</span>
+                    <span className="text-blue-200 text-xs">
+                      Tab → next field &nbsp;|&nbsp; Enter → confirm row &nbsp;|&nbsp; Esc → exit
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-bold">{confirmedInSession}</span>
+                    <span className="text-blue-200"> confirmed this session</span>
+                    {confirmedInSession > 0 && kbStartTimeRef.current && (() => {
+                      const elapsed = (Date.now() - kbStartTimeRef.current) / 1000;
+                      const rate = confirmedInSession / elapsed;
+                      const remaining = (batchDetail?.review_lrs ?? 0) - confirmedInSession;
+                      const eta = remaining > 0 && rate > 0 ? Math.round(remaining / rate) : null;
+                      return eta ? <span className="ml-2 text-blue-200 text-xs">ETA ~{eta}s</span> : null;
+                    })()}
+                  </div>
+                </div>
+                {/* Progress bar */}
+                {batchDetail && batchDetail.total_lrs > 0 && (
+                  <div className="h-1.5 bg-blue-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-white rounded-full transition-all duration-300"
+                      style={{ width: `${Math.round(((batchDetail.confirmed_lrs ?? 0) / batchDetail.total_lrs) * 100)}%` }}
+                    />
+                  </div>
+                )}
+                {/* Completion banner */}
+                {batchDetail && batchDetail.confirmed_lrs >= batchDetail.total_lrs && batchDetail.total_lrs > 0 && (
+                  <div className="text-center text-sm font-semibold text-green-200">
+                    ✓ All {batchDetail.total_lrs} rows confirmed!
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Bulk Actions */}
             {batchDetail && (
               <BulkActionBar
@@ -200,6 +299,20 @@ export default function InvoiceWorkspacePage() {
                 batchId={selectedBatchId}
                 items={items}
                 onViewPdf={setPreviewItem}
+                keyboardMode={keyboardMode}
+                focusedItemIdx={focusedItemIdx}
+                onRowAdvance={(nextIdx) => {
+                  if (nextIdx < items.length) {
+                    setFocusedItemIdx(nextIdx);
+                  } else {
+                    toast.success('Last row reached');
+                    exitKeyboardMode();
+                  }
+                }}
+                onRowConfirm={(item) => {
+                  setConfirmedInSession(n => n + 1);
+                  confirmMutation.mutate(item);
+                }}
               />
             )}
 

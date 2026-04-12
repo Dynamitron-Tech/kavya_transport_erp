@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/services/api';
 import { dashboardService, branchService } from '@/services/dataService';
@@ -62,6 +62,14 @@ export default function DashboardPage() {
 
   if (hasRole('manager')) {
     return <ManagerDashboardPage />;
+  }
+
+  if (hasRole('finance_manager')) {
+    return <Navigate to="/fm/dashboard" replace />;
+  }
+
+  if (hasRole('accountant')) {
+    return <Navigate to="/accountant/dashboard" replace />;
   }
 
   const { data: overview, refetch } = useQuery({
@@ -438,9 +446,7 @@ export default function DashboardPage() {
       <div className="card">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-semibold text-gray-900">Workflow Pipeline</h3>
-          <button onClick={() => navigate('/jobs')} className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">
-            Manage Jobs <ChevronRight size={12} />
-          </button>
+
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[

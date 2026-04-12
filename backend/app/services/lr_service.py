@@ -38,21 +38,50 @@ def _coerce_enum(enum_cls, raw_value):
 
 
 async def get_next_eway_bill_number(db: AsyncSession) -> str:
-    """Return the next sequential E-way bill number based on the max in the lrs table."""
+    """Return the next sequential E-way bill number, auto-incremented from the last used one."""
+    _BASE = 254733886084
     result = await db.execute(
-        select(func.max(LR.eway_bill_number)).where(
-            LR.is_deleted == False,
-            LR.eway_bill_number.isnot(None),
-            LR.eway_bill_number != "",
-        )
+        select(func.max(LR.eway_bill_number)).where(LR.eway_bill_number.isnot(None))
     )
-    last_number = result.scalar_one_or_none()
-    if last_number and last_number.isdigit():
-        return str(int(last_number) + 1)
-    return "254733886084"  # default starting number
+    max_ewb = result.scalar_one_or_none()
+    if max_ewb is None:
+        return str(_BASE)
+    try:
+        return str(int(max_ewb) + 1)
+    except (ValueError, TypeError):
+        return str(_BASE)
 
 
-async def list_lrs(db: AsyncSession, page: int = 1, limit: int = 20, search: str = None, status: str = None, job_id: int = None, trip_id: int = None):
+async def get_last_cargo_items_for_client(db: AsyncSession, client_id: int) -> list:
+    """Return cargo items from the most recent LR for a given client, for auto-fill suggestions."""
+    result = await db.execute(
+        select(LR)
+        .join(Job, LR.job_id == Job.id)
+        .where(Job.client_id == client_id)
+        .order_by(LR.created_at.desc())
+        .limit(1)
+    )
+    lr = result.scalar_one_or_none()
+    if not lr:
+        return []
+    items_result = await db.execute(
+        select(LRItem).where(LRItem.lr_id == lr.id).order_by(LRItem.item_number)
+    )
+    items = items_result.scalars().all()
+    return [
+        {
+            "description": item.description or "",
+            "hsn_code": item.hsn_code or "",
+            "packages": str(item.packages) if item.packages else "",
+            "package_type": item.package_type or "boxes",
+            "actual_weight": str(int(item.actual_weight)) if item.actual_weight else "",
+            "charged_weight": str(int(item.charged_weight)) if item.charged_weight else "",
+        }
+        for item in items
+    ]
+
+
+async def list_lrs(db: AsyncSession, page: int = 1, limit: int = 20, search: str = None, status: str = None, job_id: int = None, trip_id: int = None, transport_type: str = None):
     query = select(LR).where(LR.is_deleted == False)
     count_query = select(func.count(LR.id)).where(LR.is_deleted == False)
 
@@ -79,6 +108,10 @@ async def list_lrs(db: AsyncSession, page: int = 1, limit: int = 20, search: str
     if trip_id:
         query = query.where(LR.trip_id == trip_id)
         count_query = count_query.where(LR.trip_id == trip_id)
+
+    if transport_type:
+        query = query.where(LR.transport_type == transport_type)
+        count_query = count_query.where(LR.transport_type == transport_type)
 
     total = (await db.execute(count_query)).scalar() or 0
     offset = (page - 1) * limit
@@ -243,21 +276,31 @@ async def get_lr_with_details(db: AsyncSession, lr: LR) -> dict:
         result = await db.execute(select(Vehicle.registration_number).where(Vehicle.id == lr.vehicle_id))
         vehicle_reg = result.scalar_one_or_none()
 
-    # Get driver name
+    # Get driver name and phone
     driver_name = None
+    driver_phone = None
     if lr.driver_id:
-        result = await db.execute(select(Driver.first_name).where(Driver.id == lr.driver_id))
-        driver_name = result.scalar_one_or_none()
+        result = await db.execute(select(Driver.first_name, Driver.last_name, Driver.phone).where(Driver.id == lr.driver_id))
+        row = result.one_or_none()
+        if row:
+            driver_name = f"{row.first_name} {row.last_name or ''}".strip()
+            driver_phone = row.phone
 
     # Get items
     items_result = await db.execute(select(LRItem).where(LRItem.lr_id == lr.id).order_by(LRItem.item_number))
     items = items_result.scalars().all()
+
+    total_packages = sum(item.packages or 0 for item in items)
+    total_actual_weight = sum(float(item.actual_weight or 0) for item in items)
 
     return {
         **{c.key: getattr(lr, c.key) for c in lr.__table__.columns},
         "job_number": job_number,
         "vehicle_registration": vehicle_reg,
         "driver_name": driver_name,
+        "driver_phone": driver_phone,
+        "total_packages": total_packages,
+        "total_weight": round(total_actual_weight, 3) if total_actual_weight else None,
         "status": lr.status.value if hasattr(lr.status, 'value') else str(lr.status),
         "payment_mode": lr.payment_mode.value if hasattr(lr.payment_mode, 'value') else str(lr.payment_mode) if lr.payment_mode else None,
         "items": [{c.key: getattr(item, c.key) for c in item.__table__.columns} for item in items],

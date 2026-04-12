@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/fleet_dashboard_provider.dart'; // re-exports apiServiceProvider
 export '../../core/services/fcm_service.dart' show unreadNotificationCountProvider;
-export '../../core/services/fcm_service.dart' show unreadNotificationCountProvider;
 
 // ─── PA Dashboard ──────────────────────────────────────────────────────────
 

@@ -100,7 +100,9 @@ class Settings(BaseSettings):
     AWS_REGION: str = "ap-south-1"
     MINIO_ENDPOINT: Optional[str] = None
     
-    # Communication
+    # Communication — MSG91 Widget API (for OTP)
+    MSG91_AUTH_KEY: str = "507963A4xXGr4c69da9418P1"
+    MSG91_WIDGET_ID: str = "36646b72316d313131353435"
     MSG91_API_KEY: str = "YOUR_MSG91_API_KEY_HERE"
     MSG91_SENDER_ID: str = "KAVYAT"
     WHATSAPP_API_KEY: str = "YOUR_GUPSHUP_API_KEY_HERE"

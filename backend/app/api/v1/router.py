@@ -53,6 +53,7 @@ from app.api.v1.endpoints import (
     payables,
     receivable_payments,
     user_notifications,
+    reconciliation,
     pa_dashboard,
     manager_dashboard,
     document_ocr,
@@ -110,6 +111,9 @@ api_router.include_router(payables.router, prefix="/payables", tags=["Payables"]
 
 # Banking
 api_router.include_router(banking.router, prefix="/banking", tags=["Banking"])
+
+# Reconciliation
+api_router.include_router(reconciliation.router, prefix="/reconciliation", tags=["Reconciliation"])
 
 # Tracking & Monitoring
 api_router.include_router(tracking.router, prefix="/tracking", tags=["Tracking"])

@@ -6,6 +6,7 @@ import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/fleet_dashboard_provider.dart';
+import 'fleet_market_hub_screen.dart';
 
 final fleetHomeStatsProvider =
     FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
@@ -252,6 +253,25 @@ class FleetHomeScreen extends ConsumerWidget {
                       icon: Icons.approval_rounded,
                       color: KTColors.fleetAccent,
                       onTap: () => context.push('/fleet/approvals'),
+                    ),
+                    _ActionTile(
+                      context: context,
+                      label: 'Assign',
+                      icon: Icons.link_rounded,
+                      color: const Color(0xFF7C4DFF),
+                      onTap: () => context.push('/fleet/assign'),
+                    ),
+                    _ActionTile(
+                      context: context,
+                      label: 'Market Trips\n& Vehicles',
+                      icon: Icons.handshake_rounded,
+                      color: const Color(0xFF00897B),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const FleetMarketHubScreen(),
+                        ),
+                      ),
                     ),
                   ],
                 ),

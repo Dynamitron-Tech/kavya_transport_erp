@@ -97,6 +97,18 @@ class ApiService {
     return response.data;
   }
 
+  /// Sends a multipart/form-data POST request (e.g. file uploads).
+  Future<dynamic> postMultipart(String path, FormData formData) async {
+    final response = await _dio.post(
+      path,
+      data: formData,
+      options: Options(
+        headers: {'Content-Type': 'multipart/form-data'},
+      ),
+    );
+    return response.data;
+  }
+
   Future<dynamic> patch(String path, {dynamic data}) async {
     final response = await _dio.patch(path, data: data);
     return response.data;
@@ -294,6 +306,24 @@ class ApiService {
     return response.data;
   }
 
+  /// Run OCR on an uploaded file (RC, Driving License, etc.).
+  /// [docType]: 'rc', 'driving_license', 'insurance', 'auto'
+  /// Returns extracted [fields] map: { registration_number, owner_name, chassis_number, ... }
+  Future<Map<String, dynamic>> ocrDocument(File file, String docType) async {
+    final fileName = file.path.split('/').last;
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path, filename: fileName),
+    });
+    final response = await _dio.post(
+      '/documents/ocr',
+      data: formData,
+      queryParameters: {'doc_type': docType, 'lang': 'eng+hin'},
+    );
+    final resp = response.data;
+    if (resp is Map && resp['data'] != null) return Map<String, dynamic>.from(resp['data'] as Map);
+    return {};
+  }
+
   /// Upload a document (rc_book, insurance, pollution_certificate, fitness_certificate)
   /// directly to the vehicle_documents table via POST /vehicles/{id}/documents.
   Future<Map<String, dynamic>> uploadVehicleDocument(
@@ -459,6 +489,16 @@ class ApiService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  /// Upload POD (proof of delivery) image or PDF for a specific LR.
+  Future<Map<String, dynamic>> uploadLRPOD(int lrId, File file) async {
+    final fileName = file.path.split('/').last;
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(file.path, filename: fileName),
+    });
+    final response = await _dio.post('/lr/$lrId/pod', data: formData);
+    return Map<String, dynamic>.from(response.data is Map ? response.data as Map : {'success': true});
+  }
+
   // --- Expenses & Finance ---
 
   /// Verify the driver's 6-digit security PIN against the backend.
@@ -544,7 +584,7 @@ class ApiService {
       'amount': amount,
       if (subCategory != null) 'sub_category': subCategory,
       if (description != null) 'description': description,
-      'expense_date': DateTime.now().toIso8601String(),
+      'expense_date': DateTime.now().toUtc().toIso8601String(),
     });
   }
 

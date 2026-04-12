@@ -1,14 +1,20 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Check, X, Eye, RefreshCw, Pencil } from 'lucide-react';
 import { invoiceWorkspaceService, IfiasLineItem } from '@/services/invoiceWorkspaceService';
 import ConfidenceBadge from './ConfidenceBadge';
+import api from '@/services/api';
 
 interface LineItemTableProps {
   batchId: number;
   items: IfiasLineItem[];
   onViewPdf: (item: IfiasLineItem) => void;
+  // Keyboard mode
+  keyboardMode?: boolean;
+  focusedItemIdx?: number | null;
+  onRowAdvance?: (nextIdx: number) => void;
+  onRowConfirm?: (item: IfiasLineItem) => void;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -35,10 +41,22 @@ interface EditCell {
   value: string;
 }
 
-export default function LineItemTable({ batchId, items, onViewPdf }: LineItemTableProps) {
+export default function LineItemTable({ batchId, items, onViewPdf, keyboardMode = false, focusedItemIdx = null, onRowAdvance, onRowConfirm }: LineItemTableProps) {
   const qc = useQueryClient();
   const [editCell, setEditCell] = useState<EditCell | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const detentionRef = useRef<HTMLInputElement>(null);
+  const [truckSuggestions, setTruckSuggestions] = useState<string[]>([]);
+
+  // When keyboard mode focuses a row, auto-enter edit mode on truck_type
+  useEffect(() => {
+    if (!keyboardMode || focusedItemIdx === null) return;
+    const item = items[focusedItemIdx];
+    if (!item) return;
+    const current = item.truck_type_verified ?? item.truck_type ?? '';
+    setEditCell({ itemId: item.id, field: 'truck_type', value: current });
+    setTimeout(() => inputRef.current?.focus(), 30);
+  }, [keyboardMode, focusedItemIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateMutation = useMutation({
     mutationFn: ({ lrId, body }: { lrId: number; body: any }) =>
@@ -71,16 +89,26 @@ export default function LineItemTable({ batchId, items, onViewPdf }: LineItemTab
     setTimeout(() => inputRef.current?.focus(), 50);
   };
 
-  const handleCellSave = (item: IfiasLineItem) => {
+  const handleCellSave = (item: IfiasLineItem, thenFocus?: 'detention_days' | 'next_row') => {
     if (!editCell) return;
     const body: any = {};
     if (editCell.field === 'detention_days') {
-      body.detention_days = parseInt(editCell.value, 10);
+      const parsed = parseInt(editCell.value, 10);
+      body.detention_days = isNaN(parsed) ? 0 : parsed;
     } else {
-      body[editCell.field] = editCell.value;
+      body[editCell.field] = editCell.value.toUpperCase();
     }
     updateMutation.mutate({ lrId: item.id, body });
     setEditCell(null);
+
+    if (thenFocus === 'detention_days') {
+      const detVal = String(item.detention_days_verified ?? item.detention_days ?? '');
+      setEditCell({ itemId: item.id, field: 'detention_days', value: detVal });
+      setTimeout(() => detentionRef.current?.focus(), 30);
+    } else if (thenFocus === 'next_row') {
+      const idx = items.findIndex(i => i.id === item.id);
+      onRowAdvance?.(idx + 1);
+    }
   };
 
   const displayValue = (item: IfiasLineItem, field: EditCell['field']) => {
@@ -97,15 +125,50 @@ export default function LineItemTable({ batchId, items, onViewPdf }: LineItemTab
     const value = displayValue(item, field);
 
     if (isEditing) {
+      const isTruckType = field === 'truck_type';
       return (
         <div className="flex items-center gap-1">
+          {isTruckType && truckSuggestions.length > 0 && (
+            <datalist id="truck-type-list">
+              {truckSuggestions.map(s => <option key={s} value={s} />)}
+            </datalist>
+          )}
           <input
-            ref={inputRef}
+            ref={field === 'detention_days' ? detentionRef : inputRef}
             type={field === 'detention_days' ? 'number' : 'text'}
+            list={isTruckType ? 'truck-type-list' : undefined}
             value={editCell.value}
-            onChange={e => setEditCell({ ...editCell, value: e.target.value })}
+            onChange={e => {
+              const v = isTruckType ? e.target.value.toUpperCase() : e.target.value;
+              setEditCell({ ...editCell, value: v });
+              if (isTruckType && v.length >= 1) {
+                api.get('/accountant/truck-types/suggestions', { params: { prefix: v } })
+                  .then(r => setTruckSuggestions(r.data?.data ?? []))
+                  .catch(() => {});
+              }
+            }}
             onKeyDown={e => {
-              if (e.key === 'Enter') handleCellSave(item);
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (keyboardMode) {
+                  if (isTruckType) {
+                    handleCellSave(item, 'detention_days');
+                  } else {
+                    handleCellSave(item, 'next_row');
+                    onRowConfirm?.(item);
+                  }
+                } else {
+                  handleCellSave(item);
+                }
+              }
+              if (e.key === 'Tab') {
+                e.preventDefault();
+                if (isTruckType) {
+                  handleCellSave(item, 'detention_days');
+                } else {
+                  handleCellSave(item, 'next_row');
+                }
+              }
               if (e.key === 'Escape') setEditCell(null);
             }}
             className="w-24 px-1.5 py-0.5 text-xs border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -159,8 +222,15 @@ export default function LineItemTable({ batchId, items, onViewPdf }: LineItemTab
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-100">
-          {items.map((item, idx) => (
-            <tr key={item.id} className={`${STATUS_STYLES[item.processing_status] ?? ''} hover:bg-blue-50/30 transition-colors`}>
+          {items.map((item, idx) => {
+            const isFocused = keyboardMode && focusedItemIdx === idx;
+            const detentionVal = item.detention_days_verified ?? item.detention_days ?? 0;
+            const highDetention = detentionVal > 5;
+            return (
+            <tr
+              key={item.id}
+              className={`${isFocused ? 'border-l-4 border-l-blue-500 bg-blue-50/40' : STATUS_STYLES[item.processing_status] ?? ''} hover:bg-blue-50/30 transition-colors`}
+            >
               <td className="px-3 py-2 text-gray-500 text-xs">{item.excel_row_number ?? idx + 1}</td>
 
               <td className="px-3 py-2 font-mono text-xs text-gray-900 whitespace-nowrap">
@@ -175,8 +245,11 @@ export default function LineItemTable({ batchId, items, onViewPdf }: LineItemTab
                 {renderEditableCell(item, 'truck_type')}
               </td>
 
-              <td className="px-3 py-2 whitespace-nowrap">
+              <td className={`px-3 py-2 whitespace-nowrap ${highDetention ? 'bg-amber-50' : ''}`}>
                 {renderEditableCell(item, 'detention_days')}
+                {highDetention && (
+                  <span className="ml-1 text-xs text-amber-600 font-medium">⚠ {detentionVal}d</span>
+                )}
               </td>
 
               <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">
@@ -229,7 +302,8 @@ export default function LineItemTable({ batchId, items, onViewPdf }: LineItemTab
                 </div>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

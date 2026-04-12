@@ -46,7 +46,7 @@ class DriverHomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
               if (value == 'profile') {
-                navigationShell.goBranch(3);
+                navigationShell.goBranch(4);
               } else if (value == 'language') {
                 context.push('/driver/language-settings');
               } else if (value == 'logout') {
@@ -94,6 +94,10 @@ class DriverHomeScreen extends ConsumerWidget {
               icon: const Icon(Icons.local_shipping_outlined),
               selectedIcon: const Icon(Icons.local_shipping),
               label: s.trips),
+          NavigationDestination(
+              icon: const Icon(Icons.local_gas_station_outlined),
+              selectedIcon: const Icon(Icons.local_gas_station),
+              label: s.fuel),
           NavigationDestination(
               icon: const Icon(Icons.receipt_long_outlined),
               selectedIcon: const Icon(Icons.receipt_long),

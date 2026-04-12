@@ -724,6 +724,10 @@ async def add_expense(
             detail=f"Biometric verification required for expenses ≥ ₹{threshold}",
         )
     expense = await trip_service.add_trip_expense(db, trip_id, data.model_dump(), current_user.user_id)
+    # Mark driver-submitted expenses so they show as "from Driver App" in the UI
+    if _is_role(current_user, "driver"):
+        expense.entry_source = "app"
+        await db.commit()
     # RUL-03: flag expense anomaly in background (fire-and-forget)
     from decimal import Decimal
     from app.services.tms_automation_service import rul_03_flag_expense_anomaly

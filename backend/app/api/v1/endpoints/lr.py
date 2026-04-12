@@ -1,5 +1,6 @@
 # LR (Lorry Receipt) Endpoints
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+import os, uuid
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
@@ -21,11 +22,12 @@ async def list_lrs(
     page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     search: Optional[str] = None, status: Optional[str] = None,
     job_id: Optional[int] = None, trip_id: Optional[int] = None,
+    transport_type: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.LR_READ)),
 ):
-    lrs, total = await lr_service.list_lrs(db, page, limit, search, status, job_id, trip_id)
+    lrs, total = await lr_service.list_lrs(db, page, limit, search, status, job_id, trip_id, transport_type)
     pages = (total + limit - 1) // limit
     items = []
     for lr in lrs:
@@ -40,6 +42,29 @@ async def get_next_eway_number(
 ):
     next_number = await lr_service.get_next_eway_bill_number(db)
     return APIResponse(success=True, data={"eway_bill_number": next_number})
+
+
+@router.get("/next-eway-bill-number", response_model=APIResponse)
+async def get_next_eway_bill_number(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.LR_READ)),
+):
+    """Return the next auto-incremented E-way bill number for new LRs."""
+    next_num = await lr_service.get_next_eway_bill_number(db)
+    return APIResponse(success=True, data={"next_eway_bill_number": next_num})
+
+
+@router.get("/client/{client_id}/last-cargo-items", response_model=APIResponse)
+async def get_last_cargo_items(
+    client_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.LR_READ)),
+):
+    """Return cargo items from the most recent LR for a client, used for auto-fill suggestions."""
+    items = await lr_service.get_last_cargo_items_for_client(db, client_id)
+    return APIResponse(success=True, data=items)
 
 
 @router.get("/{lr_id}", response_model=APIResponse)
@@ -200,3 +225,82 @@ async def download_lr_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post("/{lr_id}/pod", response_model=APIResponse)
+async def upload_pod(
+    lr_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Upload Proof of Delivery (POD) for an LR. Accessible by driver (mobile) and fleet manager (web)."""
+    from app.models.postgres.lr import LR
+    from sqlalchemy import select
+
+    result = await db.execute(select(LR).where(LR.id == lr_id, LR.is_deleted == False))
+    lr = result.scalar_one_or_none()
+    if not lr:
+        raise HTTPException(status_code=404, detail="LR not found")
+
+    # Save file — use absolute path anchored to this file's location (backend/uploads/)
+    from pathlib import Path as _Path
+    pod_dir = _Path(__file__).resolve().parents[3] / "uploads" / "trip_documents"
+    pod_dir.mkdir(parents=True, exist_ok=True)
+    ext = (file.filename or "pod.jpg").rsplit(".", 1)[-1].lower()
+    filename = f"pod_{lr_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    file_path = pod_dir / filename
+    content = await file.read()
+    file_path.write_bytes(content)
+
+    # Update LR
+    pod_url = f"/uploads/trip_documents/{filename}"
+    lr.pod_uploaded = True
+    lr.pod_file_url = pod_url
+    from datetime import datetime
+    lr.pod_upload_date = datetime.utcnow()
+    if lr.status and str(lr.status).lower() not in ("pod_received", "pod_verified", "delivered"):
+        await lr_service.change_lr_status(db, lr_id, "pod_received", current_user.user_id, "POD uploaded")
+    else:
+        await db.commit()
+
+    try:
+        await notification_service.send(
+            db,
+            event_type="LR_POD_UPLOADED",
+            title="POD Uploaded",
+            body=f"POD uploaded for LR {lr.lr_number}",
+            target_roles=["FLEET_MANAGER", "ACCOUNTANT"],
+            data={"lr_id": str(lr_id)},
+            urgency="normal",
+            triggered_by=current_user.user_id,
+        )
+    except Exception:
+        pass
+
+    return APIResponse(success=True, data={"pod_file_url": pod_url}, message="POD uploaded successfully")
+
+
+@router.post("/{lr_id}/pod/verify", response_model=APIResponse)
+async def verify_pod(
+    lr_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.LR_UPDATE)),
+):
+    """Verify the uploaded POD for an LR (fleet manager / accountant action)."""
+    from app.models.postgres.lr import LR
+    from sqlalchemy import select
+
+    result = await db.execute(select(LR).where(LR.id == lr_id, LR.is_deleted == False))
+    lr = result.scalar_one_or_none()
+    if not lr:
+        raise HTTPException(status_code=404, detail="LR not found")
+    if not lr.pod_uploaded:
+        raise HTTPException(status_code=400, detail="POD has not been uploaded yet")
+
+    lr.pod_verified = True
+    lr.pod_verified_by = current_user.user_id
+    await lr_service.change_lr_status(db, lr_id, "pod_verified", current_user.user_id, "POD verified by fleet manager")
+
+    return APIResponse(success=True, data={"pod_verified": True}, message="POD verified successfully")

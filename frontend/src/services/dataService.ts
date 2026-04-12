@@ -297,8 +297,8 @@ export const lrService = {
     await api.delete(`/lr/${id}`);
   },
   getNextEwayNumber: async (): Promise<string> => {
-    const data = await api.get('/lr/next-eway-number');
-    return unwrap(data)?.eway_bill_number ?? '';
+    const data = await api.get('/lr/next-eway-bill-number');
+    return unwrap(data)?.next_eway_bill_number ?? '';
   },
   // Lookups — reuse trip lookup endpoints (same data shape)
   getJobs: async (search?: string): Promise<any> => {
@@ -540,8 +540,28 @@ export const tripService = {
   },
   // Expenses
   getExpenses: async (id: number): Promise<TripExpense[]> => {
-    const data = await api.get(`/trips/${id}/expenses`);
-    return data;
+    // Fetch from both sources: trip_expenses table AND general expenses linked by trip_id
+    const toArr = (v: any) => Array.isArray(v) ? v : [];
+    const [tripExpData, generalExpData] = await Promise.allSettled([
+      api.get(`/trips/${id}/expenses`),
+      api.get('/expenses', { params: { trip_id: id, limit: 200 } }),
+    ]);
+    const tripItems: any[] = tripExpData.status === 'fulfilled'
+      ? toArr((tripExpData.value as any)?.data ?? tripExpData.value)
+      : [];
+    const generalItems: any[] = generalExpData.status === 'fulfilled'
+      ? toArr((generalExpData.value as any)?.data ?? generalExpData.value)
+      : [];
+    // Normalize general expense fields to match trip expense shape
+    const normalizedGeneral = generalItems.map((e: any) => ({
+      ...e,
+      category: e.expense_category,
+      amount: e.amount_rupees ?? (e.amount_paise ? e.amount_paise / 100 : 0),
+      receipt_url: e.receipt_image_url,
+      payment_mode: e.payment_method,
+      entry_source: 'app',
+    }));
+    return [...tripItems, ...normalizedGeneral] as TripExpense[];
   },
   addExpense: async (id: number, payload: Partial<TripExpense>): Promise<TripExpense> => {
     const data = await api.post(`/trips/${id}/expenses`, payload);

@@ -16,6 +16,7 @@ from app.models.postgres.trip import TripExpense, ExpenseCategory
 from app.models.postgres.finance import (
     Invoice, InvoiceStatus, Payment, Ledger, LedgerType, GSTEntry, Payable,
 )
+from app.models.postgres.ifias import IfiasLineItem
 
 router = APIRouter()
 
@@ -26,7 +27,7 @@ def _role_set(user: TokenData) -> set[str]:
 
 def _is_admin_or_accountant(user: TokenData) -> bool:
     roles = _role_set(user)
-    return "admin" in roles or "accountant" in roles
+    return "admin" in roles or "accountant" in roles or "finance_manager" in roles
 
 
 def _expense_category_value(expense: TripExpense) -> str:
@@ -251,7 +252,7 @@ async def accountant_expenses(
     _perm=Depends(require_permission(Permissions.EXPENSE_READ)),
 ):
     from sqlalchemy import select, func
-    from app.models.postgres.trip import TripExpense, ExpenseStatusEnum
+    from app.models.postgres.trip import TripExpense, ExpenseStatusEnum, Trip
 
     query = select(TripExpense)
     count_query = select(func.count(TripExpense.id))
@@ -273,9 +274,27 @@ async def accountant_expenses(
     offset = (page - 1) * limit
     result = await db.execute(query.offset(offset).limit(limit).order_by(TripExpense.expense_date.desc()))
     expenses = result.scalars().all()
+
+    trip_ids = list({e.trip_id for e in expenses if e.trip_id})
+    trip_map: dict = {}
+    if trip_ids:
+        tr = await db.execute(
+            select(Trip.id, Trip.trip_number, Trip.vehicle_registration, Trip.driver_name)
+            .where(Trip.id.in_(trip_ids))
+        )
+        for row in tr.all():
+            trip_map[row.id] = {
+                'trip_number': row.trip_number,
+                'vehicle_registration': row.vehicle_registration,
+                'driver_name': row.driver_name,
+            }
+
     items = [{
         **{c.key: getattr(e, c.key) for c in e.__table__.columns},
         'status': (e.expense_status.value.lower() if hasattr(e.expense_status, 'value') else str(e.expense_status or 'pending').lower()),
+        'trip_number': trip_map.get(e.trip_id, {}).get('trip_number'),
+        'vehicle_registration': trip_map.get(e.trip_id, {}).get('vehicle_registration'),
+        'driver_name': trip_map.get(e.trip_id, {}).get('driver_name'),
     } for e in expenses]
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 
@@ -941,3 +960,58 @@ async def accountant_mark_driver_payment_paid(
         message="Payment marked as completed.",
         data={"payment_number": payment.payment_number, "amount": float(payment.amount)},
     )
+
+
+# ── Step 2B: Truck type suggestions ──────────────────────────────────────────
+
+@router.get("/truck-types/suggestions", response_model=APIResponse)
+async def truck_type_suggestions(
+    prefix: str = Query("", min_length=0, max_length=20),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Return distinct truck type values matching the given prefix.
+
+    Queries both the raw and verified columns so every value the system
+    has ever seen is surfaced. Results are sorted by frequency descending
+    so the most-used values appear first.
+    """
+    from sqlalchemy import union_all, literal_column, case
+    from sqlalchemy import distinct
+
+    prefix_upper = prefix.strip().upper()
+
+    # Build a frequency-ranked list from both truck_type columns
+    raw_col = IfiasLineItem.truck_type
+    verified_col = IfiasLineItem.truck_type_verified
+
+    # Subquery: union of both columns as a single "value" column
+    raw_q = (
+        select(raw_col.label("value"))
+        .where(raw_col.isnot(None), raw_col != "")
+    )
+    verified_q = (
+        select(verified_col.label("value"))
+        .where(verified_col.isnot(None), verified_col != "")
+    )
+    combined = union_all(raw_q, verified_q).subquery("combined")
+
+    # Frequency count
+    freq_q = (
+        select(combined.c.value, func.count().label("cnt"))
+        .group_by(combined.c.value)
+        .order_by(func.count().desc())
+        .limit(30)
+    )
+
+    result = await db.execute(freq_q)
+    rows = result.fetchall()
+
+    # Filter by prefix (case-insensitive)
+    suggestions = [
+        r.value.upper()
+        for r in rows
+        if r.value.upper().startswith(prefix_upper)
+    ][:10]
+
+    return APIResponse(success=True, data=suggestions)

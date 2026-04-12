@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../providers/auth_provider.dart';
 
@@ -528,6 +529,60 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
                       // Login button
                       _buildLoginButton(authState),
+
+                      const SizedBox(height: 20),
+                      // Divider
+                      Row(children: [
+                        Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.12))),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'OR',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.25),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.12))),
+                      ]),
+                      const SizedBox(height: 16),
+
+                      // Hired driver button
+                      GestureDetector(
+                        onTap: () => context.go('/market-driver-login'),
+                        child: Container(
+                          width: double.infinity,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.18),
+                            ),
+                            color: Colors.white.withValues(alpha: 0.05),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.local_shipping_outlined,
+                                color: Colors.white.withValues(alpha: 0.55),
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                "I'm a hired driver",
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.55),
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -849,7 +904,6 @@ class _GlossyInput extends StatefulWidget {
   final String? Function(String?)? validator;
   final IconData? leadingIcon;
   final Widget? trailingWidget;
-  final int? maxLength;
 
   const _GlossyInput({
     this.controller,
@@ -860,7 +914,6 @@ class _GlossyInput extends StatefulWidget {
     this.validator,
     this.leadingIcon,
     this.trailingWidget,
-    this.maxLength,
   });
 
   @override
@@ -921,7 +974,6 @@ class _GlossyInputState extends State<_GlossyInput>
                   keyboardType: widget.keyboardType,
                   autofillHints: widget.autofillHints,
                   validator: widget.validator,
-                  maxLength: widget.maxLength,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,

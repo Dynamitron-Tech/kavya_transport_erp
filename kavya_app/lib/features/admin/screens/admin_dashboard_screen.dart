@@ -201,11 +201,6 @@ class AdminDashboardScreen extends ConsumerWidget {
                     icon: Icons.receipt_long_outlined,
                     onTap: () => context.push('/admin/lr/create')),
                 QuickActionTile(
-                    color: KTColors.primary,
-                    label: 'New Trip',
-                    icon: Icons.local_shipping_outlined,
-                    onTap: () => context.push('/admin/trip/create')),
-                QuickActionTile(
                     color: KTColors.primaryDark,
                     label: 'Upload Doc',
                     icon: Icons.cloud_upload_outlined,

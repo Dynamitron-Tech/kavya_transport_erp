@@ -42,7 +42,7 @@ const kpiCards: KpiCardConfig[] = [
     subtitle: (d) => `${d?.total_jobs?.this_week ?? 0} this week`,
     icon: <ClipboardList size={22} className="text-blue-600" />,
     iconBg: 'bg-blue-50 border-blue-100',
-    navigateTo: '/jobs',
+    navigateTo: '/lr',
   },
   {
     key: 'pending_docs',
@@ -50,7 +50,7 @@ const kpiCards: KpiCardConfig[] = [
     getValue: (d) => d?.jobs_pending_documentation ?? 0,
     icon: <FileText size={22} className="text-amber-600" />,
     iconBg: 'bg-amber-50 border-amber-100',
-    navigateTo: '/jobs?status=pending_documentation',
+    navigateTo: '/lr',
     badgeColor: 'bg-amber-100 text-amber-700',
   },
   {
@@ -77,7 +77,7 @@ const kpiCards: KpiCardConfig[] = [
     getValue: (d) => d?.trips_pending_creation ?? 0,
     icon: <Navigation size={22} className="text-purple-600" />,
     iconBg: 'bg-purple-50 border-purple-100',
-    navigateTo: '/jobs?status=approved&no_trip=true',
+    navigateTo: '/trips',
     badgeColor: 'bg-purple-100 text-purple-700',
   },
   {
@@ -95,7 +95,7 @@ const kpiCards: KpiCardConfig[] = [
     getValue: (d) => d?.documents_pending_upload ?? 0,
     icon: <Upload size={22} className="text-cyan-600" />,
     iconBg: 'bg-cyan-50 border-cyan-100',
-    navigateTo: '/jobs?docs_pending=true',
+    navigateTo: '/documents',
     badgeColor: 'bg-cyan-100 text-cyan-700',
   },
   {

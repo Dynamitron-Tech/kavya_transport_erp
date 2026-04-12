@@ -792,6 +792,8 @@ export default function CreateLRPage() {
       const isMarket = vehicleMode === 'market';
       const payload = {
         ...workingForm,
+        // Track transport type so LR list can separate fleet vs market trips
+        transport_type: vehicleMode,
         // For market trips: vehicle_id and driver_id must be null (no fleet record)
         vehicle_id: isMarket ? null : (workingForm.vehicle_id || null),
         driver_id: isMarket ? null : (workingForm.driver_id || null),

@@ -28,6 +28,16 @@ final tripLRsProvider = FutureProvider.autoDispose.family<List<Map<String, dynam
   },
 );
 
+// Provider to check if any expenses have been submitted for a trip
+final tripHasExpensesProvider = FutureProvider.autoDispose.family<bool, int>(
+  (ref, tripId) async {
+    final api = ref.read(apiServiceProvider);
+    final res = await api.get('/trips/$tripId/expenses');
+    final data = res is List ? res : (res is Map ? (res['data'] ?? res['items'] ?? []) : []);
+    return (data as List).isNotEmpty;
+  },
+);
+
 class DriverTripDetailScreen extends ConsumerWidget {
   final int tripId;
 
@@ -214,12 +224,55 @@ class DriverTripDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
           ],
-          KtButton(
-            label: s.addExpense,
-            icon: Icons.receipt_long,
-            outlined: true,
-            onPressed: () => context.push(
-              '/driver/expenses/${trip.id}?trip=${Uri.encodeComponent(trip.tripNumber)}&origin=${Uri.encodeComponent(trip.origin ?? '')}&destination=${Uri.encodeComponent(trip.destination ?? '')}',
+          // Add Expense — hidden once expenses have been submitted
+          ref.watch(tripHasExpensesProvider(trip.id)).when(
+            data: (hasExpenses) => hasExpenses
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: KTColors.success.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: KTColors.success.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle_outline, color: KTColors.success, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Expenses Submitted',
+                          style: TextStyle(
+                            color: KTColors.success,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : KtButton(
+                    label: s.addExpense,
+                    icon: Icons.receipt_long,
+                    outlined: true,
+                    onPressed: () => context.push(
+                      '/driver/expenses/${trip.id}?trip=${Uri.encodeComponent(trip.tripNumber)}&origin=${Uri.encodeComponent(trip.origin ?? '')}&destination=${Uri.encodeComponent(trip.destination ?? '')}',
+                    ),
+                  ),
+            loading: () => KtButton(
+              label: s.addExpense,
+              icon: Icons.receipt_long,
+              outlined: true,
+              onPressed: null,
+            ),
+            error: (_, __) => KtButton(
+              label: s.addExpense,
+              icon: Icons.receipt_long,
+              outlined: true,
+              onPressed: () => context.push(
+                '/driver/expenses/${trip.id}?trip=${Uri.encodeComponent(trip.tripNumber)}&origin=${Uri.encodeComponent(trip.origin ?? '')}&destination=${Uri.encodeComponent(trip.destination ?? '')}',
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -722,6 +775,69 @@ class DriverTripDetailScreen extends ConsumerWidget {
                       _infoRow(Icons.description_outlined, 'E-Way Bill',
                           lr['eway_bill_number'] ?? lr['ewb_number'] ?? ''),
                     ],
+                    // POD Section
+                    const Divider(height: 20),
+                    Builder(builder: (context) {
+                      final podUploaded = lr['pod_uploaded'] == true || lr['pod_file_url'] != null;
+                      final podVerified = lr['status'] == 'pod_received';
+                      if (podVerified) {
+                        return _infoRow(Icons.verified_outlined, 'POD', 'Received ✓');
+                      } else if (podUploaded) {
+                        return _infoRow(Icons.upload_file_outlined, 'POD', 'Uploaded — Awaiting confirmation');
+                      } else {
+                        return Row(
+                          children: [
+                            const Icon(Icons.upload_file_outlined, size: 18, color: KTColors.driverAccent),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('POD', style: TextStyle(fontSize: 11, color: KTColors.textSecondary)),
+                                  SizedBox(height: 2),
+                                  Text('Proof of Delivery', style: TextStyle(fontSize: 13, color: KTColors.textMuted)),
+                                ],
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () async {
+                                final picker = ImagePicker();
+                                final picked = await picker.pickImage(source: ImageSource.camera);
+                                if (picked == null) return;
+                                try {
+                                  final api = ref.read(apiServiceProvider);
+                                  await api.uploadLRPOD(lr['id'] as int, File(picked.path));
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('POD uploaded successfully'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                    ref.invalidate(tripLRsProvider(trip.id));
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Upload failed: $e'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              icon: const Icon(Icons.photo_camera_outlined, size: 16),
+                              label: const Text('Upload POD'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: KTColors.primary,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                    }),
                   ],
                 ),
               ),

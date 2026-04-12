@@ -29,7 +29,7 @@ from app.models.postgres.finance_automation import (
 from app.models.postgres.route import Route, RouteBudget, RateChart, FuelPrice, BankAccount, BankTransaction
 from app.models.postgres.eway_bill import EwayBill, EwayItem
 from app.models.postgres.document import Document, DocumentVersion
-from app.models.postgres.fuel_pump import DepotFuelTank, FuelIssue, FuelStockTransaction, FuelTheftAlert
+from app.models.postgres.fuel_pump import DepotFuelTank, FuelIssue, FuelStockTransaction, FuelTheftAlert, VehicleFuelLog
 from app.models.postgres.supplier import Supplier, SupplierVehicle
 from app.models.postgres.market_trip import MarketTrip
 from app.models.postgres.geofence import Geofence, GeofenceType

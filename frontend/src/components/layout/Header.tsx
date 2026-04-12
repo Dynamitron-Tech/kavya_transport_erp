@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { useAppStore } from '@/store/appStore';
 import { enterpriseNavConfig, NAV_CONFIG, type HeaderNavRole } from './nav/navConfig';
+import { getRoleHomePage } from '@/utils/roleRouting';
 import {
   Bell, Search, Settings, LogOut, User,
   ChevronDown, X, ChevronRight, Home
@@ -23,11 +24,11 @@ const toCrumbLabel = (s: string) => s
 const matchRoute = (pathname: string, routePath: string) =>
   pathname === routePath || pathname.startsWith(routePath + '/');
 
-const buildBreadcrumbs = (pathname: string): Crumb[] => {
-  const crumbs: Crumb[] = [{ label: 'Home', path: '/dashboard', isLast: false }];
+const buildBreadcrumbs = (pathname: string, homePath: string): Crumb[] => {
+  const crumbs: Crumb[] = [{ label: 'Home', path: homePath, isLast: false }];
 
-  if (pathname === '/dashboard') {
-    return [...crumbs, { label: 'Dashboard', path: '/dashboard', isLast: true }];
+  if (pathname === homePath || pathname === '/dashboard') {
+    return [...crumbs, { label: 'Dashboard', path: homePath, isLast: true }];
   }
 
   let bestGroupLabel: string | null = null;
@@ -140,7 +141,8 @@ export default function Header() {
     navigate('/login');
   };
 
-  const breadcrumbs = buildBreadcrumbs(location.pathname);
+  const homePath = getRoleHomePage(user?.roles?.[0]);
+  const breadcrumbs = buildBreadcrumbs(location.pathname, homePath);
   const userRole = resolveRole((user as any)?.role || user?.roles?.[0]);
   const sections = NAV_CONFIG[userRole]?.sections ?? [];
 
@@ -160,7 +162,7 @@ export default function Header() {
         {/* Left: Breadcrumb */}
         <div className="flex items-center gap-2 min-w-0">
           <nav className="breadcrumb">
-            <button onClick={() => navigate('/dashboard')} className="text-gray-400 hover:text-primary-600 transition-colors">
+            <button onClick={() => navigate(homePath)} className="text-gray-400 hover:text-primary-600 transition-colors">
               <Home size={15} />
             </button>
             {breadcrumbs.map((crumb, index) => (

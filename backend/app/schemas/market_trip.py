@@ -5,7 +5,7 @@ from datetime import datetime
 
 
 class MarketTripCreate(BaseModel):
-    job_id: int
+    job_id: Optional[int] = None
     supplier_id: Optional[int] = None
     # Vehicle
     vehicle_registration: Optional[str] = None
@@ -16,6 +16,9 @@ class MarketTripCreate(BaseModel):
     year_of_manufacture: Optional[int] = None
     chassis_number: Optional[str] = None
     engine_number: Optional[str] = None
+    owner_name: Optional[str] = None
+    rc_issue_date: Optional[str] = None
+    rc_validity_date: Optional[str] = None
     rc_file_url: Optional[str] = None
     # Driver
     driver_name: Optional[str] = None
@@ -27,8 +30,8 @@ class MarketTripCreate(BaseModel):
     driver_license_valid: Optional[str] = None
     dl_file_url: Optional[str] = None
     # Rates
-    client_rate: float
-    contractor_rate: float
+    client_rate: float = 0.0
+    contractor_rate: float = 0.0
     advance_amount: float = 0
     loading_charges: float = 0
     unloading_charges: float = 0

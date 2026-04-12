@@ -1,7 +1,7 @@
 # Fleet Manager Endpoints
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func, or_
 from typing import Optional
 from decimal import Decimal
 from datetime import date, datetime
@@ -13,7 +13,8 @@ from app.core.security import TokenData, get_current_user
 from app.schemas.base import APIResponse, PaginationMeta
 from app.services import dashboard_service, vehicle_service, trip_service
 from app.models.postgres.vehicle import Vehicle
-from app.models.postgres.driver import Driver, DriverLicense
+from app.models.postgres.driver import Driver, DriverLicense, DriverStatus
+from app.models.postgres.trip import Trip, TripStatusEnum
 
 router = APIRouter()
 
@@ -169,3 +170,96 @@ async def assign_driver_to_vehicle(
         data={"vehicle_id": vehicle_id, "default_driver_id": vehicle.default_driver_id},
         message="Driver assigned successfully" if body.driver_id else "Driver unassigned",
     )
+
+
+@router.get("/drivers", response_model=APIResponse)
+async def fleet_drivers(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=500),
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """List all drivers with their assigned vehicle and completed trip count."""
+    query = select(Driver).where(Driver.is_deleted == False)
+    count_query = select(func.count(Driver.id)).where(Driver.is_deleted == False)
+
+    if search:
+        sf = or_(
+            Driver.first_name.ilike(f"%{search}%"),
+            Driver.last_name.ilike(f"%{search}%"),
+            Driver.phone.ilike(f"%{search}%"),
+        )
+        query = query.where(sf)
+        count_query = count_query.where(sf)
+
+    if status:
+        try:
+            status_enum = DriverStatus[status.upper()]
+            query = query.where(Driver.status == status_enum)
+            count_query = count_query.where(Driver.status == status_enum)
+        except KeyError:
+            pass  # ignore unknown status values
+
+    total = (await db.execute(count_query)).scalar() or 0
+    offset = (page - 1) * limit
+    drivers_result = await db.execute(query.offset(offset).limit(limit).order_by(Driver.id))
+    drivers = drivers_result.scalars().all()
+
+    # Batch: Vehicle assigned per driver (Vehicle.default_driver_id = driver.id)
+    driver_ids = [d.id for d in drivers]
+    vehicle_map: dict = {}
+    if driver_ids:
+        veh_result = await db.execute(
+            select(Vehicle.default_driver_id, Vehicle.registration_number)
+            .where(Vehicle.default_driver_id.in_(driver_ids), Vehicle.is_deleted == False)
+        )
+        for row in veh_result.all():
+            vehicle_map[row.default_driver_id] = row.registration_number
+
+    # Batch: Count completed trips per driver
+    trips_map: dict = {}
+    if driver_ids:
+        trips_result = await db.execute(
+            select(Trip.driver_id, func.count(Trip.id).label("cnt"))
+            .where(Trip.driver_id.in_(driver_ids), Trip.status == TripStatusEnum.COMPLETED)
+            .group_by(Trip.driver_id)
+        )
+        trips_map = {row.driver_id: row.cnt for row in trips_result.all()}
+
+    # Batch: first license per driver
+    lic_map: dict = {}
+    if driver_ids:
+        lic_result = await db.execute(
+            select(DriverLicense)
+            .where(DriverLicense.driver_id.in_(driver_ids))
+            .order_by(DriverLicense.driver_id, DriverLicense.id.desc())
+        )
+        for lic in lic_result.scalars().all():
+            if lic.driver_id not in lic_map:
+                lic_map[lic.driver_id] = lic
+
+    items = []
+    for d in drivers:
+        status_val = d.status.value if hasattr(d.status, 'value') else str(d.status)
+        lic = lic_map.get(d.id)
+        items.append({
+            "id": d.id,
+            "name": f"{d.first_name} {d.last_name or ''}".strip(),
+            "phone": d.phone,
+            "status": status_val,
+            "assigned_vehicle": vehicle_map.get(d.id),
+            "trips_completed": trips_map.get(d.id, 0),
+            "license_number": lic.license_number if lic else None,
+            "license_expiry": str(lic.expiry_date) if lic and lic.expiry_date else None,
+            "safety_score": d.safety_score if hasattr(d, 'safety_score') else 0,
+        })
+
+    pages = (total + limit - 1) // limit
+    return APIResponse(
+        success=True,
+        data=items,
+        pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages),
+    )
+

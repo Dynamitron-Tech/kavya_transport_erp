@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { useAppStore } from '@/store/appStore';
 import { useFinanceAlertStore } from '@/store/financeAlertStore';
@@ -70,14 +70,64 @@ const iconMap: Record<string, React.ReactNode> = {
   wifi: <Wifi size={20} />,
 };
 
+// Finance-only sections shown when navigating to /finance routes
+const FINANCE_CONTEXT_SECTIONS = [
+  {
+    label: 'OVERVIEW',
+    items: [
+      { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking & reports', badge: 'alerts' },
+    ],
+  },
+  {
+    label: 'FINANCE',
+    items: [
+      { label: 'Trip Expenses', route: '/finance?tab=transactions&sub=trip-expenses', icon: 'receipt', description: 'Driver trip expenses from completed trips — pay & verify' },
+      { label: 'Expense Approvals', route: '/fm/expenses', icon: 'wallet', description: 'Review and approve expense receipts' },
+      { label: 'Driver Advances', route: '/fm/advances', icon: 'pay', description: 'Issue trip advances to drivers' },
+      { label: 'Payables', route: '/fm/payables', icon: 'calendar', description: 'Recurring payments — rent, insurance, permits' },
+      { label: 'Payout History', route: '/fm/history', icon: 'clock', description: 'All outgoing payment records' },
+    ],
+  },
+  {
+    label: 'ACCOUNTING',
+    items: [
+      { label: 'Invoices', route: '/finance/invoices', icon: 'invoice', description: 'Generate and manage invoices' },
+      { label: 'Invoice Workspace', route: '/accountant/invoice-workspace', icon: 'file', description: 'Invoice automation — parse, validate, writeback' },
+      { label: 'Bank Statement', route: '/accountant/banking', icon: 'bank', description: 'Download statements & Tally reconciliation' },
+      { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
+    ],
+  },
+  {
+    label: 'SYSTEM',
+    items: [
+      { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
+    ],
+  },
+];
+
+// Finance sub-routes that should trigger the finance context sidebar
+const FINANCE_ROUTES = ['/finance', '/accountant', '/fm'];
+
 export default function Sidebar() {
   const { user, logout } = useAuthStore();
   const { sidebarCollapsed, toggleSidebarCollapse } = useAppStore();
   const { alertCount } = useFinanceAlertStore();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const userRole = resolveRole((user as any)?.role || user?.roles?.[0]);
+
+  const isFinanceContext = FINANCE_ROUTES.some(r =>
+    location.pathname === r ||
+    location.pathname.startsWith(r + '/') ||
+    location.pathname.startsWith(r + '?')
+  );
+
+  const rawSections = isFinanceContext
+    ? FINANCE_CONTEXT_SECTIONS
+    : (NAV_CONFIG[userRole]?.sections ?? []);
+
   const sections = [
-    ...(NAV_CONFIG[userRole]?.sections ?? []),
+    ...rawSections,
     {
       label: 'ACCOUNT',
       items: [{ label: 'Profile', route: '/profile', icon: 'user', description: 'My profile and preferences' }],
@@ -90,11 +140,28 @@ export default function Sidebar() {
   const getBestMatchRoute = (pathname: string): string | null => {
     let best: string | null = null;
     for (const route of allRoutes) {
-      if (pathname === route || (route !== '/dashboard' && pathname.startsWith(route + '/'))) {
-        if (!best || route.length > best.length) best = route;
+      // Strip query string from route for pathname comparison
+      const routePath = route.split('?')[0];
+      if (pathname === routePath || (routePath !== '/dashboard' && pathname.startsWith(routePath + '/'))) {
+        if (!best || routePath.length > (best.split('?')[0]).length) best = route;
       }
     }
     return best;
+  };
+
+  // Active match: compare both pathname and query params for query-string routes
+  const getIsActive = (itemRoute: string): boolean => {
+    const [routePath, routeQuery] = itemRoute.split('?');
+    if (routeQuery) {
+      // Must match pathname AND all query params in the route
+      if (location.pathname !== routePath) return false;
+      const routeParams = new URLSearchParams(routeQuery);
+      for (const [key, val] of routeParams.entries()) {
+        if (searchParams.get(key) !== val) return false;
+      }
+      return true;
+    }
+    return getBestMatchRoute(location.pathname) === itemRoute;
   };
 
   const bestMatch = getBestMatchRoute(location.pathname);
@@ -132,7 +199,7 @@ export default function Sidebar() {
             {sidebarCollapsed && <div className="border-t border-gray-200 mb-2" />}
             <ul className="space-y-0.5">
               {section.items.map((item) => {
-                const isActive = bestMatch === item.route;
+                const isActive = getIsActive(item.route);
 
                 return (
                   <li key={item.route}>

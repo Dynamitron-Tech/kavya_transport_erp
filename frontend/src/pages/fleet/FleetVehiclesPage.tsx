@@ -85,7 +85,7 @@ export default function FleetVehiclesPage() {
   ];
 
   const statusCounts = {
-    total: data?.total || 0,
+    total: (data as any)?.pagination?.total ?? vehicles.length,
     on_trip: vehicles.filter(v => v.status === 'on_trip').length,
     available: vehicles.filter(v => v.status === 'available').length,
     maintenance: vehicles.filter(v => v.status === 'maintenance').length,

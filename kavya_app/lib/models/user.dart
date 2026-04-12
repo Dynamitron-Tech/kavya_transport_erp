@@ -5,6 +5,7 @@ class User {
   final List<String> roles; // [cite: 5]
   final String? phone;
   final bool isActive;
+  final String? avatarUrl;
 
   User({
     required this.id,
@@ -13,6 +14,7 @@ class User {
     required this.roles,
     this.phone,
     this.isActive = true,
+    this.avatarUrl,
   });
 
   // Convenience aliases for driver screens
@@ -36,6 +38,7 @@ class User {
       roles: List<String>.from(json['roles'] ?? []), // [cite: 5]
       phone: json['phone'] as String?,
       isActive: json['is_active'] as bool? ?? true,
+      avatarUrl: json['avatar_url'] as String?,
     );
   }
 
@@ -47,6 +50,7 @@ class User {
       'roles': roles, // [cite: 5]
       'phone': phone,
       'is_active': isActive,
+      'avatar_url': avatarUrl,
     };
   }
 }

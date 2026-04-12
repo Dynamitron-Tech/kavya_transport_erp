@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { tripService, financeService } from '@/services/dataService';
+import { tripService, financeService, lrService } from '@/services/dataService';
 import { StatusBadge, LoadingPage, Modal } from '@/components/common/Modal';
 import { useAuthStore } from '@/store/authStore';
 import { safeArray } from '@/utils/helpers';
@@ -9,6 +9,7 @@ import { useRealtimeTrip } from '@/services/useRealtimeDashboard';
 import {
   ArrowLeft, Play, Square, MapPin, Fuel, DollarSign, Navigation,
   ChevronRight, Clock, FileText, Truck, User, IndianRupee, ExternalLink, Receipt, Image, Paperclip, X, Upload, CheckCircle,
+  Calendar, Tag, Hash, CreditCard, BadgeCheck,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -20,6 +21,27 @@ export default function TripDetailPage() {
 
   // Lightbox state
   const [viewDoc, setViewDoc] = useState<{ url: string; title: string } | null>(null);
+  // Expense detail drawer
+  const [selectedExpense, setSelectedExpense] = useState<any | null>(null);
+
+  // POD upload per LR
+  const podFileRefs = useRef<{ [lrId: number]: HTMLInputElement | null }>({});
+  const uploadPODMutation = useMutation({
+    mutationFn: ({ lrId, file }: { lrId: number; file: File }) => lrService.uploadPOD(lrId, file),
+    onSuccess: () => {
+      toast.success('POD uploaded successfully');
+      queryClient.invalidateQueries({ queryKey: ['trip-lrs', id] });
+    },
+    onError: () => toast.error('Failed to upload POD'),
+  });
+  const verifyPODMutation = useMutation({
+    mutationFn: (lrId: number) => lrService.verifyPOD(lrId),
+    onSuccess: () => {
+      toast.success('POD verified');
+      queryClient.invalidateQueries({ queryKey: ['trip-lrs', id] });
+    },
+    onError: () => toast.error('Failed to verify POD'),
+  });
 
   const { data: trip, isLoading } = useQuery({
     queryKey: ['trip', id],
@@ -56,14 +78,7 @@ export default function TripDetailPage() {
 
   const { data: preChecklist } = useQuery({
     queryKey: ['trip-checklist-pre', id],
-    queryFn: () => tripService.getChecklist(Number(id), 'pre_trip'),
-    enabled: !!id,
-    retry: false,
-  });
-
-  const { data: postChecklist } = useQuery({
-    queryKey: ['trip-checklist-post', id],
-    queryFn: () => tripService.getChecklist(Number(id), 'post_trip'),
+    queryFn: () => tripService.getChecklist(Number(id), 'checklist'),
     enabled: !!id,
     retry: false,
   });
@@ -117,7 +132,7 @@ export default function TripDetailPage() {
 
   // Document chip — shows thumbnail for images, PDF icon for docs; clicks open lightbox
   const DocChip = ({ url, label }: { url: string; label: string }) => {
-    const isImg = /\.(jpe?g|png|gif|webp|heic)$/i.test(url);
+    const isImg = /\.(jpe?g|png|gif|webp|heic)$/i.test(url) || url.startsWith('data:image');
     return (
       <button
         onClick={() => setViewDoc({ url, title: label })}
@@ -240,22 +255,26 @@ export default function TripDetailPage() {
                     <thead>
                       <tr className="bg-gray-50">
                         <th className="table-header">Description</th>
-                        <th className="table-header">Qty</th>
-                        <th className="table-header">Weight</th>
+                        <th className="table-header">Packages</th>
+                        <th className="table-header">Actual Weight</th>
+                        <th className="table-header">Charged Weight</th>
                         <th className="table-header">Rate</th>
                         <th className="table-header">Amount</th>
-                        <th className="table-header">Invoice No.</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {lr.items.map((item: any) => (
                         <tr key={item.id} className="hover:bg-gray-50">
-                          <td className="table-cell">{item.description}</td>
-                          <td className="table-cell">{item.quantity} {item.unit}</td>
-                          <td className="table-cell">{item.weight || '—'} kg</td>
+                          <td className="table-cell">
+                            <div className="font-medium">{item.description}</div>
+                            {item.hsn_code && <div className="text-xs text-gray-400">HSN: {item.hsn_code}</div>}
+                            {item.package_type && <div className="text-xs text-gray-400">{item.package_type}</div>}
+                          </td>
+                          <td className="table-cell">{item.packages ?? '—'}</td>
+                          <td className="table-cell">{item.actual_weight != null ? `${item.actual_weight} kg` : '—'}</td>
+                          <td className="table-cell">{item.charged_weight != null ? `${item.charged_weight} kg` : '—'}</td>
                           <td className="table-cell">₹{Number(item.rate || 0).toLocaleString('en-IN')}</td>
                           <td className="table-cell font-medium">₹{Number(item.amount || 0).toLocaleString('en-IN')}</td>
-                          <td className="table-cell font-mono text-xs">{item.invoice_number || '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -285,14 +304,14 @@ export default function TripDetailPage() {
                     <div className="flex justify-between"><span className="text-gray-500">Freight Amount</span><span className="font-semibold">₹{Number(lr.freight_amount || 0).toLocaleString('en-IN')}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Advance</span><span>₹{Number(lr.advance_amount || 0).toLocaleString('en-IN')}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Balance</span><span className="font-semibold text-red-600">₹{Number(lr.balance_amount || 0).toLocaleString('en-IN')}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Total Weight</span><span>{lr.total_weight || '—'} kg</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Packages</span><span>{lr.total_packages || '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Total Weight</span><span>{lr.total_weight || (lr.items?.reduce((s: number, i: any) => s + parseFloat(i.actual_weight || 0), 0) || null) ? `${lr.total_weight || lr.items?.reduce((s: number, i: any) => s + parseFloat(i.actual_weight || 0), 0)} kg` : '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Packages</span><span>{lr.total_packages || lr.items?.reduce((s: number, i: any) => s + (i.packages || 0), 0) || '—'}</span></div>
                   </div>
                 </div>
                 <div className="card">
                   <h4 className="font-semibold text-gray-900 mb-3 text-sm">POD Status</h4>
                   <div className="flex flex-col items-center py-3">
-                    {lr.status === 'pod_received' ? (
+                    {String(lr.status).toLowerCase() === 'pod_received' ? (
                       <>
                         <div className="w-full">
                           <div className="flex items-center gap-2 mb-2">
@@ -370,7 +389,26 @@ export default function TripDetailPage() {
                           <Upload size={24} className="text-gray-400" />
                         </div>
                         <p className="font-semibold text-gray-500 text-sm">POD Pending</p>
-                        <p className="text-xs text-gray-400 mt-0.5">Upload proof of delivery</p>
+                        <p className="text-xs text-gray-400 mt-0.5 mb-3">Driver or fleet manager can upload</p>
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          className="hidden"
+                          ref={el => { podFileRefs.current[lr.id] = el; }}
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) uploadPODMutation.mutate({ lrId: lr.id, file });
+                            e.target.value = '';
+                          }}
+                        />
+                        <button
+                          onClick={() => podFileRefs.current[lr.id]?.click()}
+                          disabled={uploadPODMutation.isPending}
+                          className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5"
+                        >
+                          <Upload size={12} />
+                          {uploadPODMutation.isPending ? 'Uploading...' : 'Upload POD'}
+                        </button>
                       </>
                     )}
                   </div>
@@ -395,8 +433,9 @@ export default function TripDetailPage() {
             };
             const ORDER = ['planned', 'started', 'loading', 'in_transit', 'unloading', 'completed'];
             const currentIdx = ORDER.indexOf((trip.status || '').toLowerCase());
-            const done = i < currentIdx;
-            const active = i === currentIdx;
+            const isCompleted = (trip.status || '').toLowerCase() === 'completed';
+            const done = i < currentIdx || (isCompleted && i === currentIdx);
+            const active = i === currentIdx && !isCompleted;
             const record = getStatusRecord(stepKey);
             const ts = record?.created_at ?? null;
             return (
@@ -694,10 +733,9 @@ export default function TripDetailPage() {
             <div></div>
             <div><p className="text-gray-500 text-xs">Destination</p><p className="font-medium">{trip.destination}</p></div>
             <hr />
-            <div className="flex justify-between"><span className="text-gray-500">Distance</span><span>{trip.total_distance || '—'} km</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Planned Start</span><span>{trip.planned_start ? new Date(trip.planned_start).toLocaleString('en-IN') : '—'}</span></div>
-            {trip.actual_start && <div className="flex justify-between"><span className="text-gray-500">Actual Start</span><span>{new Date(trip.actual_start).toLocaleString('en-IN')}</span></div>}
-            {trip.actual_end && <div className="flex justify-between"><span className="text-gray-500">Actual End</span><span>{new Date(trip.actual_end).toLocaleString('en-IN')}</span></div>}
+            <div className="flex justify-between"><span className="text-gray-500">Distance</span><span>{(() => { const t = trip as any; const db = parseFloat(t.actual_distance_km || t.planned_distance_km || t.total_distance || 0); const startOdo = parseFloat(t.start_odometer || 0); const endOdo = parseFloat(t.end_odometer || 0); const odo = startOdo && endOdo > startOdo ? endOdo - startOdo : 0; const d = db || odo; return d > 0 ? `${d.toFixed(0)} km` : '—'; })()}</span></div>
+            {trip.actual_start && <div className="flex justify-between"><span className="text-gray-500">Actual Start</span><span>{new Date(trip.actual_start).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span></div>}
+            {trip.actual_end && <div className="flex justify-between"><span className="text-gray-500">Actual End</span><span>{new Date(trip.actual_end).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span></div>}
           </div>
         </div>
 
@@ -852,7 +890,7 @@ export default function TripDetailPage() {
                           <div key={item.id} className={`text-xs flex items-start gap-1.5 ${item.checked ? 'text-gray-600' : 'text-red-500'}`}>
                             <span className="mt-0.5 flex-shrink-0">{item.checked ? '✓' : '✗'}</span>
                             <span className="flex-1">{item.label}</span>
-                            {item.photo_url && <DocChip url={item.photo_url} label="Photo" />}
+                            {item.photo && <DocChip url={item.photo.startsWith('data:') ? item.photo : `data:image/jpeg;base64,${item.photo}`} label="Photo" />}
                           </div>
                         ))}
                       </div>
@@ -936,52 +974,6 @@ export default function TripDetailPage() {
             );
           })()}
 
-          {/* Post-trip Checklist — show once unloading or completed */}
-          {(trip.unloading_start || getStatusRecord('unloading') || trip.actual_end || getStatusRecord('completed')) && (() => {
-            const items = (postChecklist?.items || []) as any[];
-            const submitted = !!postChecklist;
-            return (
-              <div className="relative pb-5">
-                <div className={`absolute -left-10 top-0 w-6 h-6 rounded-full flex items-center justify-center border-2 ${
-                  submitted ? 'bg-purple-50 border-purple-400' : 'bg-gray-50 border-gray-300'
-                }`}>
-                  <span className={`text-[10px] font-bold ${submitted ? 'text-purple-600' : 'text-gray-400'}`}>✓</span>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-semibold text-gray-900">Post-Trip Checklist</p>
-                    {submitted && postChecklist.completed_at
-                      ? <span className="text-xs text-gray-400">{new Date(postChecklist.completed_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                      : <span className="text-xs bg-yellow-50 text-yellow-600 border border-yellow-200 px-2 py-0.5 rounded-full">⏳ Awaiting driver</span>
-                    }
-                  </div>
-                  {submitted ? (
-                    <>
-                      <div className="flex items-center gap-3 mb-2.5">
-                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${postChecklist.ok_count === postChecklist.total_items ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {postChecklist.ok_count}/{postChecklist.total_items} completed
-                        </span>
-                        <span className="text-xs text-blue-500">📱 Driver App</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                        {items.map((item: any) => (
-                          <div key={item.id} className={`text-xs flex items-start gap-1.5 ${item.checked ? 'text-gray-600' : 'text-red-500'}`}>
-                            <span className="mt-0.5 flex-shrink-0">{item.checked ? '✓' : '✗'}</span>
-                            <span className="flex-1">{item.label}</span>
-                            {item.photo_url && <DocChip url={item.photo_url} label="Photo" />}
-                          </div>
-                        ))}
-                      </div>
-                      {postChecklist.notes && <p className="text-xs text-gray-500 mt-2 italic">Note: "{postChecklist.notes}"</p>}
-                    </>
-                  ) : (
-                    <p className="text-xs text-gray-400">Driver has not submitted the post-trip checklist yet from the mobile app.</p>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-
           {/* Unloaded Photos — driver uploads from mobile during/after unloading */}
           {(trip.unloading_start || getStatusRecord('unloading') || trip.actual_end || getStatusRecord('completed')) && (() => {
             const lrs = ((trip as any).lrs || tripLRs || []) as any[];
@@ -992,7 +984,11 @@ export default function TripDetailPage() {
             const podPhotos = lrs
               .filter((lr: any) => lr.pod_file_url)
               .map((lr: any) => ({ url: fileUrl(lr.pod_file_url)!, label: `POD — ${lr.lr_number}` }));
-            const allPhotos = [...unloadingExpensePhotos, ...podPhotos];
+            const tripUnloadedPhotos = (tripPhotos as any[])
+              .filter((p: any) => p.type === 'unloaded' && p.url)
+              .map((p: any) => ({ url: fileUrl(p.url)!, label: 'Unloaded' }))
+              .filter((p: any) => !!p.url);
+            const allPhotos = [...tripUnloadedPhotos, ...unloadingExpensePhotos, ...podPhotos];
             return (
               <div className="relative pb-5">
                 <div className="absolute -left-10 top-0 w-6 h-6 rounded-full bg-blue-50 border-2 border-blue-300 flex items-center justify-center">
@@ -1008,7 +1004,7 @@ export default function TripDetailPage() {
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {allPhotos.map((photo: any, i: number) => {
-                        const isImg = /\.(jpe?g|png|gif|webp|heic)$/i.test(photo.url);
+                        const isImg = /\.(jpe?g|png|gif|webp|heic)$/i.test(photo.url) || photo.url.startsWith('data:image') || photo.url.startsWith('http');
                         return isImg ? (
                           <button key={i} onClick={() => setViewDoc({ url: photo.url, title: photo.label })} className="flex flex-col items-center gap-1">
                             <img src={photo.url} alt={photo.label} className="w-20 h-20 object-cover rounded-lg border border-gray-200 hover:opacity-80 cursor-zoom-in shadow-sm" />
@@ -1134,17 +1130,24 @@ export default function TripDetailPage() {
             {(expenses || []).map((exp: any) => {
               const url = fileUrl(exp.receipt_url);
               const isImage = url && /\.(jpe?g|png|gif|webp|heic)$/i.test(url);
+              const isSelected = selectedExpense?.id === exp.id;
               return (
-                <div key={exp.id} className="px-6 py-4 flex gap-4">
+                <div
+                  key={exp.id}
+                  className={`px-6 py-4 flex gap-4 cursor-pointer transition-colors ${
+                    isSelected ? 'bg-blue-50/60' : 'hover:bg-gray-50'
+                  }`}
+                  onClick={() => setSelectedExpense(isSelected ? null : exp)}
+                >
                   {/* Receipt thumbnail or file icon */}
                   <div className="flex-shrink-0">
                     {url ? (
                       isImage ? (
-                        <button onClick={() => setViewDoc({ url, title: `${String(exp.category || '').replace('_', ' ')} Receipt` })}>
+                        <button onClick={e => { e.stopPropagation(); setViewDoc({ url, title: `${String(exp.category || '').replace('_', ' ')} Receipt` }); }}>
                           <img src={url} alt="receipt" className="w-16 h-16 object-cover rounded-lg border border-gray-200 hover:opacity-80 cursor-zoom-in" />
                         </button>
                       ) : (
-                        <button onClick={() => setViewDoc({ url, title: `${String(exp.category || '').replace('_', ' ')} Document` })} className="flex items-center justify-center w-16 h-16 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100">
+                        <button onClick={e => { e.stopPropagation(); setViewDoc({ url, title: `${String(exp.category || '').replace('_', ' ')} Document` }); }} className="flex items-center justify-center w-16 h-16 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100">
                           <Paperclip size={20} className="text-gray-400" />
                         </button>
                       )
@@ -1169,7 +1172,11 @@ export default function TripDetailPage() {
                       {exp.expense_date && <span>{new Date(exp.expense_date).toLocaleDateString('en-IN')}</span>}
                       {exp.payment_mode && <span className="capitalize">{exp.payment_mode}</span>}
                       {exp.location && <span>📍 {exp.location}</span>}
-                      {exp.entry_source && <span className="text-blue-500 capitalize">{exp.entry_source === 'app' ? '📱 Driver App' : exp.entry_source}</span>}
+                      {exp.entry_source && (
+                        <span className={exp.entry_source === 'app' ? 'text-blue-500' : 'text-gray-400'}>
+                          {exp.entry_source === 'app' ? '📱 Driver App' : `from ${exp.entry_source.charAt(0).toUpperCase() + exp.entry_source.slice(1)}`}
+                        </span>
+                      )}
                     </div>
                   </div>
                   {/* Status badge */}
@@ -1181,10 +1188,169 @@ export default function TripDetailPage() {
                     {exp.expense_status && exp.expense_status !== 'PENDING' && (
                       <span className="text-xs text-gray-400 capitalize">{exp.expense_status.toLowerCase()}</span>
                     )}
+                    <ChevronRight size={14} className={`mt-1 transition-transform ${isSelected ? 'rotate-90 text-blue-500' : 'text-gray-300'}`} />
                   </div>
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* ── Expense detail expand panel ──────────────────── */}
+        {selectedExpense && (
+          <div className="border-t border-blue-100 bg-blue-50/30 px-6 py-5">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-semibold text-gray-800">Expense Detail</h4>
+              <button onClick={() => setSelectedExpense(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+              {/* Category */}
+              <div className="flex items-start gap-2">
+                <Tag size={14} className="text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Category</p>
+                  <p className="text-gray-900 font-medium capitalize mt-0.5">
+                    {String(selectedExpense.category || '').replace('_', ' ')}
+                    {selectedExpense.sub_category && <span className="text-gray-400 font-normal"> · {selectedExpense.sub_category}</span>}
+                  </p>
+                </div>
+              </div>
+              {/* Amount */}
+              <div className="flex items-start gap-2">
+                <IndianRupee size={14} className="text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Amount</p>
+                  <p className="text-gray-900 font-bold mt-0.5 text-base">₹{Number(selectedExpense.amount || 0).toLocaleString('en-IN')}</p>
+                </div>
+              </div>
+              {/* Payment Mode */}
+              <div className="flex items-start gap-2">
+                <CreditCard size={14} className="text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Payment Mode</p>
+                  <p className="text-gray-900 capitalize mt-0.5">{selectedExpense.payment_mode || 'Cash'}</p>
+                </div>
+              </div>
+              {/* Expense Date */}
+              <div className="flex items-start gap-2">
+                <Calendar size={14} className="text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Expense Date</p>
+                  <p className="text-gray-900 mt-0.5">
+                    {selectedExpense.expense_date
+                      ? new Date(selectedExpense.expense_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+                      : '—'}
+                  </p>
+                </div>
+              </div>
+              {/* Driver */}
+              {selectedExpense.driver_name && (
+                <div className="flex items-start gap-2">
+                  <User size={14} className="text-gray-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Driver</p>
+                    <p className="text-gray-900 mt-0.5">{selectedExpense.driver_name}</p>
+                  </div>
+                </div>
+              )}
+              {/* Reference Number */}
+              {selectedExpense.reference_number && (
+                <div className="flex items-start gap-2">
+                  <Hash size={14} className="text-gray-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Reference No.</p>
+                    <p className="text-gray-900 font-mono mt-0.5">{selectedExpense.reference_number}</p>
+                  </div>
+                </div>
+              )}
+              {/* Submitted at */}
+              {selectedExpense.created_at && (
+                <div className="flex items-start gap-2">
+                  <Clock size={14} className="text-gray-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Submitted At</p>
+                    <p className="text-gray-900 mt-0.5">
+                      {new Date(selectedExpense.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {/* Paid at */}
+              {selectedExpense.paid_at && (
+                <div className="flex items-start gap-2">
+                  <BadgeCheck size={14} className="text-green-500 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Paid At</p>
+                    <p className="text-green-700 font-medium mt-0.5">
+                      {new Date(selectedExpense.paid_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {/* Verified */}
+              <div className="flex items-start gap-2">
+                <BadgeCheck size={14} className={`mt-0.5 shrink-0 ${selectedExpense.is_verified ? 'text-green-500' : 'text-gray-300'}`} />
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Verified</p>
+                  <p className={`mt-0.5 font-medium ${selectedExpense.is_verified ? 'text-green-700' : 'text-gray-400'}`}>
+                    {selectedExpense.is_verified ? 'Yes — verified' : 'Not yet verified'}
+                  </p>
+                </div>
+              </div>
+              {/* Entry Source */}
+              <div className="flex items-start gap-2">
+                <FileText size={14} className="text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Entry Source</p>
+                  <p className="text-gray-600 capitalize mt-0.5">{selectedExpense.entry_source || '—'}</p>
+                </div>
+              </div>
+            </div>
+            {/* Description */}
+            {selectedExpense.description && (
+              <div className="mt-4 flex items-start gap-2">
+                <FileText size={14} className="text-gray-400 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Description</p>
+                  <p className="text-sm text-gray-700 mt-0.5">{selectedExpense.description}</p>
+                </div>
+              </div>
+            )}
+            {/* Receipt image */}
+            {selectedExpense.receipt_url && (() => {
+              const rUrl = fileUrl(selectedExpense.receipt_url);
+              const rIsImage = rUrl && /\.(jpe?g|png|gif|webp|heic)$/i.test(rUrl);
+              return (
+                <div className="mt-4 rounded-xl overflow-hidden border border-gray-200">
+                  <div className="bg-gray-50 px-4 py-2 border-b flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Receipt</span>
+                    {rUrl && (
+                      <button
+                        onClick={() => setViewDoc({ url: rUrl, title: `${String(selectedExpense.category || '').replace('_', ' ')} Receipt` })}
+                        className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                      >
+                        <ExternalLink size={11} /> Full view
+                      </button>
+                    )}
+                  </div>
+                  {rIsImage && rUrl ? (
+                    <img
+                      src={rUrl}
+                      alt="Receipt"
+                      className="w-full max-h-52 object-contain bg-white cursor-pointer"
+                      onClick={() => setViewDoc({ url: rUrl, title: `${String(selectedExpense.category || '').replace('_', ' ')} Receipt` })}
+                    />
+                  ) : rUrl ? (
+                    <div className="flex items-center gap-3 px-4 py-3 bg-white">
+                      <Paperclip size={18} className="text-gray-400" />
+                      <a href={rUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">View Document</a>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

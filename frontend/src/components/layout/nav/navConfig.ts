@@ -53,7 +53,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       {
         label: 'Operations',
         items: [
-          { label: 'Jobs / Orders', route: '/jobs', icon: 'briefcase', description: 'Create and assign transport jobs' },
           { label: 'Market Trips', route: '/market-trips', icon: 'truck', description: 'Hired truck trips and P&L' },
           { label: 'Lorry Receipts', route: '/lr', icon: 'file', description: 'Generate and manage LR documents' },
           { label: 'Trips', route: '/trips', icon: 'map', description: 'Trip execution and monitoring' },
@@ -199,6 +198,7 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         label: 'Operations',
         items: [
           { label: 'Lorry Receipts', route: '/lr', icon: 'file', description: 'Generate and manage LR documents' },
+          { label: 'Trips', route: '/trips', icon: 'map', description: 'Track and manage vehicle trips' },
         ],
       },
       {
@@ -244,27 +244,26 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
   },
   FINANCE_MANAGER: {
     sections: [
-      { label: 'Overview', items: [{ label: 'Dashboard', route: '/fm/dashboard', icon: 'gauge', description: 'Finance overview — pending approvals, salary status, payables' }] },
       {
-        label: 'Payments',
+        label: 'Overview',
         items: [
-          { label: 'Salary Payments', route: '/fm/salary', icon: 'banknote', description: 'Staff salary processing via Razorpay' },
-          { label: 'Driver Advances', route: '/fm/advances', icon: 'wallet', description: 'Issue trip advances to drivers' },
-          { label: 'Expense Approvals', route: '/fm/expenses', icon: 'receipt', description: 'Review and approve GPay expense receipts' },
-          { label: 'Payables & Schedules', route: '/fm/payables', icon: 'calendar', description: 'Rent, insurance, tax, permits — recurring payments' },
-          { label: 'Payout History', route: '/fm/history', icon: 'history', description: 'All outgoing payment records and UTR tracking' },
+          { label: 'Dashboard', route: '/finance', icon: 'gauge', description: 'Finance overview — invoices, banking & alerts' },
         ],
       },
       {
-        label: 'Banking',
+        label: 'Finance',
         items: [
-          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts' },
+          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts', badge: 'alerts' },
+          { label: 'Trip Expenses', route: '/finance?tab=transactions&sub=trip-expenses', icon: 'receipt', description: 'Driver trip expenses from completed trips — pay & verify' },
+          { label: 'Expense Approvals', route: '/fm/expenses', icon: 'receipt', description: 'Review and approve expense receipts' },
+          { label: 'Driver Advances', route: '/fm/advances', icon: 'wallet', description: 'Issue trip advances to drivers' },
+          { label: 'Payables', route: '/fm/payables', icon: 'calendar', description: 'Recurring payments — rent, insurance, permits' },
+          { label: 'Payout History', route: '/fm/history', icon: 'clock', description: 'All outgoing payment records' },
         ],
       },
       {
         label: 'System',
         items: [
-          { label: 'Attendance', route: '/my-work/attendance', icon: 'clock', description: 'Mark daily attendance with camera check-in' },
           { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
         ],
       },
@@ -272,31 +271,25 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
   },
   ACCOUNTANT: {
     sections: [
-      { label: 'Overview', items: [{ label: 'Dashboard', route: '/accountant/dashboard', icon: 'home', description: 'Accountant overview — IFIAS status, bank reconciliation' }] },
       {
-        label: 'IFIAS',
+        label: 'Overview',
         items: [
-          { label: 'Invoice Workspace', route: '/accountant/invoice-workspace', icon: 'file', description: 'Britannia invoice automation — parse, validate, writeback', badge: 'new' },
+          { label: 'Dashboard', route: '/finance', icon: 'gauge', description: 'Finance overview — invoices, banking & alerts' },
         ],
       },
       {
         label: 'Finance',
         items: [
           { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts', badge: 'alerts' },
+          { label: 'Invoice Workspace', route: '/accountant/invoice-workspace', icon: 'file', description: 'Britannia invoice automation — parse, validate, writeback', badge: 'new' },
           { label: 'Bank Statement', route: '/accountant/banking', icon: 'bank', description: 'Download statements & Tally reconciliation' },
-          { label: 'Driver Advance', route: '/accountant/payments', icon: 'wallet', description: 'Backup: issue driver advances' },
-        ],
-      },
-      {
-        label: 'Compliance',
-        items: [
+          { label: 'Driver Advance', route: '/accountant/payments', icon: 'wallet', description: 'Issue driver advances' },
           { label: 'GST Verification', route: '/fleet/gst-verify', icon: 'receipt', description: 'Verify GSTIN and filing status' },
         ],
       },
       {
         label: 'System',
         items: [
-          { label: 'Attendance', route: '/my-work/attendance', icon: 'clock', description: 'Mark daily attendance with camera check-in' },
           { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
         ],
       },
@@ -390,7 +383,6 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
     label: 'Operations',
     roles: ['admin', 'manager', 'fleet_manager', 'project_associate'],
     items: [
-      { label: 'Jobs / Orders', path: '/jobs', permission: 'jobs:read' },
       { label: 'Lorry Receipts', path: '/lr', permission: 'lr:read' },
       { label: 'Trips', path: '/trips', permission: 'trips:read' },
       { label: 'Documents', path: '/documents', permission: 'documents:read' },

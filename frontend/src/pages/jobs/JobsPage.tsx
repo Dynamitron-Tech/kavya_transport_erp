@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { clientService, jobService } from '@/services/dataService';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import DataTable, { Column } from '@/components/common/DataTable';
-import { TabPills, Modal } from '@/components/common/Modal';
+import { Modal } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import { useAuthStore } from '@/store/authStore';
 import type { Job, FilterParams } from '@/types';
@@ -41,7 +41,6 @@ export default function JobsPage() {
   const { hasPermission } = useAuthStore();
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
   const [filters, setFilters] = useState<FilterParams>({ page: 1, page_size: 20 });
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editItem, setEditItem] = useState<Job | null>(null);
@@ -67,8 +66,8 @@ export default function JobsPage() {
   });
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['jobs', filters, statusFilter],
-    queryFn: () => jobService.list({ ...filters, status: statusFilter !== 'all' ? statusFilter : undefined }),
+    queryKey: ['jobs', filters],
+    queryFn: () => jobService.list({ ...filters }),
   });
 
   const { data: clientsData } = useQuery({
@@ -372,20 +371,6 @@ export default function JobsPage() {
         </div>
       </div>
 
-      <TabPills
-        tabs={[
-          { key: 'all', label: 'All Jobs' },
-          { key: 'draft', label: 'Draft' },
-          { key: 'pending_approval', label: 'Pending' },
-          { key: 'approved', label: 'Approved' },
-          { key: 'in_progress', label: 'In Progress' },
-          { key: 'completed', label: 'Completed' },
-          { key: 'on_hold', label: 'On Hold' },
-          { key: 'cancelled', label: 'Cancelled' },
-        ]}
-        activeTab={statusFilter}
-        onChange={(key) => { setStatusFilter(key); setFilters({ ...filters, page: 1 }); }}
-      />
 
       {viewMode === 'table' && (
       <DataTable

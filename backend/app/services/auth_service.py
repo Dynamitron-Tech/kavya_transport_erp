@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
-from app.models.postgres.user import User, UserRole, Role
+from app.models.postgres.user import User, UserRole, Role, user_roles
 from app.core.security import verify_password, get_password_hash, create_tokens, decode_token, create_access_token
 
 
@@ -61,10 +61,11 @@ async def authenticate_by_identifier(db: AsyncSession, identifier: str, password
 
 
 async def get_user_roles(db: AsyncSession, user_id: int) -> list[str]:
-    """Get role names for a user."""
+    """Get role names for a user (via user_roles association table)."""
     result = await db.execute(
-        select(Role.name).join(UserRole, UserRole.role_id == Role.id)
-        .where(UserRole.user_id == user_id)
+        select(Role.name)
+        .join(user_roles, user_roles.c.role_id == Role.id)
+        .where(user_roles.c.user_id == user_id)
     )
     return [row[0] for row in result.all()]
 
@@ -95,10 +96,13 @@ async def refresh_access_token(db: AsyncSession, refresh_token: str):
         return None
     
     roles = await get_user_roles(db, user_id)
+    from app.middleware.permissions import get_user_permissions
+    permissions = get_user_permissions(roles)
     access_token = create_access_token(
         user_id=user.id,
         email=user.email,
         roles=roles,
+        permissions=permissions,
         tenant_id=user.tenant_id,
         branch_id=user.branch_id,
     )

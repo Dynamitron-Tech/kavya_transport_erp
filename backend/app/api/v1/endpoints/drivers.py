@@ -593,6 +593,9 @@ async def mark_trip_reached(
     # Save arrival odometer on the trip and update the vehicle's odometer reading
     if end_odometer is not None:
         trip.end_odometer = end_odometer
+        # Compute actual distance from odometer difference
+        if trip.start_odometer:
+            trip.actual_distance_km = end_odometer - float(trip.start_odometer)
         if trip.vehicle_id:
             vehicle_result = await db.execute(
                 select(Vehicle).where(Vehicle.id == trip.vehicle_id)
@@ -1214,6 +1217,15 @@ async def upload_driver_document_for_fleet(
         )
         db.add(doc)
 
+    # If driver_photo, also update driver.photo_url and linked user.avatar_url
+    if document_type == "driver_photo" and file_url:
+        driver.photo_url = file_url
+        if driver.user_id:
+            user_result = await db.execute(select(User).where(User.id == driver.user_id))
+            linked_user = user_result.scalar_one_or_none()
+            if linked_user:
+                linked_user.avatar_url = file_url
+
     await db.commit()
     await db.refresh(doc)
 
@@ -1368,3 +1380,224 @@ async def get_driver_attendance(
     }
 
     return APIResponse(success=True, data={"items": items, "summary": summary})
+
+
+# ---------------------------------------------------------------------------
+# Fuel-Log / Mileage Tracking (Driver self-service)
+# ---------------------------------------------------------------------------
+
+@router.get("/me/fuel-vehicle", response_model=APIResponse)
+async def get_my_fuel_vehicle(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Return the vehicle assigned to the current driver (default_driver_id match)."""
+    driver = await _get_current_driver_profile(db, current_user)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    vehicle_result = await db.execute(
+        select(Vehicle).where(Vehicle.default_driver_id == driver.id, Vehicle.is_deleted == False)
+    )
+    vehicle = vehicle_result.scalar_one_or_none()
+
+    if not vehicle:
+        # Fallback: most recent active trip for this driver
+        trip_result = await db.execute(
+            select(Trip)
+            .where(Trip.driver_id == driver.id, Trip.is_deleted == False)
+            .order_by(Trip.id.desc())
+            .limit(1)
+        )
+        trip = trip_result.scalar_one_or_none()
+        if trip and trip.vehicle_id:
+            vehicle_result2 = await db.execute(
+                select(Vehicle).where(Vehicle.id == trip.vehicle_id, Vehicle.is_deleted == False)
+            )
+            vehicle = vehicle_result2.scalar_one_or_none()
+
+    if not vehicle:
+        return APIResponse(success=True, data=None)
+
+    from decimal import Decimal
+    data = {c.key: getattr(vehicle, c.key) for c in vehicle.__table__.columns}
+    # Coerce only Decimal fields to float for JSON (leave int IDs as int)
+    for k, v in data.items():
+        if isinstance(v, Decimal):
+            data[k] = float(v)
+        elif isinstance(v, (date, datetime)):
+            data[k] = v.isoformat()
+    return APIResponse(success=True, data=data)
+
+
+@router.get("/me/fuel-logs", response_model=APIResponse)
+async def list_my_fuel_logs(
+    vehicle_id: Optional[int] = None,
+    limit: int = Query(30, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """List full-tank fill-up logs for the driver's vehicle, newest first."""
+    from app.models.postgres.fuel_pump import VehicleFuelLog
+    from decimal import Decimal
+
+    driver = await _get_current_driver_profile(db, current_user)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    query = select(VehicleFuelLog).where(VehicleFuelLog.driver_id == driver.id)
+    if vehicle_id:
+        query = query.where(VehicleFuelLog.vehicle_id == vehicle_id)
+    # Secondary sort by odometer_km DESC so same-date fills are ordered correctly
+    query = query.order_by(VehicleFuelLog.fill_date.desc(), VehicleFuelLog.odometer_km.desc()).limit(limit)
+
+    result = await db.execute(query)
+    logs = result.scalars().all()
+
+    items = []
+    for log in logs:
+        d = {c.key: getattr(log, c.key) for c in log.__table__.columns}
+        for k, v in d.items():
+            if hasattr(v, '__float__'):
+                d[k] = float(v)
+            elif isinstance(v, datetime):
+                d[k] = v.isoformat()
+        items.append(d)
+
+    # Summary stats
+    rated_logs = [l for l in logs if l.km_per_litre is not None]
+    avg_kml = None
+    if rated_logs:
+        avg_kml = round(
+            float(sum(l.km_per_litre for l in rated_logs)) / len(rated_logs), 2
+        )
+    good = sum(1 for l in rated_logs if l.mileage_rating and l.mileage_rating.value == 'good')
+    medium = sum(1 for l in rated_logs if l.mileage_rating and l.mileage_rating.value == 'medium')
+    bad = sum(1 for l in rated_logs if l.mileage_rating and l.mileage_rating.value == 'bad')
+
+    return APIResponse(success=True, data={
+        "items": items,
+        "summary": {
+            "total_fills": len(logs),
+            "rated_fills": len(rated_logs),
+            "avg_km_per_litre": avg_kml,
+            "good_count": good,
+            "medium_count": medium,
+            "bad_count": bad,
+        },
+    })
+
+
+@router.post("/me/fuel-logs", response_model=APIResponse, status_code=201)
+async def create_fuel_log(
+    body: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Record a full-tank fill-up. Calculates mileage vs previous fill for this vehicle."""
+    from app.models.postgres.fuel_pump import VehicleFuelLog, MileageRating
+    from decimal import Decimal
+
+    driver = await _get_current_driver_profile(db, current_user)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver profile not found")
+
+    vehicle_id = body.get("vehicle_id")
+    if not vehicle_id:
+        raise HTTPException(status_code=400, detail="vehicle_id is required")
+
+    # Verify vehicle exists
+    vehicle_result = await db.execute(
+        select(Vehicle).where(Vehicle.id == vehicle_id, Vehicle.is_deleted == False)
+    )
+    vehicle = vehicle_result.scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    odometer_km = Decimal(str(body.get("odometer_km", 0)))
+    litres_filled = Decimal(str(body.get("litres_filled", 0)))
+
+    if odometer_km <= 0 or litres_filled <= 0:
+        raise HTTPException(status_code=400, detail="odometer_km and litres_filled must be > 0")
+
+    fill_date_raw = body.get("fill_date")
+    if fill_date_raw:
+        try:
+            fill_date = datetime.fromisoformat(fill_date_raw.replace("Z", "+00:00"))
+        except Exception:
+            fill_date = datetime.now()
+    else:
+        fill_date = datetime.now()
+
+    # Find the fill immediately before this one (lower odometer reading)
+    prev_result = await db.execute(
+        select(VehicleFuelLog)
+        .where(
+            VehicleFuelLog.vehicle_id == vehicle_id,
+            VehicleFuelLog.odometer_km < odometer_km,
+        )
+        .order_by(VehicleFuelLog.odometer_km.desc())
+        .limit(1)
+    )
+    prev_log = prev_result.scalar_one_or_none()
+
+    km_since = None
+    km_per_litre = None
+    mileage_rating = None
+    expected_kml = float(vehicle.mileage_per_litre) if vehicle.mileage_per_litre else None
+
+    if prev_log and prev_log.odometer_km is not None:
+        km_since = float(odometer_km) - float(prev_log.odometer_km)
+        if km_since > 0 and float(litres_filled) > 0:
+            km_per_litre = round(km_since / float(litres_filled), 2)
+            if expected_kml and expected_kml > 0:
+                ratio = km_per_litre / expected_kml
+                if ratio >= 0.90:
+                    mileage_rating = MileageRating.GOOD
+                elif ratio >= 0.75:
+                    mileage_rating = MileageRating.MEDIUM
+                else:
+                    mileage_rating = MileageRating.BAD
+
+    log = VehicleFuelLog(
+        vehicle_id=vehicle_id,
+        driver_id=driver.id,
+        fill_date=fill_date,
+        odometer_km=odometer_km,
+        litres_filled=litres_filled,
+        fuel_type=body.get("fuel_type", "diesel"),
+        pump_name=body.get("pump_name"),
+        pump_location=body.get("pump_location"),
+        notes=body.get("notes"),
+        prev_log_id=prev_log.id if prev_log else None,
+        km_since_last_fill=Decimal(str(round(km_since, 1))) if km_since is not None else None,
+        km_per_litre=Decimal(str(km_per_litre)) if km_per_litre is not None else None,
+        expected_km_per_litre=Decimal(str(expected_kml)) if expected_kml else None,
+        mileage_rating=mileage_rating,
+        tenant_id=current_user.tenant_id if hasattr(current_user, 'tenant_id') else None,
+    )
+    db.add(log)
+    await db.flush()
+    await db.commit()
+
+    d = {c.key: getattr(log, c.key) for c in log.__table__.columns}
+    for k, v in d.items():
+        if hasattr(v, '__float__'):
+            d[k] = float(v)
+        elif isinstance(v, datetime):
+            d[k] = v.isoformat()
+    if log.mileage_rating:
+        d['mileage_rating'] = log.mileage_rating.value
+
+    return APIResponse(
+        success=True,
+        message="Fuel log recorded",
+        data={
+            **d,
+            "km_per_litre": km_per_litre,
+            "km_since_last_fill": round(km_since, 1) if km_since else None,
+            "mileage_rating": mileage_rating.value if mileage_rating else None,
+            "expected_km_per_litre": expected_kml,
+        },
+    )
+

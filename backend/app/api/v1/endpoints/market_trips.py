@@ -1,5 +1,5 @@
 # Market Trip Management Endpoints
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
@@ -158,3 +158,151 @@ async def get_pnl(
     if not pnl:
         raise HTTPException(status_code=404, detail="Market trip not found")
     return APIResponse(success=True, data=pnl)
+
+
+# ── Market Driver Self-Service Endpoints ───────────────────────────────────────
+# These endpoints are called by the market driver app after phone OTP login.
+# The JWT encodes role='market_driver' and email='mktdriver:{phone}'.
+
+def _require_market_driver(current_user: TokenData) -> str:
+    """Extract and return driver phone from token, or raise 403."""
+    if "market_driver" not in current_user.roles:
+        raise HTTPException(status_code=403, detail="Market driver access only")
+    # email field encodes: 'mktdriver:9876543210'
+    if not current_user.email.startswith("mktdriver:"):
+        raise HTTPException(status_code=403, detail="Malformed market driver token")
+    return current_user.email.replace("mktdriver:", "")
+
+
+@router.get("/my-trips", response_model=APIResponse)
+async def my_trips(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """
+    Returns all market trips assigned to the authenticated market driver
+    (matched by driver_phone in the token).
+    """
+    from sqlalchemy import select
+    from app.models.postgres.market_trip import MarketTrip
+
+    phone = _require_market_driver(current_user)
+
+    result = await db.execute(
+        select(MarketTrip)
+        .where(MarketTrip.driver_phone == phone)
+        .order_by(MarketTrip.created_at.desc())
+        .limit(50)
+    )
+    trips = result.scalars().all()
+    items = []
+    for t in trips:
+        row = {}
+        for c in t.__table__.columns:
+            val = getattr(t, c.key)
+            row[c.key] = val.value if hasattr(val, "value") else val
+        row["margin"] = t.margin
+        items.append(row)
+    return APIResponse(success=True, data=items)
+
+
+@router.put("/{trip_id}/driver-status", response_model=APIResponse)
+async def driver_update_status(
+    trip_id: int,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """
+    Market driver updates their trip status.
+    Allowed transitions: pending→in_transit, in_transit→delivered.
+    Only the driver phone on the trip can call this.
+    """
+    from sqlalchemy import select
+    from app.models.postgres.market_trip import MarketTrip
+
+    phone = _require_market_driver(current_user)
+
+    result = await db.execute(select(MarketTrip).where(MarketTrip.id == trip_id))
+    trip = result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if trip.driver_phone != phone:
+        raise HTTPException(status_code=403, detail="This trip is not assigned to you")
+
+    from app.models.postgres.market_trip import MarketTripStatus
+
+    new_status_str = payload.get("status", "").strip().upper()
+    allowed_transitions: dict[MarketTripStatus, MarketTripStatus] = {
+        MarketTripStatus.PENDING: MarketTripStatus.IN_TRANSIT,
+        MarketTripStatus.ASSIGNED: MarketTripStatus.IN_TRANSIT,
+        MarketTripStatus.IN_TRANSIT: MarketTripStatus.DELIVERED,
+    }
+    try:
+        new_status_enum = MarketTripStatus(new_status_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid status value: '{new_status_str}'")
+
+    if allowed_transitions.get(trip.status) != new_status_enum:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot transition from '{trip.status.value}' to '{new_status_str}'",
+        )
+
+    from datetime import datetime, timezone
+    trip.status = new_status_enum
+    if new_status_enum == MarketTripStatus.IN_TRANSIT:
+        trip.assigned_at = datetime.now(timezone.utc)
+    elif new_status_enum == MarketTripStatus.DELIVERED:
+        trip.delivered_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    return APIResponse(success=True, message=f"Trip status updated to '{new_status_enum.value}'")
+
+
+@router.post("/{trip_id}/pod", response_model=APIResponse)
+async def upload_pod(
+    trip_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """
+    Market driver uploads a Proof-of-Delivery (POD) image/PDF.
+    Saves to uploads/trip_photos/ and stores the URL on the market trip.
+    """
+    import asyncio
+    import time
+    from pathlib import Path
+    from sqlalchemy import select
+    from app.models.postgres.market_trip import MarketTrip
+
+    phone = _require_market_driver(current_user)
+
+    result = await db.execute(select(MarketTrip).where(MarketTrip.id == trip_id))
+    trip = result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if trip.driver_phone != phone:
+        raise HTTPException(status_code=403, detail="This trip is not assigned to you")
+
+    # Validate file size (max 10 MB)
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 10 MB)")
+
+    # Save to disk
+    ext = Path(file.filename or "pod.jpg").suffix or ".jpg"
+    safe_ext = ext.lower() if ext.lower() in {".jpg", ".jpeg", ".png", ".pdf"} else ".jpg"
+    filename = f"mkt_{trip_id}_pod_{int(time.time())}{safe_ext}"
+    save_dir = Path(__file__).resolve().parents[4] / "uploads" / "trip_photos"
+    save_dir.mkdir(parents=True, exist_ok=True)
+    save_path = save_dir / filename
+
+    await asyncio.to_thread(save_path.write_bytes, content)
+
+    url = f"/uploads/trip_photos/{filename}"
+    trip.dl_file_url = url
+    await db.commit()
+
+    return APIResponse(success=True, data={"url": url}, message="POD uploaded")

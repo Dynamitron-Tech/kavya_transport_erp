@@ -27,9 +27,6 @@ import DriverExpensesPage from '@/pages/driver/DriverExpensesPage';
 import DriverDocumentsPage from '@/pages/driver/DriverDocumentsPage';
 
 // Operations
-import JobsPage from '@/pages/jobs/JobsPage';
-import JobDetailPage from '@/pages/jobs/JobDetailPage';
-import CreateJobPage from '@/pages/jobs/CreateJobPage';
 import LRListPage from '@/pages/lr/LRListPage';
 import LRDetailPage from '@/pages/lr/LRDetailPage';
 import CreateLRPage from '@/pages/lr/CreateLRPage';
@@ -128,6 +125,7 @@ import SalaryPaymentsPage from '@/pages/finance-manager/SalaryPaymentsPage';
 import ExpenseApprovalsPage from '@/pages/finance-manager/ExpenseApprovalsPage';
 import PayablesDashboardPage from '@/pages/finance-manager/PayablesDashboardPage';
 import PayoutHistoryPage from '@/pages/finance-manager/PayoutHistoryPage';
+import TripExpensesPage from '@/pages/finance-manager/TripExpensesPage';
 
 // IFIAS (Accountant)
 import InvoiceWorkspacePage from '@/pages/finance/InvoiceWorkspacePage';
@@ -178,12 +176,6 @@ function App() {
           <Route path="/my-work/attendance" element={<DriverAttendancePage />} />
           <Route path="/driver/expenses" element={<DriverExpensesPage />} />
           <Route path="/driver/documents" element={<DriverDocumentsPage />} />
-
-          {/* Jobs */}
-          <Route path="/jobs" element={<JobsPage />} />
-          <Route path="/jobs/new" element={<CreateJobPage />} />
-          <Route path="/jobs/:id/edit" element={<CreateJobPage />} />
-          <Route path="/jobs/:id" element={<JobDetailPage />} />
 
           {/* LR */}
           <Route path="/lr" element={<LRListPage />} />
@@ -303,6 +295,7 @@ function App() {
           <Route path="/fm/salary" element={<SalaryPaymentsPage />} />
           <Route path="/fm/advances" element={<SalaryPaymentsPage />} />
           <Route path="/fm/expenses" element={<ExpenseApprovalsPage />} />
+          <Route path="/fm/trip-expenses" element={<TripExpensesPage />} />
           <Route path="/fm/payables" element={<PayablesDashboardPage />} />
           <Route path="/fm/history" element={<PayoutHistoryPage />} />
 
@@ -377,8 +370,12 @@ function App() {
         <Route path="/portal/supplier" element={<SupplierLoginPage />} />
         <Route path="/portal/supplier/dashboard" element={<SupplierDashboardPage />} />
 
-        {/* Root redirect */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* Root redirect — send each role to their home page */}
+        <Route path="/" element={
+          isAuthenticated
+            ? <Navigate to={getRoleHomePage(user?.roles?.[0])} replace />
+            : <Navigate to="/login" replace />
+        } />
 
         {/* Catch all */}
         <Route path="*" element={<NotFoundPage />} />

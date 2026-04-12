@@ -12,6 +12,7 @@ from app.middleware.permissions import require_permission, Permissions
 from app.schemas.base import APIResponse, PaginationMeta
 from app.schemas.vehicle import VehicleCreate, VehicleUpdate
 from app.services import vehicle_service
+from app.models.postgres.driver import Driver
 
 router = APIRouter()
 
@@ -27,12 +28,25 @@ async def list_vehicles(
 ):
     vehicles, total = await vehicle_service.list_vehicles(db, page, limit, search, status, vehicle_type)
     pages = (total + limit - 1) // limit
+
+    # Batch-fetch assigned driver names to avoid N+1 queries
+    driver_ids = list({v.default_driver_id for v in vehicles if v.default_driver_id})
+    driver_name_map: dict = {}
+    if driver_ids:
+        dr_result = await db.execute(
+            select(Driver.id, Driver.first_name, Driver.last_name)
+            .where(Driver.id.in_(driver_ids), Driver.is_deleted == False)
+        )
+        for row in dr_result.all():
+            driver_name_map[row.id] = f"{row.first_name} {row.last_name or ''}".strip()
+
     items = []
     for v in vehicles:
         d = {c.key: getattr(v, c.key) for c in v.__table__.columns}
         d["expiry_alerts"] = vehicle_service.get_expiry_alerts(v)
         d["gps_enabled"] = bool(v.gps_device_id or v.current_latitude)
         d["total_km_run"] = float(v.odometer_reading or 0)
+        d["assigned_driver"] = driver_name_map.get(v.default_driver_id) if v.default_driver_id else None
         items.append(d)
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../providers/fleet_dashboard_provider.dart';
+import 'driver_trip_detail_screen.dart' show tripHasExpensesProvider;
 
 // ═══════════════════════════════════════════════════════════════
 //  Driver Expense Entry Screen — per trip
@@ -455,7 +456,8 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
 
     final bool hasAny = (loading != null && loading > 0) ||
         (unloading != null && unloading > 0) ||
-        _repairs.any((r) => double.tryParse(r.amountCtrl.text.trim()) != null) ||
+        _repairs.any((r) => (double.tryParse(r.amountCtrl.text.trim()) ?? 0) > 0) ||
+        _tolls.any((t) => (double.tryParse(t.amountCtrl.text.trim()) ?? 0) > 0) ||
         (fuelAmount != null && fuelAmount > 0);
 
     if (!hasAny) {
@@ -506,6 +508,7 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
       }
 
       if (mounted) {
+        ref.invalidate(tripHasExpensesProvider(tripId));
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Expenses submitted successfully!'),
@@ -517,8 +520,28 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
     } catch (e) {
       setState(() => _isSubmitting = false);
       if (mounted) {
+        // Extract actual server error message if available
+        String errorMsg = 'Failed to submit expenses';
+        try {
+          final dynamic dioErr = e;
+          final response = (dioErr as dynamic).response;
+          if (response != null) {
+            final data = response.data;
+            if (data is Map) {
+              errorMsg = data['detail']?.toString() ?? data['message']?.toString() ?? errorMsg;
+            } else if (data is String && data.isNotEmpty) {
+              errorMsg = data;
+            }
+          }
+        } catch (_) {
+          errorMsg = e.toString();
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit: $e'), backgroundColor: KTColors.danger),
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: KTColors.danger,
+            duration: const Duration(seconds: 8),
+          ),
         );
       }
     }

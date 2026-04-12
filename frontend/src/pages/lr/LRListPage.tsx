@@ -9,7 +9,7 @@ import { Modal, StatusBadge } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import { useAuthStore } from '@/store/authStore';
 import type { LR, FilterParams } from '@/types';
-import { CheckCircle, Pencil, Trash2, XCircle } from 'lucide-react';
+import { CheckCircle, Pencil, Trash2, XCircle, Truck, ShoppingCart } from 'lucide-react';
 import { safeArray } from '@/utils/helpers';
 import { exportTableToPdf } from '@/utils/pdfExport';
 import { handleApiError } from '../../utils/handleApiError';
@@ -19,6 +19,7 @@ export default function LRListPage() {
   const qc = useQueryClient();
   const { hasPermission } = useAuthStore();
   const [filters, setFilters] = useState<FilterParams>({ page: 1, page_size: 20 });
+  const [transportTab, setTransportTab] = useState<'' | 'fleet' | 'market'>('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deleteItem, setDeleteItem] = useState<LR | null>(null);
   const [editItem, setEditItem] = useState<LR | null>(null);
@@ -48,8 +49,8 @@ export default function LRListPage() {
   });
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['lr', filters],
-    queryFn: () => lrService.list(filters),
+    queryKey: ['lr', filters, transportTab],
+    queryFn: () => lrService.list({ ...filters, transport_type: transportTab || undefined } as any),
   });
 
   const { data: jobsData } = useQuery({
@@ -280,6 +281,28 @@ export default function LRListPage() {
           <h1 className="page-title">Lorry Receipts</h1>
           <p className="page-subtitle">Manage LR generation, tracking, and POD verification</p>
         </div>
+      </div>
+
+      {/* Fleet / Market tabs */}
+      <div className="flex gap-1 border-b border-gray-200">
+        {([
+          { key: '' as const, label: 'All LRs', icon: null },
+          { key: 'fleet' as const, label: 'Fleet Trips', icon: Truck },
+          { key: 'market' as const, label: 'Market Trips', icon: ShoppingCart },
+        ] as { key: '' | 'fleet' | 'market'; label: string; icon: any }[]).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => { setTransportTab(key); setFilters({ ...filters, page: 1 }); }}
+            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              transportTab === key
+                ? 'border-primary-600 text-primary-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {Icon && <Icon size={14} />}
+            {label}
+          </button>
+        ))}
       </div>
 
       <DataTable

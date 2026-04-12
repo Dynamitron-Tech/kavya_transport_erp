@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user, create_tokens, decode_token, bearer_scheme
-from app.schemas.auth import LoginRequest, OtpVerifyRequest, TokenResponse, UserInfo, RefreshRequest, ChangePasswordRequest, UpdatePhotoRequest
+from app.schemas.auth import LoginRequest, OtpVerifyRequest, TokenResponse, UserInfo, RefreshRequest, ChangePasswordRequest, UpdatePhotoRequest, MarketDriverOtpSendRequest, MarketDriverOtpVerifyRequest, MarketDriverOtpResendRequest
 from app.schemas.base import APIResponse
 from app.services.auth_service import authenticate_by_identifier, authenticate_user, get_user_roles, refresh_access_token, change_password, get_user_by_id
 from app.middleware.permissions import get_user_permissions
@@ -207,3 +207,140 @@ async def logout(
     )
     await db.commit()
     return APIResponse(success=True, message="Logged out successfully")
+
+
+# ── Market Driver OTP Login (phone-based, no password) ─────────────────────────
+
+def _mask_phone_local(phone: str) -> str:
+    """Return something like +91 XXXXX X7400"""
+    clean = phone.strip().lstrip("+")
+    if len(clean) >= 10:
+        digits = clean[-10:]
+        return f"+91 XXXXX X{digits[-4:]}"
+    return "XXXXXXXXXX"
+
+
+@router.post("/market-driver/send-otp", response_model=APIResponse)
+async def market_driver_send_otp(data: MarketDriverOtpSendRequest):
+    """
+    Step 1: Market driver enters their phone number.
+    We call MSG91 Widget to initiate OTP delivery and store a session.
+    """
+    from app.services.msg91_service import send_otp_msg91
+    from app.services.otp_service import create_market_driver_otp_session
+
+    # Normalise phone to 10 digits for storage/lookup
+    phone = data.phone.strip().lstrip("+").lstrip("91")
+    if len(phone) != 10 or not phone.isdigit():
+        raise HTTPException(status_code=400, detail="Enter a valid 10-digit Indian mobile number")
+
+    # Send OTP via MSG91
+    success, msg91_token = await send_otp_msg91("91" + phone)
+    if not success:
+        raise HTTPException(status_code=503, detail=f"Could not send OTP: {msg91_token}")
+
+    # Store session in MongoDB
+    session_id = await create_market_driver_otp_session(phone)
+
+    return APIResponse(success=True, data={
+        "session_id": session_id,
+        "phone_masked": _mask_phone_local(phone),
+        # msg91_token is the Widget access-token the client needs to return during verify
+        "msg91_token": msg91_token,
+    }, message="OTP sent to your registered number")
+
+
+@router.post("/market-driver/resend-otp", response_model=APIResponse)
+async def market_driver_resend_otp(data: MarketDriverOtpResendRequest):
+    """
+    Resend OTP: look up the session to get the phone, then re-initiate with MSG91.
+    """
+    from app.services.msg91_service import send_otp_msg91
+    from app.services.otp_service import get_phone_from_session, create_market_driver_otp_session
+
+    phone = await get_phone_from_session(data.session_id)
+    if not phone:
+        raise HTTPException(status_code=404, detail="Session not found or expired — please start again")
+
+    success, msg91_token = await send_otp_msg91("91" + phone)
+    if not success:
+        raise HTTPException(status_code=503, detail=f"Could not resend OTP: {msg91_token}")
+
+    # Create a fresh session for the same phone
+    new_session_id = await create_market_driver_otp_session(phone)
+
+    return APIResponse(success=True, data={
+        "session_id": new_session_id,
+        "phone_masked": _mask_phone_local(phone),
+        "msg91_token": msg91_token,
+    }, message="OTP resent")
+
+
+@router.post("/market-driver/verify-otp", response_model=APIResponse)
+async def market_driver_verify_otp(data: MarketDriverOtpVerifyRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Step 2: Client sends back session_id + MSG91 access_token.
+    We verify the token with MSG91, look up market trips for the driver's phone,
+    and issue a JWT with role 'market_driver'.
+    """
+    from app.services.msg91_service import verify_otp_msg91
+    from app.services.otp_service import get_market_driver_otp_session, mark_market_driver_otp_verified
+    from sqlalchemy import text
+
+    # 1. Retrieve our local session
+    session = await get_market_driver_otp_session(data.session_id)
+    if not session:
+        raise HTTPException(status_code=401, detail="Session expired — request a new OTP")
+    if session.get("verified"):
+        raise HTTPException(status_code=401, detail="OTP already used")
+
+    # 2. Verify the MSG91 access-token (the actual OTP check)
+    is_valid, msg = await verify_otp_msg91(data.access_token, data.otp_code)
+    if not is_valid:
+        raise HTTPException(status_code=401, detail=msg or "Invalid or expired OTP")
+
+    # 3. Mark session consumed
+    await mark_market_driver_otp_verified(data.session_id)
+
+    phone = session["phone"]  # 10-digit, no country code
+
+    # 4. Look up market trips for this driver phone to verify they have active trips
+    result = await db.execute(
+        text("SELECT id, driver_name FROM market_trips WHERE driver_phone = :phone LIMIT 1"),
+        {"phone": phone},
+    )
+    trip_row = result.fetchone()
+
+    # 5. Issue a JWT for the market driver.
+    #    We use a synthetic user_id = 0 and embed the phone in the email field
+    #    so routes can use it for filtering.  Role = 'market_driver'.
+    from app.core.security import create_access_token, create_refresh_token, Token
+    from app.core.config import settings
+    from datetime import timedelta
+
+    driver_name = trip_row[1] if trip_row else "Driver"
+    access_token = create_access_token(
+        user_id=0,  # synthetic — market drivers are not Users table rows
+        email=f"mktdriver:{phone}",  # encode phone in email field for routing
+        roles=["market_driver"],
+        permissions=["market_trips:read", "market_trips:update_status"],
+        expires_delta=timedelta(days=7),
+    )
+    refresh_tok = create_refresh_token(
+        user_id=0,
+        email=f"mktdriver:{phone}",
+        expires_delta=timedelta(days=30),
+    )
+
+    return APIResponse(success=True, data={
+        "access_token": access_token,
+        "refresh_token": refresh_tok,
+        "token_type": "bearer",
+        "user": {
+            "id": 0,
+            "phone": phone,
+            "name": driver_name,
+            "roles": ["market_driver"],
+            "redirect_to": "/market-driver/trips",
+        },
+    }, message="Login successful")

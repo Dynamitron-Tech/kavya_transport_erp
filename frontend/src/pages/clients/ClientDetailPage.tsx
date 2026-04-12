@@ -323,7 +323,7 @@ export default function ClientDetailPage() {
             <button onClick={() => navigate('/lr/new')} className="btn-primary w-full text-sm flex items-center justify-center gap-2"><Plus size={14} /> Create LR</button>
             <button onClick={() => navigate(`/finance/invoices?client_id=${id}`)} className="btn-secondary w-full text-sm">View Invoices</button>
             <button onClick={() => navigate(`/finance/ledger?client_id=${id}`)} className="btn-secondary w-full text-sm">View Ledger</button>
-            <button onClick={() => navigate(`/jobs?client_id=${id}`)} className="btn-secondary w-full text-sm">All Jobs</button>
+
           </div>
         </div>
       </div>
