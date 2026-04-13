@@ -28,6 +28,20 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     logger.info("Starting Transport ERP API...")
+
+    # Strict OCR mode validation:
+    # At least one extraction backend must be configured.
+    has_any_extraction = (
+        settings.USE_LOCAL_DONUT
+        or settings.USE_LOCAL_TESSERACT
+        or settings.HAS_VALID_ANTHROPIC_API_KEY
+        or settings.HAS_VALID_HF_API_KEY
+    )
+    if not has_any_extraction:
+        raise RuntimeError(
+            "OCR startup validation failed: No extraction backend configured. "
+            "Set HF_API_KEY (recommended), ANTHROPIC_API_KEY, or enable USE_LOCAL_DONUT/USE_LOCAL_TESSERACT."
+        )
     
     # Initialize PostgreSQL (graceful - skip if unavailable)
     try:

@@ -6,7 +6,6 @@
  * Install: npm install tesseract.js
  */
 
-import { createWorker, Worker } from 'tesseract.js';
 import api from './api';
 import {
   detectDocType,
@@ -14,6 +13,7 @@ import {
   DocumentType,
   ExtractedFields,
 } from '@/utils/fieldExtractor';
+import type { Worker } from 'tesseract.js';
 
 // ─── Suppress harmless Tesseract WASM warnings ───────────────────────────────
 // The WASM bridge writes these directly to console.warn, bypassing JS errorHandler.
@@ -23,13 +23,19 @@ const _TESSERACT_NOISE = [
   'Image too small to scale',
 ];
 const _origConsoleWarn = console.warn;
-console.warn = function (...args: unknown[]) {
-  if (args.length > 0 && typeof args[0] === 'string') {
-    const msg = args[0] as string;
-    if (_TESSERACT_NOISE.some(n => msg.includes(n))) return;
-  }
-  _origConsoleWarn.apply(console, args);
-};
+let _tesseractWarnPatched = false;
+
+function ensureTesseractWarnPatch() {
+  if (_tesseractWarnPatched) return;
+  console.warn = function (...args: unknown[]) {
+    if (args.length > 0 && typeof args[0] === 'string') {
+      const msg = args[0] as string;
+      if (_TESSERACT_NOISE.some(n => msg.includes(n))) return;
+    }
+    _origConsoleWarn.apply(console, args);
+  };
+  _tesseractWarnPatched = true;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -71,6 +77,8 @@ export async function initOCR(
   languages: string[] = ['eng', 'hin'],
   onProgress?: (p: number) => void,
 ): Promise<void> {
+  ensureTesseractWarnPatch();
+
   const langStr = languages.join('+');
 
   // Already initialised with the same languages
@@ -88,6 +96,7 @@ export async function initOCR(
       _worker = null;
     }
 
+    const { createWorker } = await import('tesseract.js');
     _worker = await createWorker(langStr, 1, {
       logger: (m) => {
         if (m.status === 'recognizing text' && onProgress) {
@@ -683,7 +692,10 @@ export async function runServerOCR(
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
-  const raw = (response as any)?.data ?? response;
+  // `api` interceptor returns `response.data`, which for this endpoint is APIResponse.
+  // Accept both envelope shape { success, data } and flat shape.
+  const envelope = response as any;
+  const raw = (envelope && envelope.data && typeof envelope.data === 'object') ? envelope.data : envelope;
 
   const rawText: string = raw.raw_text ?? '';
   const lines: string[] = raw.lines ?? [];

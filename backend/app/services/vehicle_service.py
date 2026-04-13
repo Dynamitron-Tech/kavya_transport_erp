@@ -1,6 +1,6 @@
 # Vehicle Service - CRUD + Fleet operations
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, text
 from datetime import date, timedelta
 
 from app.models.postgres.vehicle import (
@@ -147,23 +147,38 @@ async def get_vehicles_expiring_soon(db: AsyncSession, days: int = 30):
 
 async def get_fleet_summary(db: AsyncSession) -> dict:
     """Get fleet-wide status summary."""
-    total = (await db.execute(
-        select(func.count(Vehicle.id)).where(Vehicle.is_deleted == False)
-    )).scalar() or 0
+    # Use narrow SQL aggregates against only required columns.
+    # This avoids selecting all ORM-mapped columns (which may include
+    # optional columns missing in older DB schemas).
+    total = (await db.execute(text(
+        "SELECT COUNT(*) FROM vehicles WHERE is_deleted = false"
+    ))).scalar() or 0
 
-    available = (await db.execute(
-        select(func.count(Vehicle.id)).where(Vehicle.is_deleted == False, Vehicle.status == VehicleStatus.AVAILABLE)
-    )).scalar() or 0
+    available = (await db.execute(text(
+        "SELECT COUNT(*) FROM vehicles WHERE is_deleted = false AND status = 'AVAILABLE'"
+    ))).scalar() or 0
 
-    on_trip = (await db.execute(
-        select(func.count(Vehicle.id)).where(Vehicle.is_deleted == False, Vehicle.status == VehicleStatus.ON_TRIP)
-    )).scalar() or 0
+    on_trip = (await db.execute(text(
+        "SELECT COUNT(*) FROM vehicles WHERE is_deleted = false AND status = 'ON_TRIP'"
+    ))).scalar() or 0
 
-    maintenance = (await db.execute(
-        select(func.count(Vehicle.id)).where(Vehicle.is_deleted == False, Vehicle.status == VehicleStatus.MAINTENANCE)
-    )).scalar() or 0
+    maintenance = (await db.execute(text(
+        "SELECT COUNT(*) FROM vehicles WHERE is_deleted = false AND status = 'MAINTENANCE'"
+    ))).scalar() or 0
 
-    expiring = len(await get_vehicles_expiring_soon(db, 30))
+    expiring = (await db.execute(text(
+        """
+        SELECT COUNT(*)
+        FROM vehicles
+        WHERE is_deleted = false
+          AND (
+            fitness_valid_until <= CURRENT_DATE + INTERVAL '30 day'
+            OR permit_valid_until <= CURRENT_DATE + INTERVAL '30 day'
+            OR insurance_valid_until <= CURRENT_DATE + INTERVAL '30 day'
+            OR puc_valid_until <= CURRENT_DATE + INTERVAL '30 day'
+          )
+        """
+    ))).scalar() or 0
 
     return {
         "total_vehicles": total,

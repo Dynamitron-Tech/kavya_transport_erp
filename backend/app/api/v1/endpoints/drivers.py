@@ -12,14 +12,37 @@ from app.middleware.permissions import require_permission, Permissions
 from app.schemas.base import APIResponse, PaginationMeta
 from app.schemas.driver import DriverCreate, DriverUpdate, DriverLicenseCreate
 from app.services import driver_service, trip_service
-from app.models.postgres.driver import Driver, DriverDocument
+from app.models.postgres.driver import Driver, DriverDocument, DriverLicense, LicenseType
 from app.models.postgres.document import Document, EntityType
 from app.models.postgres.trip import Trip
 from app.models.postgres.lr import LR
 from app.models.postgres.user import User
 from app.models.postgres.vehicle import Vehicle, VehicleDocument
+from app.services.document_extraction_service import DocumentExtractionService
 
 router = APIRouter()
+
+
+_DRIVER_DOC_TYPE_ALIASES = {
+    "license": "driving_license",
+}
+
+
+def _normalize_driver_doc_type(value: str) -> str:
+    key = (value or "").strip().lower()
+    return _DRIVER_DOC_TYPE_ALIASES.get(key, key)
+
+
+def _parse_ocr_date(value: Optional[str]) -> Optional[date]:
+    if not value:
+        return None
+    raw = value.strip()
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(raw, fmt).date()
+        except ValueError:
+            continue
+    return None
 
 
 async def _get_current_driver_profile(db: AsyncSession, current_user: TokenData) -> Optional[Driver]:
@@ -784,7 +807,8 @@ async def upload_my_document(
 ):
     """Upload a personal document (license, aadhaar, badge, medical cert)."""
     ALLOWED_TYPES = ["driving_license", "aadhaar_card", "driver_badge", "medical_fitness"]
-    if document_type not in ALLOWED_TYPES:
+    normalized_document_type = _normalize_driver_doc_type(document_type)
+    if normalized_document_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail=f"Invalid document_type. Allowed: {ALLOWED_TYPES}")
 
     driver = await db.execute(
@@ -797,7 +821,7 @@ async def upload_my_document(
     existing = await db.execute(
         select(DriverDocument).where(
             DriverDocument.driver_id == driver.id,
-            DriverDocument.document_type == document_type,
+            DriverDocument.document_type == normalized_document_type,
         )
     )
     if existing.scalar_one_or_none():
@@ -808,9 +832,26 @@ async def upload_my_document(
     folder = f"driver-documents/{driver.id}"
     result = await s3_service.upload_file(content, file.filename, folder, file.content_type)
 
+    extracted_issue_date: Optional[date] = None
+    extracted_expiry_date: Optional[date] = None
+    if normalized_document_type == "driving_license":
+        try:
+            extraction = await DocumentExtractionService().extract(
+                document_type="driving_license",
+                file_bytes=content,
+                media_type=file.content_type or "application/octet-stream",
+            )
+            extracted = extraction.get("data") if isinstance(extraction.get("data"), dict) else {}
+            if not document_number:
+                document_number = extracted.get("license_number") or extracted.get("dl_number")
+            extracted_issue_date = _parse_ocr_date(extracted.get("issue_date"))
+            extracted_expiry_date = _parse_ocr_date(extracted.get("expiry_date"))
+        except Exception:
+            pass
+
     doc = DriverDocument(
         driver_id=driver.id,
-        document_type=document_type,
+        document_type=normalized_document_type,
         document_number=document_number,
         file_url=result.get("url", ""),
         is_verified=False,
@@ -818,6 +859,39 @@ async def upload_my_document(
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
+
+    if normalized_document_type == "driving_license":
+        try:
+            existing_license = await db.execute(
+                select(DriverLicense)
+                .where(DriverLicense.driver_id == driver.id)
+                .order_by(DriverLicense.id.desc())
+            )
+            license_row = existing_license.scalars().first()
+            if license_row:
+                if document_number:
+                    license_row.license_number = document_number
+                if extracted_issue_date:
+                    license_row.issue_date = extracted_issue_date
+                if extracted_expiry_date:
+                    license_row.expiry_date = extracted_expiry_date
+                license_row.file_url = result.get("url", license_row.file_url)
+                await db.commit()
+            elif document_number and extracted_expiry_date:
+                db.add(
+                    DriverLicense(
+                        driver_id=driver.id,
+                        license_number=document_number,
+                        license_type=LicenseType.TRANSPORT,
+                        issue_date=extracted_issue_date,
+                        expiry_date=extracted_expiry_date,
+                        is_verified=False,
+                        file_url=result.get("url", ""),
+                    )
+                )
+                await db.commit()
+        except Exception:
+            pass
 
     return APIResponse(
         success=True,
@@ -857,12 +931,49 @@ async def update_my_document(
     folder = f"driver-documents/{driver.id}"
     upload_result = await s3_service.upload_file(content, file.filename, folder, file.content_type)
 
+    extracted_issue_date: Optional[date] = None
+    extracted_expiry_date: Optional[date] = None
+    resolved_document_number = document_number
+    if doc.document_type == "driving_license" and not resolved_document_number:
+        try:
+            extraction = await DocumentExtractionService().extract(
+                document_type="driving_license",
+                file_bytes=content,
+                media_type=file.content_type or "application/octet-stream",
+            )
+            extracted = extraction.get("data") if isinstance(extraction.get("data"), dict) else {}
+            resolved_document_number = extracted.get("license_number") or extracted.get("dl_number")
+            extracted_issue_date = _parse_ocr_date(extracted.get("issue_date"))
+            extracted_expiry_date = _parse_ocr_date(extracted.get("expiry_date"))
+        except Exception:
+            pass
+
     doc.file_url = upload_result.get("url", doc.file_url)
     doc.is_verified = False
-    if document_number:
-        doc.document_number = document_number
+    if resolved_document_number:
+        doc.document_number = resolved_document_number
     await db.commit()
     await db.refresh(doc)
+
+    if doc.document_type == "driving_license":
+        try:
+            existing_license = await db.execute(
+                select(DriverLicense)
+                .where(DriverLicense.driver_id == driver.id)
+                .order_by(DriverLicense.id.desc())
+            )
+            license_row = existing_license.scalars().first()
+            if license_row:
+                if resolved_document_number:
+                    license_row.license_number = resolved_document_number
+                if extracted_issue_date:
+                    license_row.issue_date = extracted_issue_date
+                if extracted_expiry_date:
+                    license_row.expiry_date = extracted_expiry_date
+                license_row.file_url = upload_result.get("url", license_row.file_url)
+                await db.commit()
+        except Exception:
+            pass
 
     return APIResponse(
         success=True,
@@ -890,6 +1001,26 @@ async def get_driver(driver_id: int, db: AsyncSession = Depends(get_db), current
         data["license_number"] = lic.license_number
         data["license_expiry"] = str(lic.expiry_date) if lic.expiry_date else None
         data["license_type"] = lic.license_type.value if hasattr(lic.license_type, 'value') else str(lic.license_type)
+    # Augment with User model fields (documents uploaded via employee onboarding)
+    if driver.user_id:
+        user_result = await db.execute(select(User).where(User.id == driver.user_id))
+        user = user_result.scalar_one_or_none()
+        if user:
+            data["avatar_url"] = data.get("photo_url") or user.avatar_url
+            data["aadhaar_file_url"] = user.aadhaar_file_url
+            data["aadhaar_file_name"] = user.aadhaar_file_name
+            data["pan_file_url"] = user.pan_file_url
+            data["pan_file_name"] = user.pan_file_name
+            data["passbook_file_url"] = user.passbook_file_url
+            data["passbook_file_name"] = user.passbook_file_name
+            data["dl_file_url"] = user.dl_file_url
+            data["dl_file_name"] = user.dl_file_name
+            data["dl_number"] = data.get("dl_number") or user.dl_number
+            data["dl_issue_date"] = data.get("dl_issue_date") or (str(user.dl_issue_date) if user.dl_issue_date else None)
+            data["dl_expiry_date"] = data.get("license_expiry") or (str(user.dl_expiry_date) if user.dl_expiry_date else None)
+            data["bank_account_holder"] = user.bank_account_holder
+            data["account_number"] = user.account_number
+            data["ifsc_code"] = user.ifsc_code
     return APIResponse(success=True, data=data)
 
 

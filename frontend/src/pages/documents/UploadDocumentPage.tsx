@@ -7,18 +7,20 @@
 // 4. Approval Workflow (status, reviewer)
 // ============================================================
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { documentService } from '@/services/dataService';
+import { runServerOCR } from '@/services/ocrService';
 import {
   ChevronRight, Save, Upload, ArrowLeft, FileText, Shield,
   AlertCircle, CheckCircle2, XCircle, Calendar, Search,
   ChevronDown, Trash2, Clock,
   File, Image, FileSpreadsheet, FilePlus, Loader2,
   Link2, Tag, X, UploadCloud, RefreshCw, History,
-  MessageSquare, Send
+  MessageSquare, Send, ScanLine
 } from 'lucide-react';
+import { DocumentScanner } from '@/components/DocumentScanner';
 
 // ── Types ──
 interface FormErrors { [key: string]: string; }
@@ -29,6 +31,50 @@ interface EntityOption {
   type: string;
 }
 
+const PERMIT_FIELDS: Array<{ key: string; label: string; multiline?: boolean }> = [
+  { key: 'permit_number', label: 'Permit No' },
+  { key: 'permit_type', label: 'Permit Type' },
+  { key: 'permit_holder_name', label: 'Name of Permit Holder' },
+  { key: 'father_name', label: "Father's Name" },
+  { key: 'address', label: 'Address', multiline: true },
+  { key: 'registration_number', label: 'Registration Number' },
+  { key: 'type_of_vehicle', label: 'Type of Vehicle' },
+  { key: 'valid_from', label: 'Valid From' },
+  { key: 'valid_to', label: 'Valid To' },
+  { key: 'states_uts_covered', label: 'States / UTs Covered' },
+  { key: 'issued_date', label: 'Issued Date' },
+  { key: 'issuing_authority', label: 'Issuing Authority' },
+];
+
+const PERMIT_SUMMARY_HIDDEN_FIELDS = new Set([
+  'permit_type',
+  'father_name',
+  'address',
+  'type_of_vehicle',
+  'states_uts_covered',
+  'issued_date',
+  'issuing_authority',
+]);
+
+const HIDDEN_DOCUMENT_TYPES = new Set([
+  'invoice',
+  'eway_bill',
+  'lr_copy',
+  'contract',
+  'pod',
+  'other',
+]);
+
+const HIDDEN_DOCUMENT_LABELS = new Set([
+  'invoice',
+  'e-way bill',
+  'lr copy',
+  'contract',
+  'proof of delivery (pod)',
+  'proof of delivery',
+  'other',
+]);
+
 // ── Constants ──
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const ACCEPTED_TYPES = [
@@ -36,16 +82,20 @@ const ACCEPTED_TYPES = [
   'image/jpeg',
   'image/png',
   'image/webp',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-powerpoint',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.ms-excel',
 ];
-const ACCEPTED_EXTENSIONS = '.pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls';
+const ACCEPTED_EXTENSIONS = '.pdf,.jpg,.jpeg,.png,.webp,.ppt,.pptx,.xlsx,.xls';
 
 const FILE_ICONS: Record<string, React.ReactNode> = {
   'application/pdf': <FileText size={28} className="text-red-500" />,
   'image/jpeg': <Image size={28} className="text-blue-500" />,
   'image/png': <Image size={28} className="text-blue-500" />,
   'image/webp': <Image size={28} className="text-blue-500" />,
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': <File size={28} className="text-amber-500" />,
+  'application/vnd.ms-powerpoint': <File size={28} className="text-amber-500" />,
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': <FileSpreadsheet size={28} className="text-green-500" />,
   'application/vnd.ms-excel': <FileSpreadsheet size={28} className="text-green-500" />,
 };
@@ -203,6 +253,7 @@ export default function UploadDocumentPage() {
   const [extractionMessage, setExtractionMessage] = useState('');
   const [extractedData, setExtractedData] = useState<Record<string, any> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const normalizeDocType = useCallback((docType: string) => {
     if (docType === 'license') return 'driving_license';
@@ -241,6 +292,22 @@ export default function UploadDocumentPage() {
     if (errors[field]) setErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
   }, [errors]);
 
+  const updateExtractedField = useCallback((field: string, value: string) => {
+    setExtractedData((prev) => ({ ...(prev || {}), [field]: value }));
+
+    if (field === 'permit_number' || field === 'registration_number') {
+      updateField('document_number', value);
+    }
+    if (field === 'valid_from' || field === 'issued_date') {
+      const normalized = normalizeDateToISO(value);
+      if (normalized) updateField('issue_date', normalized);
+    }
+    if (field === 'valid_to') {
+      const normalized = normalizeDateToISO(value);
+      if (normalized) updateField('expiry_date', normalized);
+    }
+  }, [normalizeDateToISO, updateField]);
+
   // ── Queries ──
   const { data: nextDocNumber } = useQuery({
     queryKey: ['next-doc-number'],
@@ -252,6 +319,16 @@ export default function UploadDocumentPage() {
     queryKey: ['doc-lookup-types'],
     queryFn: () => documentService.lookupDocumentTypes(),
   });
+
+  const visibleDocTypes = useMemo(() => {
+    return (docTypes || []).filter((opt: any) => {
+      const value = String(opt?.value || opt?.id || '').trim().toLowerCase();
+      const label = String(opt?.label || '').trim().toLowerCase();
+      if (HIDDEN_DOCUMENT_TYPES.has(value)) return false;
+      if (HIDDEN_DOCUMENT_LABELS.has(label)) return false;
+      return true;
+    });
+  }, [docTypes]);
 
   const { data: entityTypes = [] } = useQuery({
     queryKey: ['doc-lookup-entity-types'],
@@ -316,7 +393,9 @@ export default function UploadDocumentPage() {
   }, [form.document_type, form.entity_label]);
 
   // ── File Handling ──
-  const handleFileSelect = useCallback(async (file: File) => {
+  const handleFileSelect = useCallback(async (file: File, forcedDocumentType?: string) => {
+    const effectiveDocumentType = forcedDocumentType || form.document_type;
+
     if (file.size > MAX_FILE_SIZE) {
       setErrors((prev) => ({ ...prev, file: 'File size must be under 10 MB' }));
       return;
@@ -341,32 +420,151 @@ export default function UploadDocumentPage() {
       setFilePreview('');
     }
 
-    if (!form.document_type) {
+    if (!effectiveDocumentType) {
       setExtractionMessage('Select document type to auto-extract document fields.');
       return;
     }
 
+    const normalizedDocType = normalizeDocType(effectiveDocumentType);
+
+    const hasCoreLicenseFields = (data: Record<string, any>) => {
+      const licenseNo = data.license_number || data.dl_number;
+      const issue = normalizeDateToISO(data.issue_date || data.valid_from);
+      const expiry = normalizeDateToISO(data.expiry_date || data.validity_date || data.valid_upto);
+      return Boolean(licenseNo && issue && expiry);
+    };
+
+    const hasCoreFitnessFields = (data: Record<string, any>) => {
+      const vehicleNo = data.vehicle_number || data.vehicle_no;
+      const ownerName = data.owner_name;
+      const fitnessValidity = normalizeDateToISO(
+        data.expiry_date || data.valid_until || data.validity_date || data.valid_upto || data.valid_to || data.fitness_validity,
+      );
+      return Boolean(vehicleNo && ownerName && fitnessValidity);
+    };
+
+    const runLicenseFallbackOCR = async () => {
+      const fallback = await runServerOCR(file, 'driving_license');
+      const mapped = Object.entries(fallback.extractedFields || {}).reduce((acc, [key, value]) => {
+        acc[key] = value?.value;
+        return acc;
+      }, {} as Record<string, any>);
+
+      const raw = String(fallback.rawText || '');
+      if (!raw) return mapped;
+
+      // Generic Indian DL-like token (e.g. TN72 20240005499 / TN7220240005499)
+      const dlMatch = raw.match(/\b([A-Z]{2}\d{2}[\s-]*\d{8,14})\b/i);
+      if (!mapped.license_number && !mapped.dl_number && dlMatch?.[1]) {
+        mapped.license_number = dlMatch[1].replace(/\s+/g, '');
+      }
+
+      // Pick first two DD-MM-YYYY style dates as issue + validity fallback.
+      const dateMatches = [...raw.matchAll(/\b(\d{2}[\/-]\d{2}[\/-]\d{4})\b/g)].map((m) => m[1]);
+      if (!mapped.issue_date && dateMatches[0]) mapped.issue_date = dateMatches[0];
+      if (!mapped.expiry_date && !mapped.valid_upto && !mapped.validity_date && dateMatches[1]) {
+        mapped.expiry_date = dateMatches[1];
+      }
+
+      return mapped;
+    };
+
+    const runFitnessFallbackOCR = async () => {
+      const fallback = await runServerOCR(file, 'fitness');
+      const mapped = Object.entries(fallback.extractedFields || {}).reduce((acc, [key, value]) => {
+        acc[key] = value?.value;
+        return acc;
+      }, {} as Record<string, any>);
+
+      if (!mapped.vehicle_number && mapped.vehicle_no) {
+        mapped.vehicle_number = mapped.vehicle_no;
+      }
+
+      if (!mapped.expiry_date && (mapped.valid_upto || mapped.fitness_validity)) {
+        mapped.expiry_date = mapped.valid_upto || mapped.fitness_validity;
+      }
+
+      return mapped;
+    };
+
+    const applyExtractedValues = (data: Record<string, any>) => {
+      setExtractedData(data);
+
+      const numberField = getDocumentNumberField(normalizedDocType);
+      const extractedNumber = data[numberField] || data.dl_number || data.license_number;
+      if (extractedNumber) updateField('document_number', String(extractedNumber));
+
+      const parsedIssueDate = normalizeDateToISO(data.issue_date || data.valid_from);
+      if (parsedIssueDate) updateField('issue_date', parsedIssueDate);
+
+      const parsedExpiryDate = normalizeDateToISO(
+        data.expiry_date || data.validity_date || data.valid_upto || data.valid_to || data.fitness_validity,
+      );
+      if (parsedExpiryDate) updateField('expiry_date', parsedExpiryDate);
+
+      const holderName = data.holder_name || data.owner_name;
+      if (holderName && !form.title.trim()) {
+        updateField('title', String(holderName));
+      }
+    };
+
     setExtractingDoc(true);
     try {
       const fd = new FormData();
-      const normalizedDocType = normalizeDocType(form.document_type);
       fd.append('file', file);
       fd.append('document_type', normalizedDocType);
       fd.append('entity_type', form.entity_type || 'driver');
 
       const result = await documentService.extract(fd);
-      const data = (result?.data ?? {}) as Record<string, any>;
-      setExtractedData(data);
+      let data = (result?.data ?? {}) as Record<string, any>;
 
-      const numberField = getDocumentNumberField(normalizedDocType);
-      const extractedNumber = data[numberField];
-      if (extractedNumber) updateField('document_number', String(extractedNumber));
+      // Camera scans may miss one or more key DL fields in the primary extractor.
+      // If so, run OCR fallback and merge missing values.
+      if (normalizedDocType === 'driving_license' && !hasCoreLicenseFields(data)) {
+        try {
+          const fallbackData = await runLicenseFallbackOCR();
+          data = {
+            ...fallbackData,
+            ...data,
+            license_number: data.license_number || fallbackData.license_number || fallbackData.dl_number,
+            issue_date: data.issue_date || fallbackData.issue_date || fallbackData.valid_from,
+            expiry_date: data.expiry_date || data.validity_date || fallbackData.expiry_date || fallbackData.valid_upto,
+          };
+        } catch {
+          // Keep primary extraction data if fallback fails.
+        }
+      }
 
-      const parsedIssueDate = normalizeDateToISO(data.issue_date);
-      if (parsedIssueDate) updateField('issue_date', parsedIssueDate);
+      if (normalizedDocType === 'fitness') {
+        try {
+          const fallbackData = await runFitnessFallbackOCR();
+          data = {
+            ...data,
+            ...fallbackData,
+            transaction_no: fallbackData.transaction_no || data.transaction_no,
+            receipt_no: fallbackData.receipt_no || data.receipt_no,
+            receipt_date: fallbackData.receipt_date || data.receipt_date,
+            vehicle_no: fallbackData.vehicle_no || data.vehicle_no,
+            vehicle_number: fallbackData.vehicle_number || data.vehicle_number || data.vehicle_no,
+            vehicle_class: fallbackData.vehicle_class || data.vehicle_class,
+            owner_name: fallbackData.owner_name || data.owner_name,
+            chassis_no: fallbackData.chassis_no || data.chassis_no,
+            fitness_validity: fallbackData.fitness_validity || data.fitness_validity,
+            tax_paid_upto: fallbackData.tax_paid_upto || data.tax_paid_upto,
+            expiry_date:
+              fallbackData.expiry_date
+              || fallbackData.fitness_validity
+              || fallbackData.valid_upto
+              || data.expiry_date
+              || data.valid_until
+              || data.validity_date,
+          };
+        } catch {
+          // Keep primary extraction data if fallback fails.
+        }
+      }
 
-      const parsedExpiryDate = normalizeDateToISO(data.expiry_date || data.validity_date);
-      if (parsedExpiryDate) updateField('expiry_date', parsedExpiryDate);
+      applyExtractedValues(data);
 
       if (result?.extracted === false) {
         setExtractionMessage(result?.message || 'Extraction unavailable. You can continue with manual entry.');
@@ -374,12 +572,41 @@ export default function UploadDocumentPage() {
         setExtractionMessage('Document fields extracted and auto-filled.');
       }
     } catch {
-      setExtractionMessage('Extraction failed. You can continue with manual entry.');
-      setExtractedData(null);
+      try {
+        const fallbackData: Record<string, any> = normalizedDocType === 'driving_license'
+          ? await runLicenseFallbackOCR()
+          : await (async () => {
+              const fallback = await runServerOCR(file, normalizedDocType);
+              return Object.entries(fallback.extractedFields || {}).reduce((acc, [key, value]) => {
+                acc[key] = value?.value;
+                return acc;
+              }, {} as Record<string, any>);
+            })();
+
+        if (Object.keys(fallbackData).length > 0) {
+          applyExtractedValues(fallbackData);
+          setExtractionMessage('Document scanned and fields auto-filled (OCR fallback).');
+        } else {
+          setExtractionMessage('Extraction failed. You can continue with manual entry.');
+          setExtractedData(null);
+        }
+      } catch {
+        setExtractionMessage('Extraction failed. You can continue with manual entry.');
+        setExtractedData(null);
+      }
     } finally {
       setExtractingDoc(false);
     }
-  }, [form.document_type, form.entity_type, getDocumentNumberField, normalizeDateToISO, normalizeDocType, updateField]);
+  }, [form.document_type, form.entity_type, form.title, getDocumentNumberField, normalizeDateToISO, normalizeDocType, updateField]);
+
+  const handleScanCapture = useCallback((imageFile: File) => {
+    const scanDocType = form.document_type || 'license';
+    if (!form.document_type) {
+      updateField('document_type', 'license');
+    }
+    setScannerOpen(false);
+    handleFileSelect(imageFile, scanDocType);
+  }, [form.document_type, handleFileSelect, updateField]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -410,6 +637,15 @@ export default function UploadDocumentPage() {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${Number(bytes / 1024).toFixed(1)} KB`;
     return `${Number(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const isDriverLicense = normalizeDocType(form.document_type || '') === 'driving_license';
+
+  const formatSummaryDate = (raw?: string) => {
+    if (!raw) return '';
+    const normalized = normalizeDateToISO(raw);
+    if (!normalized) return '';
+    return new Date(normalized).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   // ── Validation ──
@@ -576,7 +812,7 @@ export default function UploadDocumentPage() {
                 <SelectInput
                   value={form.document_type}
                   onChange={(v) => updateField('document_type', v)}
-                  options={docTypes}
+                  options={visibleDocTypes}
                   placeholder="Select document type…"
                   error={!!errors.document_type}
                 />
@@ -691,6 +927,30 @@ export default function UploadDocumentPage() {
                   {dragActive ? 'Drop file here' : 'Drag & drop your file here'}
                 </p>
                 <p className="text-sm text-gray-400 mb-4">or click to browse</p>
+                <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary-200 bg-primary-50 text-primary-700 text-xs font-semibold hover:bg-primary-100 transition-colors"
+                  >
+                    <Upload size={13} />
+                    Upload File
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setScannerOpen(true);
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-blue-600 bg-blue-600 text-white text-sm font-semibold shadow-sm hover:bg-blue-700 hover:border-blue-700 transition-colors"
+                  >
+                    <ScanLine size={16} />
+                    Scan
+                  </button>
+                </div>
                 <div className="flex items-center justify-center gap-3 text-xs text-gray-400">
                   <span className="px-2 py-0.5 bg-gray-100 rounded">PDF</span>
                   <span className="px-2 py-0.5 bg-gray-100 rounded">JPG</span>
@@ -809,6 +1069,33 @@ export default function UploadDocumentPage() {
                 </div>
               </div>
             )}
+
+            {form.document_type === 'permit' && (
+              <div className="mt-4 border border-gray-200 rounded-xl p-4 bg-gray-50/40">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-3">Manual Entry (Safety)</p>
+                <p className="text-xs text-gray-500 mb-3">If OCR is incorrect, edit permit fields manually before saving.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {PERMIT_FIELDS.map((field) => (
+                    <FormField key={field.key} label={field.label} className={field.multiline ? 'md:col-span-2' : ''}>
+                      {field.multiline ? (
+                        <TextArea
+                          value={String((extractedData || {})[field.key] || '')}
+                          onChange={(v) => updateExtractedField(field.key, v)}
+                          placeholder={`Enter ${field.label.toLowerCase()}...`}
+                          rows={3}
+                        />
+                      ) : (
+                        <TextInput
+                          value={String((extractedData || {})[field.key] || '')}
+                          onChange={(v) => updateExtractedField(field.key, v)}
+                          placeholder={`Enter ${field.label.toLowerCase()}`}
+                        />
+                      )}
+                    </FormField>
+                  ))}
+                </div>
+              </div>
+            )}
           </SectionCard>
 
           {/* ━━━ Section 3: Compliance & Tracking ━━━ */}
@@ -871,15 +1158,81 @@ export default function UploadDocumentPage() {
                 <SummaryRow label="Doc Number" value={isEdit ? existingDoc?.doc_number || '—' : nextDocNumber || 'Auto'} mono />
                 <SummaryRow label="Type" value={docTypes.find((t: any) => t.value === form.document_type)?.label || '—'} />
                 <SummaryRow label="Linked To" value={form.entity_label || 'Not linked'} />
-                <SummaryRow label="Ref Number" value={form.document_number || '—'} mono />
-                <SummaryRow label="File" value={currentFileName || 'No file'} truncate />
-                {currentFileSize > 0 && <SummaryRow label="File Size" value={formatFileSize(currentFileSize)} />}
-                <SummaryRow label="Category" value={form.compliance_category === 'mandatory' ? 'Mandatory' : 'Optional'} />
-                {form.issue_date && (
-                  <SummaryRow label="Issued" value={new Date(form.issue_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} />
+                {!!form.document_number && <SummaryRow label="Ref Number" value={form.document_number} mono />}
+                {isDriverLicense && (
+                  <div className="space-y-2 pt-1">
+                    <SummaryStatusRow
+                      label="Name"
+                      value={String((extractedData || {}).holder_name || (extractedData || {}).owner_name || '').trim() || 'Not extracted'}
+                      ok={!!String((extractedData || {}).holder_name || (extractedData || {}).owner_name || '').trim()}
+                    />
+                    <SummaryStatusRow
+                      label="Issue Date"
+                      value={formatSummaryDate((extractedData || {}).issue_date || form.issue_date) || 'Not extracted'}
+                      ok={!!formatSummaryDate((extractedData || {}).issue_date || form.issue_date)}
+                    />
+                    <SummaryStatusRow
+                      label="Validity"
+                      value={formatSummaryDate((extractedData || {}).expiry_date || (extractedData || {}).validity_date || (extractedData || {}).valid_upto || form.expiry_date) || 'Not extracted'}
+                      ok={!!formatSummaryDate((extractedData || {}).expiry_date || (extractedData || {}).validity_date || (extractedData || {}).valid_upto || form.expiry_date)}
+                    />
+                  </div>
                 )}
-                {form.expiry_date && (
+                {!isDriverLicense && form.document_type !== 'fitness' && !!extractedData?.holder_name && <SummaryRow label="Driver Name" value={String(extractedData.holder_name)} />}
+                {!isDriverLicense && form.document_type !== 'fitness' && !!extractedData?.owner_name && !extractedData?.holder_name && (
+                  <SummaryRow
+                    label={form.document_type === 'rc' ? 'Owner Name' : 'Driver Name'}
+                    value={String(extractedData.owner_name)}
+                  />
+                )}
+                {form.document_type === 'fitness' && (
+                  <div className="space-y-2 pt-1">
+                    {([
+                      { label: 'Vehicle No',      val: String((extractedData || {}).vehicle_number || '').trim() },
+                      { label: 'Owner Name',      val: String((extractedData || {}).owner_name || '').trim() },
+                      { label: 'Fitness Validity',val: String((extractedData || {}).fitness_validity || (extractedData || {}).expiry_date || '').trim() },
+                      { label: 'Receipt Date',    val: String((extractedData || {}).receipt_date || '').trim() },
+                      { label: 'Chassis No',      val: String((extractedData || {}).chassis_no || '').trim() },
+                    ] as { label: string; val: string }[]).map(({ label, val }) => (
+                      <SummaryStatusRow key={label} label={label} value={val || 'Not extracted'} ok={!!val} />
+                    ))}
+                  </div>
+                )}
+                {form.document_type === 'permit' && (
+                  <div className="space-y-2 pt-1">
+                    {([
+                      { label: 'Permit No',        val: String((extractedData || {}).permit_number || '').trim() },
+                      { label: 'Permit Holder',    val: String((extractedData || {}).permit_holder_name || '').trim() },
+                      { label: 'Date of Approval', val: String((extractedData || {}).date_of_approval || '').trim() },
+                      { label: 'Type of Vehicle',  val: String((extractedData || {}).type_of_vehicle || '').trim() },
+                      { label: 'Valid From',        val: String((extractedData || {}).valid_from || '').trim() },
+                      { label: 'Valid To',          val: String((extractedData || {}).valid_to || '').trim() },
+                    ] as { label: string; val: string }[]).map(({ label, val }) => (
+                      <SummaryStatusRow key={label} label={label} value={val || 'Not extracted'} ok={!!val} />
+                    ))}
+                  </div>
+                )}
+                {!!extractedData?.dob && <SummaryRow label="DOB" value={String(extractedData.dob)} />}
+                {!!extractedData?.blood_group && <SummaryRow label="Blood Group" value={String(extractedData.blood_group)} />}
+                {form.expiry_date && form.document_type !== 'fitness' && form.document_type !== 'permit' && (
                   <SummaryRow label="Expires" value={new Date(form.expiry_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} />
+                )}
+
+                {/* All Extracted Fields — hidden for fitness and permit (shown in dedicated sections above) */}
+                {extractedData && Object.keys(extractedData).length > 0 && form.document_type !== 'fitness' && form.document_type !== 'permit' && (
+                  <div className="space-y-2 pt-2 border-t border-gray-100 mt-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Extracted Data</p>
+                    {Object.entries(extractedData)
+                      .filter(([, v]) => v != null && String(v).trim() !== '')
+                      .map(([key, value]) => (
+                        <SummaryStatusRow
+                          key={key}
+                          label={key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                          value={String(value)}
+                          ok={true}
+                        />
+                      ))}
+                  </div>
                 )}
               </div>
 
@@ -955,6 +1308,13 @@ export default function UploadDocumentPage() {
           </div>
         </div>
       </div>
+
+      <DocumentScanner
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onCapture={handleScanCapture}
+        docType={form.document_type || 'license'}
+      />
     </div>
   );
 }
@@ -965,6 +1325,18 @@ function SummaryRow({ label, value, mono, truncate }: { label: string; value: st
     <div className="flex justify-between items-center text-sm">
       <span className="text-gray-400">{label}</span>
       <span className={`font-medium text-gray-800 text-right max-w-[60%] ${mono ? 'font-mono text-xs' : ''} ${truncate ? 'truncate' : ''}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function SummaryStatusRow({ label, value, ok }: { label: string; value: string; ok: boolean }) {
+  return (
+    <div className="flex justify-between items-start gap-2 text-sm">
+      <span className="text-gray-400">{label}</span>
+      <span className="font-medium text-gray-800 text-right max-w-[60%] break-words inline-flex items-center gap-1.5">
+        {ok ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-amber-500" />}
         {value}
       </span>
     </div>

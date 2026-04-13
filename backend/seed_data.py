@@ -39,7 +39,8 @@ async def create_tables():
     async with async_engine.begin() as conn:
         await conn.execute(text("DROP SCHEMA public CASCADE"))
         await conn.execute(text("CREATE SCHEMA public"))
-        await conn.execute(text("GRANT ALL ON SCHEMA public TO postgres"))
+        # Avoid assuming a hardcoded superuser role exists on local machines.
+        await conn.execute(text("GRANT ALL ON SCHEMA public TO CURRENT_USER"))
         await conn.run_sync(Base.metadata.create_all)
     print("[OK] Database tables dropped and recreated")
 

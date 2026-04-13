@@ -82,6 +82,17 @@ function fv(value: string, confidence: 'high' | 'medium' | 'low', rawMatch?: str
 function findAfterLabel(text: string, ...labels: string[]): string | null {
   for (const label of labels) {
     const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // 1. Next-line first: label alone on its line, value on the line below
+    //    Preferred for Indian DLs where "Name" is a column header
+    const reNext = new RegExp(`${escaped}[^\\n]*\\n[ \\t]*([^\\n]{1,100})`, 'i');
+    const mn = reNext.exec(text);
+    if (mn && mn[1].trim()) {
+      const nextLine = mn[1].trim();
+      // Only accept if it looks like real content (not another label)
+      const alpha = nextLine.replace(/[^A-Za-z\s]/g, '').trim();
+      if (alpha.length >= 4) return nextLine;
+    }
+    // 2. Same-line fallback: "Name: ARVIND KUMAR"
     const re = new RegExp(`${escaped}\\s*[:\\-\\.\\s]?\\s*([^\\n]{1,100})`, 'i');
     const m = re.exec(text);
     if (m && m[1].trim()) return m[1].trim();
@@ -371,9 +382,11 @@ function extractDL(text: string): ExtractedFields {
   const name = findAfterLabel(text, 'Name', 'Holder', 'DL Holder');
   if (name) {
     const firstLine = name.split('\n')[0].trim();
-    // Only accept if it looks like a real name (mostly uppercase letters)
+    // Only accept if it looks like a real name (all uppercase letters, min 4 chars)
     const alphaOnly = firstLine.replace(/[^A-Za-z\s]/g, '').trim();
-    if (/^[A-Z\s]{4,}$/.test(alphaOnly)) {
+    const nameWords = alphaOnly.split(/\s+/).filter(Boolean);
+    // Require at least 4 chars total AND at least one word longer than 2 chars
+    if (/^[A-Z\s]{4,}$/.test(alphaOnly) && nameWords.some(w => w.length > 2)) {
       fields.holder_name = fv(alphaOnly.slice(0, 80), 'high', firstLine);
     }
   }
@@ -384,7 +397,8 @@ function extractDL(text: string): ExtractedFields {
       for (let i = nameIdx; i <= Math.min(nameIdx + 3, lines.length - 1); i++) {
         const alphaOnly = lines[i].replace(/[^A-Z\s]/g, '').trim();
         const words = alphaOnly.split(/\s+/).filter(w => w.length >= 2);
-        if (words.length >= 2 && words.join(' ').length >= 5) {
+        // Require 2+ words, total >= 5 chars, and at least one word > 2 chars
+        if (words.length >= 2 && words.join(' ').length >= 5 && words.some(w => w.length > 2)) {
           fields.holder_name = fv(words.join(' ').slice(0, 80), 'medium', lines[i].trim());
           break;
         }
@@ -480,6 +494,7 @@ function extractDL(text: string): ExtractedFields {
 
 function extractFitness(text: string): ExtractedFields {
   const fields: ExtractedFields = {};
+  const lines = text.split('\n');
 
   // Certificate number
   const cm = /(?:certificate\s*(?:no|number)?|cert\s*(?:no|number)?)[:\s.]+([A-Z0-9\-\/]{5,25})/i.exec(text);
@@ -489,11 +504,40 @@ function extractFitness(text: string): ExtractedFields {
   const vm = VEH_REG.exec(text);
   if (vm) fields.vehicle_number = fv(vm[1].replace(/[\s\-]/g, '').toUpperCase(), 'high', vm[1]);
 
+  // Owner name (some FC docs include this; permit-like uploads may also carry it)
+  const owner = findAfterLabel(
+    text,
+    'Owner Name',
+    'Name of Owner',
+    'Registered Owner',
+    'Permit Holder Name',
+    'Name Of The Permit Holder',
+  );
+  if (owner) {
+    const cleaned = owner.split('\n')[0].replace(/[^A-Za-z\s.]/g, '').trim();
+    if (cleaned.length >= 3) fields.owner_name = fv(cleaned.slice(0, 80), 'medium', owner);
+  }
+
   // Valid upto
   const dateCtx = findAfterLabel(text, 'Valid Upto', 'Fit Upto', 'Valid Till', 'Validity');
   if (dateCtx) {
     const d = normaliseDate(dateCtx);
     if (d) fields.valid_upto = fv(d, 'high', dateCtx);
+  }
+
+  // Validity may be split as "From ... To ..." or appear on nearby lines.
+  if (!fields.valid_upto) {
+    const toDate = findDateNearLabel(lines,
+      'valid.{0,4}to', 'to\s*[:\-]', 'valid.{0,4}upto', 'validity',
+    );
+    if (toDate) fields.valid_upto = fv(toDate, 'medium', toDate);
+  }
+
+  if (!fields.valid_upto) {
+    const dates = allDates(text);
+    if (dates.length >= 2) {
+      fields.valid_upto = fv(dates[dates.length - 1], 'low', dates[dates.length - 1]);
+    }
   }
 
   // Issued by

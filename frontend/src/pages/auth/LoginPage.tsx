@@ -27,13 +27,13 @@ export default function LoginPage() {
 
   const demoRoles = [
     { label: 'Admin', email: 'admin@kavyatransports.com', password: 'admin123', color: 'bg-blue-50 text-blue-700 ring-blue-600/20' },
-    { label: 'Manager', email: 'manager@kavyatransports.com', password: 'demo123', color: 'bg-purple-50 text-purple-700 ring-purple-600/20' },
-    { label: 'Fleet Manager', email: 'fleet@kavyatransports.com', password: 'demo123', color: 'bg-green-50 text-green-700 ring-green-600/20' },
-    { label: 'Accountant', email: 'accountant@kavyatransports.com', password: 'demo123', color: 'bg-amber-50 text-amber-700 ring-amber-600/20' },
+    { label: 'Manager', email: 'manager@kavyatransports.com', password: 'manager123', color: 'bg-purple-50 text-purple-700 ring-purple-600/20' },
+    { label: 'Fleet Manager', email: 'fleet@kavyatransports.com', password: 'fleet123', color: 'bg-green-50 text-green-700 ring-green-600/20' },
+    { label: 'Accountant', email: 'accountant@kavyatransports.com', password: 'accountant123', color: 'bg-amber-50 text-amber-700 ring-amber-600/20' },
     { label: 'Finance Manager', email: 'finance@kavyatransports.com', password: 'Finance@123', color: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' },
-    { label: 'Project Associate', email: 'pa@kavyatransports.com', password: 'demo123', color: 'bg-cyan-50 text-cyan-700 ring-cyan-600/20' },
-    { label: 'Driver', email: 'driver@kavyatransports.com', password: 'demo123', color: 'bg-rose-50 text-rose-700 ring-rose-600/20' },
-    { label: 'Pump Operator', email: 'pump@kavyatransports.com', password: 'demo123', color: 'bg-orange-50 text-orange-700 ring-orange-600/20' },
+    { label: 'Project Associate', email: 'pa@kavyatransports.com', password: 'pa123456', color: 'bg-cyan-50 text-cyan-700 ring-cyan-600/20' },
+    { label: 'Driver', email: 'driver@kavyatransports.com', password: 'driver123', color: 'bg-rose-50 text-rose-700 ring-rose-600/20' },
+    { label: 'Pump Operator', email: 'pump@kavyatransports.com', password: 'pump123', color: 'bg-orange-50 text-orange-700 ring-orange-600/20' },
   ];
 
   return (
@@ -118,12 +118,12 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="label">Email Address</label>
+                <label className="label">Email or Employee ID</label>
                 <input
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@transporterp.com"
+                  placeholder="admin@transporterp.com or KTD01"
                   className="input-field"
                   required
                   autoFocus

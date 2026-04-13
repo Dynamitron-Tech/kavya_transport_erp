@@ -119,7 +119,10 @@ async def create_user(db: AsyncSession, data: dict) -> User:
                   "bank_account_holder", "bank_name", "account_number", "ifsc_code",
                   "account_type", "upi_id", "salary_amount", "pay_type",
                   "aadhaar_file_url", "aadhaar_file_name",
-                  "dl_file_url", "dl_file_name", "dl_number"):
+                  "pan_file_url", "pan_file_name",
+                  "passbook_file_url", "passbook_file_name",
+                  "dl_file_url", "dl_file_name", "dl_number",
+                  "avatar_url"):
         if not data.get(field):
             data.pop(field, None)
     user = User(**data, password_hash=get_password_hash(password))
@@ -170,6 +173,8 @@ async def update_user(db: AsyncSession, user_id: int, data: dict):
                    "bank_account_holder", "bank_name", "account_number", "ifsc_code",
                  "account_type", "upi_id", "salary_amount", "pay_type",
                  "aadhaar_file_url", "aadhaar_file_name",
+                 "pan_file_url", "pan_file_name",
+                 "passbook_file_url", "passbook_file_name",
                  "dl_file_url", "dl_file_name", "dl_number", "dl_issue_date", "dl_expiry_date"):
             # Allow clearing these fields by passing empty string
             setattr(user, k, None)

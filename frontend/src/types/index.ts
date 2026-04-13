@@ -128,7 +128,7 @@ export type AuditNoteStatus = 'open' | 'resolved';
 
 // ---- Auth ----
 export interface LoginRequest {
-  email: string;
+  identifier: string;
   password: string;
 }
 
