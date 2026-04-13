@@ -1,3 +1,15 @@
+// Force full-page reload on HMR update to prevent stale module double-submit.
+if (import.meta.hot) { import.meta.hot.decline(); }
+
+// Convert DD-MM-YYYY (manual entry) → YYYY-MM-DD (ISO, expected by backend)
+const parseDMY = (val: string): string | undefined => {
+  if (!val) return undefined;
+  const m = val.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val; // already ISO
+  return undefined;
+};
+
 import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Search, Plus, Shield, X, Trash2, Mail, Lock, Phone, User, BadgeCheck, Eye, EyeOff, Pencil, Upload, ExternalLink, FileText, Camera, FolderOpen } from 'lucide-react';
@@ -663,6 +675,8 @@ export default function EmployeesPage() {
     },
   });
 
+  const isCreatingRef = useRef(false);
+
   const createMutation = useMutation({
     mutationFn: async () => {
       return api.post('/users', {
@@ -672,8 +686,8 @@ export default function EmployeesPage() {
         last_name: createForm.last_name || undefined,
         phone: createForm.phone || undefined,
         role_names: createForm.role_names,
-        date_of_birth: createForm.dob || undefined,
-        joining_date: createForm.joining_date || undefined,
+        date_of_birth: parseDMY(createForm.dob),
+        joining_date: parseDMY(createForm.joining_date),
         gender: createForm.gender || undefined,
         address: createForm.address || undefined,
         emergency_contact_name: createForm.emergency_contact_name || undefined,
@@ -1591,7 +1605,7 @@ export default function EmployeesPage() {
                   <form
                     className="space-y-8"
                     id="create-employee-form"
-                    onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }}
+                    onSubmit={(e) => { e.preventDefault(); if (isCreatingRef.current || createMutation.isPending) return; isCreatingRef.current = true; createMutation.mutate(undefined, { onSettled: () => { isCreatingRef.current = false; } }); }}
                   >
 
                     {/* ── Work Profile (Role) ── */}
@@ -1787,13 +1801,13 @@ export default function EmployeesPage() {
                       <div className="grid grid-cols-2 gap-5 mb-5">
                         <div>
                           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Date of Birth</label>
-                          <input type="date" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors"
+                          <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors" placeholder="DD-MM-YYYY"
                             value={createForm.dob}
                             onChange={(e) => setCreateForm((p) => ({ ...p, dob: e.target.value }))} />
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Date of Joining</label>
-                          <input type="date" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors"
+                          <input type="text" className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-colors" placeholder="DD-MM-YYYY"
                             value={createForm.joining_date}
                             onChange={(e) => setCreateForm((p) => ({ ...p, joining_date: e.target.value }))} />
                         </div>

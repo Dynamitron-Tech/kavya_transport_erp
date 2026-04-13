@@ -206,7 +206,8 @@ class VehicleTyre(Base, TimestampMixin):
     sensor_id = Column(String(50), nullable=True, index=True)  # BLE/GPRS sensor ID
     last_psi = Column(Numeric(5, 1), nullable=True)
     last_temperature_c = Column(Numeric(5, 1), nullable=True)
-    tread_depth_mm = Column(Numeric(4, 1), nullable=True)
+    tread_depth_mm = Column(Numeric(4, 1), nullable=True)       # current tread depth (updated per reading)
+    initial_tread_depth_mm = Column(Numeric(4, 1), nullable=True)  # tread at time of fitment
     last_reading_at = Column(DateTime, nullable=True)
     
     # Relationships
@@ -264,7 +265,7 @@ class TyreReading(Base, TimestampMixin):
 
     __tablename__ = "tyre_readings"
 
-    vehicle_tyre_id = Column(Integer, ForeignKey('vehicle_tyres.id', ondelete='CASCADE'), nullable=False, index=True)
+    vehicle_tyre_id = Column(Integer, ForeignKey('vehicle_tyres.id', ondelete='SET NULL'), nullable=True, index=True)
     vehicle_id = Column(Integer, ForeignKey('vehicles.id', ondelete='CASCADE'), nullable=False, index=True)
     position = Column(String(20), nullable=False)
     psi = Column(Numeric(5, 1), nullable=False)

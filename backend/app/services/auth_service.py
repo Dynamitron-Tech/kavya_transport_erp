@@ -61,12 +61,27 @@ async def authenticate_by_identifier(db: AsyncSession, identifier: str, password
 
 
 async def get_user_roles(db: AsyncSession, user_id: int) -> list[str]:
-    """Get role names for a user (via user_roles association table)."""
-    result = await db.execute(
+    """Get role names for a user.
+
+    Queries BOTH the legacy ``user_roles`` association table (used by the
+    original seed data) and the extended ``user_role_assignments`` table
+    (written by the Add Employee form via the UserRole ORM model) so that
+    roles are found regardless of which table they were written to.
+    """
+    from sqlalchemy import union
+
+    q_legacy = (
         select(Role.name)
         .join(user_roles, user_roles.c.role_id == Role.id)
         .where(user_roles.c.user_id == user_id)
     )
+    q_extended = (
+        select(Role.name)
+        .join(UserRole, UserRole.role_id == Role.id)
+        .where(UserRole.user_id == user_id)
+    )
+    combined = union(q_legacy, q_extended)
+    result = await db.execute(combined)
     return [row[0] for row in result.all()]
 
 

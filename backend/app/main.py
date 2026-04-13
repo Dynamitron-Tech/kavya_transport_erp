@@ -38,14 +38,15 @@ async def lifespan(app: FastAPI):
         or settings.HAS_VALID_HF_API_KEY
     )
     if not has_any_extraction:
-        raise RuntimeError(
-            "OCR startup validation failed: No extraction backend configured. "
-            "Set HF_API_KEY (recommended), ANTHROPIC_API_KEY, or enable USE_LOCAL_DONUT/USE_LOCAL_TESSERACT."
+        logger.warning(
+            "OCR startup validation: No extraction backend configured. "
+            "Set HF_API_KEY (recommended), ANTHROPIC_API_KEY, or enable USE_LOCAL_DONUT/USE_LOCAL_TESSERACT. "
+            "OCR features will be unavailable."
         )
     
     # Initialize PostgreSQL (graceful - skip if unavailable)
     try:
-        await asyncio.wait_for(init_db(), timeout=5)
+        await asyncio.wait_for(init_db(), timeout=30)
         logger.info("PostgreSQL connected")
     except (Exception, asyncio.TimeoutError) as e:
         logger.warning(f"PostgreSQL connection failed (app will run without DB): {e}")

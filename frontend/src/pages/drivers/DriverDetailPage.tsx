@@ -420,8 +420,6 @@ function DocumentsTab({ driver }: { driver: any }) {
           <DocCard label="Passbook" fileUrl={d.passbook_file_url} fileName={d.passbook_file_name} icon={<FileText size={22} />} />
         </div>
       </div>
-      {/* Compliance checklist (fleet uploads) */}
-      <DocumentChecklist entityType="driver" entityId={d.id} />
     </div>
   );
 }

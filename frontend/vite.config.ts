@@ -5,7 +5,7 @@ import path from 'path'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '')
-  const apiProxyTarget = env.VITE_PROXY_TARGET || 'http://localhost:8000'
+  const apiProxyTarget = env.VITE_PROXY_TARGET || 'http://127.0.0.1:8000'
   const wsProxyTarget = apiProxyTarget.replace('http://', 'ws://').replace('https://', 'wss://')
 
   return {

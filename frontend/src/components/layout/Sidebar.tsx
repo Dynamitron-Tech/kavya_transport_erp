@@ -94,7 +94,6 @@ const FINANCE_CONTEXT_SECTIONS = [
       { label: 'Invoices', route: '/finance/invoices', icon: 'invoice', description: 'Generate and manage invoices' },
       { label: 'Invoice Workspace', route: '/accountant/invoice-workspace', icon: 'file', description: 'Invoice automation — parse, validate, writeback' },
       { label: 'Bank Statement', route: '/accountant/banking', icon: 'bank', description: 'Download statements & Tally reconciliation' },
-      { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
     ],
   },
   {

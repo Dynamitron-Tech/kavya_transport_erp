@@ -136,15 +136,6 @@ export default function VehicleDetailPage() {
         </div>
       </div>
 
-      {/* ── Documents Section ── */}
-      <div className="card">
-        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <FileText size={16} className="text-gray-500" />
-          Compliance Documents
-        </h3>
-        <DocumentChecklist entityType="vehicle" entityId={Number(id)} />
-      </div>
-
       <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit Vehicle" size="md">
         <form
           className="space-y-4"

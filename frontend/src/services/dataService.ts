@@ -2283,8 +2283,31 @@ export const tyreTrackerService = {
     const data = await api.get('/tyre', { params: { vehicle_id: vehicleId, limit: 50 } });
     return unwrap(data);
   },
+  getAllTyresOverview: async () => {
+    const data = await api.get('/tyre', { params: { limit: 500 } });
+    return unwrap(data);
+  },
+  updateTyreDetails: async (tyreId: number, payload: { serial_number?: string; brand?: string; size?: string }) => {
+    const data = await api.put(`/tyre/${tyreId}`, payload);
+    return unwrap(data);
+  },
+  replaceTyre: async (tyreId: number, payload: {
+    serial_number: string;
+    brand?: string;
+    size?: string;
+    tread_depth_mm?: number;
+    replacement_reason?: string;
+    notes?: string;
+  }) => {
+    const data = await api.post(`/tyre/${tyreId}/replace`, payload);
+    return unwrap(data);
+  },
   getTyreHistory: async (tyreId: number) => {
     const data = await api.get(`/tyre/${tyreId}/history`);
+    return unwrap(data);
+  },
+  getTyreFullHistory: async (tyreId: number) => {
+    const data = await api.get(`/tyre/${tyreId}/full-history`);
     return unwrap(data);
   },
   // ── Field Readings ──
@@ -2298,6 +2321,10 @@ export const tyreTrackerService = {
   },
   getVehicleReadings: async (vehicleId: number) => {
     const data = await api.get(`/tyre/readings/vehicle/${vehicleId}`);
+    return unwrap(data);
+  },
+  getLastTripOdometer: async (vehicleId: number) => {
+    const data = await api.get(`/tyre/readings/vehicle/${vehicleId}/last-trip-odometer`);
     return unwrap(data);
   },
   // ── Field Alerts ──

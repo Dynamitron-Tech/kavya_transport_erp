@@ -491,8 +491,12 @@ async def list_tyres(
         current_km = float(tyre.current_km or 0)
         installed_km = float(tyre.km_at_fitment or 0)
         km_run = float(current_km - installed_km)
-        # Estimate tread depth based on condition (mm)
-        tread = 8.0 if condition == 'new' else (6.5 if condition == 'good' else (4.5 if condition == 'average' else 2.5))
+        # Use actual tread depth if available; fall back to condition estimate
+        if tyre.tread_depth_mm is not None:
+            tread = float(tyre.tread_depth_mm)
+        else:
+            tread = 8.0 if condition == 'new' else (6.5 if condition == 'good' else (4.5 if condition == 'average' else 2.5))
+        initial_tread = float(tyre.initial_tread_depth_mm) if tyre.initial_tread_depth_mm is not None else None
         if condition in ('new', 'good'):
             good_count += 1
         elif condition == 'average':
@@ -523,6 +527,7 @@ async def list_tyres(
             "installed_km": installed_km,
             "km_run": km_run,
             "tread_depth_mm": tread,
+            "initial_tread_depth_mm": initial_tread,
             "cost_per_km": float(purchase_cost / max(km_run, 1.0)) if km_run > 0 else 0,
             "retread_count": tyre.retread_count or 0,
             "max_retreads": tyre.max_retreads or 2,
@@ -559,6 +564,8 @@ async def create_tyre(
         purchase_cost=data.cost or 0,
         condition=str(data.status).lower(),
         is_active=True,
+        tread_depth_mm=data.tread_depth_mm,
+        initial_tread_depth_mm=data.initial_tread_depth_mm if data.initial_tread_depth_mm is not None else data.tread_depth_mm,
     )
     db.add(tyre)
     await db.commit()
@@ -606,6 +613,74 @@ async def delete_tyre(
     tyre.is_active = False
     await db.commit()
     return APIResponse(success=True, message="Tyre deleted")
+
+
+@router.post("/{tyre_id}/replace", response_model=APIResponse, status_code=201)
+async def replace_tyre(
+    tyre_id: int,
+    payload: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.VEHICLE_UPDATE)),
+):
+    """Archive old tyre and create a replacement at the same position."""
+    old_tyre = await db.get(VehicleTyre, tyre_id)
+    if not old_tyre or not old_tyre.is_active:
+        raise HTTPException(status_code=404, detail="Tyre not found")
+
+    serial = payload.get("serial_number", "").strip()
+    if not serial:
+        raise HTTPException(status_code=422, detail="serial_number is required")
+
+    # Archive old tyre
+    old_tyre.is_active = False
+    old_tyre.condition = "replaced"
+
+    # Log lifecycle event on old tyre
+    reason = str(payload.get("replacement_reason", "REPLACED")).strip() or "REPLACED"
+    notes_parts = [f"Reason: {reason}"]
+    if payload.get("notes"):
+        notes_parts.append(str(payload["notes"]))
+    lifecycle = TyreLifecycleEvent(
+        vehicle_tyre_id=tyre_id,
+        event_type="REPLACED",
+        notes=". ".join(notes_parts),
+        performed_by=current_user.user_id,
+    )
+    db.add(lifecycle)
+
+    # Create new tyre at same vehicle/position
+    thickness_mm = payload.get("tread_depth_mm")
+    new_tyre = VehicleTyre(
+        vehicle_id=old_tyre.vehicle_id,
+        tyre_number=serial,
+        position=old_tyre.position,
+        brand=payload.get("brand") or old_tyre.brand,
+        size=payload.get("size") or old_tyre.size,
+        purchase_date=date.today(),
+        purchase_cost=payload.get("cost") or 0,
+        condition="good",
+        is_active=True,
+        tread_depth_mm=thickness_mm,
+        initial_tread_depth_mm=thickness_mm,
+    )
+    db.add(new_tyre)
+    await db.commit()
+    await db.refresh(new_tyre)
+
+    # Log MOUNTED event on new tyre
+    db.add(TyreLifecycleEvent(
+        vehicle_tyre_id=new_tyre.id,
+        event_type="MOUNTED",
+        notes=f"Replacement for tyre #{tyre_id}",
+        performed_by=current_user.user_id,
+    ))
+    await db.commit()
+
+    return APIResponse(
+        success=True,
+        data={"old_tyre_id": tyre_id, "new_tyre_id": new_tyre.id},
+        message=f"Tyre replaced at position {old_tyre.position}",
+    )
 
 
 @router.post("/{tyre_id}/event", response_model=APIResponse)
@@ -733,6 +808,74 @@ async def get_tyre_history(
                 }
                 for e in events
             ],
+        },
+    )
+
+
+@router.get("/{tyre_id}/full-history", response_model=APIResponse)
+async def get_tyre_full_history(
+    tyre_id: int,
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Get merged timeline of log readings + lifecycle events for a tyre."""
+    tyre = await db.get(VehicleTyre, tyre_id)
+    if not tyre:
+        raise HTTPException(status_code=404, detail="Tyre not found")
+
+    # Fetch log readings
+    readings_result = await db.execute(
+        select(TyreReading)
+        .where(TyreReading.vehicle_tyre_id == tyre_id)
+        .order_by(TyreReading.created_at.desc())
+        .limit(200)
+    )
+    readings = readings_result.scalars().all()
+
+    # Fetch lifecycle events
+    events_result = await db.execute(
+        select(TyreLifecycleEvent)
+        .where(TyreLifecycleEvent.vehicle_tyre_id == tyre_id)
+        .order_by(TyreLifecycleEvent.created_at.desc())
+    )
+    events = events_result.scalars().all()
+
+    timeline = []
+
+    for r in readings:
+        cond = r.condition.value if hasattr(r.condition, 'value') else str(r.condition)
+        timeline.append({
+            "type": "reading",
+            "timestamp": r.created_at.isoformat() if r.created_at else None,
+            "psi": float(r.psi) if r.psi else None,
+            "tread_depth_mm": float(r.tread_depth_mm) if r.tread_depth_mm else None,
+            "condition": cond,
+            "temperature_c": float(r.temperature_c) if r.temperature_c else None,
+            "odometer_at_reading": float(r.odometer_at_reading) if r.odometer_at_reading else None,
+            "notes": r.notes,
+        })
+
+    for e in events:
+        timeline.append({
+            "type": "event",
+            "timestamp": e.created_at.isoformat() if e.created_at else None,
+            "event_type": e.event_type,
+            "odometer_km": float(e.odometer_km) if e.odometer_km else None,
+            "cost": float(e.cost) if e.cost else None,
+            "vendor_name": e.vendor_name,
+            "notes": e.notes,
+        })
+
+    # Sort descending by timestamp
+    timeline.sort(key=lambda x: x.get("timestamp") or "", reverse=True)
+
+    return APIResponse(
+        success=True,
+        data={
+            "tyre_id": tyre_id,
+            "serial_number": tyre.tyre_number,
+            "brand": tyre.brand,
+            "timeline": timeline,
         },
     )
 
@@ -1069,6 +1212,31 @@ async def get_vehicle_readings(
         for r in readings
     ]
     return APIResponse(success=True, data={"vehicle_id": vehicle_id, "readings": items})
+
+
+@router.get("/readings/vehicle/{vehicle_id}/last-trip-odometer", response_model=APIResponse)
+async def get_last_trip_odometer(
+    vehicle_id: int,
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Return the start and end odometer from the most recent trip for a vehicle."""
+    from app.models.postgres.trip import Trip
+    result = await db.execute(
+        select(Trip.id, Trip.start_odometer, Trip.end_odometer, Trip.status)
+        .where(Trip.vehicle_id == vehicle_id, Trip.is_deleted == False)
+        .order_by(Trip.created_at.desc())
+        .limit(1)
+    )
+    row = result.fetchone()
+    if not row:
+        return APIResponse(success=True, data={"trip_id": None, "start_odometer": None, "end_odometer": None})
+    return APIResponse(success=True, data={
+        "trip_id": row.id,
+        "start_odometer": float(row.start_odometer) if row.start_odometer else None,
+        "end_odometer": float(row.end_odometer) if row.end_odometer else None,
+        "status": row.status.value if hasattr(row.status, "value") else str(row.status),
+    })
 
 
 @router.patch("/readings/{reading_id}", response_model=APIResponse)

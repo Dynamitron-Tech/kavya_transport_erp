@@ -48,11 +48,19 @@ interface Props {
 // ── Color helpers ───────────────────────────────────────
 
 export function getTyreColor(tyre: Partial<TyreData>): string {
-  // Alert-based overrides (highest priority)
+  // Tread depth — primary signal (most accurate)
+  const treadMm = (tyre as any)?.tread_depth_mm;
+  if (treadMm != null) {
+    if (treadMm <= 2.5) return '#ef4444';  // critical
+    if (treadMm <= 5)   return '#f97316';  // worn
+    if (treadMm <= 8)   return '#eab308';  // average
+    return '#22c55e';                       // good
+  }
+  // Alert-based overrides
   if (tyre.alert === 'critical_pressure' || tyre.alert === 'critical') return '#dc2626';
   if (tyre.alert === 'low_pressure') return '#f97316';
   if (tyre.alert === 'high_temp') return '#ef4444';
-  // Condition-based (works for manual readings with no sensor)
+  // Condition-based fallback
   const condition = String((tyre as any).condition || '').toLowerCase();
   if (condition === 'damaged') return '#ef4444';
   if (condition === 'worn') return '#f97316';

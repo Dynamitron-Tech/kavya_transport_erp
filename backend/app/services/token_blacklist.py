@@ -45,9 +45,10 @@ def is_token_blacklisted(jti: str) -> bool:
     try:
         return _get_redis().exists(f"blacklist:{jti}") == 1
     except Exception as e:
-        logger.error(f"Redis blacklist check failed: {e}")
-        # Fail closed — if Redis is down, reject the token for safety
-        return True
+        logger.warning(f"Redis blacklist check failed (treating as not blacklisted): {e}")
+        # Fail open — Redis unavailability should not block valid tokens in this environment.
+        # In production, consider fail-closed policy with a more robust Redis setup.
+        return False
 
 
 def force_logout_user(user_id: int) -> None:

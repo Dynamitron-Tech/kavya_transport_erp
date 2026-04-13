@@ -108,7 +108,12 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         items: [
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
           { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },
-          { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
+        ],
+      },
+      {
+        label: 'System',
+        items: [
+          { label: 'Employees', route: '/admin/employees', icon: 'users', description: 'Manage employees and user accounts' },
           { label: 'Attendance', route: '/admin/attendance', icon: 'calendar', description: 'View all employee attendance' },
           { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
         ],
@@ -170,7 +175,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         items: [
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
           { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },
-          { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
         ],
       },
       {
@@ -306,7 +310,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         label: 'Quick Actions',
         items: [
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
-          { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
         ],
       },
       {
@@ -387,7 +390,6 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
       { label: 'Ledger', path: '/finance/ledger', permission: 'ledger:read' },
       { label: 'Receivables', path: '/finance/receivables', permission: 'receivables:read', roles: ['admin', 'manager', 'accountant'] },
       { label: 'Payables', path: '/finance/payables', permission: 'payables:read', roles: ['admin', 'manager', 'accountant'] },
-      { label: 'Banking Entry', path: '/finance/banking/new', roles: ['admin', 'manager', 'accountant'] },
     ],
   },
   {

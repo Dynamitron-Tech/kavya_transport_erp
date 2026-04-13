@@ -20,7 +20,7 @@ def upgrade() -> None:
     op.create_table(
         "tyre_readings",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("vehicle_tyre_id", sa.Integer(), nullable=False),
+        sa.Column("vehicle_tyre_id", sa.Integer(), nullable=True),
         sa.Column("vehicle_id", sa.Integer(), nullable=False),
         sa.Column("position", sa.String(length=20), nullable=False),
         sa.Column("psi", sa.Numeric(5, 1), nullable=False),
@@ -38,7 +38,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["vehicle_id"], ["vehicles.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["vehicle_tyre_id"], ["vehicle_tyres.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["vehicle_tyre_id"], ["vehicle_tyres.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["driver_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
