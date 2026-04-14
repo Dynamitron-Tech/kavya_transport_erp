@@ -128,6 +128,18 @@ class Trip(Base, TimestampMixin, SoftDeleteMixin):
     # Remarks
     remarks = Column(Text, nullable=True)
     
+    # Phase photos (driver app uploads)
+    loaded_image_url = Column(String(500), nullable=True)
+    reached_image_url = Column(String(500), nullable=True)
+    unloaded_image_url = Column(String(500), nullable=True)
+    pod_image_url = Column(String(500), nullable=True)
+
+    # Driver advance payment (Finance Manager pays ₹1500 after loading)
+    advance_paid = Column(Boolean, default=False)
+    advance_paid_at = Column(DateTime, nullable=True)
+    advance_paid_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    advance_paid_by_name = Column(String(200), nullable=True)
+
     # GPS Tracking (reference to MongoDB document)
     tracking_id = Column(String(50), nullable=True)  # MongoDB document ID
 

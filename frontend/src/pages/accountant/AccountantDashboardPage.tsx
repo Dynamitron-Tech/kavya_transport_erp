@@ -9,12 +9,13 @@ import {
 export default function AccountantDashboardPage() {
   const navigate = useNavigate();
 
-  const { data: batches } = useQuery({
+  const { data: batchesResp } = useQuery({
     queryKey: ['ifias-batches'],
-    queryFn: () => invoiceWorkspaceService.getBatches(),
+    queryFn: () => invoiceWorkspaceService.listBatches({ limit: 20 }),
   });
 
-  const recentBatches = (batches || []).slice(0, 6);
+  const batches: import('@/services/invoiceWorkspaceService').ProcessingBatch[] = batchesResp?.data ?? [];
+  const recentBatches = batches.slice(0, 6);
   const reviewPending = recentBatches.filter((b: any) => b.review_lrs > 0);
   const totalReviewLRs = reviewPending.reduce((a: number, b: any) => a + (b.review_lrs || 0), 0);
 
@@ -33,7 +34,16 @@ export default function AccountantDashboardPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title flex items-center gap-2"><FileSpreadsheet size={22} /> Accountant Dashboard</h1>
-          <p className="page-subtitle">IFIAS invoice processing & bank tools</p>
+          <p className="page-subtitle">IFIAS — Intelligent Freight Invoice Automation · Britannia OneDrive → LR review & writeback</p>
+        </div>
+      </div>
+
+      {/* Role clarity notice */}
+      <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 flex items-start gap-3">
+        <AlertTriangle size={16} className="text-indigo-500 shrink-0 mt-0.5" />
+        <div className="text-xs text-indigo-800 space-y-0.5">
+          <p><span className="font-semibold">Your role:</span> Invoice validation, IFIAS batch processing, bank statement download & Tally reconciliation, GST verification.</p>
+          <p><span className="font-semibold">Payments</span> (salary, driver advances, vendor payables) are handled by the <span className="font-semibold">Finance Manager</span>.</p>
         </div>
       </div>
 
@@ -74,7 +84,7 @@ export default function AccountantDashboardPage() {
             <div className="p-10 text-center text-gray-400">
               <FileSpreadsheet size={36} className="mx-auto mb-2 opacity-40" />
               <p className="text-sm">No IFIAS batches yet</p>
-              <p className="text-xs mt-1 text-gray-300">Upload a Britannia Excel to get started</p>
+              <p className="text-xs mt-1 text-gray-300">Upload a Britannia Excel from OneDrive to get started</p>
             </div>
           ) : (
             <table className="w-full text-sm">
@@ -128,7 +138,17 @@ export default function AccountantDashboardPage() {
               <Upload size={17} className="text-blue-600 shrink-0" />
               <div>
                 <p className="text-sm font-medium text-blue-900">Invoice Workspace</p>
-                <p className="text-xs text-blue-600">IFIAS batch processing</p>
+                <p className="text-xs text-blue-600">IFIAS — Britannia OneDrive batch processing</p>
+              </div>
+            </button>
+            <button
+              onClick={() => navigate('/accountant/invoices')}
+              className="w-full flex items-center gap-3 p-3 rounded-lg bg-green-50 hover:bg-green-100 transition text-left"
+            >
+              <FileText size={17} className="text-green-600 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-green-900">All Invoices</p>
+                <p className="text-xs text-green-600">View and manage invoice records</p>
               </div>
             </button>
             <button
@@ -137,18 +157,18 @@ export default function AccountantDashboardPage() {
             >
               <Building2 size={17} className="text-cyan-600 shrink-0" />
               <div>
-                <p className="text-sm font-medium text-cyan-900">Bank Statement</p>
-                <p className="text-xs text-cyan-600">Download & reconcile with Tally</p>
+                <p className="text-sm font-medium text-cyan-900">Bank Accounts & Statements</p>
+                <p className="text-xs text-cyan-600">View balances, download & reconcile with Tally</p>
               </div>
             </button>
             <button
-              onClick={() => navigate('/accountant/payments')}
+              onClick={() => navigate('/finance')}
               className="w-full flex items-center gap-3 p-3 rounded-lg bg-purple-50 hover:bg-purple-100 transition text-left"
             >
               <Wallet size={17} className="text-purple-600 shrink-0" />
               <div>
-                <p className="text-sm font-medium text-purple-900">Driver Advance</p>
-                <p className="text-xs text-purple-600">Issue trip advances</p>
+                <p className="text-sm font-medium text-purple-900">Finance Overview</p>
+                <p className="text-xs text-purple-600">Review payables, expenses & account statements</p>
               </div>
             </button>
             <button

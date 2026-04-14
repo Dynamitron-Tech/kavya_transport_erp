@@ -18,9 +18,14 @@ import '../../providers/fleet_dashboard_provider.dart';
 // ---------------------------------------------------------------------------
 
 final _auditorReportProvider =
-    FutureProvider.autoDispose.family<Map<String, dynamic>, Map<String, String>>(
-  (ref, params) async {
+    FutureProvider.autoDispose.family<Map<String, dynamic>, String>(
+  (ref, paramKey) async {
     final api = ref.read(apiServiceProvider);
+    // paramKey is 'from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&ledger_page=N&ledger_per_page=100'
+    final params = Map.fromEntries(paramKey.split('&').map((e) {
+      final kv = e.split('=');
+      return MapEntry(kv[0], kv[1]);
+    }));
     final result = await api.get('/reports/auditor', queryParameters: params);
     if (result is Map<String, dynamic> && result['data'] != null) {
       return result['data'] as Map<String, dynamic>;
@@ -84,12 +89,11 @@ class _AuditorReportScreenState extends ConsumerState<AuditorReportScreen> {
     });
   }
 
-  Map<String, String> get _params => {
-        'from_date': DateFormat('yyyy-MM-dd').format(_fromDate),
-        'to_date': DateFormat('yyyy-MM-dd').format(_toDate),
-        'ledger_page': _ledgerPage.toString(),
-        'ledger_per_page': '100',
-      };
+  String get _paramKey =>
+      'from_date=${DateFormat('yyyy-MM-dd').format(_fromDate)}'
+      '&to_date=${DateFormat('yyyy-MM-dd').format(_toDate)}'
+      '&ledger_page=$_ledgerPage'
+      '&ledger_per_page=100';
 
   Future<void> _exportReport(String format) async {
     setState(() => _isExporting = true);
@@ -181,7 +185,7 @@ class _AuditorReportScreenState extends ConsumerState<AuditorReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(_auditorReportProvider(_params));
+    final state = ref.watch(_auditorReportProvider(_paramKey));
 
     return Scaffold(
       backgroundColor: KTColors.lightBg,
@@ -245,11 +249,11 @@ class _AuditorReportScreenState extends ConsumerState<AuditorReportScreen> {
               loading: () => const KTLoadingShimmer(type: ShimmerType.card),
               error: (e, _) => KTErrorState(
                 message: e.toString(),
-                onRetry: () => ref.invalidate(_auditorReportProvider(_params)),
+                onRetry: () => ref.invalidate(_auditorReportProvider(_paramKey)),
               ),
               data: (data) => RefreshIndicator(
                 color: KTColors.acctAccent,
-                onRefresh: () async => ref.invalidate(_auditorReportProvider(_params)),
+                onRefresh: () async => ref.invalidate(_auditorReportProvider(_paramKey)),
                 child: ListView(
                   padding: const EdgeInsets.all(16),
                   children: [

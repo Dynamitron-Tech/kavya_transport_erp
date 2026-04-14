@@ -875,12 +875,14 @@ class _ArrivalSheet extends StatefulWidget {
 class _ArrivalSheetState extends State<_ArrivalSheet> {
   File? _photo;
   final _odoCtrl = TextEditingController();
+  final _fuelLitresCtrl = TextEditingController();
   bool _isSubmitting = false;
   final _picker = ImagePicker();
 
   @override
   void dispose() {
     _odoCtrl.dispose();
+    _fuelLitresCtrl.dispose();
     super.dispose();
   }
 
@@ -902,8 +904,17 @@ class _ArrivalSheetState extends State<_ArrivalSheet> {
     setState(() => _isSubmitting = true);
     try {
       final odo = double.tryParse(_odoCtrl.text.trim());
+      final fuelLitres = double.tryParse(_fuelLitresCtrl.text.trim());
       final api = widget.ref.read(apiServiceProvider);
       await api.markTripReached(widget.trip.id, _photo!, endOdometer: odo);
+      // Submit fuel litres entry if provided
+      if (fuelLitres != null && fuelLitres > 0) {
+        await api.addTripFuel(
+          widget.trip.id,
+          litres: fuelLitres,
+          totalAmount: 0,
+        );
+      }
       widget.ref.invalidate(tripDetailProvider(widget.trip.id));
       widget.ref.invalidate(fleetVehiclesProvider);
       await widget.ref.read(tripsPaginatedProvider.notifier).refresh();
@@ -1043,6 +1054,20 @@ class _ArrivalSheetState extends State<_ArrivalSheet> {
               labelText: 'Odometer at Arrival (km)',
               hintText: 'e.g. 85230',
               prefixIcon: Icon(Icons.speed_outlined),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Total Litres of Fuel Used
+          TextField(
+            controller: _fuelLitresCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+            decoration: const InputDecoration(
+              labelText: 'Total Litres of Fuel Used (optional)',
+              hintText: 'e.g. 42.5',
+              prefixIcon: Icon(Icons.local_gas_station_outlined),
               border: OutlineInputBorder(),
             ),
           ),

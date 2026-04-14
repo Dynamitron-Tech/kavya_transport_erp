@@ -225,7 +225,21 @@ export default function AccountantBankingPage() {
       last_transaction_date: tx.transaction_date || tx.date || new Date().toISOString(),
     });
   });
-  const accounts: AccountantBankAccount[] = Array.from(accountMap.values());
+
+  // Use real bank account balances from /finance/bank-accounts (current_balance field)
+  const bankAccountsList = safeArray<any>((accountsData as any)?.items ?? accountsData);
+  const accountsFromDB: AccountantBankAccount[] = bankAccountsList.map((a: any) => ({
+    id: a.id,
+    name: a.account_name,
+    bank: `${a.account_name} — ${a.bank_name}`,
+    account_number: a.account_number || 'N/A',
+    type: a.account_type || 'current',
+    balance: Number(a.current_balance ?? 0),
+    last_transaction_date: a.updated_at || a.created_at || new Date().toISOString(),
+  }));
+
+  // Prefer DB accounts for display; fall back to transaction-derived accounts if none
+  const accounts: AccountantBankAccount[] = accountsFromDB.length > 0 ? accountsFromDB : Array.from(accountMap.values());
   const totalBalance = accounts.reduce((sum, account) => sum + Number(account.balance || 0), 0);
 
   const fmt = (n: number) => `₹${(n ?? 0).toLocaleString('en-IN')}`;

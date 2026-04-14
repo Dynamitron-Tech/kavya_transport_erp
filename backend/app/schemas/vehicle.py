@@ -6,7 +6,9 @@ from datetime import datetime, date
 
 class VehicleCreate(BaseModel):
     registration_number: str = Field(..., min_length=1, max_length=20)
-    vehicle_type: str = "truck"
+    vehicle_type: str = "flatbed_truck"
+    vehicle_size_class: Optional[str] = None
+    axle_wheel_type: Optional[str] = None
     make: Optional[str] = None
     model: Optional[str] = None
     year_of_manufacture: Optional[int] = None
@@ -33,6 +35,8 @@ class VehicleCreate(BaseModel):
 
 class VehicleUpdate(BaseModel):
     vehicle_type: Optional[str] = None
+    vehicle_size_class: Optional[str] = None
+    axle_wheel_type: Optional[str] = None
     make: Optional[str] = None
     model: Optional[str] = None
     capacity_tons: Optional[float] = None
@@ -53,6 +57,8 @@ class VehicleResponse(BaseModel):
     id: int
     registration_number: str
     vehicle_type: str
+    vehicle_size_class: Optional[str] = None
+    axle_wheel_type: Optional[str] = None
     make: Optional[str] = None
     model: Optional[str] = None
     year_of_manufacture: Optional[int] = None

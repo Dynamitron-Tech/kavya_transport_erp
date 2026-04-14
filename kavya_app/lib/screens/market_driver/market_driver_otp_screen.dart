@@ -43,8 +43,12 @@ class _MarketDriverOtpScreenState extends ConsumerState<MarketDriverOtpScreen> {
   void dispose() {
     _phoneCtrl.dispose();
     _otpCtrl.dispose();
-    for (final c in _otpBoxCtrls) c.dispose();
-    for (final f in _otpFocusNodes) f.dispose();
+    for (final c in _otpBoxCtrls) {
+      c.dispose();
+    }
+    for (final f in _otpFocusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -113,7 +117,9 @@ class _MarketDriverOtpScreenState extends ConsumerState<MarketDriverOtpScreen> {
       final data = (resp['data'] ?? resp) as Map<String, dynamic>;
       _sessionId  = data['session_id']  as String;
       _msg91Token = data['msg91_token'] as String;
-      for (final c in _otpBoxCtrls) c.clear();
+      for (final c in _otpBoxCtrls) {
+        c.clear();
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _otpFocusNodes[0].requestFocus();
       });

@@ -47,4 +47,14 @@ export const authService = {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
   },
+
+  sendOtp: async (phone: string, password: string): Promise<{ session_id: string; phone_masked: string }> => {
+    const data = await api.post<{ session_id: string; phone_masked: string }>('/auth/send-otp', { phone, password });
+    return unwrap(data);
+  },
+
+  verifyOtp: async (session_id: string, otp: string): Promise<LoginResponse> => {
+    const data = await api.post<LoginResponse>('/auth/verify-otp', { session_id, otp });
+    return unwrap(data);
+  },
 };

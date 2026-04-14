@@ -8,16 +8,11 @@ class AccountantMoreScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 6 grid items + 1 full-width Banking card
+    // Accountant review & reporting tools only — payments handled by Finance Manager
     final gridItems = [
-      _MenuItem(Icons.payments_outlined, 'Payments', 'Driver & vendor payouts', '/accountant/payments', KTColors.info),
       _MenuItem(Icons.account_balance_wallet_outlined, 'Receivables', 'Track outstanding dues', '/accountant/receivables', KTColors.success),
-      _MenuItem(Icons.money_off_outlined, 'Payables', 'Manage pending bills', '/accountant/payables', KTColors.danger),
       _MenuItem(Icons.receipt_long_outlined, 'GST', 'Tax reports & filing', '/accountant/gst', KTColors.warning),
-      _MenuItem(Icons.task_alt_outlined, 'Expense Approvals', 'Review & approve claims', '/accountant/approvals', KTColors.acctAccent),
-      _MenuItem(Icons.people_outlined, 'Settlements', 'Driver settlements', '/accountant/settlements', KTColors.roleManager),
       _MenuItem(Icons.verified_outlined, 'Auditor Report', 'Full financial audit & export', '/accountant/auditor-report', const Color(0xFF6366F1)),
-      _MenuItem(Icons.account_balance_wallet_outlined, 'Payments Hub', 'All outgoing payments', '/accountant/payments-hub', const Color(0xFF059669)),
     ];
     final bankingItem = _MenuItem(
       Icons.account_balance_outlined,
@@ -40,8 +35,29 @@ class AccountantMoreScreen extends StatelessWidget {
                   children: [
                     Text('Modules', style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
                     const SizedBox(height: 4),
-                    Text('All finance tools in one place',
+                    Text('Review & reporting tools',
                         style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEEF2FF),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFC7D2FE)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, size: 16, color: Color(0xFF4F46E5)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Payments, advances & payables are handled by the Finance Manager.',
+                              style: KTTextStyles.bodySmall.copyWith(color: const Color(0xFF4338CA)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),

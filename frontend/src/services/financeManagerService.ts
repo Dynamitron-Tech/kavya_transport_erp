@@ -32,6 +32,9 @@ export interface SalarySummary {
   unpaid_count: number;
   paid_paise: number;
   remaining_paise: number;
+  deadline_day: number;
+  is_overdue: boolean;
+  days_remaining: number | null;
 }
 
 export interface ExpenseSubmission {
@@ -125,6 +128,33 @@ export interface TripExpenseItem {
   expense_date: string | null;
   created_at: string | null;
   paid_at: string | null;
+  paid_by_name: string | null;
+}
+
+export interface PendingAdvanceTripItem {
+  id: number;
+  trip_number: string;
+  origin: string;
+  destination: string;
+  trip_date: string | null;
+  status: string;
+  driver_name: string;
+  driver_id: number | null;
+  vehicle_registration: string | null;
+  loaded_image_url: string;
+  advance_amount: number;
+}
+
+export interface DriverAdvanceRequest {
+  id: number;
+  driver_id: number;
+  driver_name: string;
+  trip_id: number | null;
+  trip_number: string | null;
+  amount: number;
+  status: string; // PENDING | APPROVED | REJECTED
+  review_note: string | null;
+  created_at: string;
 }
 
 // ─── API calls ─────────────────────────────────────────────────────────────────
@@ -187,4 +217,18 @@ export const financeManagerService = {
 
   // Razorpay Balance
   getRazorpayBalance: () => api.get<{ data: { balance_paise: number } }>(`${BASE}/razorpay/balance`).then(r => r.data),
+
+  // Driver Advance (post-loading ₹1500)
+  getPendingAdvanceTrips: (page?: number) =>
+    api.get<{ data: PendingAdvanceTripItem[] }>(`${BASE}/pending-advance-trips`, { params: { page } }).then(r => r.data),
+  payTripAdvance: (tripId: number) =>
+    api.post<{ data: { trip_id: number; trip_number: string; advance_amount: number; paid_by: string; paid_at: string } }>(
+      `${BASE}/trips/${tripId}/pay-advance`
+    ).then(r => r.data),
+
+  // Driver-requested advances (via "Request Advance" button in driver app)
+  getDriverAdvanceRequests: () =>
+    api.get<{ data: DriverAdvanceRequest[] }>('/driver-requests/advance-requests/fleet').then(r => r.data),
+  acknowledgeAdvanceRequest: (advanceId: number, note?: string) =>
+    api.post(`/driver-requests/advance-requests/${advanceId}/acknowledge`, { note: note ?? '' }).then(r => r.data),
 };

@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { financeManagerService, SalaryStaffItem } from '@/services/financeManagerService';
 import {
   Users, IndianRupee, CheckCircle2, Clock, AlertCircle,
-  Banknote, XCircle, ChevronLeft, Download,
+  Banknote, XCircle, ChevronLeft, Download, AlertTriangle,
 } from 'lucide-react';
 
 const fmt = (paise: number) => `₹${((paise || 0) / 100).toLocaleString('en-IN')}`;
@@ -97,6 +97,40 @@ export default function SalaryPaymentsPage() {
           />
         </div>
       </div>
+
+      {/* Razorpay not yet activated notice */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-start gap-3">
+        <AlertCircle size={16} className="text-blue-500 shrink-0 mt-0.5" />
+        <p className="text-xs text-blue-800">
+          <span className="font-semibold">Razorpay Payouts not yet active.</span>{' '}
+          Live salary transfers require a verified company domain. Until deployment, record payments manually and mark each as paid via the action button.
+        </p>
+      </div>
+
+      {/* Deadline banner */}
+      {summary && summary.is_overdue && summary.unpaid_count > 0 && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-300 rounded-lg px-4 py-3">
+          <AlertTriangle size={18} className="text-red-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-red-700 font-semibold">
+            OVERDUE — Salary payment deadline (10th) has passed.{' '}
+            <span className="font-bold">{summary.unpaid_count}</span>{' '}
+            {summary.unpaid_count === 1 ? 'employee is' : 'employees are'} still unpaid.
+          </p>
+        </div>
+      )}
+      {summary && !summary.is_overdue && summary.days_remaining !== null && summary.days_remaining <= 10 && summary.unpaid_count > 0 && (
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3">
+          <Clock size={18} className="text-amber-600 mt-0.5 shrink-0" />
+          <p className="text-sm text-amber-800 font-medium">
+            Pay all salaries by the 10th of this month.{' '}
+            <span className="font-semibold">{summary.unpaid_count}</span>{' '}
+            {summary.unpaid_count === 1 ? 'employee' : 'employees'} unpaid
+            {summary.days_remaining === 0
+              ? ' — today is the last day!'
+              : ` — ${summary.days_remaining} ${summary.days_remaining === 1 ? 'day' : 'days'} remaining.`}
+          </p>
+        </div>
+      )}
 
       {/* Progress */}
       {summary && (

@@ -245,26 +245,37 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
   FINANCE_MANAGER: {
     sections: [
       {
-        label: 'Overview',
+        label: 'OVERVIEW',
         items: [
-          { label: 'Dashboard', route: '/finance', icon: 'gauge', description: 'Finance overview — invoices, banking & alerts' },
+          { label: 'Finance Manager', route: '/fm/dashboard', icon: 'gauge', description: 'Payment control center — salary, advances, vendor payments' },
         ],
       },
       {
-        label: 'Finance',
+        label: 'PAYMENTS',
         items: [
-          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts', badge: 'alerts' },
-          { label: 'Trip Expenses', route: '/finance?tab=transactions&sub=trip-expenses', icon: 'receipt', description: 'Driver trip expenses from completed trips — pay & verify' },
-          { label: 'Expense Approvals', route: '/fm/expenses', icon: 'receipt', description: 'Review and approve expense receipts' },
-          { label: 'Driver Advances', route: '/fm/advances', icon: 'wallet', description: 'Issue trip advances to drivers' },
-          { label: 'Payables', route: '/fm/payables', icon: 'calendar', description: 'Recurring payments — rent, insurance, permits' },
-          { label: 'Payout History', route: '/fm/history', icon: 'clock', description: 'All outgoing payment records' },
+          { label: 'Salary Payments', route: '/fm/salary', icon: 'users', description: 'Pay staff salaries for the month' },
+          { label: 'Trip Expenses', route: '/finance?tab=transactions&sub=trip-expenses', icon: 'receipt', description: 'Pending driver field expenses from trips — pay & verify' },
+          { label: 'GPay Expense Approvals', route: '/fm/expenses', icon: 'wallet', description: 'Review and reimburse driver GPay receipts' },
+          { label: 'Driver Advances', route: '/fm/advances', icon: 'pay', description: 'Issue post-loading and on-request driver advances' },
+          { label: 'Payables & Schedules', route: '/fm/payables', icon: 'calendar', description: 'Recurring fixed payments — rent, insurance, tax, permits, EMI' },
         ],
       },
       {
-        label: 'System',
+        label: 'HISTORY',
         items: [
-          { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
+          { label: 'Payout History', route: '/fm/history', icon: 'clock', description: 'All Razorpay outgoing payment records' },
+        ],
+      },
+      {
+        label: 'REVIEW',
+        items: [
+          { label: 'Finance Overview', route: '/finance', icon: 'arrowup', description: 'Read-only view of invoices, banker & reports', badge: 'alerts' },
+        ],
+      },
+      {
+        label: 'SYSTEM',
+        items: [
+          { label: 'Settings', route: '/settings', icon: 'settings', description: 'Account settings and preferences' },
         ],
       },
     ],
@@ -272,25 +283,42 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
   ACCOUNTANT: {
     sections: [
       {
-        label: 'Overview',
+        label: 'OVERVIEW',
         items: [
-          { label: 'Dashboard', route: '/finance', icon: 'gauge', description: 'Finance overview — invoices, banking & alerts' },
+          { label: 'Accountant Dashboard', route: '/accountant/dashboard', icon: 'gauge', description: 'IFIAS batch status & quick actions' },
         ],
       },
       {
-        label: 'Finance',
+        label: 'INVOICING',
         items: [
-          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts', badge: 'alerts' },
-          { label: 'Invoice Workspace', route: '/accountant/invoice-workspace', icon: 'file', description: 'Britannia invoice automation — parse, validate, writeback', badge: 'new' },
-          { label: 'Bank Statement', route: '/accountant/banking', icon: 'bank', description: 'Download statements & Tally reconciliation' },
-          { label: 'Driver Advance', route: '/accountant/payments', icon: 'wallet', description: 'Issue driver advances' },
-          { label: 'GST Verification', route: '/fleet/gst-verify', icon: 'receipt', description: 'Verify GSTIN and filing status' },
+          { label: 'Invoice Workspace', route: '/accountant/invoice-workspace', icon: 'file', description: 'IFIAS — Britannia OneDrive Excel → parse, validate, LR writeback', badge: 'new' },
+          { label: 'Invoices', route: '/accountant/invoices', icon: 'invoice', description: 'View and manage all invoices' },
         ],
       },
       {
-        label: 'System',
+        label: 'REVIEW',
         items: [
-          { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
+          { label: 'Finance Overview', route: '/finance', icon: 'arrowup', description: 'Invoices, transactions, banking & reports', badge: 'alerts' },
+          { label: 'Payables Review', route: '/finance?tab=transactions&sub=payables', icon: 'arrowdown', description: 'Review vendor payables' },
+          { label: 'Expense Review', route: '/finance?tab=transactions&sub=expenses', icon: 'receipt', description: 'Review approved expenses' },
+        ],
+      },
+      {
+        label: 'BANKING',
+        items: [
+          { label: 'Bank Accounts & Txns', route: '/accountant/banking', icon: 'bank', description: 'View accounts, upload statements & reconcile with Tally' },
+        ],
+      },
+      {
+        label: 'TOOLS',
+        items: [
+          { label: 'GST Verification', route: '/fleet/gst-verify', icon: 'shield', description: 'Verify GSTIN and GST filing status' },
+        ],
+      },
+      {
+        label: 'SYSTEM',
+        items: [
+          { label: 'Settings', route: '/settings', icon: 'settings', description: 'Account settings and preferences' },
         ],
       },
     ],

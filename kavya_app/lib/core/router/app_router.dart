@@ -43,6 +43,7 @@ import '../../screens/fleet/fleet_create_lr_screen.dart';
 import '../../screens/fleet/fleet_service_log_screen.dart';
 import '../../screens/fleet/fleet_tyre_event_screen.dart';
 import '../../screens/fleet/fleet_assign_driver_screen.dart';
+import '../../screens/fleet/fleet_notifications_screen.dart';
 // Accountant screens
 import '../../screens/accountant/accountant_home_screen.dart';
 import '../../screens/accountant/accountant_shell_screen.dart';
@@ -132,10 +133,25 @@ import '../../features/manager/screens/manager_vehicle_detail_screen.dart';
 import '../../features/manager/screens/manager_reports_screen.dart';
 import '../../features/manager/screens/manager_approvals_screen.dart';
 import '../../features/manager/screens/manager_notifications_screen.dart';
+// Finance Manager screens
+import '../../screens/finance/finance_shell_screen.dart';
+import '../../screens/finance/finance_home_screen.dart';
+import '../../screens/finance/finance_expenses_screen.dart';
+import '../../screens/finance/finance_drivers_screen.dart';
+import '../../screens/finance/finance_salary_screen.dart';
+import '../../screens/finance/finance_payments_screen.dart';
+import '../../screens/finance/finance_notifications_screen.dart';
 // Market Driver screens
 import '../../screens/market_driver/market_driver_otp_screen.dart';
 import '../../screens/market_driver/market_driver_trips_screen.dart';
 import '../../screens/market_driver/market_driver_trip_detail_screen.dart';
+// Tyre Inspector screens
+import '../../screens/tyre/tyre_shell_screen.dart';
+import '../../screens/tyre/tyre_dashboard_screen.dart';
+import '../../screens/tyre/tyre_inspections_screen.dart';
+import '../../screens/tyre/tyre_vehicles_screen.dart';
+import '../../screens/tyre/tyre_history_screen.dart';
+import '../../screens/tyre/tyre_profile_screen.dart';
 
 final appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -162,7 +178,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           case 'fleet_manager': return '/fleet/home';
           case 'accountant': return '/accountant/home';
           case 'finance_manager':
-          case 'FINANCE_MANAGER': return '/accountant/home';
+          case 'FINANCE_MANAGER': return '/finance/home';
           case 'project_associate': return '/pa/dashboard';
           case 'admin':
           case 'super_admin': return '/admin/dashboard';
@@ -170,6 +186,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           case 'manager': return '/manager/dashboard';
           case 'branch_manager': return '/branch/home';
           case 'market_driver': return '/market-driver/trips';
+          case 'tyre_inspector': return '/tyre/dashboard';
           default: return '/web-only';
         }
       }
@@ -401,6 +418,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/fleet/tyre/new', builder: (context, state) => const FleetTyreEventScreen()),
       GoRoute(path: '/fleet/approvals', builder: (context, state) => const FleetDriverApprovalsScreen()),
       GoRoute(path: '/fleet/assign', builder: (context, state) => const FleetAssignDriverScreen()),
+      GoRoute(path: '/fleet/notifications', builder: (context, state) => const FleetNotificationsScreen()),
       
       // --- Accountant Routes --- (Stateful shell with bottom nav)
       StatefulShellRoute.indexedStack(
@@ -508,6 +526,55 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AccountantPaymentsHubScreen(),
       ),
       
+      // --- Finance Manager Routes ---
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            FinanceShellScreen(navigationShell: navigationShell),
+        branches: [
+          // index 0 → Dashboard
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/finance/home',
+              builder: (context, state) => const FinanceHomeScreen(),
+            ),
+          ]),
+          // index 1 → Expenses
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/finance/expenses',
+              builder: (context, state) => const FinanceExpensesScreen(),
+            ),
+          ]),
+          // index 2 → Drivers
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/finance/drivers',
+              builder: (context, state) => const FinanceDriversScreen(),
+            ),
+          ]),
+          // index 3 → Salary
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/finance/salary',
+              builder: (context, state) => const FinanceSalaryScreen(),
+            ),
+          ]),
+          // index 4 → Payments
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/finance/payments',
+              builder: (context, state) => const FinancePaymentsScreen(),
+            ),
+          ]),
+        ],
+      ),
+
+      // Finance notifications (pushed on top of shell)
+      GoRoute(
+        path: '/finance/notifications',
+        builder: (context, state) => const FinanceNotificationsScreen(),
+      ),
+
       // --- Associate Routes (legacy redirects → PA screens) ---
       GoRoute(path: '/associate/home',        redirect: (context, state) => '/pa/dashboard'),
       GoRoute(path: '/associate/jobs',         redirect: (context, state) => '/pa/jobs'),
@@ -904,6 +971,31 @@ final routerProvider = Provider<GoRouter>((ref) {
             GoRoute(path: '/branch/reports', builder: (context, state) => const BranchReportsScreen()),
           ]),
         ],
+      ),
+
+      // --- Tyre Inspector Routes --- (Stateful shell with bottom nav)
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            TyreShellScreen(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/tyre/dashboard', builder: (context, state) => const TyreDashboardScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/tyre/vehicles', builder: (context, state) => const TyreVehiclesScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/tyre/inspections', builder: (context, state) => const TyreInspectionsScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/tyre/history', builder: (context, state) => const TyreHistoryScreen()),
+          ]),
+        ],
+      ),
+      GoRoute(
+        path: '/tyre/profile',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) => const TyreProfileScreen(),
       ),
 
       // --- Market Driver Routes (phone OTP login → trips → detail) ---

@@ -132,6 +132,18 @@ async def list_drivers(
 ):
     drivers, total = await driver_service.list_drivers(db, page, limit, search, status)
     pages = (total + limit - 1) // limit
+
+    # Build driver_id → vehicle_registration map in one query
+    driver_ids = [d.id for d in drivers]
+    vehicle_map: dict = {}
+    if driver_ids:
+        veh_res = await db.execute(
+            select(Vehicle.default_driver_id, Vehicle.registration_number)
+            .where(Vehicle.default_driver_id.in_(driver_ids))
+        )
+        for vid, reg in veh_res.all():
+            vehicle_map[vid] = reg
+
     items = []
     for d in drivers:
         row = {c.key: getattr(d, c.key) for c in d.__table__.columns}
@@ -141,6 +153,14 @@ async def list_drivers(
         row["employee_id"] = row.get("employee_code", "")
         if row.get("status") and hasattr(row["status"], "value"):
             row["status"] = row["status"].value
+        # Vehicle assigned via default_driver_id on Vehicle table
+        row["vehicle_registration"] = vehicle_map.get(d.id)
+        row["vehicle_id"] = None
+        if vehicle_map.get(d.id):
+            veh_id_res = await db.execute(
+                select(Vehicle.id).where(Vehicle.default_driver_id == d.id)
+            )
+            row["vehicle_id"] = veh_id_res.scalar_one_or_none()
         # Include first license info if available
         licenses = await driver_service.get_driver_license(db, d.id)
         if licenses:
@@ -209,6 +229,13 @@ async def get_my_trips(
             "lr_count": len(lr_numbers),
             "start_odometer": float(t.start_odometer) if t.start_odometer is not None else None,
             "vehicle_odometer": vehicle_odometer,
+            "loaded_image_url": t.loaded_image_url,
+            "reached_image_url": t.reached_image_url,
+            "unloaded_image_url": t.unloaded_image_url,
+            "pod_image_url": t.pod_image_url,
+            "advance_paid": bool(t.advance_paid),
+            "advance_paid_at": t.advance_paid_at.isoformat() if t.advance_paid_at else None,
+            "advance_paid_by_name": t.advance_paid_by_name,
         })
 
     pages = (total + page_size - 1) // page_size
@@ -507,6 +534,9 @@ async def mark_trip_loaded(
     if error:
         raise HTTPException(status_code=400, detail=error)
 
+    # Persist loaded photo URL on trip
+    trip.loaded_image_url = f"/uploads/trip_photos/{filename}"
+
     # Save departure odometer and update vehicle's odometer
     if start_odometer is not None:
         trip.start_odometer = start_odometer
@@ -524,11 +554,11 @@ async def mark_trip_loaded(
         await notification_service.send(
             db,
             event_type="DRIVER_TRUCK_LOADED",
-            title="Truck Loaded",
-            body=f"{driver_name} has Loaded his truck for the {trip_number}",
-            target_roles=["FLEET_MANAGER"],
+            title="Advance Payment Required",
+            body=f"{driver_name} has completed loading for trip {trip_number}. Please pay the Advance",
+            target_roles=["FLEET_MANAGER", "FINANCE_MANAGER"],
             data={"trip_id": str(trip_id)},
-            urgency="normal",
+            urgency="high",
             triggered_by=current_user.user_id,
         )
     except Exception:
@@ -589,6 +619,9 @@ async def mark_trip_reached(
         )
         if error:
             raise HTTPException(status_code=400, detail=error)
+
+    # Persist reached photo URL on trip
+    trip.reached_image_url = f"/uploads/trip_photos/{filename}"
 
     # Save arrival odometer on the trip and update the vehicle's odometer reading
     if end_odometer is not None:
@@ -660,8 +693,96 @@ async def mark_trip_unloaded(
     with open(photo_path, "wb") as f:
         f.write(content)
 
+    # Persist unloaded photo URL — do NOT complete the trip yet.
+    # The driver must next upload a Proof of Delivery photo to complete the trip.
+    trip.unloaded_image_url = f"/uploads/trip_photos/{filename}"
+    trip.unloading_end = datetime.utcnow()
+    await db.commit()
+
+    driver_name = await _resolve_driver_name(driver)
+    trip_number = trip.trip_number
+
+    try:
+        await notification_service.send(
+            db,
+            event_type="DRIVER_TRUCK_UNLOADED",
+            title="Truck Unloaded — POD Required",
+            body=f"{driver_name} has unloaded the truck for {trip_number}. Awaiting Proof of Delivery.",
+            target_roles=["FLEET_MANAGER"],
+            data={"trip_id": str(trip_id)},
+            urgency="normal",
+            triggered_by=current_user.user_id,
+        )
+    except Exception:
+        pass
+
+    return APIResponse(success=True, data={"id": trip_id, "photo_path": photo_path}, message="Truck unloaded. Please upload Proof of Delivery to complete the trip.")
+
+
+@router.post("/me/trips/{trip_id}/mark-pod", response_model=APIResponse)
+async def mark_trip_pod(
+    trip_id: int,
+    photo: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Driver uploads Proof of Delivery photo. Completes the trip."""
+    from app.services.notification_service import notification_service
+    import os, uuid
+    from app.models.postgres.lr import LR, LRStatus
+    driver = await _get_current_driver_profile(db, current_user)
+    if not driver:
+        raise HTTPException(status_code=404, detail="No driver profile linked to this account")
+
+    trip_result = await db.execute(
+        select(Trip).where(Trip.id == trip_id, Trip.driver_id == driver.id, Trip.is_deleted == False)
+    )
+    trip = trip_result.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found or not assigned to you")
+
+    current_status = getattr(trip.status, "value", str(trip.status)).strip().lower()
+    if current_status != "unloading":
+        raise HTTPException(status_code=400, detail=f"Trip must be in 'unloading' status to upload POD (current: {current_status})")
+
+    if not trip.unloaded_image_url:
+        raise HTTPException(status_code=400, detail="Please mark truck as unloaded before uploading Proof of Delivery")
+
+    # Save POD photo
+    photo_dir = "uploads/trip_photos"
+    os.makedirs(photo_dir, exist_ok=True)
+    ext = (photo.filename or "photo.jpg").rsplit(".", 1)[-1].lower()
+    ALLOWED_EXTS = {"jpg", "jpeg", "png", "webp", "heic", "pdf"}
+    if ext not in ALLOWED_EXTS:
+        raise HTTPException(status_code=400, detail="POD must be an image or PDF")
+    filename = f"pod_{trip_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    photo_path = os.path.join(photo_dir, filename)
+    content = await photo.read()
+    with open(photo_path, "wb") as f:
+        f.write(content)
+
+    pod_url = f"/uploads/trip_photos/{filename}"
+    now = datetime.utcnow()
+
+    # Persist POD on trip
+    trip.pod_image_url = pod_url
+    trip.pod_collected = True
+    trip.pod_completed_at = now
+
+    # Update all linked active LRs with the POD
+    lr_result = await db.execute(
+        select(LR).where(LR.trip_id == trip_id, LR.is_deleted == False)
+    )
+    linked_lrs = lr_result.scalars().all()
+    for lr in linked_lrs:
+        lr.pod_file_url = pod_url
+        lr.pod_uploaded = True
+        lr.pod_upload_date = now
+        lr.status = LRStatus.POD_RECEIVED
+
+    # Complete the trip
     updated_trip, error = await trip_service.change_trip_status(
-        db, trip_id, "completed", current_user.user_id, "Driver marked truck as unloaded"
+        db, trip_id, "completed", current_user.user_id, "Driver uploaded Proof of Delivery"
     )
     if error:
         raise HTTPException(status_code=400, detail=error)
@@ -672,18 +793,18 @@ async def mark_trip_unloaded(
     try:
         await notification_service.send(
             db,
-            event_type="DRIVER_TRUCK_UNLOADED",
-            title="Trip Completed",
-            body=f"{driver_name} has unloaded his truck for the {trip_number}",
+            event_type="DRIVER_POD_UPLOADED",
+            title="POD Received — Trip Completed",
+            body=f"{driver_name} has uploaded Proof of Delivery for {trip_number}. Trip is now complete.",
             target_roles=["FLEET_MANAGER"],
-            data={"trip_id": str(trip_id)},
+            data={"trip_id": str(trip_id), "pod_url": pod_url},
             urgency="normal",
             triggered_by=current_user.user_id,
         )
     except Exception:
         pass
 
-    return APIResponse(success=True, data={"id": trip_id, "photo_path": photo_path}, message="Trip completed successfully.")
+    return APIResponse(success=True, data={"id": trip_id, "pod_url": pod_url}, message="Proof of Delivery uploaded. Trip completed successfully.")
 
 
 # --- Driver Allocated Vehicle ---

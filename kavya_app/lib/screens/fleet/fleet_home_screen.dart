@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
+import '../../core/services/fcm_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/fleet_dashboard_provider.dart';
 import 'fleet_market_hub_screen.dart';
@@ -66,6 +67,46 @@ class FleetHomeScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          // Bell notification icon with unread badge
+          Consumer(builder: (context, ref, _) {
+            final unread = ref.watch(unreadNotificationCountProvider);
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  tooltip: 'Notifications',
+                  icon: const Icon(Icons.notifications_outlined,
+                      color: KTColors.textHeading),
+                  onPressed: () {
+                    ref.read(unreadNotificationCountProvider.notifier).state = 0;
+                    context.push('/fleet/notifications');
+                  },
+                ),
+                if (unread > 0)
+                  Positioned(
+                    right: 6,
+                    top: 6,
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      decoration: const BoxDecoration(
+                        color: KTColors.danger,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        unread > 9 ? '9+' : '$unread',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          }),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: KTColors.textHeading),
             color: KTColors.surface,
@@ -263,7 +304,7 @@ class FleetHomeScreen extends ConsumerWidget {
                     ),
                     _ActionTile(
                       context: context,
-                      label: 'Market Trips\n& Vehicles',
+                      label: 'Market',
                       icon: Icons.handshake_rounded,
                       color: const Color(0xFF00897B),
                       onTap: () => Navigator.push(

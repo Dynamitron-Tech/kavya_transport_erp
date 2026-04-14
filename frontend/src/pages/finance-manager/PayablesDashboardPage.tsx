@@ -148,6 +148,16 @@ export default function PayablesDashboardPage() {
         </button>
       </div>
 
+      {/* Razorpay not yet activated notice */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-start gap-3">
+        <AlertTriangle size={16} className="text-blue-500 shrink-0 mt-0.5" />
+        <p className="text-xs text-blue-800">
+          <span className="font-semibold">Razorpay Payouts not yet active.</span>{' '}
+          The "Pay" buttons will initiate payout records. Live bank transfers require company domain verification after deployment.
+          Until then, complete transfers manually and update each schedule record.
+        </p>
+      </div>
+
       {/* Overdue Alert */}
       {overdue.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-3">

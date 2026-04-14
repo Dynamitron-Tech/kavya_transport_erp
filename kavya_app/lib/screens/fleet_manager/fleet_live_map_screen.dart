@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 
 class FleetLiveMapScreen extends StatefulWidget {

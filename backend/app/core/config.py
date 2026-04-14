@@ -109,6 +109,8 @@ class Settings(BaseSettings):
     WHATSAPP_SOURCE_NUMBER: str = "YOUR_WHATSAPP_NUMBER_HERE"
     BREVO_API_KEY: str = "YOUR_BREVO_API_KEY_HERE"
     BREVO_SMS_SENDER: str = "KavyaTrans"  # Max 11 chars
+    BREVO_EMAIL_SENDER: str = "noreply@kavyatransports.com"
+    BREVO_EMAIL_SENDER_NAME: str = "Kavya Transports"
     
     # Email (SMTP)
     SMTP_HOST: str = "smtp.gmail.com"

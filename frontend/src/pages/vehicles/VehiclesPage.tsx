@@ -29,7 +29,9 @@ export default function VehiclesPage() {
   const [createdVehicleId, setCreatedVehicleId] = useState<number | null>(null);
   const [createForm, setCreateForm] = useState({
     registration_number: '',
-    vehicle_type: 'truck',
+    vehicle_size_class: 'hcv',
+    vehicle_type: 'flatbed_truck',
+    axle_wheel_type: '10w',
     fuel_type: 'diesel',
     capacity_tons: '0',
     ownership_type: 'owned',
@@ -66,6 +68,8 @@ export default function VehiclesPage() {
     mutationFn: () => vehicleService.create({
       registration_number: createForm.registration_number,
       vehicle_type: createForm.vehicle_type as any,
+      vehicle_size_class: createForm.vehicle_size_class,
+      axle_wheel_type: createForm.axle_wheel_type,
       fuel_type: createForm.fuel_type,
       capacity_tons: Number(createForm.capacity_tons || 0),
       ownership_type: createForm.ownership_type as any,
@@ -99,7 +103,9 @@ export default function VehiclesPage() {
   const resetCreate = () => {
     setCreateForm({
       registration_number: '',
-      vehicle_type: 'truck',
+      vehicle_size_class: 'hcv',
+      vehicle_type: 'flatbed_truck',
+      axle_wheel_type: '10w',
       fuel_type: 'diesel',
       capacity_tons: '0',
       ownership_type: 'owned',
@@ -355,29 +361,50 @@ export default function VehiclesPage() {
               <label className="label">Registration Number <span className="text-red-500">*</span></label>
               <input className="input-field" value={createForm.registration_number} onChange={(e) => setCreateForm((p) => ({ ...p, registration_number: e.target.value.toUpperCase() }))} placeholder="e.g. TN01AB1234" required />
             </div>
+            <div>
+              <label className="label">Vehicle Size / Class</label>
+              <select className="input-field" value={createForm.vehicle_size_class} onChange={(e) => setCreateForm((p) => ({ ...p, vehicle_size_class: e.target.value }))}>
+                <option value="mini_pickup">Mini / Pickup Truck</option>
+                <option value="lcv">LCV (Light Commercial Vehicle)</option>
+                <option value="mcv">MCV (Medium Commercial Vehicle)</option>
+                <option value="hcv">HCV (Heavy Commercial Vehicle)</option>
+                <option value="trailer_articulated">Trailer (Articulated)</option>
+              </select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="label">Vehicle Type</label>
                 <select className="input-field" value={createForm.vehicle_type} onChange={(e) => setCreateForm((p) => ({ ...p, vehicle_type: e.target.value }))}>
-                  <option value="truck">Truck</option>
-                  <option value="trailer">Trailer</option>
-                  <option value="tanker">Tanker</option>
-                  <option value="container">Container</option>
-                  <option value="mini_truck">Mini Truck</option>
-                  <option value="pickup">Pickup</option>
-                  <option value="other">Other</option>
+                  <option value="flatbed_truck">Flatbed Truck</option>
+                  <option value="container_truck">Container Truck</option>
+                  <option value="tipper_truck">Tipper Truck</option>
+                  <option value="tanker_generic">Tanker (Generic)</option>
+                  <option value="refrigerated_truck">Refrigerated Truck</option>
+                  <option value="car_carrier">Car Carrier</option>
+                  <option value="tractor_head">Tractor Head</option>
                 </select>
               </div>
               <div>
-                <label className="label">Fuel Type</label>
-                <select className="input-field" value={createForm.fuel_type} onChange={(e) => setCreateForm((p) => ({ ...p, fuel_type: e.target.value }))}>
-                  <option value="diesel">Diesel</option>
-                  <option value="petrol">Petrol</option>
-                  <option value="cng">CNG</option>
-                  <option value="electric">Electric</option>
-                  <option value="lpg">LPG</option>
+                <label className="label">Axle / Wheel Type</label>
+                <select className="input-field" value={createForm.axle_wheel_type} onChange={(e) => setCreateForm((p) => ({ ...p, axle_wheel_type: e.target.value }))}>
+                  <option value="6w">6W — 2 Front + 4 Rear (Single Axle)</option>
+                  <option value="10w">10W — 2 Front + 8 Rear (Dual Axle)</option>
+                  <option value="12w">12W — 4 Front + 8 Rear (Double Steering)</option>
+                  <option value="14w">14W — 6 Front + 8 Rear (Lift Axle)</option>
+                  <option value="tr_6w">TR-6W — Tractor Head (Single Axle)</option>
+                  <option value="tr_10w">TR-10W — Tractor Head (Dual Axle)</option>
                 </select>
               </div>
+            </div>
+            <div>
+              <label className="label">Fuel Type</label>
+              <select className="input-field" value={createForm.fuel_type} onChange={(e) => setCreateForm((p) => ({ ...p, fuel_type: e.target.value }))}>
+                <option value="diesel">Diesel</option>
+                <option value="petrol">Petrol</option>
+                <option value="cng">CNG</option>
+                <option value="electric">Electric</option>
+                <option value="lpg">LPG</option>
+              </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

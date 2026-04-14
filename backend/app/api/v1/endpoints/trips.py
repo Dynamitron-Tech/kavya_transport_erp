@@ -242,11 +242,20 @@ async def close_trip(
     if error:
         raise HTTPException(status_code=400, detail=error)
     freight_fmt = f"₹{float(trip.total_freight or 0):,.0f}"
+    driver_display = trip.driver_name or "Driver"
     await notification_service.send(
         db, event_type="TRIP_CLOSED",
         title="Trip closed",
         body=f"Trip {trip.trip_number} closed",
         target_roles=["MANAGER", "FLEET_MANAGER"],
+        data={"trip_id": str(trip.id)},
+        urgency="normal", triggered_by=current_user.user_id,
+    )
+    await notification_service.send(
+        db, event_type="TRIP_COMPLETED_EXPENSES",
+        title="Trip Completed – Expenses Pending",
+        body=f"Driver:{driver_display} has completed the trip: {trip.trip_number}. Please pay the Expenses",
+        target_roles=["FINANCE_MANAGER"],
         data={"trip_id": str(trip.id)},
         urgency="normal", triggered_by=current_user.user_id,
     )
@@ -694,7 +703,19 @@ async def list_expenses(
         if trip.driver_id != resolved:
             raise HTTPException(status_code=403, detail="Access denied: not your trip")
     expenses = await trip_service.list_trip_expenses(db, trip_id)
-    items = [{c.key: getattr(e, c.key) for c in e.__table__.columns} for e in expenses]
+    # Collect paid_by user ids to resolve names
+    paid_by_ids = {e.paid_by for e in expenses if e.paid_by}
+    paid_by_names: dict[int, str] = {}
+    if paid_by_ids:
+        from app.models.postgres.user import User
+        users_r = await db.execute(select(User).where(User.id.in_(paid_by_ids)))
+        for u in users_r.scalars().all():
+            paid_by_names[u.id] = f"{u.first_name} {u.last_name or ''}".strip()
+    items = []
+    for e in expenses:
+        row = {c.key: getattr(e, c.key) for c in e.__table__.columns}
+        row["paid_by_name"] = paid_by_names.get(e.paid_by) if e.paid_by else None
+        items.append(row)
     return APIResponse(success=True, data=items)
 
 

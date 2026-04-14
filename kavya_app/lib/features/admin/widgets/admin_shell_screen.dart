@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/localization/locale_provider.dart';
 import '../../../core/theme/kt_colors.dart';
 import '../providers/admin_providers.dart';
 
@@ -12,6 +13,7 @@ class AdminShellScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = navigationShell.currentIndex;
+    final s = ref.watch(sProvider);
 
     return Scaffold(
       backgroundColor: KTColors.lightBg,
@@ -27,11 +29,11 @@ class AdminShellScreen extends ConsumerWidget {
             height: 64,
             child: Row(
               children: [
-                _NavItem(icon: Icons.home_outlined, selectedIcon: Icons.home_rounded, label: 'Home', index: 0, selectedIndex: selectedIndex, onTap: () => _goTo(0)),
-                _NavItem(icon: Icons.work_outline_rounded, selectedIcon: Icons.work_rounded, label: 'Ops', index: 1, selectedIndex: selectedIndex, onTap: () => _goTo(1)),
-                _NavItem(icon: Icons.bar_chart_outlined, selectedIcon: Icons.bar_chart_rounded, label: 'Finance', index: 2, selectedIndex: selectedIndex, onTap: () => _goTo(2)),
-                _NavItem(icon: Icons.people_outline_rounded, selectedIcon: Icons.people_rounded, label: 'People', index: 3, selectedIndex: selectedIndex, onTap: () => _goTo(3)),
-                _NavItem(icon: Icons.settings_outlined, selectedIcon: Icons.settings_rounded, label: 'Settings', index: 4, selectedIndex: selectedIndex, onTap: () => _goTo(4)),
+                _NavItem(icon: Icons.home_outlined, selectedIcon: Icons.home_rounded, label: s.navHome, index: 0, selectedIndex: selectedIndex, onTap: () => _goTo(0)),
+                _NavItem(icon: Icons.work_outline_rounded, selectedIcon: Icons.work_rounded, label: s.navOps, index: 1, selectedIndex: selectedIndex, onTap: () => _goTo(1)),
+                _NavItem(icon: Icons.bar_chart_outlined, selectedIcon: Icons.bar_chart_rounded, label: s.navFinance, index: 2, selectedIndex: selectedIndex, onTap: () => _goTo(2)),
+                _NavItem(icon: Icons.people_outline_rounded, selectedIcon: Icons.people_rounded, label: s.navPeople, index: 3, selectedIndex: selectedIndex, onTap: () => _goTo(3)),
+                _NavItem(icon: Icons.settings_outlined, selectedIcon: Icons.settings_rounded, label: s.navSettings, index: 4, selectedIndex: selectedIndex, onTap: () => _goTo(4)),
               ],
             ),
           ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/localization/driver_strings.dart';
+import '../../../core/localization/locale_provider.dart';
 import '../../../core/theme/kt_colors.dart';
 import '../../../core/theme/kt_text_styles.dart';
 import '../../../providers/auth_provider.dart';
@@ -14,6 +16,8 @@ class AdminSettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).user;
     final branches = ref.watch(adminBranchesProvider);
+    final s = ref.watch(sProvider);
+    final locale = ref.watch(localeProvider);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(
@@ -35,7 +39,7 @@ class AdminSettingsScreen extends ConsumerWidget {
               ),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Settings',
+                child: Text(s.settingsTitle,
                     style: KTTextStyles.h1.copyWith(color: KTColors.textHeading)),
               ),
             ),
@@ -46,22 +50,22 @@ class AdminSettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // ── Company Info ──
-          _sectionLabel('COMPANY'),
+          _sectionLabel(s.sectionCompany),
           const SizedBox(height: 8),
-          _tile(Icons.business_outlined, 'Kavya Transports', subtitle: 'Company Name'),
-          _tile(Icons.pin_outlined, 'GSTIN', subtitle: 'Company GST Number'),
+          _tile(Icons.business_outlined, 'Kavya Transports', subtitle: s.companyName),
+          _tile(Icons.pin_outlined, 'GSTIN', subtitle: s.companyGstNumber),
           _tile(Icons.phone_outlined, 'Phone'),
           _tile(Icons.email_outlined, 'Email'),
           _tile(Icons.location_on_outlined, 'State'),
           const SizedBox(height: 20),
 
           // ── Branches ──
-          _sectionLabel('BRANCHES'),
+          _sectionLabel(s.sectionBranches),
           const SizedBox(height: 8),
           branches.when(
             data: (list) {
               if (list.isEmpty) {
-                return _emptyTile('No branches');
+                return _emptyTile(s.noBranches);
               }
               return Column(
                 children: list.map<Widget>((b) {
@@ -78,7 +82,7 @@ class AdminSettingsScreen extends ConsumerWidget {
                         color: (active ? KTColors.success : KTColors.danger).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(active ? 'Active' : 'Inactive',
+                      child: Text(active ? s.branchActive : s.branchInactive,
                           style: KTTextStyles.labelCaps.copyWith(
                               color: active ? KTColors.success : KTColors.danger)),
                     ),
@@ -95,16 +99,35 @@ class AdminSettingsScreen extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ── Profile ──
-          _sectionLabel('PROFILE'),
+          _sectionLabel(s.sectionProfile),
           const SizedBox(height: 8),
           _tile(Icons.person_outline_rounded, user?.name ?? '—'),
           _tile(Icons.email_outlined, user?.email ?? '—'),
-          _tile(Icons.badge_outlined, 'Admin', subtitle: 'Role'),
+          _tile(Icons.badge_outlined, s.roleAdmin, subtitle: 'Role'),
+          const SizedBox(height: 20),
+
+          // ── Appearance / Language ──
+          _sectionLabel(s.sectionAppearance),
+          const SizedBox(height: 8),
+          _tile(
+            Icons.language_outlined,
+            s.language,
+            subtitle: localeLabels[locale],
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(localeLabels[locale] ?? '',
+                    style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
+                const SizedBox(width: 4),
+              ],
+            ),
+            onTap: () => context.push('/driver/language-settings'),
+          ),
           const SizedBox(height: 28),
 
           // ── Logout ──
           GestureDetector(
-            onTap: () => _logout(context, ref),
+            onTap: () => _logout(context, ref, s),
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
@@ -117,7 +140,7 @@ class AdminSettingsScreen extends ConsumerWidget {
                 children: [
                   const Icon(Icons.logout_rounded, color: KTColors.danger, size: 18),
                   const SizedBox(width: 8),
-                  Text('Log out',
+                  Text(s.logOut,
                       style: KTTextStyles.label.copyWith(
                           color: KTColors.danger, fontWeight: FontWeight.w600)),
                 ],
@@ -190,15 +213,15 @@ class AdminSettingsScreen extends ConsumerWidget {
                 style: KTTextStyles.body.copyWith(color: KTColors.textMuted))),
       );
 
-  void _logout(BuildContext context, WidgetRef ref) {
+  void _logout(BuildContext context, WidgetRef ref, S s) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: KTColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Log out',
+        title: Text(s.logOut,
             style: KTTextStyles.h2.copyWith(color: KTColors.textHeading)),
-        content: Text('Are you sure you want to log out?',
+        content: Text(s.logoutConfirmAdmin,
             style: KTTextStyles.body.copyWith(color: KTColors.textBody)),
         actions: [
           TextButton(
@@ -211,7 +234,7 @@ class AdminSettingsScreen extends ConsumerWidget {
               ref.read(authProvider.notifier).logout();
               context.go('/login');
             },
-            child: Text('Log out',
+            child: Text(s.logOut,
                 style: KTTextStyles.label.copyWith(
                     color: KTColors.danger, fontWeight: FontWeight.w600)),
           ),

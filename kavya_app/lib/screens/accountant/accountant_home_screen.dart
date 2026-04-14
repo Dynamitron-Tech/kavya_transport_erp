@@ -106,82 +106,41 @@ class AccountantHomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Section 4 — Pending expense approvals count [cite: 74-75]
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.receipt_long, color: KTColors.acctAccent),
-                    title: const Text("Pending expense approvals"),
-                    trailing: ElevatedButton(
-                      onPressed: () => context.push('/accountant/expenses'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: KTColors.acctAccent,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(80, 36)),
-                      child: const Text("Review"),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Section 5 — Recent payments [cite: 75]
-                Text("Recent payments", style: KTTextStyles.h3),
-                const SizedBox(height: 8),
+                // Section 4 — Role clarity notice
                 Container(
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: KTColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: KTColors.borderColor),
+                    color: const Color(0xFFEEF2FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFC7D2FE)),
                   ),
-                  child: Column(
-                    children: List.generate(3, (index) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("Acme Corp", style: KTTextStyles.label),
-                                const SizedBox(height: 2),
-                                Text("15 Mar 2026", style: KTTextStyles.bodySmall.copyWith(color: KTColors.textMuted)),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(currencyFormat.format(45000), style: KTTextStyles.h3),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: KTColors.acctAccent.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text("NEFT", style: TextStyle(fontSize: 10, color: KTColors.acctAccent, fontWeight: FontWeight.w600)),
-                              ),
-                            ],
-                          ),
-                        ],
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, size: 16, color: Color(0xFF4F46E5)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Invoice review, bank reconciliation & GST. Payments are managed by the Finance Manager.',
+                          style: KTTextStyles.bodySmall.copyWith(color: const Color(0xFF4338CA)),
+                        ),
                       ),
-                    )),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
 
-                // Quick actions (horizontal scroll) [cite: 75-76]
+                // Quick actions (horizontal scroll)
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      SizedBox(width: 120, child: KTActionButton(icon: Icons.payment, label: "Record payment", onTap: () => context.push('/accountant/receivables'), iconColor: KTColors.acctAccent, bgColor: KTColors.acctAccentBg)),
+                      SizedBox(width: 120, child: KTActionButton(icon: Icons.description_outlined, label: "View invoices", onTap: () => context.push('/accountant/invoices'), iconColor: KTColors.acctAccent, bgColor: KTColors.acctAccentBg)),
                       const SizedBox(width: 12),
-                      SizedBox(width: 120, child: KTActionButton(icon: Icons.description, label: "Generate invoice", onTap: () => context.push('/accountant/invoices'), iconColor: KTColors.acctAccent, bgColor: KTColors.acctAccentBg)),
+                      SizedBox(width: 120, child: KTActionButton(icon: Icons.account_balance_outlined, label: "Banking", onTap: () => context.push('/accountant/banking'), iconColor: KTColors.acctAccent, bgColor: KTColors.acctAccentBg)),
                       const SizedBox(width: 12),
-                      SizedBox(width: 120, child: KTActionButton(icon: Icons.account_balance, label: "GST view", onTap: () => context.push('/accountant/gst'), iconColor: KTColors.acctAccent, bgColor: KTColors.acctAccentBg)),
+                      SizedBox(width: 120, child: KTActionButton(icon: Icons.receipt_long_outlined, label: "GST view", onTap: () => context.push('/accountant/gst'), iconColor: KTColors.acctAccent, bgColor: KTColors.acctAccentBg)),
                       const SizedBox(width: 12),
-                      SizedBox(width: 120, child: KTActionButton(icon: Icons.book, label: "Full ledger", onTap: () => context.push('/accountant/ledger'), iconColor: KTColors.acctAccent, bgColor: KTColors.acctAccentBg)),
+                      SizedBox(width: 120, child: KTActionButton(icon: Icons.book_outlined, label: "Full ledger", onTap: () => context.push('/accountant/ledger'), iconColor: KTColors.acctAccent, bgColor: KTColors.acctAccentBg)),
                     ],
                   ),
                 )

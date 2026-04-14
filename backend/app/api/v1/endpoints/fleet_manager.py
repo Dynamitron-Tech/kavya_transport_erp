@@ -263,3 +263,65 @@ async def fleet_drivers(
         pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages),
     )
 
+
+@router.get("/sos-alerts", response_model=APIResponse)
+async def fleet_sos_alerts(
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Return recent SOS events for Fleet Manager notification screen."""
+    from app.models.postgres.driver_event import DriverEvent, DriverEventType
+    from sqlalchemy import desc
+
+    result = await db.execute(
+        select(DriverEvent)
+        .where(DriverEvent.event_type == DriverEventType.SOS)
+        .order_by(desc(DriverEvent.created_at))
+        .limit(limit)
+    )
+    events = result.scalars().all()
+
+    # Batch-fetch driver and trip info
+    driver_ids = list({e.driver_id for e in events if e.driver_id})
+    trip_ids = list({e.trip_id for e in events if e.trip_id})
+
+    drivers_map: dict = {}
+    if driver_ids:
+        dr = await db.execute(select(Driver).where(Driver.id.in_(driver_ids)))
+        for d in dr.scalars().all():
+            drivers_map[d.id] = d
+
+    trips_map: dict = {}
+    if trip_ids:
+        tr = await db.execute(select(Trip).where(Trip.id.in_(trip_ids)))
+        for t in tr.scalars().all():
+            trips_map[t.id] = t
+
+    items = []
+    for e in events:
+        driver = drivers_map.get(e.driver_id)
+        trip = trips_map.get(e.trip_id) if e.trip_id else None
+        driver_name = f"{driver.first_name} {driver.last_name}" if driver else "Unknown"
+        ec_name = driver.emergency_contact_name if driver else None
+        ec_phone = driver.emergency_contact_phone if driver else None
+        items.append({
+            "id": e.id,
+            "driver_id": e.driver_id,
+            "driver_name": driver_name,
+            "driver_phone": driver.phone if driver else None,
+            "trip_id": e.trip_id,
+            "trip_number": trip.trip_number if trip else None,
+            "origin": trip.origin if trip else None,
+            "destination": trip.destination if trip else None,
+            "vehicle_registration": trip.vehicle_registration if trip else None,
+            "latitude": e.latitude,
+            "longitude": e.longitude,
+            "location_name": e.location_name,
+            "emergency_contact_name": ec_name,
+            "emergency_contact_phone": ec_phone,
+            "triggered_at": e.created_at.isoformat() if e.created_at else None,
+        })
+
+    return APIResponse(success=True, data=items)
+

@@ -53,8 +53,21 @@ export default function FinanceManagerDashboardPage() {
         </div>
       </div>
 
-      {/* KPI Row — 3 cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Razorpay not yet activated notice */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-start gap-3">
+        <IndianRupee size={18} className="text-blue-500 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-blue-900">Razorpay Payouts — Pending Activation</p>
+          <p className="text-xs text-blue-700 mt-0.5">
+            Live payouts require a verified company domain email with Razorpay. Until then, use{' '}
+            <span className="font-medium">manual bank transfers</span> and mark payments as processed in Payout History.
+            Razorpay will be auto-enabled once the domain is verified after deployment.
+          </p>
+        </div>
+      </div>
+
+      {/* KPI Row — 4 cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <KPICard
           title="Pending Approvals"
           value={summary?.expenses?.pending_count?.toString() || '0'}
@@ -75,6 +88,13 @@ export default function FinanceManagerDashboardPage() {
           icon={<Clock size={22} />}
           color={summary?.payables?.overdue_count ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}
           onClick={() => navigate('/fm/payables')}
+        />
+        <KPICard
+          title="Trip Advances Due"
+          value="Pay ₹1,500"
+          icon={<IndianRupee size={22} />}
+          color="bg-yellow-50 text-yellow-700"
+          onClick={() => navigate('/fm/trip-advances')}
         />
       </div>
 

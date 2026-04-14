@@ -73,6 +73,15 @@ export default function PayoutHistoryPage() {
         </div>
       </div>
 
+      {/* Razorpay not yet activated notice */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-start gap-3">
+        <Clock size={15} className="text-blue-500 shrink-0 mt-0.5" />
+        <p className="text-xs text-blue-800">
+          <span className="font-semibold">Razorpay Payouts not yet active.</span>{' '}
+          Records listed here represent payout intents. Real-time Razorpay UTR numbers will be populated automatically once the company domain is verified and payouts are enabled after deployment.
+        </p>
+      </div>
+
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[

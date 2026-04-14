@@ -13,8 +13,9 @@ async def list_market_trips(db: AsyncSession, page: int = 1, limit: int = 20, se
     count_query = select(func.count(MarketTrip.id)).where(MarketTrip.is_deleted == False)
 
     if status:
-        query = query.where(MarketTrip.status == MarketTripStatus(status))
-        count_query = count_query.where(MarketTrip.status == MarketTripStatus(status))
+        status_enum = MarketTripStatus(status.upper())
+        query = query.where(MarketTrip.status == status_enum)
+        count_query = count_query.where(MarketTrip.status == status_enum)
 
     if supplier_id:
         query = query.where(MarketTrip.supplier_id == supplier_id)

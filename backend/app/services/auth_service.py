@@ -60,6 +60,27 @@ async def authenticate_by_identifier(db: AsyncSession, identifier: str, password
     return user
 
 
+async def authenticate_by_phone(db: AsyncSession, phone: str, password: str):
+    """Authenticate staff user by phone number and password."""
+    raw = (phone or "").strip()
+    if raw.startswith("+91"):
+        raw = raw[3:]
+    elif raw.startswith("91") and len(raw) == 12:
+        raw = raw[2:]
+    cleaned_phone = raw
+    normalized_password = (password or "").strip()
+
+    result = await db.execute(
+        select(User).where(User.phone == cleaned_phone, User.is_active == True)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        return None
+    if not verify_password(normalized_password, user.password_hash):
+        return None
+    return user
+
+
 async def get_user_roles(db: AsyncSession, user_id: int) -> list[str]:
     """Get role names for a user (via user_roles association table)."""
     result = await db.execute(

@@ -36,10 +36,11 @@ class ApiService {
           }
           return handler.next(options);
         },
-        // Response interceptor: on 401 -> calls refresh token endpoint [cite: 32]
+        // Response interceptor: on 401/403 -> calls refresh token endpoint [cite: 32]
         onError: (DioException e, handler) async {
-          if (e.response?.statusCode == 401) {
-            // Don't intercept 401s on the login endpoint itself — let them propagate
+          final status = e.response?.statusCode;
+          if (status == 401 || status == 403) {
+            // Don't intercept auth errors on the login endpoint itself — let them propagate
             final isLoginRequest = e.requestOptions.path.contains('/auth/login');
             if (isLoginRequest) {
               return handler.next(e);
@@ -53,7 +54,8 @@ class ApiService {
                   '$baseUrl/auth/refresh',
                   data: {'refresh_token': refreshToken},
                 );
-                final newAccessToken = refreshResponse.data['access_token'];
+                final newAccessToken = refreshResponse.data['data']?['access_token']
+                    ?? refreshResponse.data['access_token'];
                 await _storage.write(key: 'access_token', value: newAccessToken);
                 
                 // Retry original request [cite: 32]
@@ -489,6 +491,16 @@ class ApiService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  /// Driver uploads Proof of Delivery photo to complete the trip.
+  Future<Map<String, dynamic>> markTripPOD(int tripId, File photo) async {
+    final fileName = photo.path.split('/').last;
+    final formData = FormData.fromMap({
+      'photo': await MultipartFile.fromFile(photo.path, filename: fileName),
+    });
+    final response = await _dio.post('/drivers/me/trips/$tripId/mark-pod', data: formData);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   /// Upload POD (proof of delivery) image or PDF for a specific LR.
   Future<Map<String, dynamic>> uploadLRPOD(int lrId, File file) async {
     final fileName = file.path.split('/').last;
@@ -692,7 +704,10 @@ class ApiService {
   // --- Vehicles & Trips ---
   Future<List<dynamic>> getVehicles() async { // [cite: 33]
     final response = await _dio.get('/vehicles');
-    return response.data;
+    final payload = response.data;
+    if (payload is Map && payload['data'] is List) return payload['data'] as List;
+    if (payload is List) return payload;
+    return [];
   }
 
   Future<Map<String, dynamic>> getVehicleDetail(String id) async { // [cite: 33]

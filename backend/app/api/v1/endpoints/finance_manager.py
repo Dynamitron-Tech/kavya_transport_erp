@@ -129,9 +129,24 @@ async def salary_summary(
     if not month:
         month = date.today().strftime("%Y-%m")
 
-    # All active users with salary
+    from app.models.postgres.user import Role, user_roles as user_roles_table, RoleType
+    from sqlalchemy import not_, exists
+
+    # Subquery: user_ids who have a DRIVER role
+    driver_role_sq = (
+        select(user_roles_table.c.user_id)
+        .join(Role, Role.id == user_roles_table.c.role_id)
+        .where(Role.role_type == RoleType.DRIVER)
+        .subquery()
+    )
+
+    # All active, non-driver users
     users_r = await db.execute(
-        select(User).where(User.is_active == True, User.is_deleted == False)
+        select(User).where(
+            User.is_active == True,
+            User.is_deleted == False,
+            not_(User.id.in_(select(driver_role_sq.c.user_id))),
+        )
     )
     users = users_r.scalars().all()
 
@@ -144,6 +159,14 @@ async def salary_summary(
     )
     payouts = {p.reference_id: p for p in payouts_r.scalars().all()}
 
+    # Deadline: must pay within first 10 days of the month
+    today = date.today()
+    current_month = today.strftime("%Y-%m")
+    deadline_day = 10
+    is_current_month = month == current_month
+    is_overdue = is_current_month and today.day > deadline_day
+    days_remaining = max(0, deadline_day - today.day) if is_current_month else None
+
     staff_list = []
     for u in users:
         ref_key = f"{u.id}_{month}"
@@ -155,12 +178,14 @@ async def salary_summary(
             "designation": getattr(u, "designation", "Staff"),
             "bank_last4": (u.account_number or "")[-4:] if u.account_number else None,
             "bank_name": u.bank_name,
+            "bank_ifsc": u.ifsc_code,
+            "upi_id": u.upi_id,
             "salary_paise": salary_paise,
+            "has_bank_account": bool(u.account_number or u.upi_id),
             "status": payout.status if payout else "unpaid",
             "payout_id": payout.id if payout else None,
             "utr": payout.utr if payout else None,
             "paid_at": payout.processed_at.isoformat() if payout and payout.processed_at else None,
-            "has_bank_account": bool(u.account_number),
         })
 
     total_due = sum(s["salary_paise"] for s in staff_list)
@@ -175,6 +200,9 @@ async def salary_summary(
         "unpaid_count": len(staff_list) - paid_count,
         "paid_paise": paid_paise,
         "remaining_paise": total_due - paid_paise,
+        "deadline_day": deadline_day,
+        "is_overdue": is_overdue,
+        "days_remaining": days_remaining,
     })
 
 
@@ -220,6 +248,283 @@ async def pay_salary_bulk(
             results.append({"employee_id": item["employee_id"], "status": "failed", "error": str(e)[:200]})
     initiated = sum(1 for r in results if r["status"] == "initiated")
     return APIResponse(success=True, data={"initiated": initiated, "failed": len(results) - initiated, "results": results})
+
+
+# ─── Driver List ──────────────────────────────────────────────────────────────
+
+
+@router.get("/drivers", response_model=APIResponse)
+async def list_finance_drivers(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """List all active drivers with bank/UPI info for finance manager."""
+    _require_finance(current_user)
+    from app.models.postgres.driver import Driver
+
+    result = await db.execute(
+        select(Driver).where(Driver.is_deleted == False).order_by(Driver.first_name)
+    )
+    drivers = result.scalars().all()
+
+    driver_list = [
+        {
+            "driver_id": d.id,
+            "employee_code": d.employee_code,
+            "name": d.full_name,
+            "designation": d.designation or "Driver",
+            "phone": d.phone,
+            "bank_account": d.bank_account_number,
+            "bank_last4": (d.bank_account_number or "")[-4:] if d.bank_account_number else None,
+            "bank_name": d.bank_name,
+            "bank_ifsc": d.bank_ifsc,
+            "upi_id": d.upi_id,
+            "has_payment_info": bool(d.bank_account_number or d.upi_id),
+        }
+        for d in drivers
+    ]
+    return APIResponse(success=True, data={"drivers": driver_list})
+
+
+# ─── Driver Completed Trips ────────────────────────────────────────────────────
+
+
+@router.get("/driver-completed-trips", response_model=APIResponse)
+async def driver_completed_trips(
+    driver_id: int = Query(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Return all completed trips for a driver, with payout status per trip."""
+    _require_finance(current_user)
+    from app.models.postgres.driver import Driver
+
+    trips_r = await db.execute(
+        select(Trip)
+        .where(
+            Trip.driver_id == driver_id,
+            Trip.status == TripStatusEnum.COMPLETED,
+            Trip.is_deleted == False,
+        )
+        .order_by(Trip.trip_date.desc())
+    )
+    trips = trips_r.scalars().all()
+
+    # Fetch all trip-pay payouts for this driver in one shot
+    payouts_r = await db.execute(
+        select(Payout).where(
+            Payout.payout_type == "driver_trip_pay",
+            Payout.reference_id.like(f"driver_trip_{driver_id}_%"),
+        )
+    )
+    payouts = {p.reference_id: p for p in payouts_r.scalars().all()}
+
+    # Fetch total paid expenses per trip in one query
+    trip_ids = [t.id for t in trips]
+    expenses_map: dict[int, int] = {}
+    if trip_ids:
+        exp_r = await db.execute(
+            select(TripExpense.trip_id, func.coalesce(func.sum(TripExpense.amount), 0))
+            .where(TripExpense.trip_id.in_(trip_ids))
+            .group_by(TripExpense.trip_id)
+        )
+        for tid, total in exp_r.all():
+            expenses_map[tid] = int(float(total) * 100)
+
+    trip_list = []
+    for t in trips:
+        ref_key = f"driver_trip_{driver_id}_{t.id}"
+        payout = payouts.get(ref_key)
+        driver_pay_paise = int(float(t.driver_pay or 0) * 100)
+        driver_advance_paise = int(float(t.driver_advance or 0) * 100)
+        trip_expenses_paise = expenses_map.get(t.id, 0)
+        net_to_pay_paise = max(0, driver_pay_paise - driver_advance_paise)
+        trip_list.append({
+            "trip_id": t.id,
+            "trip_number": t.trip_number,
+            "trip_date": t.trip_date.isoformat() if t.trip_date else None,
+            "origin": t.origin,
+            "destination": t.destination,
+            "driver_pay_paise": driver_pay_paise,
+            "driver_advance_paise": driver_advance_paise,
+            "trip_expenses_paise": trip_expenses_paise,
+            "net_to_pay_paise": net_to_pay_paise,
+            "is_paid": payout is not None and payout.status == "processed",
+            "payout_id": payout.id if payout else None,
+            "utr": payout.utr if payout else None,
+            "paid_at": payout.processed_at.isoformat() if payout and payout.processed_at else None,
+        })
+
+    return APIResponse(success=True, data={"driver_id": driver_id, "trips": trip_list})
+
+
+# ─── Driver Trip Pay ──────────────────────────────────────────────────────────
+
+
+@router.post("/payments/driver-trip-pay", response_model=APIResponse)
+async def pay_driver_trip(
+    driver_id: int = Body(...),
+    trip_id: int = Body(...),
+    amount_paise: int = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Record a trip-based payment to a driver (per-trip, custom amount)."""
+    _require_finance(current_user)
+    from app.models.postgres.driver import Driver
+
+    dr_r = await db.execute(select(Driver).where(Driver.id == driver_id))
+    dr = dr_r.scalar_one_or_none()
+    if not dr:
+        raise HTTPException(status_code=404, detail="Driver not found")
+
+    trip_r = await db.execute(select(Trip).where(Trip.id == trip_id))
+    trip = trip_r.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    ref_key = f"driver_trip_{driver_id}_{trip_id}"
+    existing_r = await db.execute(
+        select(Payout).where(Payout.reference_id == ref_key, Payout.status == "processed")
+    )
+    if existing_r.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Payment already recorded for this trip")
+
+    payout = Payout(
+        payout_type="driver_trip_pay",
+        reference_id=ref_key,
+        recipient_name=dr.full_name,
+        recipient_bank_last4=(dr.bank_account_number or "")[-4:] if dr.bank_account_number else None,
+        amount_paise=amount_paise,
+        status="processed",
+        initiated_by=current_user.id,
+        processed_at=datetime.utcnow(),
+        narration=f"Trip pay: {trip.trip_number} ({trip.origin} → {trip.destination})",
+    )
+    db.add(payout)
+    await db.commit()
+    await db.refresh(payout)
+    return APIResponse(success=True, data={"payout_id": payout.id, "status": payout.status})
+
+
+# ─── Driver Salary ────────────────────────────────────────────────────────────
+
+
+@router.get("/driver-salary-summary", response_model=APIResponse)
+async def driver_salary_summary(
+    month: str = Query(default=None, description="YYYY-MM"),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """List all active drivers with their salary status for the given month."""
+    _require_finance(current_user)
+    if not month:
+        month = date.today().strftime("%Y-%m")
+
+    from app.models.postgres.driver import Driver
+
+    drivers_r = await db.execute(
+        select(Driver).where(Driver.is_deleted == False)
+    )
+    drivers = drivers_r.scalars().all()
+
+    # Payouts for drivers this month
+    payouts_r = await db.execute(
+        select(Payout).where(
+            Payout.payout_type == "driver_salary",
+            Payout.reference_id.like(f"%_{month}"),
+        )
+    )
+    payouts = {p.reference_id: p for p in payouts_r.scalars().all()}
+
+    today = date.today()
+    current_month = today.strftime("%Y-%m")
+    is_current_month = month == current_month
+    deadline_day = 10
+    is_overdue = is_current_month and today.day > deadline_day
+    days_remaining = max(0, deadline_day - today.day) if is_current_month else None
+
+    driver_list = []
+    for d in drivers:
+        ref_key = f"driver_{d.id}_{month}"
+        payout = payouts.get(ref_key)
+        salary_paise = int((float(d.base_salary or 0)) * 100)
+        driver_list.append({
+            "driver_id": d.id,
+            "employee_code": d.employee_code,
+            "name": d.full_name,
+            "designation": d.designation or "Driver",
+            "phone": d.phone,
+            "bank_account": d.bank_account_number,
+            "bank_last4": (d.bank_account_number or "")[-4:] if d.bank_account_number else None,
+            "bank_name": d.bank_name,
+            "bank_ifsc": d.bank_ifsc,
+            "upi_id": d.upi_id,
+            "salary_paise": salary_paise,
+            "has_payment_info": bool(d.bank_account_number or d.upi_id),
+            "status": payout.status if payout else "unpaid",
+            "payout_id": payout.id if payout else None,
+            "utr": payout.utr if payout else None,
+            "paid_at": payout.processed_at.isoformat() if payout and payout.processed_at else None,
+        })
+
+    total_due = sum(s["salary_paise"] for s in driver_list)
+    paid_count = sum(1 for s in driver_list if s["status"] == "processed")
+    paid_paise = sum(s["salary_paise"] for s in driver_list if s["status"] == "processed")
+
+    return APIResponse(success=True, data={
+        "month": month,
+        "drivers": driver_list,
+        "total_due_paise": total_due,
+        "paid_count": paid_count,
+        "unpaid_count": len(driver_list) - paid_count,
+        "paid_paise": paid_paise,
+        "remaining_paise": total_due - paid_paise,
+        "is_overdue": is_overdue,
+        "days_remaining": days_remaining,
+    })
+
+
+@router.post("/payments/driver-salary", response_model=APIResponse)
+async def pay_driver_salary(
+    driver_id: int = Body(...),
+    month: str = Body(...),
+    amount_paise: int = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    _require_finance(current_user)
+    from app.models.postgres.driver import Driver
+
+    dr_r = await db.execute(select(Driver).where(Driver.id == driver_id))
+    dr = dr_r.scalar_one_or_none()
+    if not dr:
+        raise HTTPException(status_code=404, detail="Driver not found")
+
+    ref_key = f"driver_{driver_id}_{month}"
+    # Check if already paid
+    existing_r = await db.execute(
+        select(Payout).where(Payout.reference_id == ref_key)
+    )
+    existing = existing_r.scalar_one_or_none()
+    if existing and existing.status == "processed":
+        raise HTTPException(status_code=400, detail="Salary already paid for this month")
+
+    payout = Payout(
+        payout_type="driver_salary",
+        reference_id=ref_key,
+        recipient_name=dr.full_name,
+        recipient_bank_last4=(dr.bank_account_number or "")[-4:] if dr.bank_account_number else None,
+        amount_paise=amount_paise,
+        status="processed",
+        initiated_by=current_user.id,
+        processed_at=datetime.utcnow(),
+        narration=f"Driver salary for {month}",
+    )
+    db.add(payout)
+    await db.commit()
+    await db.refresh(payout)
+    return APIResponse(success=True, data={"payout_id": payout.id, "status": payout.status})
 
 
 # ─── Driver Advances ───────────────────────────────────────────────────────────
@@ -461,6 +766,14 @@ async def trip_expense_queue(
     result = await db.execute(q.offset((page - 1) * limit).limit(limit))
     rows = result.all()
 
+    # Fetch paid_by user names in one go
+    paid_by_ids = {e.paid_by for e, _ in rows if e.paid_by}
+    paid_by_names: dict[int, str] = {}
+    if paid_by_ids:
+        users_r = await db.execute(select(User).where(User.id.in_(paid_by_ids)))
+        for u in users_r.scalars().all():
+            paid_by_names[u.id] = f"{u.first_name} {u.last_name or ''}".strip()
+
     items = []
     for expense, trip in rows:
         items.append({
@@ -484,6 +797,7 @@ async def trip_expense_queue(
             "expense_date": expense.expense_date.isoformat() if expense.expense_date else None,
             "created_at": expense.created_at.isoformat() if expense.created_at else None,
             "paid_at": expense.paid_at.isoformat() if expense.paid_at else None,
+            "paid_by_name": paid_by_names.get(expense.paid_by) if expense.paid_by else None,
         })
 
     pages = (total + limit - 1) // limit
@@ -501,7 +815,7 @@ async def pay_trip_expense(
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
 ):
-    """Mark a trip expense as PAID."""
+    """Mark a trip expense as PAID and notify the driver."""
     _require_finance(current_user)
     result = await db.execute(select(TripExpense).where(TripExpense.id == expense_id))
     expense = result.scalar_one_or_none()
@@ -510,14 +824,54 @@ async def pay_trip_expense(
     if expense.expense_status == ExpenseStatusEnum.PAID:
         raise HTTPException(status_code=400, detail="Expense already marked as paid.")
 
+    # Resolve Finance Manager display name
+    fm_user_r = await db.execute(select(User).where(User.id == current_user.id))
+    fm_user = fm_user_r.scalar_one_or_none()
+    fm_name = f"{fm_user.first_name} {fm_user.last_name or ''}".strip() if fm_user else "Finance Manager"
+
+    paid_at = datetime.utcnow()
     expense.expense_status = ExpenseStatusEnum.PAID
     expense.is_verified = True
     expense.paid_by = current_user.id
-    expense.paid_at = datetime.utcnow()
+    expense.paid_at = paid_at
     if notes:
         expense.description = (expense.description or "") + f" [Finance: {notes}]"
     await db.commit()
-    return APIResponse(success=True, data={"id": expense.id, "status": "PAID"})
+
+    # Fetch trip + driver for notification
+    from app.models.postgres.driver import Driver as DriverModel
+    from app.services.notification_service import notification_service
+    trip_r = await db.execute(select(Trip).where(Trip.id == expense.trip_id))
+    trip = trip_r.scalar_one_or_none()
+    if trip:
+        trip_number = trip.trip_number
+        # Notify the driver (target by driver user_id if available, else fall back to role)
+        driver_r = await db.execute(
+            select(DriverModel).where(DriverModel.id == trip.driver_id)
+        )
+        driver = driver_r.scalar_one_or_none()
+        target_user_ids = [driver.user_id] if driver and driver.user_id else None
+        await notification_service.send(
+            db,
+            event_type="EXPENSE_PAID",
+            title="Expenses Paid",
+            body=f"Your Expenses for the Trip {trip_number} has been paid Successfully by the Finance Manager",
+            target_roles=["DRIVER"] if not target_user_ids else [],
+            target_user_ids=target_user_ids,
+            data={"trip_id": str(trip.id)},
+            urgency="normal",
+            triggered_by=current_user.id,
+        )
+    else:
+        trip_number = str(expense.trip_id)
+
+    return APIResponse(success=True, data={
+        "id": expense.id,
+        "status": "PAID",
+        "paid_by_name": fm_name,
+        "paid_at": paid_at.isoformat(),
+        "trip_number": trip_number,
+    })
 
 
 @router.patch("/trip-expenses/{expense_id}/reject", response_model=APIResponse)
@@ -853,3 +1207,268 @@ async def razorpay_payout_webhook(
 
     result = await payment_service.handle_webhook(db, event, body)
     return result
+
+
+# ─── Trip Driver Advance ────────────────────────────────────────────────────────
+
+DRIVER_ADVANCE_AMOUNT = 1500  # Fixed ₹1500 advance
+
+
+@router.get("/driver-advance-requests", response_model=APIResponse)
+async def list_driver_advance_requests(
+    status: Optional[str] = Query("PENDING"),
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Finance Manager: list advance requests submitted by drivers via the app."""
+    _require_finance(current_user)
+    from app.models.postgres.driver_requests import DriverAdvanceRequest, AdvanceStatusEnum
+    from app.models.postgres.driver import Driver
+
+    q = (
+        select(DriverAdvanceRequest, Driver)
+        .join(Driver, Driver.id == DriverAdvanceRequest.driver_id)
+        .order_by(DriverAdvanceRequest.created_at.desc())
+        .limit(limit)
+    )
+    if status and status.upper() != "ALL":
+        try:
+            q = q.where(DriverAdvanceRequest.status == AdvanceStatusEnum(status.upper()))
+        except ValueError:
+            pass
+
+    result = await db.execute(q)
+    rows = result.all()
+
+    data = []
+    for adv, driver in rows:
+        trip_number = None
+        origin = None
+        destination = None
+        if adv.trip_id:
+            trip_r = await db.execute(select(Trip).where(Trip.id == adv.trip_id))
+            trip = trip_r.scalar_one_or_none()
+            if trip:
+                trip_number = trip.trip_number
+                origin = trip.origin
+                destination = trip.destination
+
+        data.append({
+            "id": adv.id,
+            "driver_id": adv.driver_id,
+            "driver_name": f"{driver.first_name or ''} {driver.last_name or ''}".strip() or "Driver",
+            "driver_phone": driver.phone,
+            "trip_id": adv.trip_id,
+            "trip_number": trip_number,
+            "origin": origin,
+            "destination": destination,
+            "amount": float(adv.amount),
+            "status": adv.status.value,
+            "review_note": adv.review_note,
+            "created_at": adv.created_at.isoformat() if adv.created_at else None,
+        })
+
+    pending = sum(1 for d in data if d["status"] == "PENDING")
+    return APIResponse(
+        success=True,
+        data=data,
+        message=f"{pending} pending advance request(s)",
+    )
+
+
+@router.post("/driver-advance-requests/{advance_id}/approve", response_model=APIResponse)
+async def approve_driver_advance_request(
+    advance_id: int,
+    note: Optional[str] = Body(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Finance Manager approves a driver advance request."""
+    _require_finance(current_user)
+    from app.models.postgres.driver_requests import DriverAdvanceRequest, AdvanceStatusEnum
+    from app.models.postgres.driver import Driver
+    from app.services.notification_service import notification_service
+
+    result = await db.execute(
+        select(DriverAdvanceRequest).where(DriverAdvanceRequest.id == advance_id)
+    )
+    adv = result.scalar_one_or_none()
+    if not adv:
+        raise HTTPException(status_code=404, detail="Advance request not found")
+    if adv.status != AdvanceStatusEnum.PENDING:
+        raise HTTPException(status_code=400, detail="Advance request already processed")
+
+    adv.status = AdvanceStatusEnum.APPROVED
+    adv.reviewed_by = current_user.user_id
+    adv.reviewed_at = datetime.utcnow()
+    adv.review_note = note
+    await db.commit()
+    await db.refresh(adv)
+
+    # Notify driver
+    dr_r = await db.execute(select(Driver).where(Driver.id == adv.driver_id))
+    dr = dr_r.scalar_one_or_none()
+    if dr and dr.user_id:
+        try:
+            await notification_service.send(
+                db,
+                event_type="ADVANCE_REQUEST_APPROVED",
+                title="Advance Request Approved",
+                body=f"Your advance request of ₹{int(adv.amount)} has been approved by the Finance Manager.",
+                target_user_ids=[dr.user_id],
+                data={"advance_id": str(adv.id), "amount": str(adv.amount)},
+                urgency="normal",
+                triggered_by=current_user.user_id,
+            )
+        except Exception:
+            pass
+
+    return APIResponse(success=True, data={"id": adv.id, "status": "APPROVED"})
+
+
+@router.get("/pending-advance-trips", response_model=APIResponse)
+async def pending_advance_trips(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """List trips where driver has uploaded a loading photo but advance has not been paid yet."""
+    _require_finance(current_user)
+    from app.models.postgres.trip import Trip, TripStatusEnum
+    from app.models.postgres.driver import Driver
+
+    q = (
+        select(Trip)
+        .where(
+            Trip.loaded_image_url.isnot(None),
+            Trip.advance_paid == False,
+            Trip.is_deleted == False,
+            Trip.status.notin_([TripStatusEnum.COMPLETED, TripStatusEnum.CANCELLED]),
+        )
+        .order_by(Trip.id.desc())
+    )
+    total = (await db.execute(select(func.count()).select_from(q.subquery()))).scalar() or 0
+    offset = (page - 1) * limit
+    result = await db.execute(q.offset(offset).limit(limit))
+    trips = result.scalars().all()
+
+    items = []
+    for t in trips:
+        status_val = getattr(t.status, 'value', str(t.status))
+        # Resolve driver name
+        driver_name = t.driver_name or "Unknown"
+        if t.driver_id:
+            dr_res = await db.execute(select(Driver).where(Driver.id == t.driver_id))
+            dr = dr_res.scalar_one_or_none()
+            if dr:
+                driver_name = f"{dr.first_name or ''} {dr.last_name or ''}".strip() or driver_name
+        items.append({
+            "id": t.id,
+            "trip_number": t.trip_number,
+            "origin": t.origin,
+            "destination": t.destination,
+            "trip_date": str(t.trip_date) if t.trip_date else None,
+            "status": status_val,
+            "driver_name": driver_name,
+            "driver_id": t.driver_id,
+            "vehicle_registration": t.vehicle_registration,
+            "loaded_image_url": t.loaded_image_url,
+            "advance_amount": DRIVER_ADVANCE_AMOUNT,
+        })
+
+    pages = (total + limit - 1) // limit
+    return APIResponse(
+        success=True,
+        data=items,
+        pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages),
+        message=f"{total} trip(s) awaiting advance payment",
+    )
+
+
+@router.post("/trips/{trip_id}/pay-advance", response_model=APIResponse)
+async def pay_trip_advance(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Finance Manager pays the fixed ₹1500 advance to the driver after loading photo is uploaded."""
+    _require_finance(current_user)
+    from app.models.postgres.trip import Trip
+    from app.models.postgres.driver import Driver
+    from app.models.postgres.user import User
+    from app.services.notification_service import notification_service
+    from datetime import datetime
+
+    # Fetch trip
+    trip_res = await db.execute(
+        select(Trip).where(Trip.id == trip_id, Trip.is_deleted == False)
+    )
+    trip = trip_res.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    if not trip.loaded_image_url:
+        raise HTTPException(status_code=400, detail="Driver has not uploaded the loading photo yet")
+
+    if trip.advance_paid:
+        raise HTTPException(status_code=400, detail="Advance has already been paid for this trip")
+
+    # Resolve Finance Manager's full name
+    fm_res = await db.execute(select(User).where(User.id == current_user.user_id))
+    fm_user = fm_res.scalar_one_or_none()
+    fm_name = (
+        f"{fm_user.first_name or ''} {fm_user.last_name or ''}".strip()
+        if fm_user else "Finance Manager"
+    )
+
+    # Mark advance as paid
+    trip.advance_paid = True
+    trip.advance_paid_at = datetime.utcnow()
+    trip.advance_paid_by_id = current_user.user_id
+    trip.advance_paid_by_name = fm_name
+    trip.driver_advance = DRIVER_ADVANCE_AMOUNT
+    await db.commit()
+    await db.refresh(trip)
+
+    trip_number = trip.trip_number
+    notif_body = (
+        f"Advance of Rupees {DRIVER_ADVANCE_AMOUNT} has been paid for trip {trip_number} "
+        f"by the finance manager {fm_name}"
+    )
+
+    # Resolve driver's user_id for direct notification
+    driver_user_ids = []
+    if trip.driver_id:
+        dr_res = await db.execute(select(Driver).where(Driver.id == trip.driver_id))
+        dr = dr_res.scalar_one_or_none()
+        if dr and dr.user_id:
+            driver_user_ids = [dr.user_id]
+
+    try:
+        await notification_service.send(
+            db,
+            event_type="DRIVER_ADVANCE_PAID",
+            title="Advance Payment Done",
+            body=notif_body,
+            target_roles=["FLEET_MANAGER"],
+            target_user_ids=driver_user_ids,
+            data={"trip_id": str(trip_id), "amount": str(DRIVER_ADVANCE_AMOUNT)},
+            urgency="high",
+            triggered_by=current_user.user_id,
+        )
+    except Exception:
+        pass
+
+    return APIResponse(
+        success=True,
+        data={
+            "trip_id": trip_id,
+            "trip_number": trip_number,
+            "advance_amount": DRIVER_ADVANCE_AMOUNT,
+            "paid_by": fm_name,
+            "paid_at": trip.advance_paid_at.isoformat() if trip.advance_paid_at else None,
+        },
+        message=f"Advance of ₹{DRIVER_ADVANCE_AMOUNT} paid successfully",
+    )

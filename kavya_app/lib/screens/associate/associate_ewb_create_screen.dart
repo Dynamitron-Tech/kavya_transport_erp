@@ -31,7 +31,7 @@ class _AssociateEWBCreateScreenState extends ConsumerState<AssociateEWBCreateScr
   
   String _docType = 'Invoice';
   final _docNo = TextEditingController();
-  DateTime _docDate = DateTime.now();
+  final DateTime _docDate = DateTime.now();
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return; // [cite: 116]
@@ -89,7 +89,7 @@ class _AssociateEWBCreateScreenState extends ConsumerState<AssociateEWBCreateScr
             TextFormField(controller: _transporterId, decoration: const InputDecoration(labelText: "Transporter ID (GSTIN)"), validator: (val) => val!.length != 15 ? 'Invalid ID' : null),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _transportMode,
+              initialValue: _transportMode,
               decoration: const InputDecoration(labelText: "Mode"),
               items: ['Road', 'Rail', 'Air', 'Ship'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: (val) => setState(() => _transportMode = val!),
@@ -108,7 +108,7 @@ class _AssociateEWBCreateScreenState extends ConsumerState<AssociateEWBCreateScr
 
             _buildSectionHeader("Document details"), // [cite: 95]
             DropdownButtonFormField<String>(
-              value: _docType,
+              initialValue: _docType,
               decoration: const InputDecoration(labelText: "Document type"),
               items: ['Invoice', 'Delivery challan', 'Bill of supply'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: (val) => setState(() => _docType = val!),

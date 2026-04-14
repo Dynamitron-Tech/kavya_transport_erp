@@ -581,7 +581,7 @@ class _UploadSheet extends StatefulWidget {
 class _UploadSheetState extends State<_UploadSheet> {
   final ImagePicker _picker = ImagePicker();
   File? _selectedFile;
-  bool _isScanning = false;
+  final bool _isScanning = false;
 
   // ─── OCR-powered scan flow ────────────────────────────────────────────────
 

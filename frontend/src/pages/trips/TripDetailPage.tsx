@@ -424,8 +424,7 @@ export default function TripDetailPage() {
 
       {/* Trip Progress Stepper */}
       <div className="card">
-        <h3 className="font-semibold text-gray-900 mb-5">Trip Progress</h3>
-        <div className="flex">
+        <h3 className="font-semibold text-gray-900 mb-5">Trip Progress</h3>        <div className="flex">
           {['planned', 'started', 'loading', 'in_transit', 'unloading', 'completed'].map((stepKey, i) => {
             const LABELS: Record<string, string> = {
               planned: 'Planned', started: 'Started', loading: 'Loading',
@@ -468,6 +467,64 @@ export default function TripDetailPage() {
           })}
         </div>
       </div>
+
+      {/* Phase Photos — loaded, reached, unloaded, POD from driver app */}
+      {(() => {
+        const t = trip as any;
+        const baseUrl = 'http://localhost:8000';
+        const resolveUrl = (u: string | null | undefined) => {
+          if (!u) return null;
+          return u.startsWith('http') ? u : `${baseUrl}${u}`;
+        };
+        type Phase = { label: string; url: string | null; icon: string; color: string };
+        const phases: Phase[] = [
+          { label: 'Loaded', url: resolveUrl(t.loaded_image_url), icon: '📦', color: 'blue' },
+          { label: 'Reached', url: resolveUrl(t.reached_image_url), icon: '📍', color: 'amber' },
+          { label: 'Unloaded', url: resolveUrl(t.unloaded_image_url), icon: '🏭', color: 'purple' },
+          { label: 'Proof of Delivery', url: resolveUrl(t.pod_image_url), icon: '✅', color: 'green' },
+        ];
+        const hasAny = phases.some(p => !!p.url);
+        if (!hasAny) return null;
+        return (
+          <div className="card">
+            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Image size={16} className="text-primary-500" /> Trip Phase Photos
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {phases.map(phase => (
+                <div key={phase.label} className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+                    <span>{phase.icon}</span> {phase.label}
+                  </p>
+                  {phase.url ? (
+                    <button
+                      onClick={() => setViewDoc({ url: phase.url!, title: phase.label })}
+                      className={`rounded-xl overflow-hidden border-2 border-${phase.color}-200 hover:border-${phase.color}-400 transition-all group relative`}
+                    >
+                      {/\.(jpe?g|png|gif|webp|heic)$/i.test(phase.url) ? (
+                        <img src={phase.url} alt={phase.label} className="w-full h-32 object-cover group-hover:opacity-90 transition-opacity" />
+                      ) : (
+                        <div className={`w-full h-32 flex flex-col items-center justify-center bg-${phase.color}-50 gap-1`}>
+                          <FileText size={28} className={`text-${phase.color}-400`} />
+                          <span className={`text-xs text-${phase.color}-600`}>View Document</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 transition-opacity rounded-xl">
+                        <span className="text-white text-xs font-medium bg-black/50 px-2 py-1 rounded">Click to view</span>
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="w-full h-32 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 bg-gray-50">
+                      <span className="text-2xl opacity-30">{phase.icon}</span>
+                      <span className="text-xs text-gray-400">Not yet uploaded</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Journey Timeline & Distance Progress */}
       {(() => {
@@ -759,6 +816,33 @@ export default function TripDetailPage() {
             <hr />
             <div className="flex justify-between"><span className="text-gray-500 font-medium">Profit</span><span className={`font-bold ${(trip.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>₹{Number((trip.profit || 0) ?? 0).toLocaleString('en-IN')}</span></div>
           </div>
+          {/* Driver Advance Payment Status */}
+          {(trip as any).loaded_image_url && (
+            <div className={`mt-4 rounded-lg px-3 py-2.5 text-sm flex items-start gap-2 ${(trip as any).advance_paid ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
+              {(trip as any).advance_paid ? (
+                <>
+                  <CheckCircle size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-green-800">
+                    <p className="font-semibold">Advance Paid — ₹1,500</p>
+                    <p className="text-xs mt-0.5">
+                      Paid by Finance Manager {(trip as any).advance_paid_by_name || '—'}
+                      {(trip as any).advance_paid_at
+                        ? ` on ${new Date((trip as any).advance_paid_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                        : ''}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <BadgeCheck size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-amber-800">
+                    <p className="font-semibold">Advance Pending</p>
+                    <p className="text-xs mt-0.5">Loading photo uploaded — Finance Manager needs to pay ₹1,500 advance.</p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

@@ -51,28 +51,41 @@ class _AccountantInvoicesScreenState extends ConsumerState<AccountantInvoicesScr
               loading: () => const KTLoadingShimmer(type: ShimmerType.list), // [cite: 109-110]
               error: (err, stack) => KTErrorState(message: err.toString(), onRetry: () => ref.invalidate(invoicesProvider)), // [cite: 111-113]
               data: (invoices) {
-                if (invoices.isEmpty) {
+                // Filter by payment_status
+                final filtered = _selectedFilter == 'All'
+                    ? invoices
+                    : invoices.where((inv) {
+                      final ps = (inv['payment_status'] ?? '').toString().toLowerCase();
+                      switch (_selectedFilter) {
+                        case 'Unpaid': return ps == 'pending' || ps == 'unpaid';
+                        case 'Partially paid': return ps == 'partially_paid';
+                        case 'Paid': return ps == 'paid';
+                        case 'Overdue': return ps == 'overdue';
+                        default: return true;
+                      }
+                    }).toList();
+
+                if (filtered.isEmpty) {
                   return const KTEmptyState(
                     title: "No invoices found",
                     subtitle: "Try changing the filter.",
-                    lottieAsset: 'assets/lottie/empty_box.json', // [cite: 114-115]
+                    lottieAsset: 'assets/lottie/empty_box.json',
                   );
                 }
 
                 return RefreshIndicator(
                   color: KTColors.acctAccent,
-                  onRefresh: () async => ref.invalidate(invoicesProvider), // [cite: 118]
+                  onRefresh: () async => ref.invalidate(invoicesProvider),
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: invoices.length,
+                    itemCount: filtered.length,
                     itemBuilder: (context, index) {
-                      final inv = invoices[index];
-                      // Dummy data mapping
-                      final invoiceNo = inv['invoice_no'] ?? 'KT-2026-0045';
-                      final clientName = inv['client_name'] ?? 'Acme Transport';
-                      final amount = inv['amount'] ?? 45000;
-                      final status = inv['status'] ?? 'unpaid';
-                      final dueDate = inv['due_date'] ?? '18 Mar 2026';
+                      final inv = filtered[index];
+                      final invoiceNo = inv['invoice_number']?.toString() ?? '—';
+                      final clientName = inv['client_name']?.toString() ?? '—';
+                      final amount = double.tryParse(inv['total_amount']?.toString() ?? '0') ?? 0.0;
+                      final payStatus = (inv['payment_status'] ?? inv['status'] ?? 'pending').toString().toLowerCase();
+                      final dueDate = inv['due_date']?.toString() ?? '—';
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -99,11 +112,14 @@ class _AccountantInvoicesScreenState extends ConsumerState<AccountantInvoicesScr
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text(currencyFormat.format(amount), style: KTTextStyles.h3), // Total amount (₹) [cite: 79]
+                                    Text(currencyFormat.format(amount), style: KTTextStyles.h3),
                                     const SizedBox(height: 8),
-                                    KTStatusBadge( // Status badge [cite: 79]
-                                      label: status, 
-                                      color: status == 'paid' ? KTColors.success : (status == 'overdue' ? KTColors.danger : KTColors.warning)
+                                    KTStatusBadge(
+                                      label: payStatus.replaceAll('_', ' ').toUpperCase(),
+                                      color: payStatus == 'paid' ? KTColors.success
+                                          : payStatus == 'overdue' ? KTColors.danger
+                                          : payStatus == 'partially_paid' ? KTColors.info
+                                          : KTColors.warning,
                                     ),
                                   ],
                                 ),

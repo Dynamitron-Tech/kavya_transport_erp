@@ -91,6 +91,10 @@ class AuthService {
       case 'accountant':
         router.go('/accountant/home');
         break;
+      case 'finance_manager':
+      case 'FINANCE_MANAGER':
+        router.go('/finance/home');
+        break;
       case 'project_associate':
         router.go('/pa/dashboard');
         break;
@@ -109,6 +113,9 @@ class AuthService {
         break;
       case 'market_driver':
         router.go('/market-driver/trips');
+        break;
+      case 'tyre_inspector':
+        router.go('/tyre/dashboard');
         break;
       default:
         router.go('/web-only');

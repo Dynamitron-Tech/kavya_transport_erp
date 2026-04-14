@@ -206,4 +206,33 @@ class S {
   String get selectLanguage => _t({'en':'Select Language','ta':'மொழியைத் தேர்வு செய்','hi':'भाषा चुनें','kn':'ಭಾಷೆ ಆಯ್ಕೆಮಾಡಿ','te':'భాషను ఎంచుకోండి','ml':'ഭാഷ തിരഞ്ഞെടുക്കുക'});
   String get languageChanged => _t({'en':'Language changed','ta':'மொழி மாற்றப்பட்டது','hi':'भाषा बदली गई','kn':'ಭಾಷೆ ಬದಲಾಯಿಸಲಾಗಿದೆ','te':'భాష మార్చబడింది','ml':'ഭാഷ മാറ്റി'});
   String get choosePreferredLanguage => _t({'en':'Choose your preferred language','ta':'உங்களுக்கு விருப்பமான மொழியைத் தேர்வு செய்யவும்','hi':'अपनी पसंदीदा भाषा चुनें','kn':'ನಿಮ್ಮ ಆದ್ಯತೆಯ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ','te':'మీకు నచ్చిన భాషను ఎంచుకోండి','ml':'നിങ്ങൾ ഇഷ്ടപ്പെടുന്ന ഭാഷ തിരഞ്ഞെടുക്കുക'});
+
+  // ── Admin Shell Navigation ──
+  String get navHome => _t({'en':'Home','ta':'முகப்பு','hi':'होम','kn':'ಮುಖ್ಯಪುಟ','te':'హోమ్','ml':'ഹോം'});
+  String get navOps => _t({'en':'Ops','ta':'செயல்பாடு','hi':'ऑप्स','kn':'ಆಪ್ಸ್','te':'ఆప్స్','ml':'ഓപ്സ്'});
+  String get navFinance => _t({'en':'Finance','ta':'நிதி','hi':'वित्त','kn':'ಹಣಕಾಸು','te':'ఫైనాన్స్','ml':'ഫിനാൻസ്'});
+  String get navPeople => _t({'en':'People','ta':'நபர்கள்','hi':'लोग','kn':'ಜನರು','te':'వ్యక్తులు','ml':'ആളുകൾ'});
+  String get navSettings => _t({'en':'Settings','ta':'அமைப்புகள்','hi':'सेटिंग्स','kn':'ಸೆಟ್ಟಿಂಗ್ಸ್','te':'సెట్టింగ్‌లు','ml':'ക്രമീകരണം'});
+
+  // ── Admin Settings Screen ──
+  String get settingsTitle => _t({'en':'Settings','ta':'அமைப்புகள்','hi':'सेटिंग्स','kn':'ಸೆಟ್ಟಿಂಗ್ಸ್','te':'సెట్టింగ్‌లు','ml':'ക്രമീകരണം'});
+  String get sectionCompany => _t({'en':'COMPANY','ta':'நிறுவனம்','hi':'कंपनी','kn':'ಕಂಪನಿ','te':'కంపెనీ','ml':'കമ്പനി'});
+  String get companyName => _t({'en':'Company Name','ta':'நிறுவன பெயர்','hi':'कंपनी नाम','kn':'ಕಂಪನಿ ಹೆಸರು','te':'కంపెనీ పేరు','ml':'കമ്പനി പേര്'});
+  String get companyGstNumber => _t({'en':'Company GST Number','ta':'நிறுவன GST எண்','hi':'कंपनी GST नंबर','kn':'ಕಂಪನಿ GST ಸಂಖ್ಯೆ','te':'కంపెనీ GST నంబర్','ml':'കമ്പനി GST നമ്പർ'});
+  String get sectionBranches => _t({'en':'BRANCHES','ta':'கிளைகள்','hi':'शाखाएं','kn':'ಶಾಖೆಗಳು','te':'శాఖలు','ml':'ശാഖകൾ'});
+  String get sectionProfile => _t({'en':'PROFILE','ta':'சுயவிவரம்','hi':'प्रोफ़ाइल','kn':'ಪ್ರೊಫೈಲ್','te':'ప్రొఫైల్','ml':'പ്രൊഫൈൽ'});
+  String get sectionAppearance => _t({'en':'APPEARANCE','ta':'தோற்றம்','hi':'दिखावट','kn':'ನೋಟ','te':'రూపం','ml':'ആظাഹര'});
+  String get language => _t({'en':'Language','ta':'மொழி','hi':'भाषा','kn':'ಭಾಷೆ','te':'భాష','ml':'ഭാഷ'});
+  String get languageDesc => _t({'en':'English / தமிழ் / हिन्दी','ta':'English / தமிழ் / हिन्दी','hi':'English / தமிழ் / हिन्दी','kn':'English / தமிழ் / हिन्दी','te':'English / தமிழ் / हिन्दी','ml':'English / தமிழ் / हिन्दी'});
+  String get roleAdmin => _t({'en':'Admin','ta':'நிர்வாகி','hi':'एडमिन','kn':'ನಿರ್ವಾಹಕ','te':'అడ్మిన్','ml':'അഡ്മിൻ'});
+  String get logOut => _t({'en':'Log out','ta':'வெளியேறு','hi':'लॉग आउट','kn':'ಲಾಗ್ ಔಟ್','te':'లాగ్ అవుట్','ml':'ലോഗ് ഔട്ട്'});
+  String get logoutConfirmAdmin => _t({'en':'Are you sure you want to log out?','ta':'வெளியேற விரும்புகிறீர்களா?','hi':'क्या आप लॉग आउट करना चाहते हैं?','kn':'ನೀವು ಲಾಗ್ ಔಟ್ ಮಾಡಲು ಬಯಸುವಿರಾ?','te':'మీరు లాగ్ అవుట్ చేయాలనుకుంటున్నారా?','ml':'നിങ്ങൾ ലോഗ്ഔട്ട് ചെയ്യണമെന്ന് ഉറപ്പാണോ?'});
+  String get noBranches => _t({'en':'No branches','ta':'கிளைகள் இல்லை','hi':'कोई शाखा नहीं','kn':'ಯಾವುದೇ ಶಾಖೆ ಇಲ್ಲ','te':'శాఖలు లేవు','ml':'ശാഖകൾ ഇല്ല'});
+  String get branchActive => _t({'en':'Active','ta':'செயலில்','hi':'सक्रिय','kn':'ಸಕ್ರಿಯ','te':'యాక్టివ్','ml':'സജീവം'});
+  String get branchInactive => _t({'en':'Inactive','ta':'செயலற்றது','hi':'निष्क्रिय','kn':'ನಿಷ್ಕ್ರಿಯ','te':'నిష్క్రియం','ml':'നിഷ്ക്രിയം'});
+
+  // ── Admin Dashboard ──
+  String get roleHealthStatus => _t({'en':'ROLE HEALTH STATUS','ta':'பங்கு நிலை','hi':'भूमिका स्वास्थ्य स्थिति','kn':'ಪಾತ್ರ ಆರೋಗ್ಯ ಸ್ಥಿತಿ','te':'రోల్ హెల్త్ స్టేటస్','ml':'റോൾ ഹെൽത്ത് സ്റ്റാറ്റസ്'});
+  String get quickActionsAdmin => _t({'en':'QUICK ACTIONS','ta':'விரைவு செயல்கள்','hi':'त्वरित कार्य','kn':'ತ್ವರಿತ ಕ್ರಿಯೆಗಳು','te':'త్వరిత చర్యలు','ml':'ദ്രുത പ്രവർത്തനങ്ങൾ'});
+  String get noRoleData => _t({'en':'No role data available','ta':'பங்கு தரவு இல்லை','hi':'कोई भूमिका डेटा नहीं','kn':'ಯಾವುದೇ ಪಾತ್ರ ಡೇಟಾ ಇಲ್ಲ','te':'రోల్ డేటా లేదు','ml':'റോൾ ഡാറ്റ ലഭ്യമല്ല'});
 }

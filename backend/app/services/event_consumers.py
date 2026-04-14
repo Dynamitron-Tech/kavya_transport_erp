@@ -7,12 +7,60 @@ from app.services.event_bus import event_bus, EventTypes
 logger = logging.getLogger(__name__)
 
 
-async def handle_sos_triggered(event: dict):
+async def handle_sos_triggered(event: dict, db=None):
     """SOS — immediate push to admin + fleet manager."""
     logger.critical(f"[SOS] Driver SOS triggered: {event}")
-    # TODO: Send FCM push to admin/fleet_manager devices
-    # TODO: Send WhatsApp to emergency contacts
-    # For now, broadcast via WebSocket
+    payload = event.get("payload", {})
+    driver_name = payload.get("driver_name", "Unknown Driver")
+    trip_number = payload.get("trip_number", "N/A")
+    origin = payload.get("origin", "")
+    destination = payload.get("destination", "")
+    vehicle_reg = payload.get("vehicle_registration", "")
+    location_name = payload.get("location_name", "")
+    ec_name = payload.get("emergency_contact_name", "")
+    ec_phone = payload.get("emergency_contact_phone", "")
+
+    title = f"🆘 SOS EMERGENCY — {driver_name}"
+    body = (
+        f"Driver {driver_name} in trip {trip_number} is in Emergency!\n"
+        f"Route: {origin} → {destination} | Vehicle: {vehicle_reg}"
+    )
+    if location_name:
+        body += f"\nLocation: {location_name}"
+    if ec_name:
+        body += f"\nEmergency Contact: {ec_name} ({ec_phone})"
+
+    if db is not None:
+        try:
+            from app.services.notification_service import notification_service
+            await notification_service.send(
+                db=db,
+                event_type="sos_triggered",
+                title=title,
+                body=body,
+                target_roles=["ADMIN", "FLEET_MANAGER"],
+                data={
+                    "event_type": "sos_triggered",
+                    "trip_id": str(payload.get("trip_id", "")),
+                    "trip_number": trip_number,
+                    "driver_name": driver_name,
+                    "driver_phone": str(payload.get("driver_phone", "")),
+                    "vehicle_registration": vehicle_reg,
+                    "origin": origin,
+                    "destination": destination,
+                    "emergency_contact_name": ec_name or "",
+                    "emergency_contact_phone": ec_phone or "",
+                    "location_name": location_name or "",
+                    "route": f"/fleet/notifications",
+                    "urgency": "critical",
+                },
+                urgency="critical",
+            )
+        except Exception as e:
+            logger.error(f"[SOS] FCM notification failed: {e}")
+    else:
+        logger.warning("[SOS] No DB session available for SOS FCM notification")
+
     await _broadcast_ws("sos_alert", event)
 
 

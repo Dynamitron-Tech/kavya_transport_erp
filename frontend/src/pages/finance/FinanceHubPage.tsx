@@ -97,9 +97,9 @@ function KPIStrip({ kpis, loading }: { kpis?: FinanceKPI; loading: boolean }) {
     {
       label: 'Cash Balance',
       value: kpis ? fmt(kpis.cash_balance) : '—',
-      icon: <Wallet size={18} className="text-green-600" />,
-      bg: 'bg-green-50',
-      color: 'text-green-700',
+      icon: <Wallet size={18} className={kpis && kpis.cash_balance < 0 ? 'text-red-600' : 'text-green-600'} />,
+      bg: kpis && kpis.cash_balance < 0 ? 'bg-red-50' : 'bg-green-50',
+      color: kpis && kpis.cash_balance < 0 ? 'text-red-700' : 'text-green-700',
     },
   ];
   return (

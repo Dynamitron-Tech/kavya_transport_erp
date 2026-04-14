@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/kt_colors.dart';
-import '../../core/theme/kt_text_styles.dart';
 import '../../providers/fleet_dashboard_provider.dart';
 
 class FleetServiceLogScreen extends ConsumerStatefulWidget {

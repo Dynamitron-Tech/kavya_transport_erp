@@ -247,3 +247,168 @@ async def upload_vehicle_document(
         data={"id": doc.id, "document_type": doc.document_type, "file_url": doc.file_url},
         message=f"{doc_type} uploaded successfully",
     )
+
+
+# ── Vehicle Mileage Endpoints ──────────────────────────────────────────────
+
+@router.get("/{vehicle_id}/fuel-logs", response_model=APIResponse)
+async def get_vehicle_fuel_logs(
+    vehicle_id: int,
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Fleet manager: full-tank fill-up logs for a vehicle (Standard mileage view)."""
+    from app.models.postgres.fuel_pump import VehicleFuelLog
+    from app.models.postgres.driver import Driver as DriverModel
+
+    vehicle = await vehicle_service.get_vehicle(db, vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    result = await db.execute(
+        select(VehicleFuelLog)
+        .where(VehicleFuelLog.vehicle_id == vehicle_id)
+        .order_by(VehicleFuelLog.fill_date.desc(), VehicleFuelLog.odometer_km.desc())
+        .limit(limit)
+    )
+    logs = result.scalars().all()
+
+    # Batch-fetch driver names
+    driver_ids = list({log.driver_id for log in logs if log.driver_id})
+    driver_name_map: dict = {}
+    if driver_ids:
+        dr_res = await db.execute(
+            select(DriverModel.id, DriverModel.first_name, DriverModel.last_name)
+            .where(DriverModel.id.in_(driver_ids))
+        )
+        for row in dr_res.all():
+            driver_name_map[row.id] = f"{row.first_name or ''} {row.last_name or ''}".strip()
+
+    items = []
+    for log in logs:
+        d = {c.key: getattr(log, c.key) for c in log.__table__.columns}
+        for k, v in d.items():
+            if hasattr(v, '__float__'):
+                d[k] = float(v)
+            elif isinstance(v, datetime):
+                d[k] = v.isoformat()
+        if log.mileage_rating:
+            d['mileage_rating'] = log.mileage_rating.value if hasattr(log.mileage_rating, 'value') else str(log.mileage_rating)
+        d['driver_name'] = driver_name_map.get(log.driver_id, 'Unknown')
+        items.append(d)
+
+    # Summary
+    rated_logs = [l for l in logs if l.km_per_litre is not None]
+    avg_kml = None
+    if rated_logs:
+        avg_kml = round(float(sum(l.km_per_litre for l in rated_logs)) / len(rated_logs), 2)
+    total_litres = sum(float(l.litres_filled or 0) for l in logs)
+
+    return APIResponse(success=True, data={
+        "items": items,
+        "summary": {
+            "total_fills": len(logs),
+            "avg_km_per_litre": avg_kml,
+            "total_litres": round(total_litres, 1),
+            "good_count": sum(1 for l in rated_logs if hasattr(l.mileage_rating, 'value') and l.mileage_rating.value == 'good'),
+            "medium_count": sum(1 for l in rated_logs if hasattr(l.mileage_rating, 'value') and l.mileage_rating.value == 'medium'),
+            "bad_count": sum(1 for l in rated_logs if hasattr(l.mileage_rating, 'value') and l.mileage_rating.value == 'bad'),
+        },
+    })
+
+
+@router.get("/{vehicle_id}/trips-mileage", response_model=APIResponse)
+async def get_vehicle_trips_mileage(
+    vehicle_id: int,
+    limit: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Fleet manager: per-trip mileage (km/L) calculated from odometer + fuel entries."""
+    from app.models.postgres.trip import Trip, TripFuelEntry
+    from app.models.postgres.driver import Driver as DriverModel
+    from sqlalchemy import func
+
+    vehicle = await vehicle_service.get_vehicle(db, vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    # Fetch trips with at least start + end odometer readings
+    trips_result = await db.execute(
+        select(Trip)
+        .where(
+            Trip.vehicle_id == vehicle_id,
+            Trip.is_deleted == False,
+            Trip.start_odometer.isnot(None),
+            Trip.end_odometer.isnot(None),
+        )
+        .order_by(Trip.trip_date.desc())
+        .limit(limit)
+    )
+    trips = trips_result.scalars().all()
+
+    # Batch-fetch driver names
+    driver_ids = list({t.driver_id for t in trips if t.driver_id})
+    driver_name_map: dict = {}
+    if driver_ids:
+        dr_res = await db.execute(
+            select(DriverModel.id, DriverModel.first_name, DriverModel.last_name)
+            .where(DriverModel.id.in_(driver_ids))
+        )
+        for row in dr_res.all():
+            driver_name_map[row.id] = f"{row.first_name or ''} {row.last_name or ''}".strip()
+
+    # Batch-fetch total fuel per trip
+    trip_ids = [t.id for t in trips]
+    fuel_map: dict = {}
+    if trip_ids:
+        fuel_result = await db.execute(
+            select(TripFuelEntry.trip_id, func.sum(TripFuelEntry.quantity_litres).label("total_litres"))
+            .where(TripFuelEntry.trip_id.in_(trip_ids))
+            .group_by(TripFuelEntry.trip_id)
+        )
+        for row in fuel_result.all():
+            fuel_map[row.trip_id] = float(row.total_litres or 0)
+
+    items = []
+    for t in trips:
+        start_odo = float(t.start_odometer)
+        end_odo = float(t.end_odometer)
+        distance_km = round(end_odo - start_odo, 1)
+        total_litres = fuel_map.get(t.id, 0.0)
+        km_per_litre = round(distance_km / total_litres, 2) if total_litres > 0 and distance_km > 0 else None
+        status_val = getattr(t.status, 'value', t.status) if t.status else 'unknown'
+        items.append({
+            "id": t.id,
+            "trip_number": t.trip_number or "",
+            "origin": t.origin or "",
+            "destination": t.destination or "",
+            "trip_date": str(t.trip_date) if t.trip_date else None,
+            "driver_name": driver_name_map.get(t.driver_id, "Unknown"),
+            "start_odometer": start_odo,
+            "end_odometer": end_odo,
+            "distance_km": distance_km,
+            "total_fuel_litres": round(total_litres, 2),
+            "km_per_litre": km_per_litre,
+            "status": str(status_val),
+        })
+
+    # Overall summary
+    trips_with_mileage = [i for i in items if i["km_per_litre"] is not None]
+    avg_kml = round(
+        sum(i["km_per_litre"] for i in trips_with_mileage) / len(trips_with_mileage), 2
+    ) if trips_with_mileage else None
+
+    return APIResponse(success=True, data={
+        "items": items,
+        "summary": {
+            "total_trips": len(items),
+            "trips_with_mileage": len(trips_with_mileage),
+            "avg_km_per_litre": avg_kml,
+            "total_distance_km": round(sum(i["distance_km"] for i in items), 1),
+            "total_fuel_litres": round(sum(i["total_fuel_litres"] for i in items), 1),
+        },
+    })

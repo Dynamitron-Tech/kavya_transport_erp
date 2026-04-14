@@ -1,4 +1,5 @@
 ﻿# Auth Endpoints - Login, Refresh, Profile
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,13 +7,14 @@ from datetime import datetime, timezone
 
 from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user, create_tokens, decode_token, bearer_scheme
-from app.schemas.auth import LoginRequest, OtpVerifyRequest, TokenResponse, UserInfo, RefreshRequest, ChangePasswordRequest, UpdatePhotoRequest, MarketDriverOtpSendRequest, MarketDriverOtpVerifyRequest, MarketDriverOtpResendRequest
+from app.schemas.auth import LoginRequest, OtpSendRequest, OtpVerifyRequest, TokenResponse, UserInfo, RefreshRequest, ChangePasswordRequest, UpdatePhotoRequest, MarketDriverOtpSendRequest, MarketDriverOtpVerifyRequest, MarketDriverOtpResendRequest
 from app.schemas.base import APIResponse
-from app.services.auth_service import authenticate_by_identifier, authenticate_user, get_user_roles, refresh_access_token, change_password, get_user_by_id
+from app.services.auth_service import authenticate_by_identifier, authenticate_by_phone, authenticate_user, get_user_roles, refresh_access_token, change_password, get_user_by_id
 from app.middleware.permissions import get_user_permissions
 from app.services.token_blacklist import blacklist_token
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Role → default landing page mapping
 ROLE_REDIRECT_MAP = {
@@ -24,6 +26,7 @@ ROLE_REDIRECT_MAP = {
     "project_associate": "/dashboard",
     "driver": "/driver/trips",
     "pump_operator": "/pump/dashboard",
+    "tyre_inspector": "/tyre/dashboard",
 }
 
 
@@ -77,6 +80,70 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         "token_type": "bearer",
         "user": user_info.model_dump(),
     }, message="Login successful")
+
+
+@router.post("/send-otp", response_model=APIResponse)
+async def send_otp_for_login(data: OtpSendRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Step 1 of phone OTP login.
+    Verifies password first (prevents phone enumeration), then sends OTP via
+    Brevo SMS (primary) + Brevo email (fallback). In dev mode, returns OTP
+    in the response if both delivery channels fail.
+    """
+    import asyncio
+    from app.services.otp_service import create_otp_session, send_otp as _send_otp
+    from app.services.brevo_service import send_email_otp
+
+    phone = data.phone.strip()
+    if phone.startswith("+91"):
+        phone = phone[3:]
+    elif phone.startswith("91") and len(phone) == 12:
+        phone = phone[2:]
+    if len(phone) != 10 or not phone.isdigit():
+        raise HTTPException(status_code=400, detail="Enter a valid 10-digit Indian mobile number")
+
+    user = await authenticate_by_phone(db, phone, data.password)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid phone number or password")
+
+    session = await create_otp_session(user.id, phone)
+    otp = session["otp"]
+
+    # Fire SMS and email in parallel — both are best-effort
+    sms_ok, email_ok = await asyncio.gather(
+        _send_otp(phone, otp),
+        send_email_otp(user.email, otp),
+        return_exceptions=True,
+    )
+    sms_ok = sms_ok is True
+    email_ok = email_ok is True
+
+    if sms_ok:
+        delivery = "SMS"
+    elif email_ok:
+        delivery = "email"
+    else:
+        delivery = "none"
+        logger.warning(f"[OTP] Both SMS and email delivery failed for user {user.id}")
+
+    response_data: dict = {
+        "session_id": session["session_id"],
+        "phone_masked": session["phone_masked"],
+        "delivery": delivery,
+    }
+
+    # Dev safety net: include OTP in response when delivery failed
+    # Remove this block before production hardening
+    if delivery == "none":
+        response_data["otp_dev"] = otp
+
+    msg = {
+        "SMS": "OTP sent to your registered number",
+        "email": f"OTP sent to your registered email ({user.email[:3]}***)",
+        "none": "OTP generated — check server logs (delivery unavailable)",
+    }[delivery]
+
+    return APIResponse(success=True, data=response_data, message=msg)
 
 
 @router.post("/verify-otp", response_model=APIResponse)

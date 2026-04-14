@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../core/widgets/kt_button.dart';
@@ -8,7 +9,7 @@ import '../../core/widgets/kt_status_badge.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
 import '../../providers/fleet_dashboard_provider.dart';
 
-// ─── Provider ───────────────────────────────────────────────────────────────
+// ─── Providers ──────────────────────────────────────────────────────────────
 
 const _bankingTypeMap = {
   'Payment Received': 'PAYMENT_RECEIVED',
@@ -31,6 +32,36 @@ final bankingEntriesProvider =
     return [];
   },
 );
+
+// Fetches bank accounts and returns {totalBalance, todayCredits}
+final _bankKpiProvider = FutureProvider.autoDispose<Map<String, double>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final res = await api.get('/finance/bank-accounts');
+  final data = res['data'];
+  final items = (data is Map ? (data['items'] ?? data) : data);
+  double total = 0;
+  if (items is List) {
+    for (final a in items) {
+      total += double.tryParse(a['current_balance']?.toString() ?? '0') ?? 0;
+    }
+  }
+  // today credits: sum entries fetched today from banking/entries
+  final today = DateTime.now().toIso8601String().substring(0, 10);
+  final entriesRes = await api.get('/banking/entries');
+  final entriesPayload = entriesRes['data'] ?? entriesRes;
+  double todayCredits = 0;
+  if (entriesPayload is List) {
+    for (final e in entriesPayload) {
+      final date = e['entry_date']?.toString() ?? '';
+      final type = e['entry_type']?.toString() ?? '';
+      if (date.startsWith(today) &&
+          (type == 'PAYMENT_RECEIVED' || type == 'CASH_DEPOSIT')) {
+        todayCredits += double.tryParse(e['amount_rupees']?.toString() ?? '0') ?? 0;
+      }
+    }
+  }
+  return {'totalBalance': total, 'todayCredits': todayCredits};
+});
 
 // ─── Screen ─────────────────────────────────────────────────────────────────
 
@@ -84,16 +115,38 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
       body: Column(
         children: [
           // ─── Top KPI Cards ────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(child: _kpiCard('Total Balance', Icons.account_balance, KTColors.info, isAsync: true)),
-                const SizedBox(width: 12),
-                Expanded(child: _kpiCard('Today Credits', Icons.arrow_downward, KTColors.success, isAsync: true)),
-              ],
-            ),
-          ),
+          Consumer(builder: (ctx, ref, _) {
+            final kpiAsync = ref.watch(_bankKpiProvider);
+            final fmt = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(child: _kpiCard(
+                    'Total Balance',
+                    Icons.account_balance,
+                    KTColors.info,
+                    value: kpiAsync.when(
+                      data: (d) => fmt.format(d['totalBalance'] ?? 0),
+                      loading: () => '…',
+                      error: (_, __) => '—',
+                    ),
+                  )),
+                  const SizedBox(width: 12),
+                  Expanded(child: _kpiCard(
+                    'Today Credits',
+                    Icons.arrow_downward,
+                    KTColors.success,
+                    value: kpiAsync.when(
+                      data: (d) => fmt.format(d['todayCredits'] ?? 0),
+                      loading: () => '…',
+                      error: (_, __) => '—',
+                    ),
+                  )),
+                ],
+              ),
+            );
+          }),
 
           // ─── Filter Chips ─────────────────────────────────────────
           SizedBox(
@@ -183,7 +236,7 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
     );
   }
 
-  Widget _kpiCard(String label, IconData icon, Color accent, {bool isAsync = false}) {
+  Widget _kpiCard(String label, IconData icon, Color accent, {String value = '—'}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -196,7 +249,7 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: accent.withOpacity(0.15),
+              color: accent.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: accent, size: 18),
@@ -206,7 +259,7 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('—', style: KTTextStyles.h3.copyWith(color: KTColors.textHeading, fontSize: 18)),
+                Text(value, style: KTTextStyles.h3.copyWith(color: KTColors.textHeading, fontSize: 16)),
                 Text(label, style: KTTextStyles.caption.copyWith(color: KTColors.textMuted)),
               ],
             ),
@@ -221,7 +274,7 @@ class _AccountantBankingScreenState extends ConsumerState<AccountantBankingScree
     final type = entry['transaction_type']?.toString() ?? entry['type']?.toString() ?? '—';
     final date = entry['entry_date']?.toString() ?? '';
     final description = entry['description']?.toString() ?? '—';
-    final amountPaise = (entry['amount_paise'] as num?)?.toInt() ?? (entry['amount'] as num?)?.toInt() ?? 0;
+    final amountPaise = double.tryParse(entry['amount_paise']?.toString() ?? entry['amount']?.toString() ?? '0') ?? 0;
     final isCredit = type.toLowerCase().contains('received') || type.toLowerCase().contains('credit') || type.toLowerCase().contains('deposit');
     final accountName = entry['bank_account_name']?.toString() ?? entry['account_name']?.toString() ?? '—';
     final isReconciled = entry['is_reconciled'] == true;

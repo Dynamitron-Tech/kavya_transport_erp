@@ -17,7 +17,7 @@ export default function SettingsPage() {
 
   // Profile state
   const [profile, setProfile] = useState({
-    full_name: user?.full_name || '',
+    full_name: user?.full_name || `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || '',
     email: user?.email || '',
     phone: user?.phone || '',
   });

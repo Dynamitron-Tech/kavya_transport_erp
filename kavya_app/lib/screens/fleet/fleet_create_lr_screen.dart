@@ -253,15 +253,15 @@ class _FleetCreateLRScreenState extends ConsumerState<FleetCreateLRScreen> {
       final ocrData = await api.ocrDocument(file, 'rc');
       final fields = (ocrData['fields'] as Map?)?.cast<String, dynamic>() ?? {};
 
-      String _fv(String key) =>
+      String fv(String key) =>
           (fields[key] is Map ? (fields[key] as Map)['value'] : null)?.toString().trim() ?? '';
 
-      final regNo = _fv('registration_number');
-      final ownerName = _fv('owner_name');
-      final chassis = _fv('chassis_number');
-      final engine = _fv('engine_number');
-      final fuelType = _fv('fuel_type');
-      final validUpto = _fv('valid_upto');
+      final regNo = fv('registration_number');
+      final ownerName = fv('owner_name');
+      final chassis = fv('chassis_number');
+      final engine = fv('engine_number');
+      final fuelType = fv('fuel_type');
+      final validUpto = fv('valid_upto');
 
       if (mounted) {
         setState(() {
@@ -312,13 +312,13 @@ class _FleetCreateLRScreenState extends ConsumerState<FleetCreateLRScreen> {
       final ocrData = await api.ocrDocument(file, 'driving_license');
       final fields = (ocrData['fields'] as Map?)?.cast<String, dynamic>() ?? {};
 
-      String _fv(String key) =>
+      String fv(String key) =>
           (fields[key] is Map ? (fields[key] as Map)['value'] : null)?.toString().trim() ?? '';
 
-      final dlNo = _fv('dl_number');
-      final holderName = _fv('holder_name');
-      final validUpto = _fv('valid_upto');
-      final dob = _fv('dob');
+      final dlNo = fv('dl_number');
+      final holderName = fv('holder_name');
+      final validUpto = fv('valid_upto');
+      final dob = fv('dob');
 
       if (mounted) {
         setState(() {
@@ -862,7 +862,7 @@ class _FleetCreateLRScreenState extends ConsumerState<FleetCreateLRScreen> {
         const SizedBox(height: 8),
         // ── Select Client dropdown (auto-fills fields below) ──
         DropdownButtonFormField<int>(
-          value: _selectedClientId,
+          initialValue: _selectedClientId,
           dropdownColor: KTColors.surface,
           style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
           hint: Text('Select client to auto-fill',
@@ -1404,7 +1404,7 @@ class _FleetCreateLRScreenState extends ConsumerState<FleetCreateLRScreen> {
             _sectionLabel('Vehicle'),
             const SizedBox(height: 8),
             DropdownButtonFormField<int>(
-              value: _selectedVehicleId,
+              initialValue: _selectedVehicleId,
               dropdownColor: KTColors.surface,
               style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
               hint: Text('Select Vehicle',
@@ -1446,7 +1446,7 @@ class _FleetCreateLRScreenState extends ConsumerState<FleetCreateLRScreen> {
             _sectionLabel('Driver'),
             const SizedBox(height: 8),
             DropdownButtonFormField<int>(
-              value: _selectedDriverId,
+              initialValue: _selectedDriverId,
               dropdownColor: KTColors.surface,
               style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
               hint: Text('Select Driver',
@@ -1765,7 +1765,7 @@ class _FleetCreateLRScreenState extends ConsumerState<FleetCreateLRScreen> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _mktVehicleType.isEmpty ? null : _mktVehicleType,
+                  initialValue: _mktVehicleType.isEmpty ? null : _mktVehicleType,
                   dropdownColor: KTColors.surface,
                   style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                   hint: Text('Select type',
@@ -1781,7 +1781,7 @@ class _FleetCreateLRScreenState extends ConsumerState<FleetCreateLRScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _mktFuelType.isEmpty ? null : _mktFuelType,
+                  initialValue: _mktFuelType.isEmpty ? null : _mktFuelType,
                   dropdownColor: KTColors.surface,
                   style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
                   hint: Text('Select fuel',
@@ -2086,7 +2086,7 @@ class _FleetCreateLRScreenState extends ConsumerState<FleetCreateLRScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
-        value: current,
+        initialValue: current,
         dropdownColor: KTColors.surface,
         style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
         decoration: _dropDecor(label),

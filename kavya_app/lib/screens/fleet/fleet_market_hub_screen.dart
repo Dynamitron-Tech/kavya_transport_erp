@@ -3,6 +3,7 @@ import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import 'fleet_market_trips_screen.dart';
 import 'fleet_market_vehicles_screen.dart';
+import 'fleet_market_drivers_screen.dart';
 
 class FleetMarketHubScreen extends StatelessWidget {
   const FleetMarketHubScreen({super.key});
@@ -21,7 +22,7 @@ class FleetMarketHubScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Market Trips & Vehicles',
+          'Market',
           style: KTTextStyles.h3.copyWith(
             color: KTColors.textHeading,
             decoration: TextDecoration.none,
@@ -63,6 +64,19 @@ class FleetMarketHubScreen extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (_) => const FleetMarketVehiclesScreen(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            _HubCard(
+              icon: Icons.person_outlined,
+              title: 'Market Drivers',
+              subtitle: 'View all external / hired drivers',
+              color: KTColors.success,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const FleetMarketDriversScreen(),
                 ),
               ),
             ),

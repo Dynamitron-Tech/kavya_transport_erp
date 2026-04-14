@@ -9,7 +9,6 @@ import '../../core/widgets/kt_error_state.dart';
 import '../../core/widgets/kt_loading_shimmer.dart';
 import '../../core/widgets/kt_status_badge.dart';
 import '../../providers/finance_provider.dart';
-import '../../widgets/payment_bottom_sheet.dart';
 
 class AccountantReceivablesScreen extends ConsumerStatefulWidget {
   const AccountantReceivablesScreen({super.key});
@@ -28,22 +27,6 @@ class _AccountantReceivablesScreenState extends ConsumerState<AccountantReceivab
     } else {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open WhatsApp')));
     }
-  }
-
-  void _showPaymentSheet(Map<String, dynamic> rec) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => PaymentBottomSheet(
-        invoiceId: (rec['id'] as num?)?.toInt() ?? 0,
-        clientId: (rec['client_id'] as num?)?.toInt() ?? 0,
-        invoiceNumber: rec['invoice_number'] ?? '',
-        outstandingAmount: (rec['amount_due'] as num?)?.toDouble() ?? 0.0,
-        clientName: rec['client_name'] ?? '',
-        onPaymentRecorded: () => ref.invalidate(receivablesProvider),
-      ),
-    );
   }
 
   @override
@@ -73,7 +56,7 @@ class _AccountantReceivablesScreenState extends ConsumerState<AccountantReceivab
                 final rec = receivables[index];
                 final clientName = rec['client_name'] ?? '';
                 final invoiceNo = rec['invoice_number'] ?? '';
-                final amount = (rec['amount_due'] as num?) ?? 0;
+                final amount = double.tryParse(rec['amount_due']?.toString() ?? '0') ?? 0.0;
                 final isOverdue = rec['is_overdue'] ?? false;
                 
                 return Card(
@@ -114,17 +97,9 @@ class _AccountantReceivablesScreenState extends ConsumerState<AccountantReceivab
                             Expanded(
                               child: OutlinedButton.icon(
                                 style: OutlinedButton.styleFrom(foregroundColor: KTColors.success, side: const BorderSide(color: KTColors.success)),
-                                onPressed: () => _openWhatsApp('+919876543210', 'Reminder: Invoice $invoiceNo for ${currencyFormat.format(amount)} is due.'), // "Send reminder" → WhatsApp deep link [cite: 77]
+                                onPressed: () => _openWhatsApp('+919876543210', 'Reminder: Invoice $invoiceNo for ${currencyFormat.format(amount)} is due.'),
                                 icon: const Icon(Icons.chat),
                                 label: const Text("Reminder"),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () => _showPaymentSheet(rec), // "Record payment" → UPI / NEFT / RTGS / Cheque / Cash
-                                icon: const Icon(Icons.payment),
-                                label: const Text("Pay"),
                               ),
                             ),
                           ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../core/localization/locale_provider.dart';
 import '../../../core/theme/kt_colors.dart';
 import '../../../core/theme/kt_text_styles.dart';
 import '../providers/admin_providers.dart';
@@ -17,6 +18,7 @@ class AdminDashboardScreen extends ConsumerWidget {
     final stats = ref.watch(adminDashboardStatsProvider);
     final roleHealth = ref.watch(adminRoleHealthProvider);
     final today = DateFormat('dd MMM yyyy').format(DateTime.now());
+    final s = ref.watch(sProvider);
 
     return Scaffold(
       backgroundColor: KTColors.lightBg,
@@ -120,8 +122,7 @@ class AdminDashboardScreen extends ConsumerWidget {
                           child: Text(
                             '$alerts compliance alert${alerts > 1 ? 's' : ''} — action needed',
                             style: KTTextStyles.body.copyWith(color: KTColors.danger),
-                          ),
-                        ),
+                          ),                        ),
                         const Icon(Icons.chevron_right,
                             color: KTColors.danger, size: 18),
                       ],
@@ -134,14 +135,14 @@ class AdminDashboardScreen extends ConsumerWidget {
             ),
 
             // ── Role Health section header ──
-            _sectionHeader(context, 'ROLE HEALTH STATUS'),
+            _sectionHeader(context, s.roleHealthStatus),
             const SizedBox(height: 10),
             roleHealth.when(
               data: (list) {
                 if (list.isEmpty) {
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Text('No role data available',
+                    child: Text(s.noRoleData,
                         style: KTTextStyles.body.copyWith(color: KTColors.textMuted)),
                   );
                 }
@@ -185,7 +186,7 @@ class AdminDashboardScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // ── Quick Actions section header ──
-            _sectionHeader(context, 'QUICK ACTIONS'),
+            _sectionHeader(context, s.quickActionsAdmin),
             const SizedBox(height: 12),
             GridView.count(
               crossAxisCount: 4,
@@ -210,11 +211,6 @@ class AdminDashboardScreen extends ConsumerWidget {
                     label: 'EWB',
                     icon: Icons.qr_code_outlined,
                     onTap: () => context.push('/admin/ewb')),
-                QuickActionTile(
-                    color: KTColors.gray500,
-                    label: 'Add User',
-                    icon: Icons.person_add_outlined,
-                    onTap: () => context.push('/admin/employees/create')),
                 QuickActionTile(
                     color: KTColors.danger,
                     label: 'Finance',

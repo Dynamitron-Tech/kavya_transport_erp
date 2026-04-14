@@ -305,14 +305,14 @@ async def request_advance(
     await db.commit()
 
     driver_name = f"{driver.first_name or ''} {driver.last_name or ''}".strip() or "Driver"
-    trip_label = f"Trip:{trip_number}" if trip_number else "no specific trip"
+    trip_label = f"trip {trip_number}" if trip_number else "an active trip"
     try:
         await notification_service.send(
             db,
             event_type="DRIVER_ADVANCE_REQUEST",
-            title="Advance Payment Request",
-            body=f"{driver_name} has requested for Advance payment for the {trip_label}",
-            target_roles=["FLEET_MANAGER"],
+            title="Driver Advance Request",
+            body=f"Driver {driver_name} has requested for his Advance Payment for the {trip_label}",
+            target_roles=["FLEET_MANAGER", "FINANCE_MANAGER"],
             data={
                 "advance_id": advance.id,
                 "driver_id": driver.id,

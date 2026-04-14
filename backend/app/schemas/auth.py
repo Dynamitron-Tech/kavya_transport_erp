@@ -80,6 +80,12 @@ class UpdatePhotoRequest(BaseModel):
 
 # ── Market Driver OTP ──────────────────────────────────────────────────────────
 
+class OtpSendRequest(BaseModel):
+    """Staff OTP login — phone + password required to prevent enumeration."""
+    phone: str = Field(..., description="10-digit Indian mobile number (without +91)")
+    password: str = Field(..., min_length=4)
+
+
 class MarketDriverOtpSendRequest(BaseModel):
     """Client sends phone number; server calls MSG91 and returns session_id."""
     phone: str = Field(..., description="10-digit Indian mobile number (without +91)")

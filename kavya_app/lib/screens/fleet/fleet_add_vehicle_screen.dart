@@ -30,7 +30,9 @@ class _FleetAddVehicleScreenState
   final _odometerCtrl = TextEditingController();
   final _tankCapCtrl = TextEditingController();
 
-  String _vehicleType = 'truck';
+  String _vehicleType = 'flatbed_truck';
+  String _vehicleSizeClass = 'hcv';
+  String _axleWheelType = '10w';
   String _ownershipType = 'owned';
   String _fuelType = 'diesel';
 
@@ -58,9 +60,31 @@ class _FleetAddVehicleScreenState
     'permit': _DocMeta('Permit', Icons.badge_outlined),
   };
 
-  static const _vehicleTypes = [
-    'truck', 'trailer', 'tanker', 'container', 'lcv', 'mini_truck', 'pickup',
-  ];
+  static const Map<String, String> _vehicleTypeLabels = {
+    'flatbed_truck': 'Flatbed Truck',
+    'container_truck': 'Container Truck',
+    'tipper_truck': 'Tipper Truck',
+    'tanker_generic': 'Tanker (Generic)',
+    'refrigerated_truck': 'Refrigerated Truck',
+    'car_carrier': 'Car Carrier',
+    'tractor_head': 'Tractor Head',
+  };
+  static const Map<String, String> _vehicleSizeClassLabels = {
+    'mini_pickup': 'Mini / Pickup Truck',
+    'lcv': 'LCV (Light Commercial Vehicle)',
+    'mcv': 'MCV (Medium Commercial Vehicle)',
+    'hcv': 'HCV (Heavy Commercial Vehicle)',
+    'trailer_articulated': 'Trailer (Articulated)',
+  };
+  static const Map<String, String> _axleWheelTypeLabels = {
+    '4w': '4W  - 2 Front + 2 Rear (Single Axle)',
+    '6w': '6W  - 2 Front + 4 Rear (Single Axle)',
+    '10w': '10W - 2 Front + 8 Rear (Dual Axle)',
+    '12w': '12W - 4 Front + 8 Rear (Double Steering)',
+    '14w': '14W - 6 Front + 8 Rear (Lift Axle)',
+    'tr_6w': 'TR-6W  - Tractor Head (Single Axle)',
+    'tr_10w': 'TR-10W - Tractor Head (Dual Axle)',
+  };
   static const _ownershipTypes = ['owned', 'leased', 'attached', 'market'];
   static const _fuelTypes = ['diesel', 'petrol', 'cng', 'electric', 'lpg'];
 
@@ -100,6 +124,8 @@ class _FleetAddVehicleScreenState
         'year_of_manufacture':
             int.tryParse(_yearCtrl.text.trim()) ?? DateTime.now().year,
         'vehicle_type': _vehicleType,
+        'vehicle_size_class': _vehicleSizeClass,
+        'axle_wheel_type': _axleWheelType,
         'ownership_type': _ownershipType,
         'fuel_type': _fuelType,
         'chassis_number': _chassisCtrl.text.trim().isNotEmpty
@@ -179,8 +205,12 @@ class _FleetAddVehicleScreenState
             _field('Model', _modelCtrl),
             _field('Year', _yearCtrl,
                 keyboardType: TextInputType.number),
-            _dropDown('Vehicle Type', _vehicleType, _vehicleTypes,
+            _dropDownWithLabels('Vehicle Size/Class', _vehicleSizeClass, _vehicleSizeClassLabels,
+                (v) => setState(() => _vehicleSizeClass = v!)),
+            _dropDownWithLabels('Vehicle Type', _vehicleType, _vehicleTypeLabels,
                 (v) => setState(() => _vehicleType = v!)),
+            _dropDownWithLabels('Axle/Wheel Type', _axleWheelType, _axleWheelTypeLabels,
+                (v) => setState(() => _axleWheelType = v!)),
             _dropDown('Ownership', _ownershipType, _ownershipTypes,
                 (v) => setState(() => _ownershipType = v!)),
             const SizedBox(height: 16),
@@ -377,12 +407,48 @@ class _FleetAddVehicleScreenState
     );
   }
 
+  Widget _dropDownWithLabels(String label, String current,
+      Map<String, String> options, ValueChanged<String?> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        value: current,
+        dropdownColor: KTColors.surface,
+        style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: KTTextStyles.label.copyWith(color: KTColors.textMuted),
+          filled: true,
+          fillColor: KTColors.surface,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: KTColors.borderColor),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: KTColors.borderColor),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: KTColors.fleetAccent),
+          ),
+        ),
+        items: options.entries
+            .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+            .toList(),
+        onChanged: onChanged,
+      ),
+    );
+  }
+
   Widget _dropDown(String label, String current,
       List<String> options, ValueChanged<String?> onChanged) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
-        initialValue: current,
+        value: current,
         dropdownColor: KTColors.surface,
         style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
         decoration: InputDecoration(

@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,7 +28,7 @@ class FCMService {
   final _localNotifications = FlutterLocalNotificationsPlugin();
   static const _storage = FlutterSecureStorage();
 
-  // Channel used for showing heads-up notifications on Android
+  // Channel for normal alerts
   static const _androidChannel = AndroidNotificationChannel(
     'kavya_high_importance',
     'Kavya Transport Alerts',
@@ -36,15 +38,31 @@ class FCMService {
     playSound: true,
   );
 
+  // Dedicated SOS channel — max importance + 7-pulse vibration
+  static final _sosvibrationPattern =
+      Int64List.fromList([0, 600, 250, 600, 250, 600, 250, 600, 250, 600, 250, 600, 250, 600]);
+
+  static final _androidSosChannel = AndroidNotificationChannel(
+    'kavya_sos_critical',
+    'Kavya SOS Emergency',
+    description: 'Critical SOS emergency alerts from drivers',
+    importance: Importance.max,
+    enableVibration: true,
+    vibrationPattern: Int64List.fromList(
+        [0, 600, 250, 600, 250, 600, 250, 600, 250, 600, 250, 600, 250, 600]),
+    playSound: true,
+  );
+
   /// Call once from main.dart after Firebase.initializeApp().
   Future<void> initialize({required WidgetRef ref, required BuildContext context}) async {
     // 1. Register background handler
     FirebaseMessaging.onBackgroundMessage(_onBackgroundMessage);
 
-    // 2. Create Android notification channel
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(_androidChannel);
+    // 2. Create Android notification channels
+    final androidPlugin = _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.createNotificationChannel(_androidChannel);
+    await androidPlugin?.createNotificationChannel(_androidSosChannel);
 
     // 3. Initialise local notifications plugin
     await _localNotifications.initialize(
@@ -120,27 +138,53 @@ class FCMService {
     if (notification == null) return;
 
     final payload = jsonEncode(message.data);
+    final isSos = message.data['event_type'] == 'sos_triggered';
+
     await _localNotifications.show(
       id: notification.hashCode,
       title: notification.title,
       body: notification.body,
       notificationDetails: NotificationDetails(
-        android: AndroidNotificationDetails(
-          _androidChannel.id,
-          _androidChannel.name,
-          channelDescription: _androidChannel.description,
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
-        ),
-        iOS: const DarwinNotificationDetails(
+        android: isSos
+            ? AndroidNotificationDetails(
+                _androidSosChannel.id,
+                _androidSosChannel.name,
+                channelDescription: _androidSosChannel.description,
+                importance: Importance.max,
+                priority: Priority.max,
+                icon: '@mipmap/ic_launcher',
+                color: const Color(0xFFEF4444),
+                fullScreenIntent: true,
+                enableVibration: true,
+                vibrationPattern: _sosvibrationPattern,
+                playSound: true,
+              )
+            : AndroidNotificationDetails(
+                _androidChannel.id,
+                _androidChannel.name,
+                channelDescription: _androidChannel.description,
+                importance: Importance.high,
+                priority: Priority.high,
+                icon: '@mipmap/ic_launcher',
+              ),
+        iOS: DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
+          interruptionLevel:
+              isSos ? InterruptionLevel.critical : InterruptionLevel.active,
         ),
       ),
       payload: payload,
     );
+
+    // For SOS: additionally trigger haptic feedback 7 times (foreground only)
+    if (isSos) {
+      for (int i = 0; i < 7; i++) {
+        await HapticFeedback.heavyImpact();
+        await Future.delayed(const Duration(milliseconds: 350));
+      }
+    }
   }
 
   void _handleNavigation(String payload, BuildContext context) {

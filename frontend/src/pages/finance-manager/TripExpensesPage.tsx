@@ -236,7 +236,9 @@ export default function TripExpensesPage() {
                       </span>
                       {exp.paid_at && (
                         <p className="text-[10px] text-gray-400 mt-0.5">
-                          {new Date(exp.paid_at).toLocaleDateString('en-IN')}
+                          {exp.paid_by_name
+                            ? `${exp.paid_by_name} · ${new Date(exp.paid_at).toLocaleDateString('en-IN')}`
+                            : new Date(exp.paid_at).toLocaleDateString('en-IN')}
                         </p>
                       )}
                     </td>
@@ -538,14 +540,22 @@ export default function TripExpensesPage() {
                 </div>
               )}
 
-              {/* Paid at */}
+              {/* Paid at + paid by */}
               {selectedExpense.paid_at && (
                 <div className="flex items-start gap-3 py-2.5 border-b border-gray-100">
                   <BadgeCheck size={15} className="text-green-500 mt-0.5 shrink-0" />
                   <div className="flex-1">
-                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Paid At</p>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Payment Settlement</p>
                     <p className="text-sm text-green-700 font-medium mt-0.5">
-                      {new Date(selectedExpense.paid_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {selectedExpense.paid_by_name
+                        ? `Paid by ${selectedExpense.paid_by_name} (Finance Manager)`
+                        : 'Paid by Finance Manager'}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {new Date(selectedExpense.paid_at).toLocaleString('en-IN', {
+                        day: 'numeric', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
                     </p>
                   </div>
                 </div>

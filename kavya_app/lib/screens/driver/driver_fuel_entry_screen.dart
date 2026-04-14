@@ -904,7 +904,7 @@ class _FuelLogSheetState extends ConsumerState<_FuelLogSheet> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _fuelType,
+                initialValue: _fuelType,
                 decoration: const InputDecoration(
                   labelText: 'Fuel Type',
                   prefixIcon:

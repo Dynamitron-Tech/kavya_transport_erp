@@ -17,8 +17,11 @@ def _generate_otp() -> str:
 def _mask_phone(phone: str) -> str:
     """Return something like +91 XXXXX X7400"""
     clean = (phone or "").strip().lstrip("+")
+    # Always use the last 10 digits as the Indian number
     if len(clean) >= 10:
-        return f"+{clean[:2]} XXXXX X{clean[-4:]}"
+        clean = clean[-10:]
+    if len(clean) >= 4:
+        return f"+91 XXXXX X{clean[-4:]}"
     return "XXXXXXXXXX"
 
 

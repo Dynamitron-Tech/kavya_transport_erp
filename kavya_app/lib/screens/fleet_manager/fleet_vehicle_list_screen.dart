@@ -17,7 +17,7 @@ class FleetVehicleListScreen extends ConsumerStatefulWidget {
 }
 
 class _FleetVehicleListScreenState extends ConsumerState<FleetVehicleListScreen> {
-  String _searchQuery = '';
+  final String _searchQuery = '';
   String _selectedFilter = 'All'; // Filter chips row: All | Moving | Idle | Maintenance | Alerts [cite: 62-63]
   final List<String> _filters = ['All', 'Moving', 'Idle', 'Maintenance', 'Alerts'];
 

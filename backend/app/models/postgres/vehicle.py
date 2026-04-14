@@ -11,6 +11,14 @@ from .base import Base, TimestampMixin, SoftDeleteMixin
 
 
 class VehicleType(enum.Enum):
+    FLATBED_TRUCK = "FLATBED_TRUCK"
+    CONTAINER_TRUCK = "CONTAINER_TRUCK"
+    TIPPER_TRUCK = "TIPPER_TRUCK"
+    TANKER_GENERIC = "TANKER_GENERIC"
+    REFRIGERATED_TRUCK = "REFRIGERATED_TRUCK"
+    CAR_CARRIER = "CAR_CARRIER"
+    TRACTOR_HEAD = "TRACTOR_HEAD"
+    # Legacy values kept for backwards compatibility
     TRUCK = "TRUCK"
     TRAILER = "TRAILER"
     TANKER = "TANKER"
@@ -42,6 +50,8 @@ class Vehicle(Base, TimestampMixin, SoftDeleteMixin):
     # Basic Info
     registration_number = Column(String(20), unique=True, nullable=False, index=True)
     vehicle_type = Column(SQLEnum(VehicleType), nullable=False)
+    vehicle_size_class = Column(String(50), nullable=True)   # mini_pickup, lcv, mcv, hcv, trailer_articulated
+    axle_wheel_type = Column(String(20), nullable=True)      # 6w, 10w, 12w, 14w, tr_6w, tr_10w
     make = Column(String(50), nullable=True)  # TATA, Ashok Leyland, etc.
     model = Column(String(100), nullable=True)
     year_of_manufacture = Column(Integer, nullable=True)

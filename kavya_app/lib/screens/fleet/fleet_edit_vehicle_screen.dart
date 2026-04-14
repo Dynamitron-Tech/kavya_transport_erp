@@ -47,14 +47,38 @@ class _FleetEditVehicleScreenState
   final _tankCapCtrl = TextEditingController();
   final _mileageCtrl = TextEditingController();
 
-  String _vehicleType = 'truck';
+  String _vehicleType = 'flatbed_truck';
+  String _vehicleSizeClass = 'hcv';
+  String _axleWheelType = '10w';
   String _ownershipType = 'owned';
   String _fuelType = 'diesel';
   String _status = 'available';
 
-  static const _vehicleTypes = [
-    'truck', 'trailer', 'tanker', 'container', 'lcv', 'mini_truck',
-  ];
+  static const Map<String, String> _vehicleTypeLabels = {
+    'flatbed_truck': 'Flatbed Truck',
+    'container_truck': 'Container Truck',
+    'tipper_truck': 'Tipper Truck',
+    'tanker_generic': 'Tanker (Generic)',
+    'refrigerated_truck': 'Refrigerated Truck',
+    'car_carrier': 'Car Carrier',
+    'tractor_head': 'Tractor Head',
+  };
+  static const Map<String, String> _vehicleSizeClassLabels = {
+    'mini_pickup': 'Mini / Pickup Truck',
+    'lcv': 'LCV (Light Commercial Vehicle)',
+    'mcv': 'MCV (Medium Commercial Vehicle)',
+    'hcv': 'HCV (Heavy Commercial Vehicle)',
+    'trailer_articulated': 'Trailer (Articulated)',
+  };
+  static const Map<String, String> _axleWheelTypeLabels = {
+    '4w': '4W  - 2 Front + 2 Rear (Single Axle)',
+    '6w': '6W  - 2 Front + 4 Rear (Single Axle)',
+    '10w': '10W - 2 Front + 8 Rear (Dual Axle)',
+    '12w': '12W - 4 Front + 8 Rear (Double Steering)',
+    '14w': '14W - 6 Front + 8 Rear (Lift Axle)',
+    'tr_6w': 'TR-6W  - Tractor Head (Single Axle)',
+    'tr_10w': 'TR-10W - Tractor Head (Dual Axle)',
+  };
   static const _ownershipTypes = ['owned', 'leased', 'attached', 'market'];
   static const _fuelTypes = ['diesel', 'petrol', 'cng', 'electric'];
   static const _statuses = [
@@ -99,7 +123,13 @@ class _FleetEditVehicleScreenState
     final fType = (v['fuel_type'] ?? '').toString().toLowerCase();
     final sType = (v['status'] ?? '').toString().toLowerCase();
 
-    _vehicleType = _vehicleTypes.contains(vType) ? vType : 'truck';
+    _vehicleType = _vehicleTypeLabels.containsKey(vType) ? vType : 'flatbed_truck';
+    _vehicleSizeClass = _vehicleSizeClassLabels.containsKey((v['vehicle_size_class'] ?? '').toString().toLowerCase())
+        ? (v['vehicle_size_class'] ?? '').toString().toLowerCase()
+        : 'hcv';
+    _axleWheelType = _axleWheelTypeLabels.containsKey((v['axle_wheel_type'] ?? '').toString().toLowerCase())
+        ? (v['axle_wheel_type'] ?? '').toString().toLowerCase()
+        : '10w';
     _ownershipType = _ownershipTypes.contains(oType) ? oType : 'owned';
     _fuelType = _fuelTypes.contains(fType) ? fType : 'diesel';
     _status = _statuses.contains(sType) ? sType : 'available';
@@ -187,8 +217,12 @@ class _FleetEditVehicleScreenState
                 _field('Model', _modelCtrl),
                 _field('Year', _yearCtrl,
                     keyboardType: TextInputType.number),
-                _dropDown('Vehicle Type', _vehicleType, _vehicleTypes,
+                _dropDownWithLabels('Vehicle Size/Class', _vehicleSizeClass, _vehicleSizeClassLabels,
+                    (v) => setState(() => _vehicleSizeClass = v!)),
+                _dropDownWithLabels('Vehicle Type', _vehicleType, _vehicleTypeLabels,
                     (v) => setState(() => _vehicleType = v!)),
+                _dropDownWithLabels('Axle/Wheel Type', _axleWheelType, _axleWheelTypeLabels,
+                    (v) => setState(() => _axleWheelType = v!)),
                 _dropDown('Ownership', _ownershipType, _ownershipTypes,
                     (v) => setState(() => _ownershipType = v!)),
                 _dropDown('Status', _status, _statuses,
@@ -289,12 +323,48 @@ class _FleetEditVehicleScreenState
     );
   }
 
+  Widget _dropDownWithLabels(String label, String current,
+      Map<String, String> options, ValueChanged<String?> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        value: current,
+        dropdownColor: KTColors.surface,
+        style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: KTTextStyles.label.copyWith(color: KTColors.textMuted),
+          filled: true,
+          fillColor: KTColors.surface,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: KTColors.borderColor),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: KTColors.borderColor),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: KTColors.fleetAccent),
+          ),
+        ),
+        items: options.entries
+            .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+            .toList(),
+        onChanged: onChanged,
+      ),
+    );
+  }
+
   Widget _dropDown(String label, String current, List<String> options,
       ValueChanged<String?> onChanged) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
-        initialValue: current,
+        value: current,
         dropdownColor: KTColors.surface,
         style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
         decoration: InputDecoration(

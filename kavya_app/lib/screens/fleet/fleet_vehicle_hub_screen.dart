@@ -5,6 +5,7 @@ import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../providers/fleet_dashboard_provider.dart';
 import 'fleet_vehicle_documents_screen.dart';
+import 'fleet_vehicle_mileage_screen.dart';
 import 'fleet_vehicle_trip_history_screen.dart';
 
 // ─── Provider ──────────────────────────────────────────────────────────────
@@ -263,6 +264,41 @@ class _HubBody extends StatelessWidget {
                 'Vehicle Details',
                 style: KTTextStyles.body.copyWith(
                   color: KTColors.fleetAccent,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ── Mileage Details Button ────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => FleetVehicleMileageScreen(
+                    vehicleId: vehicleId,
+                    registrationNumber:
+                        (vehicle['registration_number'] ?? '').toString(),
+                  ),
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                side: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                foregroundColor: const Color(0xFF10B981),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.speed_outlined, size: 20),
+              label: Text(
+                'Mileage Details',
+                style: KTTextStyles.body.copyWith(
+                  color: const Color(0xFF10B981),
                   fontWeight: FontWeight.w600,
                 ),
               ),

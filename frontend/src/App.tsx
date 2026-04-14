@@ -126,6 +126,7 @@ import ExpenseApprovalsPage from '@/pages/finance-manager/ExpenseApprovalsPage';
 import PayablesDashboardPage from '@/pages/finance-manager/PayablesDashboardPage';
 import PayoutHistoryPage from '@/pages/finance-manager/PayoutHistoryPage';
 import TripExpensesPage from '@/pages/finance-manager/TripExpensesPage';
+import TripAdvancePaymentsPage from '@/pages/finance-manager/TripAdvancePaymentsPage';
 
 // IFIAS (Accountant)
 import InvoiceWorkspacePage from '@/pages/finance/InvoiceWorkspacePage';
@@ -293,7 +294,8 @@ function App() {
           <Route path="/fm/dashboard" element={<FinanceManagerDashboardPage />} />
           <Route path="/fm" element={<FinanceManagerDashboardPage />} />
           <Route path="/fm/salary" element={<SalaryPaymentsPage />} />
-          <Route path="/fm/advances" element={<SalaryPaymentsPage />} />
+          <Route path="/fm/advances" element={<TripAdvancePaymentsPage />} />
+          <Route path="/fm/trip-advances" element={<TripAdvancePaymentsPage />} />
           <Route path="/fm/expenses" element={<ExpenseApprovalsPage />} />
           <Route path="/fm/trip-expenses" element={<TripExpensesPage />} />
           <Route path="/fm/payables" element={<PayablesDashboardPage />} />

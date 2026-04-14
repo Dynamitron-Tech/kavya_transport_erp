@@ -119,4 +119,5 @@ List<ChecklistItem> defaultPreTripItems() => const [
       ChecklistItem(id: 'coolant', label: 'Coolant Level'),
       ChecklistItem(id: 'grease', label: 'Grease'),
       ChecklistItem(id: 'battery', label: 'Battery Level'),
+      ChecklistItem(id: 'deep_cleaned_cabin', label: 'Deep-Cleaned Cabin'),
     ];

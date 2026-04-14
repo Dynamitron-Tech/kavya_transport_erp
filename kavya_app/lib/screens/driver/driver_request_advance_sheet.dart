@@ -224,7 +224,7 @@ class _RequestAdvanceSheetState extends State<_RequestAdvanceSheet> {
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'The Fleet Manager will be notified and will process your request.',
+                  'The Finance Manager will be notified and will process your ₹1,500 advance.',
                   style: TextStyle(
                       fontSize: 12, color: KTColors.warning, height: 1.4),
                 ),
@@ -304,7 +304,7 @@ class _RequestAdvanceSheetState extends State<_RequestAdvanceSheet> {
                 color: KTColors.textHeading)),
         const SizedBox(height: 8),
         const Text(
-          'Your ₹1,500 advance request has been sent to the Fleet Manager.',
+          'Your ₹1,500 advance request has been sent to the Finance Manager. They will process it shortly.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 14, color: KTColors.textMuted, height: 1.5),
         ),

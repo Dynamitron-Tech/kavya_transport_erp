@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
-import '../../providers/fleet_dashboard_provider.dart'; // For apiServiceProvider
+// For apiServiceProvider
 
 class AssociateLRCreateScreen extends ConsumerStatefulWidget {
   final String? jobId; // Query param: ?job_id=
@@ -128,14 +128,14 @@ class _AssociateLRCreateScreenState extends ConsumerState<AssociateLRCreateScree
             TextFormField(controller: _freightAmount, decoration: const InputDecoration(labelText: "Freight amount (₹)"), keyboardType: TextInputType.number, validator: (val) => val!.isEmpty ? 'Required' : null),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _paymentMode,
+              initialValue: _paymentMode,
               decoration: const InputDecoration(labelText: "Payment mode"),
               items: ['Paid', 'To Pay', 'To Be Billed'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: (val) => setState(() => _paymentMode = val!),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _riskType,
+              initialValue: _riskType,
               decoration: const InputDecoration(labelText: "Risk"),
               items: ["Owner's", "Consignee's", "Carrier's"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: (val) => setState(() => _riskType = val!),

@@ -37,6 +37,15 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
   final Set<int> _loadingTripIds = {};
   S get s => ref.read(sProvider);
 
+  @override
+  void initState() {
+    super.initState();
+    // Refresh trips every time the Today screen is shown
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(driverMyTripsProvider.notifier).refresh();
+    });
+  }
+
   Future<void> _submitLRAndEway(Trip trip) async {
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
@@ -226,13 +235,18 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
         case 'unloaded':
           await api.markTripUnloaded(trip.id, file);
           break;
+        case 'pod':
+          await api.markTripPOD(trip.id, file);
+          break;
       }
       ref.read(driverMyTripsProvider.notifier).refresh();
       final msg = action == 'loaded'
-          ? 'Truck marked as LOADED'
+          ? 'Truck marked as LOADED ✓  Finance Manager has been notified to pay your ₹1,500 advance.'
           : action == 'reached'
               ? 'Destination reached confirmed'
-              : 'Trip completed! Truck UN-LOADED';
+              : action == 'pod'
+                  ? 'Proof of Delivery uploaded. Trip completed!'
+                  : 'Trip completed! Truck UN-LOADED — please upload Proof of Delivery next';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(msg), backgroundColor: KTColors.success),
@@ -265,7 +279,13 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
     );
     final activeTripForSos = allMyTrips.where((t) => t.isActive).firstOrNull;
 
-    return SingleChildScrollView(
+    return RefreshIndicator(
+      onRefresh: () async {
+        await ref.read(driverMyTripsProvider.notifier).refresh();
+        ref.invalidate(attendanceProvider);
+      },
+      child: SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,8 +380,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
             data: (trips) {
               final activeTrips = trips
                   .where((t) => t.status != 'completed' && t.status != 'cancelled')
-                  .toList();
-              if (activeTrips.isEmpty) {
+                  .toList();              if (activeTrips.isEmpty) {
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
@@ -522,6 +541,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
           _SOSButton(tripId: activeTripForSos?.id),
         ],
       ),
+    ),
     );
   }
 
@@ -842,6 +862,11 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
       actionIcon = Icons.inventory_2;
       actionColor = KTColors.danger;
       onAction = () => _captureAndUpdate(trip, 'unloaded');
+    } else if (trip.awaitingPOD) {
+      actionLabel = 'Proof of Delivery';
+      actionIcon = Icons.assignment_turned_in;
+      actionColor = KTColors.success;
+      onAction = () => _captureAndUpdate(trip, 'pod');
     }
 
     return Container(
@@ -941,8 +966,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
             const SizedBox(height: 14),
 
             if (trip.awaitingLoad) ...[
-              Builder(builder: (_) {
-                final checklistState = ref.watch(
+              Builder(builder: (_) {                final checklistState = ref.watch(
                   checklistProvider((tripId: trip.id, type: 'checklist')),
                 );
                 final preTripDone = checklistState.valueOrNull?.completedAt != null;
@@ -991,6 +1015,88 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
                   ),
                 );
               }),
+              const SizedBox(height: 12),
+            ],
+
+            if (trip.awaitingPOD) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: KTColors.success.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: KTColors.success.withValues(alpha: 0.4)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.assignment_turned_in_rounded, size: 18, color: KTColors.success),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Truck unloaded \u2714  Take a Proof of Delivery photo to complete the trip.',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: KTColors.success),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // Advance payment status banner (shown whenever loading photo is uploaded)
+            if (trip.loadedImageUrl != null) ...[
+              trip.advancePaid
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF22C55E).withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.currency_rupee_rounded, size: 18, color: Color(0xFF16A34A)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Advance of ₹1,500 Received',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF16A34A)),
+                                ),
+                                if (trip.advancePaidByName != null)
+                                  Text(
+                                    'Paid by ${trip.advancePaidByName}',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF166534)),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.check_circle_rounded, size: 18, color: Color(0xFF16A34A)),
+                        ],
+                      ),
+                    )
+                  : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.currency_rupee_rounded, size: 18, color: Color(0xFFD97706)),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Advance of ₹1,500 pending — Finance Manager will process it shortly.',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF92400E)),
+                            ),
+                          ),
+                          Icon(Icons.hourglass_bottom_rounded, size: 16, color: Color(0xFFD97706)),
+                        ],
+                      ),
+                    ),
               const SizedBox(height: 12),
             ],
 
@@ -1084,6 +1190,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
       case 'loading': return 0.55;
       case 'in_transit': return 0.7;
       case 'unloading': return 0.85;
+      case 'pod_pending': return 0.92; // awaitingPOD sub-state
       case 'completed': return 1.0;
       default: return 0.0;
     }

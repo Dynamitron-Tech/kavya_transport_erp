@@ -657,8 +657,6 @@ class _TripDetailSheetState extends State<_TripDetailSheet> {
           ),
           child: Column(
             children: [
-              _fuelDetailRow('Total Fuel Amount', '₹${totalFuelAmount.toStringAsFixed(2)}'),
-              const Divider(height: 18),
               _fuelDetailRow('Total Litres Used', '${totalFuelLitres.toStringAsFixed(2)} L'),
               const Divider(height: 18),
               _fuelDetailRow(
@@ -731,8 +729,107 @@ class _TripDetailSheetState extends State<_TripDetailSheet> {
             ],
           ),
         ),
+
+        // ── Expense Payment Status ─────────────────────────────
+        ..._buildExpensePaymentStatus(expenses),
       ],
     );
+  }
+
+  List<Widget> _buildExpensePaymentStatus(List<dynamic> expenses) {
+    // Find any paid expense that has paid_by_name/paid_at
+    final paidExpenses = expenses
+        .where((e) => e['paid_at'] != null && e['paid_by_name'] != null)
+        .toList();
+    if (paidExpenses.isEmpty) return [];
+
+    // Collect unique FM names and latest paid_at
+    final fmName = paidExpenses.first['paid_by_name']?.toString() ?? 'Finance Manager';
+    final latestPaidAt = paidExpenses.fold<String?>(null, (latest, e) {
+      final d = e['paid_at']?.toString();
+      if (d == null) return latest;
+      if (latest == null) return d;
+      return d.compareTo(latest) > 0 ? d : latest;
+    });
+
+    String formattedDate = '';
+    if (latestPaidAt != null) {
+      try {
+        final dt = DateTime.parse(latestPaidAt).toLocal();
+        formattedDate =
+            '${dt.day.toString().padLeft(2, '0')} ${_monthShort(dt.month)} ${dt.year}, ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      } catch (_) {
+        formattedDate = latestPaidAt.substring(0, 10);
+      }
+    }
+
+    return [
+      const SizedBox(height: 16),
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: KTColors.success.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: KTColors.success.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: KTColors.success.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.verified_rounded, size: 18, color: KTColors.success),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Expenses Paid',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: KTColors.success,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Expenses was paid by the Financial Manager $fmName',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: KTColors.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                  if (formattedDate.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'on $formattedDate',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: KTColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  String _monthShort(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return months[month - 1];
   }
 
   Widget _buildChecklistCompletionCard(String driverName) {

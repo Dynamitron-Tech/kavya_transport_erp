@@ -406,6 +406,15 @@ ROLE_PERMISSIONS = {
         # Alerts / Notifications
         Permissions.ALERT_VIEW,
     ],
+
+    "tyre_inspector": [
+        # Vehicle (read — needed to browse fleet for tyre inspections)
+        Permissions.VEHICLE_READ,
+        # Driver (read — context for trip/vehicle assignment)
+        Permissions.DRIVER_READ,
+        # Alerts / Notifications
+        Permissions.ALERT_VIEW,
+    ],
 }
 
 
