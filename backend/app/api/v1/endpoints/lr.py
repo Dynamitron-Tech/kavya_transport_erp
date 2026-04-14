@@ -35,6 +35,15 @@ async def list_lrs(
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 
 
+@router.get("/next-eway-number", response_model=APIResponse)
+async def get_next_eway_number(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    next_number = await lr_service.get_next_eway_bill_number(db)
+    return APIResponse(success=True, data={"eway_bill_number": next_number})
+
+
 @router.get("/next-eway-bill-number", response_model=APIResponse)
 async def get_next_eway_bill_number(
     db: AsyncSession = Depends(get_db),
@@ -236,7 +245,7 @@ async def upload_pod(
 
     # Save file — use absolute path anchored to this file's location (backend/uploads/)
     from pathlib import Path as _Path
-    pod_dir = _Path(__file__).resolve().parents[3] / "uploads" / "trip_documents"
+    pod_dir = _Path(__file__).resolve().parents[4] / "uploads" / "trip_documents"
     pod_dir.mkdir(parents=True, exist_ok=True)
     ext = (file.filename or "pod.jpg").rsplit(".", 1)[-1].lower()
     filename = f"pod_{lr_id}_{uuid.uuid4().hex[:8]}.{ext}"

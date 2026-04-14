@@ -85,6 +85,10 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     pay_type = Column(String(20), nullable=True)
     aadhaar_file_url = Column(Text, nullable=True)
     aadhaar_file_name = Column(String(255), nullable=True)
+    pan_file_url = Column(Text, nullable=True)
+    pan_file_name = Column(String(255), nullable=True)
+    passbook_file_url = Column(Text, nullable=True)
+    passbook_file_name = Column(String(255), nullable=True)
 
     # Driving License fields
     dl_file_url = Column(Text, nullable=True)
@@ -114,7 +118,7 @@ class Role(Base, TimestampMixin):
     name = Column(String(50), unique=True, nullable=False)
     display_name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
-    role_type = Column(SQLEnum(RoleType), nullable=False)
+    role_type = Column(SQLEnum(RoleType, native_enum=False), nullable=False)
     is_system = Column(Boolean, default=False)  # System roles cannot be deleted
     
     # Relationships
@@ -131,7 +135,7 @@ class Permission(Base, TimestampMixin):
     __tablename__ = "permissions"
     
     module = Column(String(50), nullable=False)  # e.g., 'clients', 'trips', 'invoices'
-    action = Column(SQLEnum(PermissionAction), nullable=False)
+    action = Column(SQLEnum(PermissionAction, native_enum=False), nullable=False)
     resource = Column(String(100), nullable=True)  # Specific resource within module
     description = Column(Text, nullable=True)
     

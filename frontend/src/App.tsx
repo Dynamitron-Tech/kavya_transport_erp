@@ -25,6 +25,10 @@ import DriverTripsPage from '@/pages/driver/DriverTripsPage';
 import DriverAttendancePage from '@/pages/driver/DriverAttendancePage';
 import DriverExpensesPage from '@/pages/driver/DriverExpensesPage';
 import DriverDocumentsPage from '@/pages/driver/DriverDocumentsPage';
+import UploadDocumentPage from '@/pages/documents/UploadDocumentPage';
+import DriverTyreDashboardPage from '@/pages/driver/DriverTyreDashboardPage';
+import DriverInspectPage from '@/pages/driver/DriverInspectPage';
+import DriverTyreHistoryPage from '@/pages/driver/DriverTyreHistoryPage';
 
 // Operations
 import LRListPage from '@/pages/lr/LRListPage';
@@ -36,10 +40,6 @@ import GenerateEwayBillPage from '@/pages/eway-bill/GenerateEwayBillPage';
 import TripsPage from '@/pages/trips/TripsPage';
 import TripDetailPage from '@/pages/trips/TripDetailPage';
 import CreateTripPage from '@/pages/trips/CreateTripPage';
-
-// Documents
-import DocumentListPage from '@/pages/documents/DocumentListPage';
-import UploadDocumentPage from '@/pages/documents/UploadDocumentPage';
 
 // Finance Hub
 import FinanceHubPage from '@/pages/finance/FinanceHubPage';
@@ -66,8 +66,6 @@ import RouteCalculatorPage from '@/pages/trips/RouteCalculatorPage';
 import PaymentLinkPage from '@/pages/finance/PaymentLinkPage';
 import PaymentsHubPage from '@/pages/finance/PaymentsHubPage';
 import NotificationCenterPage from '@/pages/settings/NotificationCenterPage';
-import DocumentUploadPage from '@/pages/documents/DocumentUploadPage';
-
 // Settings
 import SettingsPage from '@/pages/settings/SettingsPage';
 import ProfilePage from '@/pages/settings/ProfilePage';
@@ -177,6 +175,11 @@ function App() {
           <Route path="/my-work/attendance" element={<DriverAttendancePage />} />
           <Route path="/driver/expenses" element={<DriverExpensesPage />} />
           <Route path="/driver/documents" element={<DriverDocumentsPage />} />
+          <Route path="/documents/upload" element={<UploadDocumentPage />} />
+          <Route path="/documents/upload/:id" element={<UploadDocumentPage />} />
+          <Route path="/driver/tyre" element={<DriverTyreDashboardPage />} />
+          <Route path="/driver/inspect/:vehicleId" element={<DriverInspectPage />} />
+          <Route path="/driver/tyre-history" element={<DriverTyreHistoryPage />} />
 
           {/* LR */}
           <Route path="/lr" element={<LRListPage />} />
@@ -195,11 +198,6 @@ function App() {
           <Route path="/trips/new" element={<CreateTripPage />} />
           <Route path="/trips/:id/edit" element={<CreateTripPage />} />
           <Route path="/trips/:id" element={<TripDetailPage />} />
-
-          {/* Documents */}
-          <Route path="/documents" element={<DocumentListPage />} />
-          <Route path="/documents/upload" element={<UploadDocumentPage />} />
-          <Route path="/documents/:id/edit" element={<UploadDocumentPage />} />
 
           {/* Finance Hub — single route with tab-based navigation */}
           <Route path="/finance" element={<FinanceHubPage />} />
@@ -245,7 +243,7 @@ function App() {
           <Route path="/finance/payment-link" element={<PaymentLinkPage />} />
           <Route path="/finance/payments-hub" element={<PaymentsHubPage />} />
           <Route path="/settings/notifications" element={<NotificationCenterPage />} />
-          <Route path="/documents/new-upload" element={<DocumentUploadPage />} />
+
 
           {/* Fleet Manager */}
           <Route path="/fleet/dashboard" element={<FleetDashboardPage />} />

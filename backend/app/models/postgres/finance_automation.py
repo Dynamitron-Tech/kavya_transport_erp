@@ -94,7 +94,7 @@ class PaymentLink(Base, TimestampMixin, SoftDeleteMixin):
     customer_email = Column(String(255), nullable=True)
 
     # Status
-    status = Column(SQLEnum(PaymentLinkStatus), default=PaymentLinkStatus.CREATED)
+    status = Column(SQLEnum(PaymentLinkStatus, native_enum=False), default=PaymentLinkStatus.CREATED)
     razorpay_payment_id = Column(String(100), nullable=True)
     paid_at = Column(DateTime, nullable=True)
     expired_at = Column(DateTime, nullable=True)
@@ -121,7 +121,7 @@ class BankStatement(Base, TimestampMixin):
     __tablename__ = "bank_statements"
 
     account_id = Column(Integer, ForeignKey("bank_accounts.id"), nullable=False)
-    source = Column(SQLEnum(BankStatementSource), default=BankStatementSource.MANUAL_UPLOAD)
+    source = Column(SQLEnum(BankStatementSource, native_enum=False), default=BankStatementSource.MANUAL_UPLOAD)
     import_date = Column(DateTime, nullable=False)
 
     # Period
@@ -165,7 +165,7 @@ class BankStatementLine(Base, TimestampMixin):
 
     # Reconciliation
     reconciliation_status = Column(
-        SQLEnum(ReconciliationStatus), default=ReconciliationStatus.PENDING
+        SQLEnum(ReconciliationStatus, native_enum=False), default=ReconciliationStatus.PENDING
     )
     matched_payment_id = Column(Integer, ForeignKey("payments.id"), nullable=True)
     matched_invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=True)
@@ -223,7 +223,7 @@ class DriverSettlement(Base, TimestampMixin, SoftDeleteMixin):
     total_km = Column(Numeric(12, 2), default=0)
 
     # Status
-    status = Column(SQLEnum(SettlementStatus), default=SettlementStatus.PENDING)
+    status = Column(SQLEnum(SettlementStatus, native_enum=False), default=SettlementStatus.PENDING)
     approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     approved_at = Column(DateTime, nullable=True)
     paid_at = Column(DateTime, nullable=True)
@@ -272,7 +272,7 @@ class SupplierPayable(Base, TimestampMixin, SoftDeleteMixin):
     paid_date = Column(Date, nullable=True)
 
     # Status
-    status = Column(SQLEnum(SettlementStatus), default=SettlementStatus.PENDING)
+    status = Column(SQLEnum(SettlementStatus, native_enum=False), default=SettlementStatus.PENDING)
     payment_id = Column(Integer, ForeignKey("payments.id"), nullable=True)
 
     # Category
@@ -307,7 +307,7 @@ class FASTagTransaction(Base, TimestampMixin):
     # Transaction
     transaction_id = Column(String(100), unique=True, nullable=False, index=True)
     transaction_date = Column(DateTime, nullable=False)
-    transaction_type = Column(SQLEnum(FASTagTxnType), default=FASTagTxnType.TOLL)
+    transaction_type = Column(SQLEnum(FASTagTxnType, native_enum=False), default=FASTagTxnType.TOLL)
 
     # Toll plaza
     plaza_name = Column(String(200), nullable=True)
@@ -335,8 +335,8 @@ class FinanceAlert(Base, TimestampMixin):
 
     __tablename__ = "finance_alerts"
 
-    alert_type = Column(SQLEnum(FinanceAlertType), nullable=False)
-    severity = Column(SQLEnum(FinanceAlertSeverity), default=FinanceAlertSeverity.INFO)
+    alert_type = Column(SQLEnum(FinanceAlertType, native_enum=False), nullable=False)
+    severity = Column(SQLEnum(FinanceAlertSeverity, native_enum=False), default=FinanceAlertSeverity.INFO)
 
     # Title & message
     title = Column(String(300), nullable=False)

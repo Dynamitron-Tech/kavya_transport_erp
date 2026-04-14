@@ -56,13 +56,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Market Trips', route: '/market-trips', icon: 'truck', description: 'Hired truck trips and P&L' },
           { label: 'Lorry Receipts', route: '/lr', icon: 'file', description: 'Generate and manage LR documents' },
           { label: 'Trips', route: '/trips', icon: 'map', description: 'Trip execution and monitoring' },
-          { label: 'Documents', route: '/documents', icon: 'folder', description: 'Upload and manage documents' },
-        ],
-      },
-      {
-        label: 'Finance',
-        items: [
-          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts', badge: 'alerts' },
         ],
       },
       {
@@ -101,17 +94,26 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         ],
       },
       {
+        label: 'Tools',
+        items: [
+          { label: 'GPS Live Map', route: '/tracking/gps', icon: 'pin', description: 'Live GPS positions of all vehicles' },
+          { label: 'Trip Replay', route: '/tracking/replay', icon: 'play', description: 'Historical vehicle path replay' },
+          { label: 'Fuel Prices', route: '/fleet/fuel-prices', icon: 'fuel', description: 'Current diesel/petrol prices by city' },
+          { label: 'Route Calculator', route: '/trips/route-calculator', icon: 'route', description: 'Calculate distance between locations' },
+          { label: 'Notifications', route: '/settings/notifications', icon: 'bell', description: 'Send SMS, WhatsApp, Push notifications' },
+        ],
+      },
+      {
         label: 'Quick Actions',
         items: [
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
           { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },
-          { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
         ],
       },
       {
         label: 'System',
         items: [
-          { label: 'Employees', route: '/admin/employees', icon: 'users', description: 'Manage staff accounts and roles' },
+          { label: 'Employees', route: '/admin/employees', icon: 'users', description: 'Manage employees and user accounts' },
           { label: 'Attendance', route: '/admin/attendance', icon: 'calendar', description: 'View all employee attendance' },
           { label: 'Settings', route: '/settings', icon: 'settings', description: 'System settings and preferences' },
         ],
@@ -162,12 +164,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         ],
       },
       {
-        label: 'Finance',
-        items: [
-          { label: 'Finance Hub', route: '/finance', icon: 'gauge', description: 'Invoices, payments, banking, reports & alerts', badge: 'alerts' },
-        ],
-      },
-      {
         label: 'Compliance',
         items: [
           { label: 'Vehicle Compliance', route: '/fleet/vehicle-compliance', icon: 'shield', description: 'RC, Insurance, Fitness, Permit, PUC checks' },
@@ -179,7 +175,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         items: [
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
           { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },
-          { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
         ],
       },
       {
@@ -199,6 +194,7 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         items: [
           { label: 'Lorry Receipts', route: '/lr', icon: 'file', description: 'Generate and manage LR documents' },
           { label: 'Trips', route: '/trips', icon: 'map', description: 'Track and manage vehicle trips' },
+          { label: 'Market Trips', route: '/market-trips', icon: 'truck', description: 'Hired truck trips and P&L' },
         ],
       },
       {
@@ -342,8 +338,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         label: 'Quick Actions',
         items: [
           { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
-          { label: 'Upload Doc', route: '/documents/upload', icon: 'upload', description: 'Upload operational documents' },
-          { label: 'Banking Entry', route: '/finance/banking/new', icon: 'bank', description: 'Create banking transaction entry' },
         ],
       },
       {
@@ -413,7 +407,6 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
     items: [
       { label: 'Lorry Receipts', path: '/lr', permission: 'lr:read' },
       { label: 'Trips', path: '/trips', permission: 'trips:read' },
-      { label: 'Documents', path: '/documents', permission: 'documents:read' },
     ],
   },
   {
@@ -425,7 +418,6 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
       { label: 'Ledger', path: '/finance/ledger', permission: 'ledger:read' },
       { label: 'Receivables', path: '/finance/receivables', permission: 'receivables:read', roles: ['admin', 'manager', 'accountant'] },
       { label: 'Payables', path: '/finance/payables', permission: 'payables:read', roles: ['admin', 'manager', 'accountant'] },
-      { label: 'Banking Entry', path: '/finance/banking/new', roles: ['admin', 'manager', 'accountant'] },
     ],
   },
   {
@@ -488,6 +480,17 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
       { label: 'Vehicle Compliance', path: '/fleet/vehicle-compliance', roles: ['admin', 'manager', 'fleet_manager'] },
       { label: 'Driver Compliance', path: '/fleet/driver-compliance', roles: ['admin', 'manager', 'fleet_manager'] },
       { label: 'GST Verification', path: '/fleet/gst-verify', roles: ['admin', 'manager', 'accountant'] },
+    ],
+  },
+  {
+    label: 'Tools',
+    roles: ['admin', 'manager', 'fleet_manager', 'accountant'],
+    items: [
+      { label: 'GPS Live Map', path: '/tracking/gps', roles: ['admin', 'manager', 'fleet_manager'] },
+      { label: 'Trip Replay', path: '/tracking/replay', roles: ['admin', 'manager'] },
+      { label: 'Fuel Prices', path: '/fleet/fuel-prices', roles: ['admin', 'manager', 'fleet_manager'] },
+      { label: 'Route Calculator', path: '/trips/route-calculator', roles: ['admin', 'manager'] },
+      { label: 'Notifications', path: '/settings/notifications', roles: ['admin', 'manager'] },
     ],
   },
   {

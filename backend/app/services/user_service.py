@@ -3,7 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 
-from app.models.postgres.user import User, Role, UserRole
+from app.models.postgres.user import User, Role, UserRole, user_roles as user_roles_table
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy import delete as sa_delete
 from app.models.postgres.driver import Driver, DriverStatus
 from app.core.security import get_password_hash
 
@@ -119,7 +121,10 @@ async def create_user(db: AsyncSession, data: dict) -> User:
                   "bank_account_holder", "bank_name", "account_number", "ifsc_code",
                   "account_type", "upi_id", "salary_amount", "pay_type",
                   "aadhaar_file_url", "aadhaar_file_name",
-                  "dl_file_url", "dl_file_name", "dl_number"):
+                  "pan_file_url", "pan_file_name",
+                  "passbook_file_url", "passbook_file_name",
+                  "dl_file_url", "dl_file_name", "dl_number",
+                  "avatar_url"):
         if not data.get(field):
             data.pop(field, None)
     user = User(**data, password_hash=get_password_hash(password))
@@ -131,7 +136,14 @@ async def create_user(db: AsyncSession, data: dict) -> User:
             role_result = await db.execute(select(Role).where(Role.name == rn))
             role = role_result.scalar_one_or_none()
             if role:
+                # Write to extended ORM table (user_role_assignments)
                 db.add(UserRole(user_id=user.id, role_id=role.id))
+                # Also write to simple association table (user_roles) used by auth
+                await db.execute(
+                    pg_insert(user_roles_table)
+                    .values(user_id=user.id, role_id=role.id)
+                    .on_conflict_do_nothing()
+                )
         await db.flush()
 
     if any((rn or "").lower() == "driver" for rn in role_names):
@@ -170,21 +182,29 @@ async def update_user(db: AsyncSession, user_id: int, data: dict):
                    "bank_account_holder", "bank_name", "account_number", "ifsc_code",
                  "account_type", "upi_id", "salary_amount", "pay_type",
                  "aadhaar_file_url", "aadhaar_file_name",
+                 "pan_file_url", "pan_file_name",
+                 "passbook_file_url", "passbook_file_name",
                  "dl_file_url", "dl_file_name", "dl_number", "dl_issue_date", "dl_expiry_date"):
             # Allow clearing these fields by passing empty string
             setattr(user, k, None)
 
     if role_names is not None:
-        # Remove existing roles
+        # Remove existing roles from both tables
         existing = await db.execute(select(UserRole).where(UserRole.user_id == user_id))
         for ur in existing.scalars().all():
             await db.delete(ur)
+        await db.execute(sa_delete(user_roles_table).where(user_roles_table.c.user_id == user_id))
         await db.flush()
         for rn in role_names:
             role_result = await db.execute(select(Role).where(Role.name == rn))
             role = role_result.scalar_one_or_none()
             if role:
                 db.add(UserRole(user_id=user.id, role_id=role.id))
+                await db.execute(
+                    pg_insert(user_roles_table)
+                    .values(user_id=user.id, role_id=role.id)
+                    .on_conflict_do_nothing()
+                )
         await db.flush()
 
     # Ensure driver profile exists (or is synced) whenever user has driver role.
@@ -204,7 +224,9 @@ async def delete_user(db: AsyncSession, user_id: int) -> bool:
 
 
 async def get_user_roles(db: AsyncSession, user_id: int) -> list[str]:
-    result = await db.execute(
-        select(Role.name).join(UserRole, UserRole.role_id == Role.id).where(UserRole.user_id == user_id)
-    )
+    """Return role names from both association tables (union so neither is missed)."""
+    from sqlalchemy import union
+    q1 = select(Role.name).join(UserRole, UserRole.role_id == Role.id).where(UserRole.user_id == user_id)
+    q2 = select(Role.name).join(user_roles_table, user_roles_table.c.role_id == Role.id).where(user_roles_table.c.user_id == user_id)
+    result = await db.execute(union(q1, q2))
     return [row[0] for row in result.all()]

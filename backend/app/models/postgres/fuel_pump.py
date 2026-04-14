@@ -38,7 +38,7 @@ class DepotFuelTank(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "depot_fuel_tanks"
 
     name = Column(String(100), nullable=False)
-    fuel_type = Column(SQLEnum(FuelType), nullable=False, default=FuelType.DIESEL)
+    fuel_type = Column(SQLEnum(FuelType, native_enum=False), nullable=False, default=FuelType.DIESEL)
     capacity_litres = Column(Numeric(12, 2), nullable=False)
     current_stock_litres = Column(Numeric(12, 2), nullable=False, default=0)
     min_stock_alert = Column(Numeric(12, 2), nullable=True)
@@ -67,7 +67,7 @@ class FuelIssue(Base, TimestampMixin):
     trip_id = Column(Integer, ForeignKey('trips.id'), nullable=True)
 
     # Fuel details
-    fuel_type = Column(SQLEnum(FuelType), nullable=False, default=FuelType.DIESEL)
+    fuel_type = Column(SQLEnum(FuelType, native_enum=False), nullable=False, default=FuelType.DIESEL)
     quantity_litres = Column(Numeric(10, 2), nullable=False)
     rate_per_litre = Column(Numeric(8, 2), nullable=False)
     total_amount = Column(Numeric(12, 2), nullable=False)
@@ -106,7 +106,7 @@ class FuelStockTransaction(Base, TimestampMixin):
     __tablename__ = "fuel_stock_transactions"
 
     tank_id = Column(Integer, ForeignKey('depot_fuel_tanks.id'), nullable=False)
-    transaction_type = Column(SQLEnum(TransactionType), nullable=False)
+    transaction_type = Column(SQLEnum(TransactionType, native_enum=False), nullable=False)
 
     quantity_litres = Column(Numeric(10, 2), nullable=False)
     rate_per_litre = Column(Numeric(8, 2), nullable=True)
@@ -165,7 +165,7 @@ class VehicleFuelLog(Base, TimestampMixin):
     km_since_last_fill = Column(Numeric(10, 1), nullable=True)
     km_per_litre = Column(Numeric(6, 2), nullable=True)
     expected_km_per_litre = Column(Numeric(6, 2), nullable=True)  # snapshot of vehicle.mileage_per_litre
-    mileage_rating = Column(SQLEnum(MileageRating), nullable=True)
+    mileage_rating = Column(SQLEnum(MileageRating, native_enum=False), nullable=True)
 
     # Multi-tenant
     branch_id = Column(Integer, ForeignKey('branches.id'), nullable=True)
@@ -197,7 +197,7 @@ class FuelTheftAlert(Base, TimestampMixin):
     actual_litres = Column(Numeric(10, 2), nullable=True)
     deviation_pct = Column(Numeric(6, 2), nullable=True)
 
-    status = Column(SQLEnum(TheftAlertStatus), default=TheftAlertStatus.OPEN)
+    status = Column(SQLEnum(TheftAlertStatus, native_enum=False), default=TheftAlertStatus.OPEN)
     resolved_by = Column(Integer, ForeignKey('users.id'), nullable=True)
     resolved_at = Column(DateTime, nullable=True)
     resolution_notes = Column(Text, nullable=True)

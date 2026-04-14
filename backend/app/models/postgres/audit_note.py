@@ -19,7 +19,7 @@ class AuditNote(Base, TimestampMixin):
     resource_id = Column(Integer, nullable=False, index=True)
 
     note_text = Column(Text, nullable=False)
-    status = Column(SQLEnum(AuditNoteStatus), default=AuditNoteStatus.OPEN, nullable=False)
+    status = Column(SQLEnum(AuditNoteStatus, native_enum=False), default=AuditNoteStatus.OPEN, nullable=False)
 
     auditor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     resolved_by = Column(Integer, ForeignKey("users.id"), nullable=True)

@@ -4,19 +4,7 @@ import { ScanLine, Upload, Loader2, CheckCircle2, Search, X, ChevronDown } from 
 import api from '@/services/api';
 import { DocumentScanner } from '@/components/DocumentScanner';
 import OCRResultPanel, { FieldApplyEvent, FIELD_TO_FORM } from '@/components/DocumentScanner/OCRResultPanel';
-import { runOCR, OCRResult } from '@/services/ocrService';
-import { DocumentType } from '@/utils/fieldExtractor';
-
-// Map form doc type values → OCR DocumentType keys
-const DOC_TYPE_OCR_MAP: Record<string, DocumentType> = {
-  rc:              'RC',
-  insurance:       'Insurance',
-  license:         'DrivingLicense',
-  driving_license: 'DrivingLicense',
-  fitness:         'Fitness',
-  pollution:       'PUC',
-  puc:             'PUC',
-};
+import { runServerOCR, OCRResult } from '@/services/ocrService';
 
 // Map detected OCR type → friendly title prefix
 const DOC_TYPE_LABEL: Record<string, string> = {
@@ -329,13 +317,14 @@ export default function DocumentUploadPage() {
     setOcrLoading(true);
     setOcrProgress(0);
 
-    const ocrDocType: DocumentType = DOC_TYPE_OCR_MAP[docType] ?? 'Other';
-    const result = await runOCR(imageFile, {
-      docType: ocrDocType,
-      onProgress: (p) => setOcrProgress(p),
-    });
-    setOcrLoading(false);
-    applyOcrResult(result);
+    try {
+      setOcrProgress(30);
+      const result = await runServerOCR(imageFile, docType || 'auto');
+      setOcrProgress(100);
+      applyOcrResult(result);
+    } finally {
+      setOcrLoading(false);
+    }
   }, [docType, applyOcrResult]);
 
   // Called when user picks a file via normal file input — auto-trigger OCR
@@ -360,14 +349,14 @@ export default function DocumentUploadPage() {
       setOcrFile(picked);
       setOcrLoading(true);
       setOcrProgress(0);
-      const ocrDocType: DocumentType = DOC_TYPE_OCR_MAP[docType] ?? 'Other';
-      runOCR(picked, {
-        docType: ocrDocType,
-        onProgress: (p) => setOcrProgress(p),
-      }).then(result => {
-        setOcrLoading(false);
-        applyOcrResult(result);
-      });
+      runServerOCR(picked, docType || 'auto')
+        .then(result => {
+          setOcrProgress(100);
+          applyOcrResult(result);
+        })
+        .finally(() => {
+          setOcrLoading(false);
+        });
     }
   };
 

@@ -23,7 +23,7 @@ class Supplier(Base, TimestampMixin, SoftDeleteMixin):
 
     name = Column(String(200), nullable=False)
     code = Column(String(30), unique=True, nullable=False, index=True)
-    supplier_type = Column(SQLEnum(SupplierType), default=SupplierType.BROKER, nullable=False)
+    supplier_type = Column(SQLEnum(SupplierType, native_enum=False), default=SupplierType.BROKER, nullable=False)
 
     # Contact
     contact_person = Column(String(200), nullable=True)

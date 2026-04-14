@@ -12,8 +12,8 @@ from app.utils.generators import generate_lr_number, generate_trip_number
 
 VALID_LR_TRANSITIONS = {
     "draft": ["generated", "cancelled"],
-    "generated": ["in_transit", "cancelled"],
-    "in_transit": ["delivered", "cancelled"],
+    "generated": ["in_transit", "pod_received", "cancelled"],
+    "in_transit": ["delivered", "pod_received", "cancelled"],
     "delivered": ["pod_received"],
     "pod_received": [],
     "cancelled": ["draft"],

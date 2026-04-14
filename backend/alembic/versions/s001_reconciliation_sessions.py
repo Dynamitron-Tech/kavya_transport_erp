@@ -72,7 +72,7 @@ def upgrade():
         sa.Column('notes', sa.Text(), nullable=True),
         sa.Column('confirmed_by', sa.Integer(), sa.ForeignKey('users.id'), nullable=True),
         sa.Column('confirmed_at', sa.DateTime(), nullable=True),
-        sa.Column('created_banking_entry_id', sa.Integer(), sa.ForeignKey('banking_entries.id'), nullable=True),
+        sa.Column('created_banking_entry_id', sa.Integer(), nullable=True),  # FK omitted: banking_entries not accessible by migration user
         sa.Column('created_expense_id', sa.Integer(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),

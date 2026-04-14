@@ -60,8 +60,8 @@ class Expense(Base, TimestampMixin):
     __tablename__ = "company_expenses"
 
     # Category & method
-    expense_category = Column(SQLEnum(ExpenseCategory), nullable=False, index=True)
-    payment_method   = Column(SQLEnum(PaymentMethod), nullable=False)
+    expense_category = Column(SQLEnum(ExpenseCategory, native_enum=False), nullable=False, index=True)
+    payment_method   = Column(SQLEnum(PaymentMethod, native_enum=False), nullable=False)
 
     # Amount — always stored in paise (integer) to avoid floating point issues
     amount_paise = Column(Integer, nullable=False)
@@ -90,7 +90,7 @@ class Expense(Base, TimestampMixin):
 
     # Approval workflow
     approval_status = Column(
-        SQLEnum(ApprovalStatus), default=ApprovalStatus.PENDING, nullable=False, index=True
+        SQLEnum(ApprovalStatus, native_enum=False), default=ApprovalStatus.PENDING, nullable=False, index=True
     )
     rejection_reason = Column(Text, nullable=True)
     approved_by      = Column(Integer, ForeignKey('users.id'), nullable=True)

@@ -141,7 +141,7 @@ async def scan_document_ocr(
     if ocr_result.error:
         logger.warning(
             "OCR pipeline error for user=%s file=%s: %s",
-            current_user.sub,
+            current_user.user_id,
             file.filename,
             ocr_result.error,
         )

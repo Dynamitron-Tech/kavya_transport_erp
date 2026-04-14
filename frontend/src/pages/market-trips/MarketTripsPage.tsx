@@ -10,7 +10,7 @@ import { handleApiError } from '../../utils/handleApiError';
 import type { MarketTrip, MarketTripStatus } from '@/types';
 import {
   Search, Filter, Truck, TrendingUp, Loader2,
-  CheckCircle, ChevronDown, ChevronUp,
+  CheckCircle, ChevronDown, ChevronUp, User,
 } from 'lucide-react';
 
 const STATUS_OPTIONS: { value: MarketTripStatus | ''; label: string }[] = [

@@ -33,7 +33,7 @@ class SyncQueue(Base, TimestampMixin):
     client_action_id = Column(String(100), nullable=True, index=True)  # Client-side unique ID for dedup
 
     # Processing
-    status = Column(SQLEnum(SyncActionStatus), default=SyncActionStatus.PENDING, nullable=False, index=True)
+    status = Column(SQLEnum(SyncActionStatus, native_enum=False), default=SyncActionStatus.PENDING, nullable=False, index=True)
     server_response = Column(JSON, nullable=True)        # Response from processing
     error_message = Column(Text, nullable=True)
     processed_at = Column(DateTime, nullable=True)

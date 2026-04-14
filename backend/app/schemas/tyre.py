@@ -12,6 +12,8 @@ class TyreCreate(BaseModel):
     vehicle_id: int
     axle_position: str
     status: str = 'MOUNTED'
+    tread_depth_mm: Optional[float] = None
+    initial_tread_depth_mm: Optional[float] = None
 
 
 class TyreUpdate(BaseModel):

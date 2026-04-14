@@ -358,10 +358,68 @@ function BehaviourTab({ driverId }: { driverId: number }) {
 // ═══════════════════════════════════════════════════════
 // Tab: Documents
 // ═══════════════════════════════════════════════════════
-function DocumentsTab({ driverId }: { driverId: number }) {
+// Tab: Documents
+// ═══════════════════════════════════════════════════════
+function DocCard({ label, fileUrl, fileName, icon }: { label: string; fileUrl?: string | null; fileName?: string | null; icon: React.ReactNode }) {
+  if (!fileUrl) return (
+    <div className="flex items-center gap-3 p-4 rounded-xl border border-dashed border-gray-200 bg-gray-50">
+      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300">{icon}</div>
+      <div>
+        <p className="text-sm font-medium text-gray-500">{label}</p>
+        <p className="text-xs text-gray-400">Not uploaded</p>
+      </div>
+    </div>
+  );
+  const isImage = /\.(jpg|jpeg|png|webp|gif)(?:\?|$)/i.test(fileUrl) || fileUrl.startsWith('data:image');
   return (
-    <div className="space-y-4">
-      <DocumentChecklist entityType="driver" entityId={driverId} />
+    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+      {isImage ? (
+        <a href={fileUrl} target="_blank" rel="noreferrer">
+          <img src={fileUrl} alt={label} className="w-full h-36 object-cover" />
+        </a>
+      ) : (
+        <div className="h-36 flex items-center justify-center bg-indigo-50">
+          <div className="text-center">
+            <div className="text-indigo-400 text-3xl mb-1">{icon}</div>
+            <p className="text-xs text-indigo-400">PDF Document</p>
+          </div>
+        </div>
+      )}
+      <div className="px-3 py-2 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-gray-700 truncate">{label}</p>
+          {fileName && <p className="text-xs text-gray-400 truncate">{fileName}</p>}
+        </div>
+        <a href={fileUrl} target="_blank" rel="noreferrer"
+          className="shrink-0 text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md hover:bg-indigo-100 transition-colors">
+          View
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function DocumentsTab({ driver }: { driver: any }) {
+  const d = driver as any;
+  const hasAny = d.aadhaar_file_url || d.dl_file_url || d.pan_file_url || d.passbook_file_url || d.avatar_url || d.photo_url;
+  return (
+    <div className="space-y-5">
+      {/* Uploaded Documents */}
+      <div className="card">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><FileText size={16} className="text-indigo-500" />Uploaded Documents</h3>
+        {!hasAny && (
+          <p className="text-sm text-gray-400 text-center py-6">No documents uploaded yet. Upload documents during employee onboarding.</p>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {(d.avatar_url || d.photo_url) && (
+            <DocCard label="Employee Photo" fileUrl={d.avatar_url || d.photo_url} icon={<User size={22} />} />
+          )}
+          <DocCard label="Aadhaar Card" fileUrl={d.aadhaar_file_url} fileName={d.aadhaar_file_name} icon={<Shield size={22} />} />
+          <DocCard label="Driving License" fileUrl={d.dl_file_url} fileName={d.dl_file_name} icon={<FileText size={22} />} />
+          <DocCard label="PAN Card" fileUrl={d.pan_file_url} fileName={d.pan_file_name} icon={<User size={22} />} />
+          <DocCard label="Passbook" fileUrl={d.passbook_file_url} fileName={d.passbook_file_name} icon={<FileText size={22} />} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -623,9 +681,9 @@ export default function DriverDetailPage() {
       {/* Header */}
       <div className="flex items-start gap-4">
         <button onClick={() => navigate('/drivers')} className="btn-icon mt-1"><ArrowLeft size={18} /></button>
-        <div className="w-14 h-14 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-          {driver.photo_url ? (
-            <img src={driver.photo_url} alt="" className="w-14 h-14 rounded-full object-cover" />
+        <div className="w-14 h-14 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+          {(driver as any).avatar_url || (driver as any).photo_url ? (
+            <img src={(driver as any).avatar_url || (driver as any).photo_url} alt="" className="w-14 h-14 rounded-full object-cover" />
           ) : (
             <span className="text-primary-700 font-bold text-xl">{driverName.charAt(0)}</span>
           )}
@@ -679,7 +737,7 @@ export default function DriverDetailPage() {
         {activeTab === 'overview' && <OverviewTab driver={driver} />}
         {activeTab === 'trips' && <TripsTab driverId={driverId} />}
         {activeTab === 'behaviour' && <BehaviourTab driverId={driverId} />}
-        {activeTab === 'documents' && <DocumentsTab driverId={driverId} />}
+        {activeTab === 'documents' && <DocumentsTab driver={driver} />}
         {activeTab === 'performance' && <PerformanceTab driverId={driverId} />}
         {activeTab === 'attendance' && <AttendanceTab driverId={driverId} />}
       </div>

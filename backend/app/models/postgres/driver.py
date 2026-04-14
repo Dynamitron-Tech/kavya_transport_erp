@@ -65,7 +65,7 @@ class Driver(Base, TimestampMixin, SoftDeleteMixin):
     designation = Column(String(50), default='driver')  # driver, senior_driver, helper
     
     # Status
-    status = Column(SQLEnum(DriverStatus), default=DriverStatus.AVAILABLE)
+    status = Column(SQLEnum(DriverStatus, native_enum=False), default=DriverStatus.AVAILABLE)
     current_location = Column(String(255), nullable=True)
     
     # Salary & Payment
@@ -114,7 +114,7 @@ class DriverLicense(Base, TimestampMixin):
     
     driver_id = Column(Integer, ForeignKey('drivers.id', ondelete='CASCADE'), nullable=False)
     license_number = Column(String(30), nullable=False, unique=True)
-    license_type = Column(SQLEnum(LicenseType), nullable=False)
+    license_type = Column(SQLEnum(LicenseType, native_enum=False), nullable=False)
     issuing_authority = Column(String(100), nullable=True)
     issue_date = Column(Date, nullable=True)
     expiry_date = Column(Date, nullable=False)

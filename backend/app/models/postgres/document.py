@@ -117,8 +117,8 @@ class Document(Base, TimestampMixin, SoftDeleteMixin):
     title = Column(String(255), nullable=False)
 
     # Classification
-    document_type = Column(SQLEnum(DocumentType), nullable=False)
-    entity_type = Column(SQLEnum(EntityType), nullable=False)
+    document_type = Column(SQLEnum(DocumentType, native_enum=False), nullable=False)
+    entity_type = Column(SQLEnum(EntityType, native_enum=False), nullable=False)
     entity_id = Column(Integer, nullable=False, index=True)
     entity_label = Column(String(200), nullable=True)
 
@@ -130,7 +130,7 @@ class Document(Base, TimestampMixin, SoftDeleteMixin):
     # Compliance settings
     reminder_days = Column(Integer, default=30)
     compliance_category = Column(
-        SQLEnum(ComplianceCategory), default=ComplianceCategory.OPTIONAL
+        SQLEnum(ComplianceCategory, native_enum=False), default=ComplianceCategory.OPTIONAL
     )
     renewal_required = Column(Boolean, default=False)
     expiry_alert = Column(Boolean, default=True)
@@ -141,7 +141,7 @@ class Document(Base, TimestampMixin, SoftDeleteMixin):
 
     # Approval
     approval_status = Column(
-        SQLEnum(DocumentApprovalStatus),
+        SQLEnum(DocumentApprovalStatus, native_enum=False),
         default=DocumentApprovalStatus.DRAFT,
     )
     rejection_reason = Column(Text, nullable=True)

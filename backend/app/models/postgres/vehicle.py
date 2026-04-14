@@ -49,9 +49,9 @@ class Vehicle(Base, TimestampMixin, SoftDeleteMixin):
     
     # Basic Info
     registration_number = Column(String(20), unique=True, nullable=False, index=True)
-    vehicle_type = Column(SQLEnum(VehicleType), nullable=False)
+    vehicle_type = Column(SQLEnum(VehicleType, native_enum=False), nullable=False)
     vehicle_size_class = Column(String(50), nullable=True)   # mini_pickup, lcv, mcv, hcv, trailer_articulated
-    axle_wheel_type = Column(String(20), nullable=True)      # 6w, 10w, 12w, 14w, tr_6w, tr_10w
+    axle_wheel_type = Column(String(20), nullable=True)      # 4w, 6w, 10w, 12w, 14w, tr_6w, tr_10w
     make = Column(String(50), nullable=True)  # TATA, Ashok Leyland, etc.
     model = Column(String(100), nullable=True)
     year_of_manufacture = Column(Integer, nullable=True)
@@ -65,12 +65,12 @@ class Vehicle(Base, TimestampMixin, SoftDeleteMixin):
     num_tyres = Column(Integer, nullable=True)
     
     # Ownership
-    ownership_type = Column(SQLEnum(OwnershipType), default=OwnershipType.OWNED)
+    ownership_type = Column(SQLEnum(OwnershipType, native_enum=False), default=OwnershipType.OWNED)
     owner_name = Column(String(200), nullable=True)
     owner_phone = Column(String(20), nullable=True)
     
     # Status
-    status = Column(SQLEnum(VehicleStatus), default=VehicleStatus.AVAILABLE)
+    status = Column(SQLEnum(VehicleStatus, native_enum=False), default=VehicleStatus.AVAILABLE)
     current_location = Column(String(255), nullable=True)
     current_latitude = Column(Numeric(10, 8), nullable=True)
     current_longitude = Column(Numeric(11, 8), nullable=True)
@@ -216,7 +216,8 @@ class VehicleTyre(Base, TimestampMixin):
     sensor_id = Column(String(50), nullable=True, index=True)  # BLE/GPRS sensor ID
     last_psi = Column(Numeric(5, 1), nullable=True)
     last_temperature_c = Column(Numeric(5, 1), nullable=True)
-    tread_depth_mm = Column(Numeric(4, 1), nullable=True)
+    tread_depth_mm = Column(Numeric(4, 1), nullable=True)       # current tread depth (updated per reading)
+    initial_tread_depth_mm = Column(Numeric(4, 1), nullable=True)  # tread at time of fitment
     last_reading_at = Column(DateTime, nullable=True)
     
     # Relationships
@@ -258,3 +259,125 @@ class TyreSensorReading(Base):
     
     # Relationships
     tyre = relationship("VehicleTyre", back_populates="sensor_readings")
+
+
+# ── Driver Field Readings ─────────────────────────────────
+
+class TyreReadingCondition(enum.Enum):
+    GOOD = "GOOD"
+    AVERAGE = "AVERAGE"
+    WORN = "WORN"
+    DAMAGED = "DAMAGED"
+
+
+class TyreReading(Base, TimestampMixin):
+    """Driver-submitted field tyre readings (PSI, tread, condition, photo)."""
+
+    __tablename__ = "tyre_readings"
+
+    vehicle_tyre_id = Column(Integer, ForeignKey('vehicle_tyres.id', ondelete='SET NULL'), nullable=True, index=True)
+    vehicle_id = Column(Integer, ForeignKey('vehicles.id', ondelete='CASCADE'), nullable=False, index=True)
+    position = Column(String(20), nullable=False)
+    psi = Column(Numeric(5, 1), nullable=False)
+    tread_depth_mm = Column(Numeric(4, 1), nullable=True)
+    condition = Column(SQLEnum(TyreReadingCondition, native_enum=False), nullable=False, default=TyreReadingCondition.GOOD)
+    temperature_c = Column(Numeric(5, 1), nullable=True)
+    notes = Column(Text, nullable=True)
+    photo_url = Column(String(500), nullable=True)
+    driver_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)
+    odometer_at_reading = Column(Numeric(12, 2), nullable=True)
+
+    # Relationships
+    vehicle = relationship("Vehicle")
+    tyre = relationship("VehicleTyre")
+
+
+# ── Structured Tyre Alerts ────────────────────────────────
+
+class TyreAlertType(enum.Enum):
+    LOW_PSI = "LOW_PSI"
+    CRITICAL_PSI = "CRITICAL_PSI"
+    HIGH_TEMP = "HIGH_TEMP"
+    LOW_TREAD = "LOW_TREAD"
+    WORN = "WORN"
+    DAMAGED = "DAMAGED"
+    OVERDUE_INSPECTION = "OVERDUE_INSPECTION"
+    ROTATION_DUE = "ROTATION_DUE"
+
+
+class TyreAlertSeverity(enum.Enum):
+    WARNING = "WARNING"
+    CRITICAL = "CRITICAL"
+
+
+class TyreAlertStatus(enum.Enum):
+    OPEN = "OPEN"
+    ACKNOWLEDGED = "ACKNOWLEDGED"
+    RESOLVED = "RESOLVED"
+
+
+class TyreAlert(Base, TimestampMixin):
+    """Structured tyre alerts (auto-generated from field readings or thresholds)."""
+
+    __tablename__ = "tyre_alerts"
+
+    vehicle_tyre_id = Column(Integer, ForeignKey('vehicle_tyres.id', ondelete='CASCADE'), nullable=True, index=True)
+    vehicle_id = Column(Integer, ForeignKey('vehicles.id', ondelete='CASCADE'), nullable=False, index=True)
+    position = Column(String(20), nullable=False)
+    alert_type = Column(SQLEnum(TyreAlertType, native_enum=False), nullable=False)
+    severity = Column(SQLEnum(TyreAlertSeverity, native_enum=False), nullable=False)
+    current_value = Column(Numeric(8, 2), nullable=True)
+    threshold_value = Column(Numeric(8, 2), nullable=True)
+    status = Column(SQLEnum(TyreAlertStatus, native_enum=False), nullable=False, default=TyreAlertStatus.OPEN)
+    acknowledged_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
+    source = Column(String(20), default='field')  # 'field' | 'sensor'
+
+    # Relationships
+    vehicle = relationship("Vehicle")
+
+
+# ── Tyre Thresholds ───────────────────────────────────────
+
+class TyreThreshold(Base, TimestampMixin):
+    """Per-vehicle or fleet-wide tyre threshold configuration."""
+
+    __tablename__ = "tyre_thresholds"
+
+    vehicle_id = Column(Integer, ForeignKey('vehicles.id', ondelete='CASCADE'), nullable=True, index=True)
+    min_psi = Column(Numeric(5, 1), default=80.0)
+    critical_psi = Column(Numeric(5, 1), default=60.0)
+    min_tread_mm = Column(Numeric(4, 1), default=3.0)
+    worn_tread_mm = Column(Numeric(4, 1), default=1.6)
+    inspection_interval_days = Column(Integer, default=7)
+    rotation_interval_km = Column(Integer, default=20000)
+    created_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+
+    # Relationships
+    vehicle = relationship("Vehicle")
+
+
+# ── Tyre Simulation Sessions ──────────────────────────────
+
+class RoadType(enum.Enum):
+    HIGHWAY = "HIGHWAY"
+    CITY = "CITY"
+    OFFROAD = "OFFROAD"
+    MIXED = "MIXED"
+
+
+class TyreSimulationSession(Base, TimestampMixin):
+    """Saved tyre wear simulation sessions."""
+
+    __tablename__ = "tyre_simulation_sessions"
+
+    vehicle_id = Column(Integer, ForeignKey('vehicles.id', ondelete='CASCADE'), nullable=False, index=True)
+    simulated_km = Column(Integer, nullable=False)
+    simulated_load_kg = Column(Integer, nullable=True)
+    road_type = Column(SQLEnum(RoadType, native_enum=False), nullable=False, default=RoadType.HIGHWAY)
+    climate = Column(String(20), default='NORMAL')
+    result_json = Column(Text, nullable=True)  # JSON string of per-tyre results
+    created_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+
+    # Relationships
+    vehicle = relationship("Vehicle")

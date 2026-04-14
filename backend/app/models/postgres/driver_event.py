@@ -25,7 +25,7 @@ class DriverEvent(Base, TimestampMixin):
     trip_id = Column(Integer, ForeignKey("trips.id"), nullable=True, index=True)
     vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=True)
 
-    event_type = Column(SQLEnum(DriverEventType), nullable=False, index=True)
+    event_type = Column(SQLEnum(DriverEventType, native_enum=False), nullable=False, index=True)
     severity = Column(Integer, default=1, nullable=False)  # 1-5
 
     latitude = Column(Float, nullable=True)

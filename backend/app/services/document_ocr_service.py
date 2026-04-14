@@ -100,7 +100,9 @@ SUPPORTED_DOC_TYPES: Dict[str, List[str]] = {
         "vehicle_class", "blood_group", "mobile_number",
     ],
     "Fitness": [
-        "certificate_number", "vehicle_number", "valid_upto", "issued_by",
+        "certificate_number", "transaction_no", "receipt_no", "receipt_date",
+        "vehicle_number", "vehicle_no", "vehicle_class", "owner_name",
+        "chassis_no", "fitness_validity", "tax_paid_upto", "valid_upto", "issued_by",
     ],
     "PUC": [
         "puc_number", "vehicle_number", "test_date", "valid_upto",
@@ -132,7 +134,7 @@ _DATE_PATTERNS: List[Tuple[re.Pattern, str]] = [
     (re.compile(r'(\d{2})[/\-\.](\d{2})[/\-\.](\d{4})'), "dmy"),      # DD/MM/YYYY
     (re.compile(r'(\d{4})[/\-\.](\d{2})[/\-\.](\d{2})'), "ymd"),      # YYYY-MM-DD
     (re.compile(
-        r'(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s*(\d{4})',
+        r'(\d{1,2})[\s\-/]*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*[\s\-/]*(\d{4})',
         re.IGNORECASE
     ), "dmsy"),  # DD Mon YYYY
 ]
@@ -164,14 +166,56 @@ def _normalise_date(text: str) -> Optional[str]:
     return None
 
 
+def _normalise_title_case_date(text: str) -> Optional[str]:
+    """Return date as DD-Mon-YYYY (e.g., 26-Feb-2027) when parseable."""
+    value = (text or "").strip()
+    if not value:
+        return None
+
+    value = re.sub(r"\s+", " ", value)
+    value = value.replace(".", "-")
+    value = value.replace("–", "-").replace("—", "-")
+    value = re.sub(r"\s*[-/]\s*", "-", value)
+    value = re.sub(r"[^0-9A-Za-z\-/ ]", "", value).strip()
+
+    formats = [
+        "%d-%b-%Y", "%d-%B-%Y", "%d-%m-%Y", "%d/%m/%Y",
+        "%Y-%m-%d", "%Y/%m/%d", "%d %b %Y", "%d %B %Y",
+    ]
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(value, fmt)
+            return dt.strftime("%d-%b-%Y")
+        except ValueError:
+            continue
+    return None
+
+
 def _find_value_after_label(text: str, *labels: str, max_chars: int = 80) -> Optional[str]:
-    """Return the first non-empty token/line after any of the given label strings."""
+    """Return the first non-empty token/line after any of the given label strings.
+
+    Handles two layouts:
+      • Inline:    "Name: ARVIND KUMAR"
+      • Next-line: "Name:\nARVIND KUMAR"   (common on Indian smart-card DLs)
+    """
     for label in labels:
-        pattern = re.compile(
-            rf'(?:{re.escape(label)})\s*[:\-\.]?\s*([^\n]{{1,{max_chars}}})',
+        escaped = re.escape(label)
+        # 1. Same-line: label followed by value on the same line
+        same_line = re.compile(
+            rf'(?:{escaped})\s*[:\-\.]?\s*([^\n]{{1,{max_chars}}})',
             re.IGNORECASE,
         )
-        m = pattern.search(text)
+        m = same_line.search(text)
+        if m:
+            val = m.group(1).strip()
+            if val:
+                return val
+        # 2. Next-line: label is alone on its line; value is on the line immediately below
+        next_line = re.compile(
+            rf'(?:{escaped})[^\n]*\n\s*([^\n]{{1,{max_chars}}})',
+            re.IGNORECASE,
+        )
+        m = next_line.search(text)
         if m:
             val = m.group(1).strip()
             if val:
@@ -492,10 +536,54 @@ def _extract_dl_fields(text: str) -> Dict[str, ExtractedField]:
             re.sub(r'\s', '', dlm.group(1)).upper(), "high", dlm.group(1)
         )
 
-    # Holder name
-    name = _find_value_after_label(text, "name", "holder", "dl holder")
-    if name:
-        fields["holder_name"] = _ef(name.split("\n")[0][:80], "medium", name)
+    # Holder name — on Indian DLs, the name is usually on the line BELOW "Name:"
+    # Check next-line first (table-layout), then same-line (inline-layout).
+    _name_labels = ["holder name", "dl holder", "name"]
+    _name_reject = {"endorsement", "entitlement", "engine", "chassis",
+                    "transport", "department", "authority", "driving"}
+    _dl_lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
+    _name_label_re = re.compile(r"(?:holder'?s?\s*name|name\s*of\s*holder|dl\s*holder|\bname\b)(?!.*(?:s/o|d/o|w/o))", re.IGNORECASE)
+
+    # Strategy A: next-line (preferred for Indian smart-card DLs)
+    # On Indian DLs, the actual name is almost always on the NEXT line below "Name".
+    # Try next-line first, then fall back to inline.
+    _so_pat = re.compile(r"^\s*(?:s/?o|d/?o|w/?o|son|daughter|wife|husband)\b", re.IGNORECASE)
+    for _li, _ln in enumerate(_dl_lines):
+        if _name_label_re.search(_ln):
+            # First: try the line(s) below the label
+            for _lj in range(_li + 1, min(_li + 4, len(_dl_lines))):
+                # Skip S/O, D/O, W/O lines — those are the father's name
+                if _so_pat.match(_dl_lines[_lj]):
+                    continue
+                _cand = re.sub(r"[^A-Za-z\s]", "", _dl_lines[_lj]).strip()
+                _words = [w for w in _cand.split() if len(w) >= 2]
+                if (len(_cand.replace(" ", "")) >= 4
+                        and any(len(w) > 2 for w in _words)
+                        and not any(r in _cand.lower() for r in _name_reject)):
+                    fields["holder_name"] = _ef(_cand[:80], "medium", _dl_lines[_lj])
+                    break
+            # Fallback: inline value on the SAME line as label ("Name: BALA KANNAN")
+            if "holder_name" not in fields:
+                _inline_match = re.search(r"(?:name|holder)\s*[:\-]\s*([A-Za-z][A-Za-z\s.]{3,60})", _ln, re.IGNORECASE)
+                if _inline_match:
+                    _inline_cand = re.sub(r"[^A-Za-z\s]", "", _inline_match.group(1)).strip()
+                    _inline_words = [w for w in _inline_cand.split() if len(w) >= 2]
+                    if (len(_inline_cand.replace(" ", "")) >= 4
+                            and any(len(w) > 2 for w in _inline_words)
+                            and not any(r in _inline_cand.lower() for r in _name_reject)):
+                        fields["holder_name"] = _ef(_inline_cand[:80], "medium", _inline_match.group(1).strip())
+            break
+
+    # Strategy B: same-line fallback ("Name: BALA KANNAN")
+    if "holder_name" not in fields:
+        name = _find_value_after_label(text, *_name_labels)
+        if name:
+            raw_name = name.split("\n")[0].strip()
+            alpha_name = re.sub(r"[^A-Za-z\s]", "", raw_name).strip()
+            words = [w for w in alpha_name.split() if len(w) >= 2]
+            if len(alpha_name.replace(" ", "")) >= 4 and any(len(w) > 2 for w in words):
+                if not any(r in alpha_name.lower() for r in _name_reject):
+                    fields["holder_name"] = _ef(alpha_name[:80], "medium", raw_name)
 
     # DOB
     dob_ctx = _find_value_after_label(text, "date of birth", "d.o.b", "dob")
@@ -539,9 +627,39 @@ def _extract_dl_fields(text: str) -> Dict[str, ExtractedField]:
 def _extract_fitness_fields(text: str) -> Dict[str, ExtractedField]:
     fields: Dict[str, ExtractedField] = {}
 
+    tn_ref_pat = re.compile(r"\bTN\d{6}[A-Z]\d{7}\b", re.IGNORECASE)
+
+    # Transaction No / Receipt No from "TRANSACTION NO./RECEIPT No.: .../..."
+    tx_line = None
+    for line in text.split("\n"):
+        if re.search(r"TRANSACTION\s*NO", line, re.IGNORECASE) and re.search(r"RECEIPT", line, re.IGNORECASE):
+            tx_line = line
+            break
+    if tx_line:
+        refs = tn_ref_pat.findall(tx_line.upper())
+        if len(refs) >= 1:
+            fields["transaction_no"] = _ef(refs[0], "high", refs[0])
+        if len(refs) >= 2:
+            fields["receipt_no"] = _ef(refs[1], "high", refs[1])
+
+    # Fallback if OCR split that row
+    if "transaction_no" not in fields or "receipt_no" not in fields:
+        refs = tn_ref_pat.findall(text.upper())
+        if refs and "transaction_no" not in fields:
+            fields["transaction_no"] = _ef(refs[0], "medium", refs[0])
+        if len(refs) >= 2 and "receipt_no" not in fields:
+            fields["receipt_no"] = _ef(refs[1], "medium", refs[1])
+
+    # Receipt date
+    receipt_ctx = _find_value_after_label(text, "receipt date")
+    if receipt_ctx:
+        receipt_date = _normalise_title_case_date(receipt_ctx)
+        if receipt_date:
+            fields["receipt_date"] = _ef(receipt_date, "high", receipt_ctx)
+
     # Certificate number
     cert_pat = re.compile(
-        r'(?:certificate\s*(?:no|number)?|cert\s*(?:no|number)?)[:\s.]+([A-Z0-9\-\/]{5,25})',
+        r'(?:certificate\s*(?:no|number)|cert\s*(?:no|number)|fitness\s*cert\s*(?:no|number)|fc\s*no)[:\s.\-]*([A-Z0-9\-\/]{5,25})',
         re.IGNORECASE,
     )
     cm = cert_pat.search(text)
@@ -549,18 +667,107 @@ def _extract_fitness_fields(text: str) -> Dict[str, ExtractedField]:
         fields["certificate_number"] = _ef(cm.group(1).strip(), "high", cm.group(0))
 
     # Vehicle number
-    vm = _VEH_REG.search(text)
+    veh_ctx = _find_value_after_label(text, "vehicle no", "vehicle number")
+    vm = re.search(r"\bTN\d{2}[A-Z]{2}\d{4}\b", (veh_ctx or "").upper())
+    if not vm:
+        vm = re.search(r"\bTN\d{2}[A-Z]{2}\d{4}\b", text.upper())
     if vm:
-        fields["vehicle_number"] = _ef(
-            re.sub(r'[\s\-]', '', vm.group(1)).upper(), "high", vm.group(1)
-        )
+        vehicle_no = vm.group(0).upper()
+        fields["vehicle_no"] = _ef(vehicle_no, "high", vehicle_no)
+        fields["vehicle_number"] = _ef(vehicle_no, "high", vehicle_no)
 
-    # Valid upto
-    date_ctx = _find_value_after_label(text, "valid upto", "fit upto", "valid till", "validity")
-    if date_ctx:
-        d = _normalise_date(date_ctx)
+    # Vehicle class
+    vclass = _find_value_after_label(text, "vehicle class")
+    if vclass:
+        fields["vehicle_class"] = _ef(vclass.split("\n")[0].strip()[:60], "medium", vclass)
+
+    # Owner name
+    owner = _find_value_after_label(
+        text,
+        "owner name",
+        "name of owner",
+        "registered owner",
+        "permit holder name",
+        "name of the permit holder",
+    )
+    if owner:
+        clean_owner = owner.split("\n")[0].strip()
+        clean_owner = re.split(
+            r"\b(?:CHASSIS\s*NO|VEHICLE\s*CLASS|FITNESS\s*VALIDITY|TAX\s*PAID\s*UPTO|RECEIPT\s*DATE)\b",
+            clean_owner,
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0].strip(" :.-")
+        clean_owner = re.sub(r"\s{2,}", " ", clean_owner)[:80]
+        if clean_owner and clean_owner.upper() not in {"NA", "N/A", "NIL", "NULL"}:
+            fields["owner_name"] = _ef(clean_owner, _confidence(clean_owner), owner)
+
+    # Chassis no (17-char VIN style)
+    ch_ctx = _find_value_after_label(text, "chassis no", "chassis number")
+    ch_match = re.search(r"\b[A-Z0-9]{17}\b", (ch_ctx or "").upper())
+    if not ch_match:
+        ch_match = re.search(r"\b[A-Z0-9]{17}\b", text.upper())
+    if ch_match:
+        fields["chassis_no"] = _ef(ch_match.group(0), "high", ch_match.group(0))
+
+    # Valid upto: prefer explicit From ... To range when present.
+    range_pat = re.compile(
+        r'from\s*[:\-=]*\s*([0-9A-Za-z\-/\. ]{6,20})\s+to\s*[:\-=]*\s*([0-9A-Za-z\-/\. ]{6,20})',
+        re.IGNORECASE,
+    )
+    rm = range_pat.search(text)
+    if rm:
+        d = _normalise_date(rm.group(2))
         if d:
-            fields["valid_upto"] = _ef(d, "high", date_ctx)
+            fields["valid_upto"] = _ef(d, "high", rm.group(2))
+
+    # FC table label: Fitness Validity
+    fv_match = re.search(r"FITNESS\s*VALIDITY\s*[:\-]?\s*([0-9A-Za-z\-/ ]{6,20})", text, re.IGNORECASE)
+    fitness_validity_ctx = fv_match.group(1) if fv_match else _find_value_after_label(text, "fitness validity")
+    if fitness_validity_ctx:
+        title_date = _normalise_title_case_date(fitness_validity_ctx)
+        if title_date:
+            fields["fitness_validity"] = _ef(title_date, "high", fitness_validity_ctx)
+            if "valid_upto" not in fields:
+                d = _normalise_date(title_date)
+                if d:
+                    fields["valid_upto"] = _ef(d, "high", title_date)
+
+    if "valid_upto" not in fields:
+        date_ctx = _find_value_after_label(text, "valid upto", "fit upto", "valid till", "validity")
+        if date_ctx:
+            d = _normalise_date(date_ctx)
+            if d:
+                fields["valid_upto"] = _ef(d, "high", date_ctx)
+
+    # From/To validity fallback
+    if "valid_upto" not in fields:
+        to_ctx = _find_value_after_label(text, "valid to")
+        if to_ctx:
+            d = _normalise_date(to_ctx)
+            if d:
+                fields["valid_upto"] = _ef(d, "medium", to_ctx)
+
+    if "valid_upto" not in fields:
+        dates: List[str] = []
+        for line in text.split("\n"):
+            d = _normalise_date(line)
+            if d and d not in dates:
+                dates.append(d)
+        if len(dates) >= 2:
+            fields["valid_upto"] = _ef(dates[-1], "low", dates[-1])
+        elif len(dates) == 1:
+            fields["valid_upto"] = _ef(dates[0], "low", dates[0])
+
+    # Tax Paid Upto with DD-Mon-YYYY title-case output
+    tax_ctx = _find_value_after_label(text, "tax paid upto")
+    if not tax_ctx:
+        tax_match = re.search(r"TAX\s*PAID\s*UPTO\s*[:\-]?\s*([0-9A-Za-z\-/ ]{6,20})", text, re.IGNORECASE)
+        tax_ctx = tax_match.group(1) if tax_match else None
+    if tax_ctx:
+        tax_date = _normalise_title_case_date(tax_ctx)
+        if tax_date:
+            fields["tax_paid_upto"] = _ef(tax_date, "high", tax_ctx)
 
     # Issued by
     by = _find_value_after_label(text, "issued by", "issuing authority", "rto")

@@ -165,7 +165,7 @@ class ExpenseFraudFlag(Base, TimestampMixin):
     trip_id = Column(Integer, ForeignKey("trips.id"), nullable=True)
     driver_id = Column(Integer, ForeignKey("drivers.id"), nullable=True)
 
-    flag_type = Column(SQLEnum(ExpenseFraudFlagType), nullable=False)
+    flag_type = Column(SQLEnum(ExpenseFraudFlagType, native_enum=False), nullable=False)
     severity = Column(String(20), nullable=False, default="warning")  # warning, high, critical
     description = Column(Text, nullable=False)
     details = Column(JSON, nullable=True)  # z_score, distance_km, duplicate_expense_id, etc.
@@ -232,7 +232,7 @@ class TripIntelligenceAlert(Base, TimestampMixin):
     driver_id = Column(Integer, ForeignKey("drivers.id"), nullable=True)
     vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=True)
 
-    alert_type = Column(SQLEnum(TripAlertType), nullable=False, index=True)
+    alert_type = Column(SQLEnum(TripAlertType, native_enum=False), nullable=False, index=True)
     severity = Column(String(20), nullable=False, default="warning")
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)

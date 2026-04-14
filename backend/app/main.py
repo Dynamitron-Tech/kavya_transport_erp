@@ -28,10 +28,25 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     logger.info("Starting Transport ERP API...")
+
+    # Strict OCR mode validation:
+    # At least one extraction backend must be configured.
+    has_any_extraction = (
+        settings.USE_LOCAL_DONUT
+        or settings.USE_LOCAL_TESSERACT
+        or settings.HAS_VALID_ANTHROPIC_API_KEY
+        or settings.HAS_VALID_HF_API_KEY
+    )
+    if not has_any_extraction:
+        logger.warning(
+            "OCR startup validation: No extraction backend configured. "
+            "Set HF_API_KEY (recommended), ANTHROPIC_API_KEY, or enable USE_LOCAL_DONUT/USE_LOCAL_TESSERACT. "
+            "OCR features will be unavailable."
+        )
     
     # Initialize PostgreSQL (graceful - skip if unavailable)
     try:
-        await asyncio.wait_for(init_db(), timeout=5)
+        await asyncio.wait_for(init_db(), timeout=30)
         logger.info("PostgreSQL connected")
     except (Exception, asyncio.TimeoutError) as e:
         logger.warning(f"PostgreSQL connection failed (app will run without DB): {e}")

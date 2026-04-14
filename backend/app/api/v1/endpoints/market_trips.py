@@ -268,41 +268,40 @@ async def upload_pod(
     current_user: TokenData = Depends(get_current_user),
 ):
     """
-    Market driver uploads a Proof-of-Delivery (POD) image/PDF.
-    Saves to uploads/trip_photos/ and stores the URL on the market trip.
+    Upload Proof-of-Delivery (POD) for a market trip.
+    Accessible by admin, manager, fleet_manager, and market driver.
     """
     import asyncio
     import time
     from pathlib import Path
+    from datetime import datetime
     from sqlalchemy import select
     from app.models.postgres.market_trip import MarketTrip
-
-    phone = _require_market_driver(current_user)
 
     result = await db.execute(select(MarketTrip).where(MarketTrip.id == trip_id))
     trip = result.scalar_one_or_none()
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
-    if trip.driver_phone != phone:
-        raise HTTPException(status_code=403, detail="This trip is not assigned to you")
 
     # Validate file size (max 10 MB)
     content = await file.read()
     if len(content) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large (max 10 MB)")
 
-    # Save to disk
+    # Save to disk (trip_documents, same as LR PODs)
     ext = Path(file.filename or "pod.jpg").suffix or ".jpg"
     safe_ext = ext.lower() if ext.lower() in {".jpg", ".jpeg", ".png", ".pdf"} else ".jpg"
     filename = f"mkt_{trip_id}_pod_{int(time.time())}{safe_ext}"
-    save_dir = Path(__file__).resolve().parents[4] / "uploads" / "trip_photos"
+    save_dir = Path(__file__).resolve().parents[4] / "uploads" / "trip_documents"
     save_dir.mkdir(parents=True, exist_ok=True)
     save_path = save_dir / filename
 
     await asyncio.to_thread(save_path.write_bytes, content)
 
-    url = f"/uploads/trip_photos/{filename}"
-    trip.dl_file_url = url
+    url = f"/uploads/trip_documents/{filename}"
+    trip.pod_file_url = url
+    trip.pod_uploaded = True
+    trip.pod_uploaded_at = datetime.utcnow()
     await db.commit()
 
     return APIResponse(success=True, data={"url": url}, message="POD uploaded")

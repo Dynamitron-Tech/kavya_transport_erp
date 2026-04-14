@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "your-super-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     
     # PostgreSQL
     POSTGRES_HOST: str = "localhost"
@@ -123,6 +123,44 @@ class Settings(BaseSettings):
 
     # AI / Document Extraction
     ANTHROPIC_API_KEY: str = ""
+    USE_LOCAL_DONUT: bool = False
+    USE_LOCAL_TESSERACT: bool = False
+
+    # Hugging Face Inference API (Donut DocVQA)
+    HF_API_KEY: str = ""
+    HF_MODEL_ID: str = "naver-clova-ix/donut-base-finetuned-docvqa"
+
+    # OCR.space API
+    OCR_SPACE_API_KEY: str = ""
+
+    @property
+    def HAS_VALID_OCR_SPACE_API_KEY(self) -> bool:
+        key = (self.OCR_SPACE_API_KEY or "").strip()
+        return bool(key) and key not in {"YOUR_OCR_SPACE_API_KEY_HERE", "helloworld"}
+
+    @property
+    def HAS_VALID_ANTHROPIC_API_KEY(self) -> bool:
+        key = (self.ANTHROPIC_API_KEY or "").strip()
+        if not key:
+            return False
+        placeholders = {
+            "YOUR_ANTHROPIC_API_KEY_HERE",
+            "your-anthropic-api-key-here",
+            "changeme",
+        }
+        return key not in placeholders
+
+    @property
+    def HAS_VALID_HF_API_KEY(self) -> bool:
+        key = (self.HF_API_KEY or "").strip()
+        if not key:
+            return False
+        placeholders = {
+            "YOUR_HF_API_KEY_HERE",
+            "your-hf-api-key-here",
+            "changeme",
+        }
+        return key not in placeholders
 
     # GPS Device
     GPS_TCP_HOST: str = "0.0.0.0"

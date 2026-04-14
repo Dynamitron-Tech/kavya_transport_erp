@@ -95,7 +95,7 @@ class Trip(Base, TimestampMixin, SoftDeleteMixin):
     fuel_cost = Column(Numeric(12, 2), default=0)
     
     # Status
-    status = Column(SQLEnum(TripStatusEnum), default=TripStatusEnum.PLANNED)
+    status = Column(SQLEnum(TripStatusEnum, native_enum=False), default=TripStatusEnum.PLANNED)
     
     # Financial - Budget vs Actual
     budgeted_expense = Column(Numeric(12, 2), nullable=True)
@@ -174,7 +174,7 @@ class TripExpense(Base, TimestampMixin):
     trip_id = Column(Integer, ForeignKey('trips.id', ondelete='CASCADE'), nullable=False)
     
     # Expense Details
-    category = Column(SQLEnum(ExpenseCategory), nullable=False)
+    category = Column(SQLEnum(ExpenseCategory, native_enum=False), nullable=False)
     sub_category = Column(String(50), nullable=True)
     description = Column(String(255), nullable=True)
     
@@ -201,7 +201,7 @@ class TripExpense(Base, TimestampMixin):
     verification_remarks = Column(Text, nullable=True)
     
     # Expense approval status: PENDING -> APPROVED -> PAID (or REJECTED)
-    expense_status = Column(SQLEnum(ExpenseStatusEnum), default=ExpenseStatusEnum.PENDING)
+    expense_status = Column(SQLEnum(ExpenseStatusEnum, native_enum=False), default=ExpenseStatusEnum.PENDING)
     paid_by = Column(Integer, ForeignKey('users.id'), nullable=True)
     paid_at = Column(DateTime, nullable=True)
     

@@ -29,8 +29,8 @@ class ComplianceAlert(Base, TimestampMixin):
     vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=True)
     driver_id = Column(Integer, ForeignKey("drivers.id"), nullable=True)
 
-    alert_type = Column(SQLEnum(AlertType), nullable=False, default=AlertType.WARNING)
-    severity = Column(SQLEnum(AlertSeverity), nullable=False, default=AlertSeverity.MEDIUM)
+    alert_type = Column(SQLEnum(AlertType, native_enum=False), nullable=False, default=AlertType.WARNING)
+    severity = Column(SQLEnum(AlertSeverity, native_enum=False), nullable=False, default=AlertSeverity.MEDIUM)
 
     title = Column(String(300), nullable=False)
     message = Column(Text, nullable=True)

@@ -54,7 +54,7 @@ export const useAuthStore = create<AuthState>()(
           // Clear any stale tokens before login to avoid race conditions
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
-          const response = await authService.login({ email, password });
+          const response = await authService.login({ identifier: email.trim(), password });
           localStorage.setItem('access_token', response.access_token);
           localStorage.setItem('refresh_token', response.refresh_token);
           const permissions = response.user.permissions || [];
@@ -135,6 +135,9 @@ export const useAuthStore = create<AuthState>()(
           if (!currentToken || currentToken === token) {
             get().clearAuth();
             set({ isLoading: false });
+            if (window.location.pathname !== '/login') {
+              window.location.href = '/login';
+            }
           } else {
             // A concurrent login stored a new token — don't clear it
             set({ isLoading: false });

@@ -31,12 +31,18 @@ class UserCreate(BaseModel):
     pay_type: Optional[str] = None
     aadhaar_file_url: Optional[str] = None
     aadhaar_file_name: Optional[str] = None
+    pan_file_url: Optional[str] = None
+    pan_file_name: Optional[str] = None
+    passbook_file_url: Optional[str] = None
+    passbook_file_name: Optional[str] = None
     # Driving License fields
     dl_file_url: Optional[str] = None
     dl_file_name: Optional[str] = None
     dl_number: Optional[str] = None
     dl_issue_date: Optional[str] = None
     dl_expiry_date: Optional[str] = None
+    # Photo
+    avatar_url: Optional[str] = None
 
 
 class UserUpdate(BaseModel):
@@ -66,6 +72,10 @@ class UserUpdate(BaseModel):
     pay_type: Optional[str] = None
     aadhaar_file_url: Optional[str] = None
     aadhaar_file_name: Optional[str] = None
+    pan_file_url: Optional[str] = None
+    pan_file_name: Optional[str] = None
+    passbook_file_url: Optional[str] = None
+    passbook_file_name: Optional[str] = None
     # Driving License fields
     dl_file_url: Optional[str] = None
     dl_file_name: Optional[str] = None
@@ -88,6 +98,10 @@ class UserResponse(BaseModel):
     created_at: Optional[datetime] = None
     aadhaar_file_url: Optional[str] = None
     aadhaar_file_name: Optional[str] = None
+    pan_file_url: Optional[str] = None
+    pan_file_name: Optional[str] = None
+    passbook_file_url: Optional[str] = None
+    passbook_file_name: Optional[str] = None
     dl_file_url: Optional[str] = None
     dl_file_name: Optional[str] = None
     dl_number: Optional[str] = None

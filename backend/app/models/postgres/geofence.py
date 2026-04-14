@@ -20,7 +20,7 @@ class Geofence(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "geofences"
 
     name = Column(String(200), nullable=False)
-    geofence_type = Column(SQLEnum(GeofenceType), nullable=False, default=GeofenceType.ZONE)
+    geofence_type = Column(SQLEnum(GeofenceType, native_enum=False), nullable=False, default=GeofenceType.ZONE)
 
     # Optional link to trip or route
     trip_id = Column(Integer, ForeignKey("trips.id"), nullable=True)
