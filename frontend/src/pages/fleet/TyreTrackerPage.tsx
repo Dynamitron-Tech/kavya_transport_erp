@@ -1539,8 +1539,11 @@ function AssetView({
     mergedTyreMap.forEach((t) => {
       total++;
       const life = t.life_percent ?? 100;
-      if (t.alert === 'critical_pressure' || t.alert === 'critical' || life < 30) critical++;
-      else if (t.alert || life < 50) warnings++;
+      const tread = t.tread_depth_mm ?? null;
+      const isCrit = t.alert === 'critical_pressure' || t.alert === 'critical' || life < 30 || (tread !== null && tread <= 2.5);
+      const isWarn = !isCrit && (t.alert || life < 50 || (tread !== null && tread > 2.5 && tread <= 5));
+      if (isCrit) critical++;
+      else if (isWarn) warnings++;
       else healthy++;
     });
     return { total, healthy, warnings, critical };
@@ -2075,7 +2078,7 @@ function LogReadingModal({
       const odometerVal = form.end_odometer || form.start_odometer;
       await tyreTrackerService.submitReading({
         vehicle_id: tyre.vehicle_id,
-        position: tyre.position || position,
+        position: tyre.db_position || tyre.position || position,
         psi: Number(form.psi),
         tread_depth_mm: form.tread_depth_mm ? Number(form.tread_depth_mm) : undefined,
         temperature_c: form.temperature_c ? Number(form.temperature_c) : undefined,

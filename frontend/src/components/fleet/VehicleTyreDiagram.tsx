@@ -13,8 +13,8 @@ export type VehicleLayout = 'LCV_4' | 'TRUCK_2AXLE' | 'TRUCK_3AXLE' | 'TRAILER_3
  */
 export const POSITION_MAP: Record<string, string> = {
   FL: '1L0', FR: '1R0',
-  RL1: '2L0', RR1: '2R1', RL2: '2L1', RR2: '2R0',
-  RL3: '3L0', RR3: '3R1', RL4: '3L1', RR4: '3R0',
+  RL1: '2L0', RR1: '2R0', RL2: '2L1', RR2: '2R1',
+  RL3: '3L0', RR3: '3R0', RL4: '3L1', RR4: '3R1',
 };
 
 export function mapDbPositions(tyres: Map<string, any>): Map<string, any> {
@@ -219,12 +219,13 @@ const TyreRect = memo(function TyreRect({
   const w = 48, h = 64;
   const color = tyre ? getTyreColor(tyre) : '#9ca3af';
   const condition = String((tyre as any)?.condition || '').toLowerCase();
-  const isCritical = tyre &&
-    (tyre.alert === 'critical_pressure' || tyre.alert === 'critical' ||
-     condition === 'damaged' || condition === 'worn' || (tyre.life_percent ?? 100) < 20);
   const psi = tyre?.psi;
   const treadMm = (tyre as any)?.tread_depth_mm;
   const temp = tyre?.temperature;
+  const isCritical = tyre &&
+    (tyre.alert === 'critical_pressure' || tyre.alert === 'critical' ||
+     condition === 'damaged' || condition === 'worn' || (tyre.life_percent ?? 100) < 20 ||
+     (treadMm != null && treadMm <= 2.5));
 
   return (
     <g
