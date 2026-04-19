@@ -116,6 +116,124 @@ async def finance_dashboard_summary(
     })
 
 
+@router.get("/payment-history", response_model=APIResponse)
+async def payment_history(
+    limit: int = Query(200, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Return a unified chronological list of all payments processed by the finance team."""
+    _require_finance(current_user)
+    from app.models.postgres.fuel_pump import FuelTopUpRequest
+    from app.models.postgres.driver_requests import DriverAdvanceRequest, AdvanceStatusEnum
+    from app.models.postgres.driver import Driver
+    from app.services import fuel_pump_service
+
+    items = []
+
+    # ── 1. Fuel refill payments ──────────────────────────────────────────────
+    fuel_r = await db.execute(
+        select(FuelTopUpRequest)
+        .where(FuelTopUpRequest.status == "paid", FuelTopUpRequest.paid_at.isnot(None))
+        .order_by(FuelTopUpRequest.paid_at.desc())
+        .limit(limit)
+    )
+    fuels = fuel_r.scalars().all()
+    enriched_fuels = await fuel_pump_service.enrich_top_up_requests(db, list(fuels))
+    for f in enriched_fuels:
+        items.append({
+            "type": "FUEL_REFILL",
+            "title": f"Fuel Refill — {f.get('tank_name', 'Tank')}",
+            "subtitle": f.get("branch_name") or "",
+            "amount_rupees": float(f["total_amount"]) if f.get("total_amount") else 0.0,
+            "detail": f"{float(f.get('quantity_litres', 0)):.0f} L",
+            "date": f.get("paid_at") or f.get("created_at"),
+        })
+
+    # ── 2. Trip expense payments ─────────────────────────────────────────────
+    exp_r = await db.execute(
+        select(TripExpense)
+        .where(TripExpense.expense_status == ExpenseStatusEnum.PAID, TripExpense.paid_at.isnot(None))
+        .order_by(TripExpense.paid_at.desc())
+        .limit(limit)
+    )
+    expenses = exp_r.scalars().all()
+    trip_ids_exp = list({e.trip_id for e in expenses if e.trip_id})
+    trips_map_exp: dict = {}
+    if trip_ids_exp:
+        tr_r = await db.execute(select(Trip).where(Trip.id.in_(trip_ids_exp)))
+        trips_map_exp = {t.id: t for t in tr_r.scalars().all()}
+    for e in expenses:
+        trip = trips_map_exp.get(e.trip_id)
+        trip_number = trip.trip_number if trip else str(e.trip_id)
+        driver_name = (trip.driver_name or "Driver") if trip else "Driver"
+        exp_type = getattr(e.expense_type, "value", str(e.expense_type or "EXPENSE"))
+        exp_label = exp_type.replace("_", " ").title()
+        items.append({
+            "type": "TRIP_EXPENSE",
+            "title": f"{exp_label} — {driver_name}",
+            "subtitle": trip_number,
+            "amount_rupees": float(e.amount) / 100 if e.amount else 0.0,
+            "detail": trip_number,
+            "date": e.paid_at.isoformat() if e.paid_at else None,
+        })
+
+    # ── 3. Trip advance payments ─────────────────────────────────────────────
+    adv_trips_r = await db.execute(
+        select(Trip)
+        .where(Trip.advance_paid.is_(True), Trip.advance_paid_at.isnot(None))
+        .order_by(Trip.advance_paid_at.desc())
+        .limit(limit)
+    )
+    adv_trips = adv_trips_r.scalars().all()
+    for t in adv_trips:
+        route = (f"{t.origin} → {t.destination}") if (t.origin and t.destination) else ""
+        items.append({
+            "type": "TRIP_ADVANCE",
+            "title": f"Trip Advance — {t.driver_name or 'Driver'}",
+            "subtitle": t.trip_number or route,
+            "amount_rupees": 1500.0,
+            "detail": route,
+            "date": t.advance_paid_at.isoformat() if t.advance_paid_at else None,
+        })
+
+    # ── 4. Driver advance requests approved ──────────────────────────────────
+    drv_adv_r = await db.execute(
+        select(DriverAdvanceRequest)
+        .where(
+            DriverAdvanceRequest.status == AdvanceStatusEnum.APPROVED,
+            DriverAdvanceRequest.reviewed_at.isnot(None),
+        )
+        .order_by(DriverAdvanceRequest.reviewed_at.desc())
+        .limit(limit)
+    )
+    drv_advs = drv_adv_r.scalars().all()
+    driver_ids = list({d.driver_id for d in drv_advs})
+    drivers_map: dict = {}
+    if driver_ids:
+        dr_r = await db.execute(select(Driver).where(Driver.id.in_(driver_ids)))
+        drivers_map = {d.id: d for d in dr_r.scalars().all()}
+    for d in drv_advs:
+        drv = drivers_map.get(d.driver_id)
+        driver_name = (
+            f"{drv.first_name or ''} {drv.last_name or ''}".strip() if drv else "Driver"
+        )
+        items.append({
+            "type": "DRIVER_ADVANCE",
+            "title": f"Advance Approved — {driver_name}",
+            "subtitle": "Driver advance request",
+            "amount_rupees": float(d.amount) if d.amount else 0.0,
+            "detail": f"₹{float(d.amount):.0f}" if d.amount else "",
+            "date": d.reviewed_at.isoformat() if d.reviewed_at else None,
+        })
+
+    # Sort combined list by date descending
+    items.sort(key=lambda x: x.get("date") or "", reverse=True)
+    items = items[:limit]
+
+    return APIResponse(success=True, data=items, message=f"{len(items)} payment(s) in history")
+
+
 # ─── Salary Payments ───────────────────────────────────────────────────────────
 
 
@@ -1327,6 +1445,56 @@ async def approve_driver_advance_request(
     return APIResponse(success=True, data={"id": adv.id, "status": "APPROVED"})
 
 
+@router.post("/driver-advance-requests/{advance_id}/reject", response_model=APIResponse)
+async def reject_driver_advance_request(
+    advance_id: int,
+    note: Optional[str] = Body(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Finance Manager rejects a driver advance request."""
+    _require_finance(current_user)
+    from app.models.postgres.driver_requests import DriverAdvanceRequest, AdvanceStatusEnum
+    from app.models.postgres.driver import Driver
+    from app.services.notification_service import notification_service
+
+    result = await db.execute(
+        select(DriverAdvanceRequest).where(DriverAdvanceRequest.id == advance_id)
+    )
+    adv = result.scalar_one_or_none()
+    if not adv:
+        raise HTTPException(status_code=404, detail="Advance request not found")
+    if adv.status != AdvanceStatusEnum.PENDING:
+        raise HTTPException(status_code=400, detail="Advance request already processed")
+
+    adv.status = AdvanceStatusEnum.REJECTED
+    adv.reviewed_by = current_user.user_id
+    adv.reviewed_at = datetime.utcnow()
+    adv.review_note = note
+    await db.commit()
+    await db.refresh(adv)
+
+    # Notify driver
+    dr_r = await db.execute(select(Driver).where(Driver.id == adv.driver_id))
+    dr = dr_r.scalar_one_or_none()
+    if dr and dr.user_id:
+        try:
+            await notification_service.send(
+                db,
+                event_type="ADVANCE_REQUEST_REJECTED",
+                title="Advance Request Rejected",
+                body=f"Your advance request of ₹{int(adv.amount)} has been rejected by the Finance Manager.",
+                target_user_ids=[dr.user_id],
+                data={"advance_id": str(adv.id), "amount": str(adv.amount)},
+                urgency="normal",
+                triggered_by=current_user.user_id,
+            )
+        except Exception:
+            pass
+
+    return APIResponse(success=True, data={"id": adv.id, "status": "REJECTED"})
+
+
 @router.get("/pending-advance-trips", response_model=APIResponse)
 async def pending_advance_trips(
     page: int = Query(1, ge=1),
@@ -1344,6 +1512,7 @@ async def pending_advance_trips(
         .where(
             Trip.loaded_image_url.isnot(None),
             Trip.advance_paid == False,
+            Trip.advance_dismissed == False,
             Trip.is_deleted == False,
             Trip.status.notin_([TripStatusEnum.COMPLETED, TripStatusEnum.CANCELLED]),
         )
@@ -1471,4 +1640,35 @@ async def pay_trip_advance(
             "paid_at": trip.advance_paid_at.isoformat() if trip.advance_paid_at else None,
         },
         message=f"Advance of ₹{DRIVER_ADVANCE_AMOUNT} paid successfully",
+    )
+
+
+@router.post("/trips/{trip_id}/reject-advance", response_model=APIResponse)
+async def reject_trip_advance(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Finance Manager dismisses/rejects a pending advance payment for a trip."""
+    _require_finance(current_user)
+    from app.models.postgres.trip import Trip
+
+    trip_res = await db.execute(
+        select(Trip).where(Trip.id == trip_id, Trip.is_deleted == False)
+    )
+    trip = trip_res.scalar_one_or_none()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if trip.advance_paid:
+        raise HTTPException(status_code=400, detail="Advance has already been paid")
+    if trip.advance_dismissed:
+        raise HTTPException(status_code=400, detail="Advance already dismissed")
+
+    trip.advance_dismissed = True
+    await db.commit()
+
+    return APIResponse(
+        success=True,
+        data={"trip_id": trip_id},
+        message="Advance payment dismissed",
     )

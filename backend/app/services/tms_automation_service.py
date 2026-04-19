@@ -16,6 +16,7 @@ SCH-03  Predictive maintenance by odometer             → sch_03_predictive_mai
 SCH-04  Monthly P&L summary                            → sch_04_monthly_pnl()
 SCH-05  Fuel efficiency anomaly detection              → sch_05_fuel_efficiency()
 SCH-06  Stale trip detection                           → sch_06_stale_trips()
+SCH-07  Daily tank low-level alert to fleet_manager    → sch_07_tank_low_level_alert()
 
 EVT-07  Mark overdue invoices (daily cron)             → evt_07_mark_overdue_invoices()
 
@@ -831,6 +832,72 @@ async def sch_06_stale_trips() -> None:
             logger.info(f"SCH-06: {flagged} stale trips detected")
         except Exception as exc:
             logger.error(f"SCH-06: Stale trip detection failed: {exc}", exc_info=True)
+
+
+# ---------------------------------------------------------------------------
+# SCH-07  Daily tank low-level alert (08:00 AM IST every day)
+# ---------------------------------------------------------------------------
+
+TANK_LOW_LEVEL_THRESHOLD_LITRES = 800
+
+
+async def sch_07_tank_low_level_alert() -> None:
+    """
+    Daily check: for every DepotFuelTank with current_stock_litres < 800,
+    send a notification to all fleet_manager users until the tank is refilled.
+    Includes the branch name in the notification.
+    """
+    from app.db.postgres.connection import AsyncSessionLocal
+    from app.models.postgres.fuel_pump import DepotFuelTank
+    from app.models.postgres.user import Branch
+    from app.services.notification_service import notification_service
+
+    async with AsyncSessionLocal() as db:
+        try:
+            q = await db.execute(
+                select(DepotFuelTank).where(
+                    DepotFuelTank.is_deleted.is_(False),
+                    DepotFuelTank.current_stock_litres < TANK_LOW_LEVEL_THRESHOLD_LITRES,
+                )
+            )
+            low_tanks = q.scalars().all()
+
+            for tank in low_tanks:
+                # Resolve branch name
+                branch_name = "Unknown Branch"
+                if tank.branch_id:
+                    branch = await db.get(Branch, tank.branch_id)
+                    if branch:
+                        branch_name = branch.name
+
+                body = (
+                    f"{tank.name} of the Branch: {branch_name} "
+                    f"is low. Please Initiate Refill!"
+                )
+                await notification_service.send(
+                    db,
+                    event_type="TANK_LOW_LEVEL",
+                    title=f"{tank.name} is Low",
+                    body=body,
+                    target_roles=["fleet_manager"],
+                    data={
+                        "tank_id": tank.id,
+                        "tank_name": tank.name,
+                        "branch_name": branch_name,
+                        "current_stock_litres": float(tank.current_stock_litres),
+                        "capacity_litres": float(tank.capacity_litres),
+                    },
+                    urgency="high",
+                )
+                logger.info(
+                    f"SCH-07: Low-level alert sent for tank '{tank.name}' "
+                    f"at branch '{branch_name}' ({tank.current_stock_litres}L remaining)"
+                )
+
+            await db.commit()
+            logger.info(f"SCH-07: Tank low-level check complete — {len(low_tanks)} tank(s) low")
+        except Exception as exc:
+            logger.error(f"SCH-07: Tank low-level alert failed: {exc}", exc_info=True)
 
 
 # ---------------------------------------------------------------------------

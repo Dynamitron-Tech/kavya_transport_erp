@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../providers/vehicles_provider.dart';
@@ -163,6 +164,15 @@ class _TyreVehiclesScreenState extends ConsumerState<TyreVehiclesScreen> {
                         makeModel: [make, model].where((s) => s.isNotEmpty).join(' '),
                         statusLabel: statusLabel,
                         statusColor: statusColor,
+                        onTap: () {
+                          final id = v['id'];
+                          if (id != null) {
+                            context.push('/tyre/vehicle/$id', extra: {
+                              'registration_number': reg,
+                              'axle_wheel_type': v['axle_wheel_type'] ?? '',
+                            });
+                          }
+                        },
                       );
                     },
                   ),
@@ -184,6 +194,7 @@ class _VehicleCard extends StatelessWidget {
   final String makeModel;
   final String statusLabel;
   final Color statusColor;
+  final VoidCallback? onTap;
 
   const _VehicleCard({
     required this.reg,
@@ -193,11 +204,14 @@ class _VehicleCard extends StatelessWidget {
     required this.makeModel,
     required this.statusLabel,
     required this.statusColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: KTColors.surface,
@@ -262,25 +276,9 @@ class _VehicleCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-            ),
-            child: Text(
-              statusLabel,
-              style: TextStyle(
-                color: statusColor,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
         ],
       ),
+    ),
     );
   }
 }

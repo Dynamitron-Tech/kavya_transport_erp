@@ -3,77 +3,48 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../core/theme/kt_text_styles.dart';
 import '../../providers/fleet_dashboard_provider.dart';
+import 'fleet_vehicle_fuel_history_screen.dart';
 
-/// Fetches all market trips and deduplicates by vehicle_registration
-/// to produce a list of unique market vehicles with usage stats.
+/// Fetches all vehicles with ownership_type=MARKET from the vehicles table.
 final marketVehiclesProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiServiceProvider);
-  final res =
-      await api.get('/market-trips', queryParameters: {'limit': 500});
-  List<dynamic> trips = [];
+  final res = await api.get('/vehicles', queryParameters: {
+    'ownership_type': 'MARKET',
+    'limit': 500,
+  });
+  List<dynamic> items = [];
   if (res is Map<String, dynamic>) {
     final data = res['data'];
-    if (data is List) trips = data;
-  }
-
-  // Group by vehicle_registration
-  final Map<String, Map<String, dynamic>> vehicleMap = {};
-  for (final t in trips) {
-    final trip = t as Map<String, dynamic>;
-    final reg = (trip['vehicle_registration'] as String?) ?? 'UNKNOWN';
-    if (!vehicleMap.containsKey(reg)) {
-      vehicleMap[reg] = {
-        'vehicle_registration': reg,
-        'vehicle_type': trip['vehicle_type'] ?? '',
-        'vehicle_make': trip['vehicle_make'] ?? '',
-        'vehicle_model': trip['vehicle_model'] ?? '',
-        'fuel_type': trip['fuel_type'] ?? '',
-        'owner_name': trip['owner_name'] ?? '',
-        'chassis_number': trip['chassis_number'] ?? '',
-        'driver_name': trip['driver_name'] ?? '',
-        'driver_phone': trip['driver_phone'] ?? '',
-        'driver_license': trip['driver_license'] ?? '',
-        'trip_count': 0,
-        'total_client_revenue': 0.0,
-        'total_contractor_cost': 0.0,
-        'statuses': <String>{},
-      };
-    }
-    final v = vehicleMap[reg]!;
-    v['trip_count'] = (v['trip_count'] as int) + 1;
-    v['total_client_revenue'] = (v['total_client_revenue'] as double) +
-        _parseAmount(trip['client_rate']);
-    v['total_contractor_cost'] = (v['total_contractor_cost'] as double) +
-        _parseAmount(trip['contractor_rate']);
-    final statuses = v['statuses'] as Set<String>;
-    if (trip['status'] != null) statuses.add(trip['status'].toString());
-
-    // Update driver info to latest
-    if ((trip['driver_name'] as String?)?.isNotEmpty == true) {
-      v['driver_name'] = trip['driver_name'];
-      v['driver_phone'] = trip['driver_phone'] ?? '';
+    if (data is Map) {
+      items = (data['items'] as List?) ?? [];
+    } else if (data is List) {
+      items = data;
     }
   }
-
-  // Convert sets to strings for display and sort by trip count desc
-  final result = vehicleMap.values.map((v) {
-    final statuses = v['statuses'] as Set<String>;
-    v['status_summary'] = statuses.join(', ');
-    v.remove('statuses');
-    return v;
+  return items.map((v) {
+    final m = v as Map<String, dynamic>;
+    return {
+      'vehicle_registration': m['registration_number'] ?? '',
+      'vehicle_type': m['vehicle_type'] ?? '',
+      'vehicle_make': m['make'] ?? '',
+      'vehicle_model': m['model'] ?? '',
+      'fuel_type': m['fuel_type'] ?? '',
+      'owner_name': m['owner_name'] ?? '',
+      'owner_phone': m['owner_phone'] ?? '',
+      'chassis_number': m['chassis_number'] ?? '',
+      'driver_name': (m['assigned_driver'] as Map?)?['name'] ?? '',
+      'driver_phone': '',
+      'driver_license': '',
+      'status': m['status'] ?? '',
+      'trip_count': 0,
+      'total_client_revenue': 0.0,
+      'total_contractor_cost': 0.0,
+      'status_summary': m['status'] ?? '',
+      'id': m['id'] as int? ?? 0,
+    };
   }).toList();
-
-  result.sort((a, b) =>
-      (b['trip_count'] as int).compareTo(a['trip_count'] as int));
-  return result;
 });
-
-double _parseAmount(dynamic val) {
-  if (val == null) return 0;
-  if (val is num) return val.toDouble();
-  return double.tryParse(val.toString()) ?? 0;
-}
 
 class FleetMarketVehiclesScreen extends ConsumerWidget {
   const FleetMarketVehiclesScreen({super.key});
@@ -126,10 +97,14 @@ class FleetMarketVehiclesScreen extends ConsumerWidget {
           ),
         ),
         data: (vehicles) {
-          final totalTrips = vehicles.fold<int>(
-              0, (sum, v) => sum + (v['trip_count'] as int));
-          final totalRevenue = vehicles.fold<double>(
-              0.0, (sum, v) => sum + (v['total_client_revenue'] as double));
+          final availableCount = vehicles
+              .where((v) => (v['status'] as String?) == 'AVAILABLE')
+              .length;
+          final uniqueOwners = vehicles
+              .map((v) => v['owner_name'] as String?)
+              .where((o) => o != null && o.isNotEmpty)
+              .toSet()
+              .length;
 
           return Column(
             children: [
@@ -143,13 +118,9 @@ class FleetMarketVehiclesScreen extends ConsumerWidget {
                     _StatChip(
                         'Vehicles', '${vehicles.length}', KTColors.info),
                     const SizedBox(width: 8),
-                    _StatChip('Total Trips', '$totalTrips', KTColors.warning),
+                    _StatChip('Available', '$availableCount', KTColors.success),
                     const SizedBox(width: 8),
-                    _StatChip(
-                      'Revenue',
-                      _formatAmt(totalRevenue),
-                      KTColors.success,
-                    ),
+                    _StatChip('Owners', '$uniqueOwners', KTColors.warning),
                   ],
                 ),
               ),
@@ -191,13 +162,6 @@ class FleetMarketVehiclesScreen extends ConsumerWidget {
       ),
     );
   }
-
-  static String _formatAmt(double amt) {
-    if (amt >= 10000000) return '₹${(amt / 10000000).toStringAsFixed(1)}Cr';
-    if (amt >= 100000) return '₹${(amt / 100000).toStringAsFixed(1)}L';
-    if (amt >= 1000) return '₹${(amt / 1000).toStringAsFixed(1)}k';
-    return '₹${amt.toStringAsFixed(0)}';
-  }
 }
 
 // ─── Market Vehicle Card ───────────────────────────────────────────────────────
@@ -220,15 +184,11 @@ class _MarketVehicleCardState extends State<_MarketVehicleCard> {
     final model = (v['vehicle_model'] as String?) ?? '';
     final type = (v['vehicle_type'] as String?) ?? '';
     final fuel = (v['fuel_type'] as String?) ?? '';
-    final driverName = (v['driver_name'] as String?) ?? '—';
-    final driverPhone = (v['driver_phone'] as String?) ?? '';
+    final driverName = (v['driver_name'] as String?) ?? '';
     final ownerName = (v['owner_name'] as String?) ?? '';
-    final tripCount = (v['trip_count'] as int?) ?? 0;
-    final revenue = (v['total_client_revenue'] as double?) ?? 0.0;
-    final cost = (v['total_contractor_cost'] as double?) ?? 0.0;
-    final margin = revenue - cost;
+    final ownerPhone = (v['owner_phone'] as String?) ?? '';
+    final status = (v['status'] as String?) ?? '';
     final chassis = (v['chassis_number'] as String?) ?? '';
-    final dl = (v['driver_license'] as String?) ?? '';
 
     return Container(
       decoration: BoxDecoration(
@@ -290,23 +250,28 @@ class _MarketVehicleCardState extends State<_MarketVehicleCard> {
                       ],
                     ),
                   ),
-                  // Trip count badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: KTColors.info.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '$tripCount trip${tripCount == 1 ? '' : 's'}',
-                      style: KTTextStyles.labelSmall.copyWith(
-                        color: KTColors.info,
-                        fontWeight: FontWeight.w700,
-                        decoration: TextDecoration.none,
+                  // Status badge
+                  if (status.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: status == 'AVAILABLE'
+                            ? KTColors.success.withValues(alpha: 0.12)
+                            : KTColors.warning.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        status,
+                        style: KTTextStyles.labelSmall.copyWith(
+                          color: status == 'AVAILABLE'
+                              ? KTColors.success
+                              : KTColors.warning,
+                          fontWeight: FontWeight.w700,
+                          decoration: TextDecoration.none,
+                        ),
                       ),
                     ),
-                  ),
                   const SizedBox(width: 6),
                   Icon(
                     _expanded
@@ -319,24 +284,31 @@ class _MarketVehicleCardState extends State<_MarketVehicleCard> {
               ),
             ),
           ),
-          // Revenue summary (always visible)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-            child: Row(
-              children: [
-                _AmountBadge(
-                    'Revenue', _fmtAmt(revenue), KTColors.primary),
-                const SizedBox(width: 8),
-                _AmountBadge('Cost', _fmtAmt(cost), KTColors.warning),
-                const SizedBox(width: 8),
-                _AmountBadge(
-                  'Margin',
-                  _fmtAmt(margin),
-                  margin >= 0 ? KTColors.success : KTColors.danger,
-                ),
-              ],
+          // Owner summary (always visible)
+          if (ownerName.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.person_outline_rounded,
+                      size: 14, color: KTColors.textMuted),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      ownerPhone.isNotEmpty
+                          ? '$ownerName · $ownerPhone'
+                          : ownerName,
+                      style: KTTextStyles.bodySmall.copyWith(
+                        color: KTColors.textMuted,
+                        decoration: TextDecoration.none,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
           // Expanded details
           if (_expanded) ...[
             const Divider(height: 1, color: KTColors.borderColor),
@@ -346,14 +318,43 @@ class _MarketVehicleCardState extends State<_MarketVehicleCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (fuel.isNotEmpty) _DetailRow('Fuel Type', fuel),
-                  _DetailRow('Driver', driverName),
-                  if (driverPhone.isNotEmpty)
-                    _DetailRow('Driver Phone', driverPhone),
-                  if (dl.isNotEmpty) _DetailRow('DL Number', dl),
+                  if (driverName.isNotEmpty)
+                    _DetailRow('Driver', driverName),
                   if (ownerName.isNotEmpty)
                     _DetailRow('Owner', ownerName),
+                  if (ownerPhone.isNotEmpty)
+                    _DetailRow('Owner Phone', ownerPhone),
                   if (chassis.isNotEmpty)
                     _DetailRow('Chassis No.', chassis),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        final vehicleId = (widget.vehicle['id'] as int?) ?? 0;
+                        final registration = (widget.vehicle['vehicle_registration'] as String?) ?? '';
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FleetVehicleFuelHistoryScreen(
+                              vehicleId: vehicleId,
+                              registrationNumber: registration,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.history_rounded, size: 16),
+                      label: const Text('History'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: KTColors.primary,
+                        side: const BorderSide(color: KTColors.primary),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        textStyle: KTTextStyles.label.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -363,11 +364,6 @@ class _MarketVehicleCardState extends State<_MarketVehicleCard> {
     );
   }
 
-  static String _fmtAmt(double amt) {
-    if (amt >= 100000) return '₹${(amt / 100000).toStringAsFixed(1)}L';
-    if (amt >= 1000) return '₹${(amt / 1000).toStringAsFixed(1)}k';
-    return '₹${amt.toStringAsFixed(0)}';
-  }
 }
 
 class _StatChip extends StatelessWidget {
@@ -406,54 +402,6 @@ class _StatChip extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AmountBadge extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-
-  const _AmountBadge(this.label, this.value, this.color);
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 9,
-                color: KTColors.textMuted,
-                decoration: TextDecoration.none,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 11,
-                color: color,
-                fontWeight: FontWeight.w700,
-                decoration: TextDecoration.none,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -1,3 +1,10 @@
+/// Returns null for null or empty strings — used to treat "" same as null.
+String? _nonEmpty(dynamic v) {
+  if (v == null) return null;
+  final s = v.toString().trim();
+  return s.isEmpty ? null : s;
+}
+
 /// Fuel tank model matching backend DepotFuelTank schema.
 class FuelTank {
   final int id;
@@ -55,8 +62,8 @@ class FuelTank {
 /// Fuel issue record matching backend FuelIssue schema.
 class FuelIssue {
   final int id;
-  final int tankId;
-  final int vehicleId;
+  final int? tankId;
+  final int? vehicleId;
   final int? driverId;
   final int? tripId;
   final String fuelType;
@@ -78,8 +85,8 @@ class FuelIssue {
 
   FuelIssue({
     required this.id,
-    required this.tankId,
-    required this.vehicleId,
+    this.tankId,
+    this.vehicleId,
     this.driverId,
     this.tripId,
     required this.fuelType,
@@ -102,8 +109,8 @@ class FuelIssue {
   factory FuelIssue.fromJson(Map<String, dynamic> json) {
     return FuelIssue(
       id: json['id'] as int,
-      tankId: json['tank_id'] as int,
-      vehicleId: json['vehicle_id'] as int,
+      tankId: json['tank_id'] as int?,
+      vehicleId: json['vehicle_id'] as int?,
       driverId: json['driver_id'] as int?,
       tripId: json['trip_id'] as int?,
       fuelType: json['fuel_type']?.toString() ?? 'DIESEL',
@@ -119,7 +126,7 @@ class FuelIssue {
       remarks: json['remarks'] as String?,
       isFlagged: json['is_flagged'] as bool? ?? false,
       flagReason: json['flag_reason'] as String?,
-      vehicleRegistration: json['vehicle_registration'] as String?,
+      vehicleRegistration: _nonEmpty(json['vehicle_registration']) ?? _nonEmpty(json['external_vehicle_number']),
       driverName: json['driver_name'] as String?,
       tankName: json['tank_name'] as String?,
       issuerName: json['issuer_name'] as String?,
@@ -180,7 +187,7 @@ class FuelTheftAlert {
           ? _toDouble(json['deviation_pct'])
           : null,
       status: json['status'] as String,
-      vehicleRegistration: json['vehicle_registration'] as String?,
+      vehicleRegistration: _nonEmpty(json['vehicle_registration']) ?? _nonEmpty(json['external_vehicle_number']),
       driverName: json['driver_name'] as String?,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
@@ -198,6 +205,7 @@ class FuelDashboardStats {
   final double monthCost;
   final int openAlerts;
   final List<FuelTank> tanks;
+  final String? branchName;
 
   FuelDashboardStats({
     required this.totalStockLitres,
@@ -207,6 +215,7 @@ class FuelDashboardStats {
     required this.monthCost,
     required this.openAlerts,
     required this.tanks,
+    this.branchName,
   });
 
   factory FuelDashboardStats.fromJson(Map<String, dynamic> json) {
@@ -221,6 +230,7 @@ class FuelDashboardStats {
               ?.map((t) => FuelTank.fromJson(t as Map<String, dynamic>))
               .toList() ??
           [],
+      branchName: json['branch_name'] as String?,
     );
   }
 }

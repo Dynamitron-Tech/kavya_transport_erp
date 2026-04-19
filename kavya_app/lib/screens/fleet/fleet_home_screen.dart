@@ -319,7 +319,73 @@ class FleetHomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
 
-              // ─── Section 4: Recent Activity ──────────────────────────────
+              // ─── Section 4: Pump Management ──────────────────────────────
+              _Section(
+                title: 'Pump Management',
+                icon: Icons.local_gas_station_rounded,
+                child: SizedBox(
+                  height: 110,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _ActionTile(
+                          context: context,
+                          label: 'Branches',
+                          icon: Icons.store_mall_directory_rounded,
+                          color: const Color(0xFF0288D1),
+                          onTap: () => context.push('/fleet/fuel/tanks'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _ActionTile(
+                          context: context,
+                          label: 'Employees',
+                          icon: Icons.badge_rounded,
+                          color: const Color(0xFF00897B),
+                          onTap: () => context.push('/fleet/fuel/employees'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // ─── Section 5: Attendance ────────────────────────────────────
+              _Section(
+                title: 'Attendance',
+                icon: Icons.access_time_rounded,
+                child: SizedBox(
+                  height: 110,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _ActionTile(
+                          context: context,
+                          label: 'Drivers',
+                          icon: Icons.person_rounded,
+                          color: const Color(0xFF5C6BC0),
+                          onTap: () => context.push('/fleet/attendance/drivers'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _ActionTile(
+                          context: context,
+                          label: 'Pump Operators',
+                          icon: Icons.local_gas_station_rounded,
+                          color: const Color(0xFF26A69A),
+                          onTap: () => context.push('/fleet/attendance/pump-operators'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // ─── Section 6: Recent Activity ──────────────────────────────
               _Section(
                 title: 'Recent Activity',
                 icon: Icons.history_rounded,

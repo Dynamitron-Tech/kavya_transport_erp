@@ -1451,7 +1451,7 @@ class _SOSButtonState extends State<_SOSButton> with SingleTickerProviderStateMi
         showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (_) => AlertDialog(
+          builder: (dialogCtx) => AlertDialog(
             backgroundColor: const Color(0xFF1E1B2E),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
@@ -1500,7 +1500,7 @@ class _SOSButtonState extends State<_SOSButton> with SingleTickerProviderStateMi
                   backgroundColor: const Color(0xFFEF4444),
                   foregroundColor: Colors.white,
                 ),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogCtx),
                 child: const Text('OK, I understand'),
               ),
             ],
@@ -1511,7 +1511,7 @@ class _SOSButtonState extends State<_SOSButton> with SingleTickerProviderStateMi
       if (mounted) {
         showDialog(
           context: context,
-          builder: (_) => AlertDialog(
+          builder: (dialogCtx) => AlertDialog(
             backgroundColor: const Color(0xFF1E1B2E),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: const Text('SOS Failed', style: TextStyle(color: Colors.white)),
@@ -1529,7 +1529,7 @@ class _SOSButtonState extends State<_SOSButton> with SingleTickerProviderStateMi
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogCtx),
                 child: const Text('OK', style: TextStyle(color: Color(0xFFEF4444))),
               ),
             ],

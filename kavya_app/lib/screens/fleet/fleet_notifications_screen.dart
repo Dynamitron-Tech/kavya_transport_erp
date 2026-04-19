@@ -16,11 +16,24 @@ final _fleetSosAlertsProvider =
   return [];
 });
 
+final _tankLowAlertsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final res = await api.get('/my-notifications', queryParameters: {
+    'event_type': 'TANK_LOW_LEVEL',
+    'limit': 50,
+  });
+  final data = (res is Map) ? res['data'] : res;
+  if (data is List) return data.cast<Map<String, dynamic>>();
+  return [];
+});
+
 /// Badge count for the fleet AppBar bell icon.
 final fleetNotificationCountProvider =
     FutureProvider.autoDispose<int>((ref) async {
   final sos = await ref.watch(_fleetSosAlertsProvider.future);
-  return sos.length;
+  final tanks = await ref.watch(_tankLowAlertsProvider.future);
+  return sos.length + tanks.where((n) => n['is_read'] == false).length;
 });
 
 // ─── Screen ────────────────────────────────────────────────────────────────────
@@ -31,6 +44,7 @@ class FleetNotificationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sosAsync = ref.watch(_fleetSosAlertsProvider);
+    final tankAsync = ref.watch(_tankLowAlertsProvider);
 
     return Scaffold(
       backgroundColor: KTColors.lightBg,
@@ -53,6 +67,7 @@ class FleetNotificationsScreen extends ConsumerWidget {
             icon: const Icon(Icons.refresh_rounded, color: KTColors.textHeading),
             onPressed: () {
               ref.invalidate(_fleetSosAlertsProvider);
+              ref.invalidate(_tankLowAlertsProvider);
               ref.read(unreadNotificationCountProvider.notifier).state = 0;
             },
           ),
@@ -61,6 +76,7 @@ class FleetNotificationsScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(_fleetSosAlertsProvider);
+          ref.invalidate(_tankLowAlertsProvider);
           ref.read(unreadNotificationCountProvider.notifier).state = 0;
         },
         child: ListView(
@@ -90,6 +106,37 @@ class FleetNotificationsScreen extends ConsumerWidget {
                 );
               },
             ),
+
+            // ── Tank Low Level Alerts ─────────────────────────────────────
+            const SizedBox(height: 20),
+            _SectionHeader(
+              icon: Icons.local_gas_station_rounded,
+              label: 'Tank Low Level Alerts',
+              color: KTColors.warning,
+              asyncValue: tankAsync,
+              countFn: (list) => list
+                  .where((n) => (n)['is_read'] == false)
+                  .length,
+            ),
+            const SizedBox(height: 8),
+            tankAsync.when(
+              loading: () => const _LoadingShimmer(count: 2),
+              error: (e, _) => _ErrorTile(message: e.toString()),
+              data: (alerts) {
+                if (alerts.isEmpty) {
+                  return const _EmptyTile(
+                    message: 'All tanks are sufficiently stocked.',
+                    icon: Icons.water_drop_outlined,
+                    color: KTColors.success,
+                  );
+                }
+                return Column(
+                  children: alerts
+                      .map((a) => _TankLowAlertCard(alert: a))
+                      .toList(),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -104,17 +151,20 @@ class _SectionHeader<T> extends StatelessWidget {
   final String label;
   final Color color;
   final AsyncValue<List<T>> asyncValue;
+  final int Function(List<T>)? countFn;
 
   const _SectionHeader({
     required this.icon,
     required this.label,
     required this.color,
     required this.asyncValue,
+    this.countFn,
   });
 
   @override
   Widget build(BuildContext context) {
-    final count = asyncValue.valueOrNull?.length ?? 0;
+    final items = asyncValue.valueOrNull ?? [];
+    final count = countFn != null ? countFn!(items) : items.length;
     return Row(
       children: [
         Container(
@@ -305,6 +355,146 @@ class _SosAlertCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Tank Low Alert Card ───────────────────────────────────────────────────────
+
+class _TankLowAlertCard extends StatelessWidget {
+  final Map<String, dynamic> alert;
+  const _TankLowAlertCard({required this.alert});
+
+  @override
+  Widget build(BuildContext context) {
+    final data = alert['data'] as Map<String, dynamic>? ?? {};
+    final tankName = data['tank_name'] as String? ?? alert['title'] as String? ?? 'Unknown Tank';
+    final branchName = data['branch_name'] as String?;
+    final currentStock = data['current_stock_litres'];
+    final capacity = data['capacity_litres'];
+    final createdAt = alert['created_at'] as String?;
+    final isRead = alert['is_read'] as bool? ?? true;
+
+    String timeAgo = '';
+    if (createdAt != null) {
+      try {
+        final dt = DateTime.parse(createdAt).toLocal();
+        final diff = DateTime.now().difference(dt);
+        if (diff.inMinutes < 60) {
+          timeAgo = '${diff.inMinutes}m ago';
+        } else if (diff.inHours < 24) {
+          timeAgo = '${diff.inHours}h ago';
+        } else {
+          timeAgo = '${diff.inDays}d ago';
+        }
+      } catch (_) {}
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: KTColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: KTColors.warning.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: KTColors.warning.withValues(alpha: 0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: KTColors.warning.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.local_gas_station_rounded,
+                      color: KTColors.warning, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$tankName is Low',
+                        style: KTTextStyles.label.copyWith(
+                          color: KTColors.warning,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (branchName != null)
+                        Text(
+                          branchName,
+                          style: KTTextStyles.labelSmall
+                              .copyWith(color: KTColors.textMuted),
+                        ),
+                      if (currentStock != null && capacity != null)
+                        Text(
+                          '${currentStock.toStringAsFixed(0)}L / ${capacity.toStringAsFixed(0)}L remaining',
+                          style: KTTextStyles.labelSmall
+                              .copyWith(color: KTColors.textMuted),
+                        ),
+                    ],
+                  ),
+                ),
+                Row(
+                  children: [
+                    if (!isRead)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: const BoxDecoration(
+                          color: KTColors.warning,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    if (timeAgo.isNotEmpty)
+                      Text(
+                        timeAgo,
+                        style: KTTextStyles.labelSmall
+                            .copyWith(color: KTColors.textMuted),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Alert banner
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: KTColors.warning.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                branchName != null
+                    ? '$tankName of the Branch: $branchName is low. Please Initiate Refill!'
+                    : '$tankName is low. Please Initiate Refill!',
+                style: KTTextStyles.labelSmall.copyWith(
+                  color: KTColors.warning,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

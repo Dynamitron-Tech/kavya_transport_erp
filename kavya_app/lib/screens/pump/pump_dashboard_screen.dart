@@ -1,337 +1,785 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/fuel.dart';
+import '../../models/attendance.dart';
 import '../../providers/pump_dashboard_provider.dart';
-import '../../providers/intelligence_provider.dart';
+import '../../providers/attendance_provider.dart';
 import '../../utils/indian_format.dart';
-import 'pump_shift_screen.dart';
 
-/// Pump Operator dashboard — Today's summary, tank gauge, mismatch alerts.
-/// UI: Dark slate, bold amber numbers, industrial high-contrast.
-class PumpDashboardScreen extends ConsumerWidget {
+/// Pump Operator Dashboard — day timeline, attendance, checklist, daily reports.
+class PumpDashboardScreen extends ConsumerStatefulWidget {
   const PumpDashboardScreen({super.key});
 
-  static const _cardColor = Color(0xFFFFFFFF);
+  @override
+  ConsumerState<PumpDashboardScreen> createState() => _PumpDashboardScreenState();
+}
+
+class _PumpDashboardScreenState extends ConsumerState<PumpDashboardScreen> {
   static const _amber = Color(0xFFEA580C);
-  static const _red = Color(0xFFEF4444);
   static const _green = Color(0xFF10B981);
+  static const _red = Color(0xFFEF4444);
+  static const _blue = Color(0xFF3B82F6);
   static const _textPrimary = Color(0xFF0D1B2A);
   static const _textSecondary = Color(0xFF8494A4);
+  static const _cardColor = Color(0xFFFFFFFF);
+
+  final _checklistNotesCtrl = TextEditingController();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final dashAsync = ref.watch(pumpDashboardProvider);
+  void dispose() {
+    _checklistNotesCtrl.dispose();
+    super.dispose();
+  }
 
-    final shiftAsync = ref.watch(activeShiftProvider);
+  @override
+  Widget build(BuildContext context) {
+    final selectedDate = ref.watch(pumpDashboardDateProvider);
+    final dateStr = _fmtDate(selectedDate);
+    final statsAsync = ref.watch(pumpStatsByDateProvider(dateStr));
+    final issuesAsync = ref.watch(pumpFuelIssuesByDateProvider(dateStr));
+    final tanksAsync = ref.watch(fuelTanksProvider);
+    final attendanceAsync = ref.watch(attendanceProvider);
+    final checklist = ref.watch(pumpChecklistProvider);
+    final isToday = _isToday(selectedDate);
 
-    return dashAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: _amber)),
-      error: (e, _) => _errorState(ref, e.toString()),
-      data: (stats) => RefreshIndicator(
-        color: _amber,
-        onRefresh: () async {
-          ref.invalidate(pumpDashboardProvider);
-          ref.invalidate(recentEventsProvider);
-          ref.invalidate(activeShiftProvider);
-        },
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // ─── Shift Banner ───
-            shiftAsync.maybeWhen(
-              data: (shift) => GestureDetector(
-                onTap: () => context.push('/pump/shift'),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: shift == null
-                        ? const Color(0xFFFFE4E4)
-                        : const Color(0xFFEAFAF1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: shift == null ? _red : _green,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        shift == null ? Icons.lock_open_outlined : Icons.lock_outlined,
-                        color: shift == null ? _red : _green,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          shift == null
-                              ? 'No active shift — Tap to open shift'
-                              : 'Shift open since ${shift['started_at']?.toString().substring(11, 16) ?? '--:--'} — Tap to close',
-                          style: TextStyle(
-                            color: shift == null ? _red : _green,
-                            fontWeight: FontWeight.w600,
+    return RefreshIndicator(
+      color: _amber,
+      onRefresh: () async {
+        ref.invalidate(pumpStatsByDateProvider(dateStr));
+        ref.invalidate(pumpFuelIssuesByDateProvider(dateStr));
+        ref.invalidate(fuelTanksProvider);
+        ref.invalidate(attendanceProvider);
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        children: [
+          // ─── Day Timeline ───
+          _buildTimelineRow(selectedDate),
+          const SizedBox(height: 16),
+
+          // ─── Attendance card (today only) ───
+          if (isToday) ...[
+            attendanceAsync.when(
+              data: (att) => _buildAttendanceCard(att),
+              loading: () => _shimmer(148),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // ─── Checklist (today only) ───
+          if (isToday) ...[
+            _buildChecklist(checklist),
+            const SizedBox(height: 20),
+          ],
+
+          // ─── Quick Actions (today only) ───
+          if (isToday) ...[
+            Row(
+              children: [
+                _actionChip(Icons.price_change_outlined, 'Update Rate', () {
+                  showModalBottomSheet(
+                    context: context,
+                    backgroundColor: Colors.transparent,
+                    isScrollControlled: true,
+                    builder: (_) => const _UpdateRateSheet(),
+                  );
+                }),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // ─── Daily KPI Summary ───
+          _section(isToday ? 'Today\'s Summary' : 'Summary — ${_displayDate(selectedDate)}'),
+          const SizedBox(height: 10),
+          ref.watch(pumpDashboardProvider).maybeWhen(
+            data: (dash) => dash.branchName != null
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on_rounded, size: 14, color: _amber),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            dash.branchName!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _amber,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+            orElse: () => const SizedBox.shrink(),
+          ),
+          statsAsync.when(
+            data: (s) => _kpiRow(s),
+            loading: () => _shimmer(88),
+            error: (_, __) => _errorTile('Failed to load stats'),
+          ),
+          const SizedBox(height: 20),
+
+          // ─── Tank Levels ───
+          _section('Tank Levels'),
+          const SizedBox(height: 10),
+          tanksAsync.when(
+            data: (tanks) => tanks.isEmpty
+                ? _emptyCard('No fuel tanks configured')
+                : Column(children: tanks.map(_tankGauge).toList()),
+            loading: () => _shimmer(100),
+            error: (_, __) => _errorTile('Failed to load tanks'),
+          ),
+          const SizedBox(height: 20),
+
+          // ─── Fuel Log for this day ───
+          _section('Fuel Log'),
+          const SizedBox(height: 10),
+          issuesAsync.when(
+            data: (issues) => issues.isEmpty
+                ? _emptyCard('No fuel entries for this day')
+                : Column(children: issues.take(15).map(_issueCard).toList()),
+            loading: () => _shimmer(120),
+            error: (_, __) => _errorTile('Failed to load fuel log'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Day Timeline
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildTimelineRow(DateTime selected) {
+    final today = DateTime.now();
+    final days = List.generate(7, (i) => today.subtract(Duration(days: 6 - i)));
+
+    return SizedBox(
+      height: 68,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: days.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (_, i) {
+          final d = days[i];
+          final isSel = _fmtDate(d) == _fmtDate(selected);
+          final isT = _isToday(d);
+          return GestureDetector(
+            onTap: () => ref.read(pumpDashboardDateProvider.notifier).state = d,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 46,
+              decoration: BoxDecoration(
+                color: isSel ? _amber : _cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSel ? _amber : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(_weekday(d),
+                      style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: isSel ? Colors.white : _textSecondary)),
+                  const SizedBox(height: 3),
+                  Text('${d.day}',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: isSel ? Colors.white : _textPrimary)),
+                  if (isT)
+                    Container(
+                      margin: const EdgeInsets.only(top: 3),
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: isSel ? Colors.white : _amber,
+                        shape: BoxShape.circle,
                       ),
-                      Icon(Icons.chevron_right, color: shift == null ? _red : _green, size: 18),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Attendance Card (driver-style, amber theme)
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildAttendanceCard(Attendance? att) {
+    final isCheckedIn = att?.checkInTime != null;
+    final now = DateTime.now();
+    final dateLabel =
+        '${now.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][now.month - 1]} ${now.year}';
+
+    String checkInDisplay = '--:--';
+    if (att?.checkInTime != null) {
+      try {
+        final dt = DateTime.parse(att!.checkInTime!);
+        checkInDisplay = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      } catch (_) {
+        checkInDisplay = att!.checkInTime!;
+      }
+    }
+
+    final isLate = att?.status == 'late';
+    final statusColor = isCheckedIn
+        ? (isLate ? const Color(0xFFF59E0B) : _green)
+        : _textSecondary;
+    final statusLabel = isCheckedIn
+        ? (isLate ? 'Late' : 'Present')
+        : 'Not Checked In';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isCheckedIn ? const Color(0xFFEAFAF1) : _cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isCheckedIn
+              ? _green.withValues(alpha: 0.4)
+              : const Color(0xFFE2E8F0),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Header row ──
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                  ),
+                  child: Icon(
+                    isCheckedIn ? Icons.how_to_reg_rounded : Icons.fingerprint_rounded,
+                    color: statusColor,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Attendance',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: _amber,
+                        ),
+                      ),
+                      Text(
+                        dateLabel,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: _textSecondary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ),
-              orElse: () => const SizedBox.shrink(),
+                // Status badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        statusLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            // ─── Quick Actions ───
-            Row(
-              children: [
-                Expanded(
-                  child: _actionButton(
-                    context: context,
-                    icon: Icons.price_change_outlined,
-                    label: 'Update Rate',
-                    onTap: () => showModalBottomSheet(
-                      context: context,
-                      backgroundColor: Colors.transparent,
-                      isScrollControlled: true,
-                      builder: (_) => const _UpdateRateSheet(),
+
+            const SizedBox(height: 16),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
+            const SizedBox(height: 16),
+
+            if (isCheckedIn) ...[  
+              // ── Checked-in details ──
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _green.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: _green.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.login_rounded, color: _green, size: 16),
+                          const SizedBox(height: 4),
+                          const Text('Check-in Time',
+                              style: TextStyle(fontSize: 10, color: _textSecondary)),
+                          const SizedBox(height: 2),
+                          Text(checkInDisplay,
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: _green)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: statusColor.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.verified_user_outlined, color: statusColor, size: 16),
+                          const SizedBox(height: 4),
+                          const Text('Status',
+                              style: TextStyle(fontSize: 10, color: _textSecondary)),
+                          const SizedBox(height: 2),
+                          Text((att?.status ?? 'present').toUpperCase(),
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: statusColor)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (att?.checkInPhotoUrl != null) ...[  
+                    const SizedBox(width: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.memory(
+                        base64Decode(
+                          att!.checkInPhotoUrl!.contains(',')
+                              ? att.checkInPhotoUrl!.split(',')[1]
+                              : att.checkInPhotoUrl!,
+                        ),
+                        width: 52,
+                        height: 52,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.photo,
+                              color: _textSecondary, size: 20),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ] else ...[  
+              // ── Not checked in — CTA ──
+              const Row(
+                children: [
+                  Icon(Icons.info_outline, color: _textSecondary, size: 16),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Take a selfie to mark your attendance for today.',
+                      style: TextStyle(fontSize: 12, color: _textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _startCheckIn,
+                  icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                  label: const Text('Mark Attendance'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _amber,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _actionButton(
-                    context: context,
-                    icon: Icons.local_shipping_outlined,
-                    label: 'Refill Tank',
-                    onTap: () => context.push('/pump/refill'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _actionButton(
-                    context: context,
-                    icon: Icons.add_circle_outline,
-                    label: 'Create Tank',
-                    onTap: () => context.push('/pump/create-tank'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // ─── KPI Row ───
-            _sectionTitle('Today\'s Fuel Summary'),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _kpiCard(
-                  icon: Icons.local_gas_station,
-                  label: 'Litres Dispensed',
-                  value: IndianFormat.litres(stats.todayIssuedLitres),
-                  color: _amber,
-                ),
-                const SizedBox(width: 12),
-                _kpiCard(
-                  icon: Icons.directions_car,
-                  label: 'Vehicles Fuelled',
-                  value: '${stats.todayIssuedCount}',
-                  color: _green,
-                ),
-                const SizedBox(width: 12),
-                _kpiCard(
-                  icon: Icons.warning_amber_rounded,
-                  label: 'Mismatch Alerts',
-                  value: '${stats.openAlerts}',
-                  color: stats.openAlerts > 0 ? _red : _green,
-                ),
-              ],
-            ),
-            const SizedBox(height: 28),
-
-            // ─── Tank Level Gauges ───
-            _sectionTitle('Tank Levels'),
-            const SizedBox(height: 12),
-            if (stats.tanks.isEmpty)
-              _emptyCard('No fuel tanks configured')
-            else
-              ...stats.tanks.map(_tankGauge),
-
-            const SizedBox(height: 28),
-
-            // ─── Alerts ───
-            _sectionTitle('Mismatch Alerts'),
-            const SizedBox(height: 12),
-            _alertsList(ref),
-
-            const SizedBox(height: 28),
-
-            // ─── Today's Log ───
-            _sectionTitle('Today\'s Fuel Log'),
-            const SizedBox(height: 12),
-            _todayLog(ref),
-
-            const SizedBox(height: 28),
-
-            // ─── Fuel Intelligence ───
-            _fuelIntelligenceSection(ref),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
-        color: _textPrimary,
-        letterSpacing: 0.3,
-      ),
-    );
-  }
-
-  Widget _actionButton({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: _cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _amber.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: _amber, size: 26),
-            const SizedBox(height: 6),
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w600, color: _textPrimary)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _kpiCard({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: _cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: color,
-                fontFamily: 'JetBrains Mono',
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: _textSecondary),
-            ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _tankGauge(FuelTank tank) {
-    final pct = tank.stockPercent;
-    final isLow = pct < 20;
-    final barColor = isLow ? _red : (pct < 50 ? _amber : _green);
+  Future<void> _startCheckIn() async {
+    final notifier = ref.read(attendanceProvider.notifier);
+    final picker = ImagePicker();
+    final photo = await picker.pickImage(
+      source: ImageSource.camera,
+      preferredCameraDevice: CameraDevice.front,
+      imageQuality: 60,
+      maxWidth: 800,
+    );
+    if (photo == null || !mounted) return;
+    final bytes = await File(photo.path).readAsBytes();
+    final b64 = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+    final pos = await notifier.getLocation();
+    if (!mounted) return;
+    final msg = await notifier.checkIn(
+      photoDataUrl: b64,
+      lat: pos?.latitude,
+      lng: pos?.longitude,
+    );
+    if (!mounted) return;
+    if (msg != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: _green),
+      );
+    } else {
+      // Show error from state if available
+      final attState = ref.read(attendanceProvider);
+      final errMsg = attState.hasError
+          ? attState.error.toString().replaceAll('Exception: ', '')
+          : 'Attendance check-in failed. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errMsg),
+          backgroundColor: _red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      // Reset to data(null) so the card is visible again
+      ref.invalidate(attendanceProvider);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Checklist Card (driver-style)
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildChecklist(Set<String> done) {
+    final total = kPumpChecklistItems.length;
+    final completedCount = done.length;
+    final progress = total > 0 ? completedCount / total : 0.0;
+    final allDone = completedCount >= total;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Progress card ──
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF7F9FC),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Items Completed',
+                      style: TextStyle(fontSize: 13, color: _textSecondary)),
+                  Text(
+                    '$completedCount/$total (${(progress * 100).toStringAsFixed(0)}%)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: allDone ? _green : _amber,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 8,
+                  backgroundColor: const Color(0xFFE2E8F0),
+                  valueColor: AlwaysStoppedAnimation<Color>(allDone ? _green : _amber),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // ── Item tiles ──
+        ...kPumpChecklistItems.map((item) => _checklistItemTile(item, done)),
+
+        if (!allDone) ...[  
+          const SizedBox(height: 10),
+          Text(
+            'Complete all items to unlock the Log tab',
+            style: TextStyle(fontSize: 11, color: _amber.withValues(alpha: 0.7)),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _checklistItemTile(String item, Set<String> done) {
+    final isDone = done.contains(item);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: _cardColor,
+        color: isDone ? _green.withValues(alpha: 0.07) : const Color(0xFFF7F9FC),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDone
+              ? _green.withValues(alpha: 0.4)
+              : const Color(0xFFE2E8F0),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+            child: Row(
+              children: [
+                // Label
+                Expanded(
+                  child: Text(
+                    item,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: isDone ? _textSecondary : _textPrimary,
+                      decoration:
+                          isDone ? TextDecoration.lineThrough : null,
+                      decorationColor: _textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // DONE button
+                GestureDetector(
+                    onTap: () {
+                            final notifier =
+                                ref.read(pumpChecklistProvider.notifier);
+                            if (isDone) {
+                              notifier.unmark(item);
+                            } else {
+                              notifier.markDone(item);
+                            }
+                          },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isDone
+                            ? _green.withValues(alpha: 0.15)
+                            : _red.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isDone ? _green : _red,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isDone
+                                ? Icons.check_rounded
+                                : Icons.close_rounded,
+                            size: 15,
+                            color: isDone ? _green : _red,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'DONE',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: isDone ? _green : _red,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ),
+              ],
+            ),
+          ),
+
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Quick action chips
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _actionChip(IconData icon, String label, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _amber.withValues(alpha: 0.3)),
+          ),
+          child: Column(
             children: [
-              Text(
-                tank.name,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: _textPrimary,
-                ),
-              ),
-              if (isLow)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: _red.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.warning, color: _red, size: 14),
-                      SizedBox(width: 4),
-                      Text('LOW FUEL', style: TextStyle(color: _red, fontSize: 11, fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                ),
+              Icon(icon, color: _amber, size: 24),
+              const SizedBox(height: 6),
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600, color: _textPrimary)),
             ],
           ),
-          const SizedBox(height: 12),
-          // Tank fill bar
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // KPI Row
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _kpiRow(Map<String, dynamic> s) {
+    return Row(
+      children: [
+        _kpi(Icons.local_gas_station, IndianFormat.litres(s['total_litres'] as double), 'Litres', _amber),
+        const SizedBox(width: 8),
+        _kpi(Icons.directions_car, '${s['vehicle_count']}', 'Vehicles', _green),
+        const SizedBox(width: 8),
+        _kpi(Icons.currency_rupee, IndianFormat.currencyCompact(s['total_cost'] as double), 'Cost', _blue),
+      ],
+    );
+  }
+
+  Widget _kpi(IconData icon, String value, String label, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+        decoration: BoxDecoration(
+          color: _cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 6),
+            Text(value,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: color),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 2),
+            Text(label,
+                style: const TextStyle(fontSize: 10, color: _textSecondary),
+                textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Tank Gauge
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _tankGauge(FuelTank t) {
+    final pct = t.stockPercent / 100;
+    final color = pct < 0.25 ? _red : pct < 0.5 ? _amber : _green;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(t.name,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: _textPrimary)),
+          const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
-              value: pct / 100,
-              minHeight: 24,
-              backgroundColor: const Color(0xFFE8EEF4),
-              color: barColor,
+              value: pct.clamp(0.0, 1.0),
+              backgroundColor: const Color(0xFFE2E8F0),
+              valueColor: AlwaysStoppedAnimation(color),
+              minHeight: 10,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${tank.currentStockLitres.toStringAsFixed(0)} L',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: barColor,
-                  fontFamily: 'JetBrains Mono',
-                ),
-              ),
-              Text(
-                '${pct.toStringAsFixed(1)}% of ${tank.capacityLitres.toStringAsFixed(0)} L',
-                style: const TextStyle(fontSize: 13, color: _textSecondary),
-              ),
+              Text('${t.currentStockLitres.toStringAsFixed(0)} L',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: color)),
+              Text('${t.stockPercent.toStringAsFixed(1)}% of ${t.capacityLitres.toStringAsFixed(0)} L',
+                  style: const TextStyle(fontSize: 12, color: _textSecondary)),
             ],
           ),
         ],
@@ -339,325 +787,131 @@ class PumpDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _alertsList(WidgetRef ref) {
-    final alertsAsync = ref.watch(fuelAlertsProvider);
-    return alertsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: _amber)),
-      error: (e, _) => _emptyCard('Failed to load alerts'),
-      data: (alerts) {
-        if (alerts.isEmpty) {
-          return _emptyCard('No mismatch alerts — all clear');
-        }
-        return Column(
-          children: alerts.map((a) => _alertCard(a)).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _alertCard(FuelTheftAlert alert) {
-    final isCritical = alert.severity == 'critical';
-    final color = isCritical ? _red : _amber;
-
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Issue Card
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _issueCard(FuelIssue i) {
+    final time = i.issuedAt.toLocal();
+    final timeStr = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: _cardColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: i.isFlagged ? _red.withValues(alpha: 0.3) : const Color(0xFFE2E8F0),
+        ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 10,
-            height: 10,
-            margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: (i.isFlagged ? _red : _amber).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              i.isFlagged ? Icons.warning_amber_rounded : Icons.local_gas_station_rounded,
+              color: i.isFlagged ? _red : _amber,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${alert.vehicleRegistration ?? 'Vehicle #${alert.vehicleId}'} · ${alert.alertType.replaceAll('_', ' ').toUpperCase()}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  alert.description,
-                  style: const TextStyle(fontSize: 12, color: _textSecondary),
-                ),
-                if (alert.createdAt != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      IndianFormat.relativeTime(alert.createdAt!),
-                      style: const TextStyle(fontSize: 11, color: _textSecondary),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _todayLog(WidgetRef ref) {
-    final logAsync = ref.watch(todayFuelIssuesProvider);
-    return logAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: _amber)),
-      error: (e, _) => _emptyCard('Failed to load today\'s log'),
-      data: (issues) {
-        if (issues.isEmpty) {
-          return _emptyCard('No fuel dispensed today');
-        }
-        return Column(
-          children: issues.map((i) => _logEntry(i)).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _logEntry(FuelIssue issue) {
-    final matchColor = issue.isFlagged ? _red : _green;
-    final matchLabel = issue.isFlagged ? 'MISMATCH' : 'Matched';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: _cardColor,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          // Vehicle & Driver
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  issue.vehicleRegistration ?? 'Vehicle #${issue.vehicleId}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: _textPrimary,
-                  ),
-                ),
-                if (issue.driverName != null)
-                  Text(
-                    issue.driverName!,
-                    style: const TextStyle(fontSize: 12, color: _textSecondary),
-                  ),
-              ],
-            ),
-          ),
-          // Litres
-          Expanded(
-            flex: 2,
-            child: Text(
-              '${issue.quantityLitres.toStringAsFixed(1)} L',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: _amber,
-                fontFamily: 'JetBrains Mono',
-              ),
-            ),
-          ),
-          // Time
-          Expanded(
-            flex: 2,
-            child: Text(
-              IndianFormat.time(issue.issuedAt),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: _textSecondary),
-            ),
-          ),
-          // Match status
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: matchColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              matchLabel,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: matchColor),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _fuelIntelligenceSection(WidgetRef ref) {
-    final eventsAsync = ref.watch(recentEventsProvider);
-    return eventsAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (events) {
-        final fuelEvents = events
-            .where((e) =>
-                (e['event_type'] ?? '').toString().toLowerCase().contains('fuel') ||
-                (e['event_type'] ?? '').toString().toLowerCase().contains('mismatch'))
-            .toList();
-        if (fuelEvents.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _sectionTitle('Fuel Intelligence'),
-            const SizedBox(height: 12),
-            ...fuelEvents.take(5).map((e) => _fuelIntelCard(e as Map<String, dynamic>)),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _fuelIntelCard(Map<String, dynamic> event) {
-    final payload = event['payload'] as Map<String, dynamic>? ?? {};
-    final severity = payload['severity']?.toString() ?? '';
-    final isCritical = severity == 'critical';
-    final color = isCritical ? _red : _amber;
-    final description = payload['description'] ??
-        payload['reason'] ??
-        (event['event_type'] ?? '').toString().replaceAll('_', ' ');
-    final entityId = event['entity_id']?.toString() ?? '';
-    final time = event['triggered_at'] as String?;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            isCritical ? Icons.local_fire_department : Icons.analytics,
-            color: color,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  description.toString(),
-                  style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w700),
-                ),
+                Text(i.vehicleRegistration ?? 'Vehicle #${i.vehicleId}',
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w700, color: _textPrimary)),
                 const SizedBox(height: 2),
-                if (entityId.isNotEmpty)
-                  Text(
-                    'Fuel Issue #$entityId',
-                    style: const TextStyle(color: _textSecondary, fontSize: 11),
-                  ),
-                if (time != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      IndianFormat.relativeTime(DateTime.tryParse(time) ?? DateTime.now()),
-                      style: const TextStyle(color: _textSecondary, fontSize: 10),
-                    ),
-                  ),
+                Text('${i.quantityLitres.toStringAsFixed(1)} L  •  ${IndianFormat.currency(i.totalAmount)}',
+                    style: const TextStyle(fontSize: 12, color: _textSecondary)),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              isCritical ? 'CRITICAL' : 'ALERT',
-              style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700),
-            ),
-          ),
+          Text(timeStr,
+              style: const TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w600, color: _textSecondary)),
         ],
       ),
     );
   }
 
-  Widget _emptyCard(String message) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: _cardColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: Text(
-          message,
-          style: const TextStyle(fontSize: 13, color: _textSecondary),
-        ),
-      ),
-    );
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Helpers
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _section(String t) => Text(t,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _textPrimary));
+
+  Widget _emptyCard(String msg) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+            color: _cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0))),
+        child: Center(child: Text(msg, style: const TextStyle(fontSize: 13, color: _textSecondary))),
+      );
+
+  Widget _errorTile(String msg) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: _red.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(10)),
+        child: Text(msg, style: const TextStyle(color: _red, fontSize: 13)),
+      );
+
+  Widget _shimmer(double h) => Container(
+        height: h,
+        decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(12)),
+      );
+
+  String _fmtDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  String _displayDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
+  bool _isToday(DateTime d) {
+    final n = DateTime.now();
+    return d.year == n.year && d.month == n.month && d.day == n.day;
   }
 
-  Widget _errorState(WidgetRef ref, String error) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, color: _red, size: 48),
-          const SizedBox(height: 16),
-          const Text(
-            'Failed to load dashboard',
-            style: TextStyle(color: _textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(error, style: const TextStyle(color: _textSecondary, fontSize: 12)),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _amber),
-            onPressed: () => ref.invalidate(pumpDashboardProvider),
-            child: const Text('Retry', style: TextStyle(color: Colors.black)),
-          ),
-        ],
-      ),
-    );
-  }
+  String _weekday(DateTime d) => const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d.weekday - 1];
 }
 
 // ---------------------------------------------------------------------------
 // Update Rate Bottom Sheet
 // ---------------------------------------------------------------------------
 
-class _UpdateRateSheet extends StatefulWidget {
+class _UpdateRateSheet extends ConsumerStatefulWidget {
   const _UpdateRateSheet();
 
   @override
-  State<_UpdateRateSheet> createState() => _UpdateRateSheetState();
+  ConsumerState<_UpdateRateSheet> createState() => _UpdateRateSheetState();
 }
 
-class _UpdateRateSheetState extends State<_UpdateRateSheet> {
+class _UpdateRateSheetState extends ConsumerState<_UpdateRateSheet> {
   static const _bg = Color(0xFFF7F9FC);
   static const _card = Color(0xFFFFFFFF);
   static const _amber = Color(0xFFEA580C);
+  static const _petrolColor = Color(0xFF10B981);
   static const _textPrimary = Color(0xFF0D1B2A);
   static const _textSecondary = Color(0xFF8494A4);
 
-  final _rateCtrl = TextEditingController(text: '93.21');
+  final _dieselCtrl = TextEditingController();
+  final _petrolCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final currentDiesel = ref.read(pumpRatePerLitreProvider);
+    _dieselCtrl.text = currentDiesel.toStringAsFixed(2);
+    final currentPetrol = ref.read(pumpPetrolRatePerLitreProvider);
+    _petrolCtrl.text = currentPetrol.toStringAsFixed(2);
+  }
 
   @override
   void dispose() {
-    _rateCtrl.dispose();
+    _dieselCtrl.dispose();
+    _petrolCtrl.dispose();
     super.dispose();
   }
 
@@ -692,8 +946,19 @@ class _UpdateRateSheetState extends State<_UpdateRateSheet> {
             const Text('Set the current rate per litre for new dispensing entries',
                 style: TextStyle(fontSize: 13, color: _textSecondary)),
             const SizedBox(height: 20),
+            // ── Diesel ──
+            Row(children: [
+              Container(
+                width: 10, height: 10,
+                decoration: const BoxDecoration(color: _amber, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 6),
+              const Text('Diesel',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _textPrimary)),
+            ]),
+            const SizedBox(height: 8),
             TextFormField(
-              controller: _rateCtrl,
+              controller: _dieselCtrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
               autofocus: true,
@@ -719,22 +984,65 @@ class _UpdateRateSheetState extends State<_UpdateRateSheet> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+            // ── Petrol ──
+            Row(children: [
+              Container(
+                width: 10, height: 10,
+                decoration: const BoxDecoration(color: _petrolColor, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 6),
+              const Text('Petrol',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _textPrimary)),
+            ]),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _petrolCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+              style: const TextStyle(color: _textPrimary, fontSize: 22, fontWeight: FontWeight.w700),
+              decoration: InputDecoration(
+                hintText: 'e.g. 104.00',
+                hintStyle: const TextStyle(color: _textSecondary),
+                prefixText: '₹ ',
+                prefixStyle: const TextStyle(
+                    color: _petrolColor, fontWeight: FontWeight.w700, fontSize: 22),
+                suffixText: '/L',
+                suffixStyle: const TextStyle(color: _textSecondary, fontSize: 16),
+                filled: true,
+                fillColor: _card,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: _petrolColor, width: 2),
+                ),
+              ),
+            ),
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  final rate = double.tryParse(_rateCtrl.text);
-                  if (rate == null || rate <= 0) {
+                  final dieselRate = double.tryParse(_dieselCtrl.text);
+                  final petrolRate = double.tryParse(_petrolCtrl.text);
+                  if (dieselRate == null || dieselRate <= 0 ||
+                      petrolRate == null || petrolRate <= 0) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Enter a valid rate'), backgroundColor: Color(0xFFEF4444)),
+                      const SnackBar(content: Text('Enter valid rates for both Diesel and Petrol'), backgroundColor: Color(0xFFEF4444)),
                     );
                     return;
                   }
+                  ref.read(pumpRatePerLitreProvider.notifier).state = dieselRate;
+                  ref.read(pumpPetrolRatePerLitreProvider.notifier).state = petrolRate;
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Rate updated to ₹${rate.toStringAsFixed(2)}/L'),
+                      content: Text(
+                          'Diesel ₹${dieselRate.toStringAsFixed(2)}/L · Petrol ₹${petrolRate.toStringAsFixed(2)}/L'),
                       backgroundColor: const Color(0xFF10B981),
                     ),
                   );
@@ -746,7 +1054,7 @@ class _UpdateRateSheetState extends State<_UpdateRateSheet> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
-                child: const Text('Save Rate'),
+                child: const Text('Save Rates'),
               ),
             ),
           ],

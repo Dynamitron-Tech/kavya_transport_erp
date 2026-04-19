@@ -5,6 +5,28 @@ from datetime import datetime
 from decimal import Decimal
 
 
+# --- Depot Fuel Pump ---
+class DepotFuelPumpCreate(BaseModel):
+    name: str = Field(..., max_length=100)
+    pump_number: Optional[str] = None
+    tank_id: Optional[int] = None
+    branch_id: Optional[int] = None
+
+
+class DepotFuelPumpResponse(BaseModel):
+    id: int
+    name: str
+    pump_number: Optional[str] = None
+    booth_number: Optional[str] = None
+    fuel_type: Optional[str] = None
+    is_active: bool
+    tank_id: Optional[int] = None
+    secondary_tank_id: Optional[int] = None
+    branch_id: Optional[int] = None
+
+    model_config = {"from_attributes": True}
+
+
 # --- Depot Fuel Tank ---
 class DepotFuelTankCreate(BaseModel):
     name: str = Field(..., max_length=100)
@@ -43,14 +65,15 @@ class DepotFuelTankResponse(BaseModel):
 
 # --- Fuel Issue ---
 class FuelIssueCreate(BaseModel):
-    tank_id: int
-    vehicle_id: int
+    tank_id: Optional[int] = None
+    pump_id: Optional[int] = None
+    vehicle_id: Optional[int] = None
+    external_vehicle_number: Optional[str] = None  # for non-company vehicles
     driver_id: Optional[int] = None
     trip_id: Optional[int] = None
     fuel_type: str = "diesel"
     quantity_litres: Decimal = Field(..., gt=0)
     rate_per_litre: Decimal = Field(..., gt=0)
-    odometer_reading: Optional[Decimal] = None
     issued_at: datetime
     receipt_number: Optional[str] = None
     remarks: Optional[str] = None
@@ -58,8 +81,9 @@ class FuelIssueCreate(BaseModel):
 
 class FuelIssueResponse(BaseModel):
     id: int
-    tank_id: int
-    vehicle_id: int
+    tank_id: Optional[int] = None
+    vehicle_id: Optional[int] = None
+    external_vehicle_number: Optional[str] = None
     driver_id: Optional[int] = None
     trip_id: Optional[int] = None
     fuel_type: str
@@ -145,6 +169,34 @@ class FuelTheftAlertResolve(BaseModel):
     resolution_notes: Optional[str] = None
 
 
+# --- Top-Up Requests ---
+class FuelTopUpRequestCreate(BaseModel):
+    tank_id: int
+    quantity_litres: Decimal = Field(..., gt=0)
+    total_amount: Optional[Decimal] = None
+    remarks: Optional[str] = None
+
+
+class FuelTopUpRequestResponse(BaseModel):
+    id: int
+    tank_id: int
+    branch_id: Optional[int] = None
+    quantity_litres: Decimal
+    total_amount: Optional[Decimal] = None
+    remarks: Optional[str] = None
+    status: str
+    created_by: int
+    created_at: Optional[datetime] = None
+    paid_by: Optional[int] = None
+    paid_at: Optional[datetime] = None
+
+    tank_name: Optional[str] = None
+    branch_name: Optional[str] = None
+    creator_name: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
 # --- Dashboard / Reports ---
 class FuelDashboardStats(BaseModel):
     total_stock_litres: Decimal = Decimal("0")
@@ -154,3 +206,4 @@ class FuelDashboardStats(BaseModel):
     month_cost: Decimal = Decimal("0")
     open_alerts: int = 0
     tanks: List[DepotFuelTankResponse] = []
+    branch_name: Optional[str] = None

@@ -18,6 +18,7 @@ router = APIRouter()
 @router.get("", response_model=APIResponse)
 async def list_notifications(
     unread_only: bool = Query(False),
+    event_type: str | None = Query(None, description="Filter by event_type, e.g. TANK_LOW_LEVEL"),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
@@ -31,6 +32,8 @@ async def list_notifications(
     )
     if unread_only:
         stmt = stmt.where(Notification.is_read.is_(False))
+    if event_type:
+        stmt = stmt.where(Notification.event_type == event_type)
 
     result = await db.execute(stmt)
     notifications = result.scalars().all()

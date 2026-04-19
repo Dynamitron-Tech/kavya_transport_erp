@@ -9,12 +9,12 @@ from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.postgres.fuel_pump import (
-    DepotFuelTank, FuelIssue, FuelStockTransaction, FuelTheftAlert,
-    FuelType, TransactionType, TheftAlertStatus,
+    DepotFuelTank, DepotFuelPump, FuelIssue, FuelStockTransaction, FuelTheftAlert,
+    FuelTopUpRequest, FuelType, TransactionType, TheftAlertStatus,
 )
 from app.models.postgres.vehicle import Vehicle
 from app.models.postgres.driver import Driver
-from app.models.postgres.user import User
+from app.models.postgres.user import User, Branch
 from app.schemas.fuel_pump import (
     DepotFuelTankCreate, DepotFuelTankUpdate, FuelIssueCreate,
     FuelStockTransactionCreate, FuelTheftAlertResolve,
@@ -44,10 +44,12 @@ async def create_tank(db: AsyncSession, data: DepotFuelTankCreate, tenant_id: Op
     return tank
 
 
-async def get_tanks(db: AsyncSession, tenant_id: Optional[int] = None) -> List[DepotFuelTank]:
+async def get_tanks(db: AsyncSession, tenant_id: Optional[int] = None, branch_id: Optional[int] = None) -> List[DepotFuelTank]:
     q = select(DepotFuelTank).where(DepotFuelTank.is_deleted == False)
     if tenant_id:
         q = q.where(DepotFuelTank.tenant_id == tenant_id)
+    if branch_id:
+        q = q.where(DepotFuelTank.branch_id == branch_id)
     result = await db.execute(q.order_by(DepotFuelTank.name))
     return list(result.scalars().all())
 
@@ -94,28 +96,34 @@ async def issue_fuel(
 ) -> Tuple[FuelIssue, Optional[FuelTheftAlert]]:
     """Dispense fuel from a tank to a vehicle. Returns (issue, alert_or_none)."""
 
-    tank = await get_tank(db, data.tank_id)
-    if not tank:
-        raise ValueError("Tank not found")
-
-    if tank.current_stock_litres < data.quantity_litres:
-        raise ValueError(
-            f"Insufficient stock: {tank.current_stock_litres}L available, "
-            f"{data.quantity_litres}L requested"
-        )
+    if not data.vehicle_id and not data.external_vehicle_number:
+        raise ValueError("Either vehicle_id or external_vehicle_number is required")
 
     total_amount = data.quantity_litres * data.rate_per_litre
 
+    # Tank is optional until pump management is configured by fleet manager
+    tank = None
+    if data.tank_id is not None:
+        tank = await get_tank(db, data.tank_id)
+        if not tank:
+            raise ValueError("Tank not found")
+        if tank.current_stock_litres < data.quantity_litres:
+            raise ValueError(
+                f"Insufficient stock: {tank.current_stock_litres}L available, "
+                f"{data.quantity_litres}L requested"
+            )
+
     issue = FuelIssue(
         tank_id=data.tank_id,
+        pump_id=data.pump_id,
         vehicle_id=data.vehicle_id,
+        external_vehicle_number=data.external_vehicle_number,
         driver_id=data.driver_id,
         trip_id=data.trip_id,
         fuel_type=FuelType(data.fuel_type),
         quantity_litres=data.quantity_litres,
         rate_per_litre=data.rate_per_litre,
         total_amount=total_amount,
-        odometer_reading=data.odometer_reading,
         issued_by=issued_by,
         issued_at=data.issued_at,
         receipt_number=data.receipt_number,
@@ -125,26 +133,27 @@ async def issue_fuel(
     )
     db.add(issue)
 
-    # Deduct from tank
-    stock_before = tank.current_stock_litres
-    tank.current_stock_litres = tank.current_stock_litres - data.quantity_litres
+    # Deduct from tank (only when a tank is linked)
+    if tank is not None:
+        stock_before = tank.current_stock_litres
+        tank.current_stock_litres = tank.current_stock_litres - data.quantity_litres
 
-    # Log stock transaction
-    txn = FuelStockTransaction(
-        tank_id=data.tank_id,
-        transaction_type=TransactionType.ISSUE,
-        quantity_litres=data.quantity_litres,
-        rate_per_litre=data.rate_per_litre,
-        total_amount=total_amount,
-        stock_before=stock_before,
-        stock_after=tank.current_stock_litres,
-        reference_number=data.receipt_number,
-        remarks=f"Fuel issue to vehicle #{data.vehicle_id}",
-        created_by=issued_by,
-        branch_id=branch_id,
-        tenant_id=tenant_id,
-    )
-    db.add(txn)
+        txn = FuelStockTransaction(
+            tank_id=data.tank_id,
+            transaction_type=TransactionType.ISSUE,
+            quantity_litres=data.quantity_litres,
+            rate_per_litre=data.rate_per_litre,
+            total_amount=total_amount,
+            stock_before=stock_before,
+            stock_after=tank.current_stock_litres,
+            reference_number=data.receipt_number,
+            remarks=f"Fuel issue to {data.external_vehicle_number or f'vehicle #{data.vehicle_id}'}",
+            created_by=issued_by,
+            branch_id=branch_id,
+            tenant_id=tenant_id,
+        )
+        db.add(txn)
+
     await db.flush()
 
     # Run theft detection
@@ -164,13 +173,23 @@ async def get_fuel_issues(
     date_to: Optional[date] = None,
     flagged_only: bool = False,
     tenant_id: Optional[int] = None,
+    branch_id: Optional[int] = None,
+    registration: Optional[str] = None,
 ) -> Tuple[List[FuelIssue], int]:
     q = select(FuelIssue)
     count_q = select(func.count(FuelIssue.id))
 
     filters = []
     if vehicle_id:
-        filters.append(FuelIssue.vehicle_id == vehicle_id)
+        # Match both company-vehicle issues (vehicle_id) and external issues
+        # (external_vehicle_number) for the same registration plate.
+        from sqlalchemy import or_ as _or
+        from app.models.postgres.vehicle import Vehicle
+        reg_subq = select(Vehicle.registration_number).where(Vehicle.id == vehicle_id).scalar_subquery()
+        filters.append(_or(
+            FuelIssue.vehicle_id == vehicle_id,
+            FuelIssue.external_vehicle_number == reg_subq,
+        ))
     if driver_id:
         filters.append(FuelIssue.driver_id == driver_id)
     if tank_id:
@@ -183,6 +202,19 @@ async def get_fuel_issues(
         filters.append(FuelIssue.is_flagged == True)
     if tenant_id:
         filters.append(FuelIssue.tenant_id == tenant_id)
+    # Skip branch filter when looking up by vehicle_id/registration (fleet manager viewing a vehicle)
+    if branch_id and not vehicle_id and not registration:
+        filters.append(FuelIssue.branch_id == branch_id)
+    if registration:
+        reg_upper = registration.strip().upper()
+        from sqlalchemy import or_ as _or
+        from app.models.postgres.vehicle import Vehicle
+        # Match external_vehicle_number directly OR via vehicle FK for company vehicles
+        vehicle_id_subq = select(Vehicle.id).where(Vehicle.registration_number == reg_upper)
+        filters.append(_or(
+            FuelIssue.external_vehicle_number == reg_upper,
+            FuelIssue.vehicle_id.in_(vehicle_id_subq),
+        ))
 
     if filters:
         q = q.where(and_(*filters))
@@ -358,6 +390,7 @@ async def get_theft_alerts(
     page: int = 1,
     limit: int = 20,
     tenant_id: Optional[int] = None,
+    branch_id: Optional[int] = None,
 ) -> Tuple[List[FuelTheftAlert], int]:
     q = select(FuelTheftAlert)
     count_q = select(func.count(FuelTheftAlert.id))
@@ -366,6 +399,8 @@ async def get_theft_alerts(
         filters.append(FuelTheftAlert.status == TheftAlertStatus(status))
     if tenant_id:
         filters.append(FuelTheftAlert.tenant_id == tenant_id)
+    if branch_id:
+        filters.append(FuelTheftAlert.branch_id == branch_id)
     if filters:
         q = q.where(and_(*filters))
         count_q = count_q.where(and_(*filters))
@@ -510,8 +545,17 @@ async def get_fuel_verification(
 async def get_dashboard_stats(
     db: AsyncSession,
     tenant_id: Optional[int] = None,
+    branch_id: Optional[int] = None,
 ) -> FuelDashboardStats:
-    tanks = await get_tanks(db, tenant_id)
+    # Resolve branch name
+    branch_name: Optional[str] = None
+    if branch_id:
+        from app.models.postgres.user import Branch
+        br = await db.execute(select(Branch).where(Branch.id == branch_id))
+        branch_obj = br.scalar_one_or_none()
+        if branch_obj:
+            branch_name = branch_obj.name
+    tanks = await get_tanks(db, tenant_id, branch_id=branch_id)
     total_stock = sum(float(t.current_stock_litres) for t in tanks)
 
     today = date.today()
@@ -527,6 +571,8 @@ async def get_dashboard_stats(
     ).where(FuelIssue.issued_at.between(today_start, today_end))
     if tenant_id:
         today_q = today_q.where(FuelIssue.tenant_id == tenant_id)
+    if branch_id:
+        today_q = today_q.where(FuelIssue.branch_id == branch_id)
     today_result = await db.execute(today_q)
     today_row = today_result.one()
 
@@ -537,6 +583,8 @@ async def get_dashboard_stats(
     ).where(FuelIssue.issued_at >= month_start)
     if tenant_id:
         month_q = month_q.where(FuelIssue.tenant_id == tenant_id)
+    if branch_id:
+        month_q = month_q.where(FuelIssue.branch_id == branch_id)
     month_result = await db.execute(month_q)
     month_row = month_result.one()
 
@@ -546,6 +594,8 @@ async def get_dashboard_stats(
     )
     if tenant_id:
         alert_q = alert_q.where(FuelTheftAlert.tenant_id == tenant_id)
+    if branch_id:
+        alert_q = alert_q.where(FuelTheftAlert.branch_id == branch_id)
     open_alerts = (await db.execute(alert_q)).scalar() or 0
 
     return FuelDashboardStats(
@@ -556,4 +606,155 @@ async def get_dashboard_stats(
         month_cost=Decimal(str(month_row[1])),
         open_alerts=open_alerts,
         tanks=[DepotFuelTankResponse.model_validate(t) for t in tanks],
+        branch_name=branch_name,
     )
+
+
+# ──────────────────── Fuel Top-Up Requests ────────────────────
+
+async def create_top_up_request(
+    db: AsyncSession,
+    data,
+    created_by: int,
+    branch_id: Optional[int] = None,
+    tenant_id: Optional[int] = None,
+) -> FuelTopUpRequest:
+    tank = await get_tank(db, data.tank_id)
+    if not tank:
+        raise ValueError("Tank not found")
+    req = FuelTopUpRequest(
+        tank_id=data.tank_id,
+        branch_id=branch_id or tank.branch_id,
+        tenant_id=tenant_id,
+        quantity_litres=data.quantity_litres,
+        total_amount=data.total_amount,
+        remarks=data.remarks,
+        status='pending',
+        created_by=created_by,
+    )
+    db.add(req)
+    await db.flush()
+    return req
+
+
+async def get_top_up_requests(
+    db: AsyncSession,
+    status: Optional[str] = None,
+    tenant_id: Optional[int] = None,
+) -> List[FuelTopUpRequest]:
+    q = select(FuelTopUpRequest)
+    filters = []
+    if status:
+        filters.append(FuelTopUpRequest.status == status)
+    if tenant_id:
+        filters.append(FuelTopUpRequest.tenant_id == tenant_id)
+    if filters:
+        q = q.where(and_(*filters))
+    q = q.order_by(FuelTopUpRequest.created_at.desc())
+    result = await db.execute(q)
+    return list(result.scalars().all())
+
+
+async def mark_top_up_paid(
+    db: AsyncSession,
+    request_id: int,
+    paid_by: int,
+    tenant_id: Optional[int] = None,
+) -> FuelTopUpRequest:
+    req_result = await db.execute(
+        select(FuelTopUpRequest).where(FuelTopUpRequest.id == request_id)
+    )
+    req = req_result.scalar_one_or_none()
+    if not req:
+        raise ValueError("Top-up request not found")
+    if req.status == 'paid':
+        raise ValueError("Already marked as paid")
+
+    # Update tank stock
+    from app.schemas.fuel_pump import FuelStockTransactionCreate
+    txn_data = FuelStockTransactionCreate(
+        tank_id=req.tank_id,
+        transaction_type='TANKER_REFILL',
+        quantity_litres=req.quantity_litres,
+        total_amount=req.total_amount,
+        remarks=req.remarks,
+    )
+    await add_stock_transaction(
+        db, txn_data, paid_by,
+        branch_id=req.branch_id,
+        tenant_id=tenant_id or req.tenant_id,
+    )
+
+    req.status = 'paid'
+    req.paid_by = paid_by
+    req.paid_at = datetime.utcnow()
+    await db.flush()
+    return req
+
+
+async def reject_top_up_request(
+    db: AsyncSession,
+    request_id: int,
+    rejected_by: int,
+    tenant_id: Optional[int] = None,
+) -> FuelTopUpRequest:
+    req_result = await db.execute(
+        select(FuelTopUpRequest).where(FuelTopUpRequest.id == request_id)
+    )
+    req = req_result.scalar_one_or_none()
+    if not req:
+        raise ValueError("Top-up request not found")
+    if req.status == 'paid':
+        raise ValueError("Cannot reject an already paid request")
+    if req.status == 'rejected':
+        raise ValueError("Request is already rejected")
+
+    req.status = 'rejected'
+    await db.flush()
+    return req
+
+
+async def enrich_top_up_requests(
+    db: AsyncSession,
+    requests: List[FuelTopUpRequest],
+) -> List[dict]:
+    """Attach tank_name and branch_name to each request."""
+    tank_ids = list({r.tank_id for r in requests})
+    branch_ids = list({r.branch_id for r in requests if r.branch_id})
+    user_ids = list({r.created_by for r in requests})
+
+    tanks = {}
+    if tank_ids:
+        res = await db.execute(select(DepotFuelTank).where(DepotFuelTank.id.in_(tank_ids)))
+        tanks = {t.id: t.name for t in res.scalars().all()}
+
+    branches = {}
+    if branch_ids:
+        res = await db.execute(select(Branch).where(Branch.id.in_(branch_ids)))
+        branches = {b.id: b.name for b in res.scalars().all()}
+
+    users = {}
+    if user_ids:
+        res = await db.execute(select(User).where(User.id.in_(user_ids)))
+        users = {u.id: (f"{u.first_name or ''} {u.last_name or ''}".strip() or u.email or str(u.id)) for u in res.scalars().all()}
+
+    result = []
+    for r in requests:
+        d = {
+            'id': r.id,
+            'tank_id': r.tank_id,
+            'branch_id': r.branch_id,
+            'quantity_litres': float(r.quantity_litres),
+            'total_amount': float(r.total_amount) if r.total_amount else None,
+            'remarks': r.remarks,
+            'status': r.status,
+            'created_by': r.created_by,
+            'created_at': r.created_at.isoformat() if r.created_at else None,
+            'paid_by': r.paid_by,
+            'paid_at': r.paid_at.isoformat() if r.paid_at else None,
+            'tank_name': tanks.get(r.tank_id),
+            'branch_name': branches.get(r.branch_id) if r.branch_id else None,
+            'creator_name': users.get(r.created_by),
+        }
+        result.append(d)
+    return result

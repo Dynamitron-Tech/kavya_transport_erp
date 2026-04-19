@@ -36,10 +36,10 @@ class ApiService {
           }
           return handler.next(options);
         },
-        // Response interceptor: on 401/403 -> calls refresh token endpoint [cite: 32]
+        // Response interceptor: on 401 -> calls refresh token endpoint [cite: 32]
         onError: (DioException e, handler) async {
           final status = e.response?.statusCode;
-          if (status == 401 || status == 403) {
+          if (status == 401) {
             // Don't intercept auth errors on the login endpoint itself — let them propagate
             final isLoginRequest = e.requestOptions.path.contains('/auth/login');
             if (isLoginRequest) {

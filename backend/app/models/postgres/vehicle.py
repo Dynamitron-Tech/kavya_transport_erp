@@ -194,11 +194,14 @@ class VehicleTyre(Base, TimestampMixin):
     
     __tablename__ = "vehicle_tyres"
     
-    vehicle_id = Column(Integer, ForeignKey('vehicles.id', ondelete='CASCADE'), nullable=False)
+    vehicle_id = Column(Integer, ForeignKey('vehicles.id', ondelete='CASCADE'), nullable=True)
     tyre_number = Column(String(50), nullable=False)  # Serial number
-    position = Column(String(20), nullable=False)  # FL, FR, RL1, RR1, etc.
+    manufacturer_serial = Column(String(100), nullable=True)  # Manufacturer's serial number
+    position = Column(String(20), nullable=True)  # FL, FR, RL1, RR1, etc. (NULL = in stock)
     brand = Column(String(50), nullable=True)
+    model = Column(String(100), nullable=True)
     size = Column(String(20), nullable=True)
+    ply_rating = Column(String(10), nullable=True)
     purchase_date = Column(Date, nullable=True)
     purchase_cost = Column(Numeric(10, 2), nullable=True)
     km_at_fitment = Column(Numeric(12, 2), nullable=True)

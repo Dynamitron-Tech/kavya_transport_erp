@@ -412,7 +412,7 @@ class _FleetAddVehicleScreenState
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
-        value: current,
+        initialValue: current,
         dropdownColor: KTColors.surface,
         style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
         decoration: InputDecoration(
@@ -448,7 +448,7 @@ class _FleetAddVehicleScreenState
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DropdownButtonFormField<String>(
-        value: current,
+        initialValue: current,
         dropdownColor: KTColors.surface,
         style: KTTextStyles.body.copyWith(color: KTColors.textHeading),
         decoration: InputDecoration(

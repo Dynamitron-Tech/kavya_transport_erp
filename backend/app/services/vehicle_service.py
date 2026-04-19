@@ -30,7 +30,7 @@ def _coerce_enum(enum_cls, raw_value):
     return raw_value
 
 
-async def list_vehicles(db: AsyncSession, page: int = 1, limit: int = 20, search: str = None, status: str = None, vehicle_type: str = None):
+async def list_vehicles(db: AsyncSession, page: int = 1, limit: int = 20, search: str = None, status: str = None, vehicle_type: str = None, ownership_type: str = None):
     query = select(Vehicle).where(Vehicle.is_deleted == False)
     count_query = select(func.count(Vehicle.id)).where(Vehicle.is_deleted == False)
 
@@ -52,6 +52,11 @@ async def list_vehicles(db: AsyncSession, page: int = 1, limit: int = 20, search
         normalized_type = _coerce_enum(VehicleType, vehicle_type)
         query = query.where(Vehicle.vehicle_type == normalized_type)
         count_query = count_query.where(Vehicle.vehicle_type == normalized_type)
+
+    if ownership_type:
+        normalized_ownership = _coerce_enum(OwnershipType, ownership_type)
+        query = query.where(Vehicle.ownership_type == normalized_ownership)
+        count_query = count_query.where(Vehicle.ownership_type == normalized_ownership)
 
     total = (await db.execute(count_query)).scalar() or 0
     offset = (page - 1) * limit

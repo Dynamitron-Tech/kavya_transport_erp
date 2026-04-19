@@ -4,20 +4,26 @@ from typing import Optional
 
 
 class TyreCreate(BaseModel):
-    serial_number: str
+    serial_number: Optional[str] = None
+    manufacturer_serial: Optional[str] = None
     brand: Optional[str] = None
+    model: Optional[str] = None
     size: Optional[str] = None
+    ply_rating: Optional[str] = None
     purchase_date: Optional[date] = None
     cost: Optional[float] = None
-    vehicle_id: int
-    axle_position: str
-    status: str = 'MOUNTED'
+    vehicle_id: Optional[int] = None
+    axle_position: Optional[str] = None
+    status: str = 'new'
     tread_depth_mm: Optional[float] = None
     initial_tread_depth_mm: Optional[float] = None
+    pressure_psi: Optional[float] = None
+    quantity: int = 1
 
 
 class TyreUpdate(BaseModel):
     serial_number: Optional[str] = None
+    manufacturer_serial: Optional[str] = None
     brand: Optional[str] = None
     size: Optional[str] = None
     purchase_date: Optional[date] = None
@@ -25,6 +31,8 @@ class TyreUpdate(BaseModel):
     vehicle_id: Optional[int] = None
     axle_position: Optional[str] = None
     status: Optional[str] = None
+    tread_depth_mm: Optional[float] = None
+    pressure_psi: Optional[float] = None
 
 
 class TyreEvent(BaseModel):

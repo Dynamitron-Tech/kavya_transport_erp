@@ -18,7 +18,7 @@ from .route import Route, RouteBudget, RateChart, FuelPrice, BankAccount, BankTr
 from .eway_bill import EwayBill, EwayItem
 from .banking import BankingEntry, BankCSVImport, BankCSVTransaction, BankingEntryType
 from .document import Document, DocumentVersion
-from .fuel_pump import DepotFuelTank, FuelIssue, FuelStockTransaction, FuelTheftAlert
+from .fuel_pump import DepotFuelTank, FuelIssue, FuelStockTransaction, FuelTheftAlert, FuelTopUpRequest
 from .supplier import Supplier, SupplierVehicle
 from .market_trip import MarketTrip
 from .geofence import Geofence, GeofenceType

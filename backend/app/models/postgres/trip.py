@@ -139,6 +139,7 @@ class Trip(Base, TimestampMixin, SoftDeleteMixin):
     advance_paid_at = Column(DateTime, nullable=True)
     advance_paid_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     advance_paid_by_name = Column(String(200), nullable=True)
+    advance_dismissed = Column(Boolean, default=False)
 
     # GPS Tracking (reference to MongoDB document)
     tracking_id = Column(String(50), nullable=True)  # MongoDB document ID

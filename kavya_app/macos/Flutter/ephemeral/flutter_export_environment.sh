@@ -1,7 +1,7 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
-export "FLUTTER_ROOT=C:\Users\BALAN\Downloads\flutter_windows_3.41.6-stable\flutter"
-export "FLUTTER_APPLICATION_PATH=C:\Users\BALAN\Desktop\kavya_erp-feature-ajai-dev\kavya_erp-feature-ajai-dev\kavya_app"
+export "FLUTTER_ROOT=/Users/ajaikumarn/flutter"
+export "FLUTTER_APPLICATION_PATH=/Users/ajaikumarn/Desktop/kavya_transport_erp/kavya_app"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
 export "FLUTTER_BUILD_DIR=build"
 export "FLUTTER_BUILD_NAME=1.0.0"

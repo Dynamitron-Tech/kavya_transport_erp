@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../providers/fleet_dashboard_provider.dart';
+import '../../providers/pump_dashboard_provider.dart';
 
 // ─── Providers ────────────────────────────────────────────────────────────────
 
@@ -77,12 +78,16 @@ class FinancePaymentsScreen extends ConsumerWidget {
     final schedulesAsync = ref.watch(_upcomingSchedulesProvider);
     final advancesAsync = ref.watch(_pendingAdvancesProvider);
     final tripExpensesAsync = ref.watch(_pendingTripExpensesProvider);
+    final topUpsAsync = ref.watch(pendingTopUpRequestsProvider);
+    final paidTopUpsAsync = ref.watch(paidTopUpRequestsProvider);
 
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(_upcomingSchedulesProvider);
         ref.invalidate(_pendingAdvancesProvider);
         ref.invalidate(_pendingTripExpensesProvider);
+        ref.invalidate(pendingTopUpRequestsProvider);
+        ref.invalidate(paidTopUpRequestsProvider);
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -140,6 +145,60 @@ class FinancePaymentsScreen extends ConsumerWidget {
                 children: grouped.values
                     .map((g) => _TripExpenseGroup(group: g))
                     .toList(),
+              );
+            },
+          ),
+
+          const SizedBox(height: 28),
+
+          // ── Fuel Top-Up Payments ─────────────────────────────────────
+          _SectionHeader(
+            icon: Icons.local_gas_station_rounded,
+            label: 'Fuel Tank Refill Payments',
+            color: const Color(0xFF00897B),
+            count: topUpsAsync.valueOrNull?.length ?? 0,
+          ),
+          const SizedBox(height: 10),
+          topUpsAsync.when(
+            loading: () => const _Shimmer(count: 2),
+            error: (e, _) => _ErrorTile(msg: e.toString()),
+            data: (topUps) {
+              if (topUps.isEmpty) {
+                return const _EmptyTile(
+                  icon: Icons.check_circle_outline_rounded,
+                  color: KTColors.success,
+                  message: 'No pending fuel refill payments.',
+                );
+              }
+              return Column(
+                children: topUps.map((r) => _FuelTopUpPaymentCard(request: r)).toList(),
+              );
+            },
+          ),
+
+          const SizedBox(height: 28),
+
+          // ── Fuel Refill Payment History ──────────────────────────────
+          _SectionHeader(
+            icon: Icons.history_rounded,
+            label: 'Fuel Refill Payment History',
+            color: const Color(0xFF00897B),
+            count: paidTopUpsAsync.valueOrNull?.length ?? 0,
+          ),
+          const SizedBox(height: 10),
+          paidTopUpsAsync.when(
+            loading: () => const _Shimmer(count: 2),
+            error: (e, _) => _ErrorTile(msg: e.toString()),
+            data: (paidTopUps) {
+              if (paidTopUps.isEmpty) {
+                return const _EmptyTile(
+                  icon: Icons.check_circle_outline_rounded,
+                  color: KTColors.success,
+                  message: 'No fuel refill payments recorded yet.',
+                );
+              }
+              return Column(
+                children: paidTopUps.map((r) => _PaidFuelRefillCard(request: r)).toList(),
               );
             },
           ),
@@ -1163,6 +1222,303 @@ class _ErrorTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(10)),
       child: Text('Error: $msg',
           style: const TextStyle(fontSize: 12, color: KTColors.danger)),
+    );
+  }
+}
+
+// ─── Fuel Top-Up Payment Card ─────────────────────────────────────────────────
+
+class _FuelTopUpPaymentCard extends ConsumerWidget {
+  final Map<String, dynamic> request;
+  const _FuelTopUpPaymentCard({required this.request});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tankName = request['tank_name'] ?? 'Tank ${request['tank_id']}';
+    final branchName = request['branch_name'] ?? '';
+    final qty = (request['quantity_litres'] as num?)?.toDouble() ?? 0.0;
+    final totalAmount = request['total_amount'] != null
+        ? (request['total_amount'] as num).toDouble()
+        : null;
+    final remarks = (request['remarks'] ?? '').toString();
+    final isLoading = ref.watch(markTopUpPaidProvider) is AsyncLoading;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: KTColors.surface,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFF00897B).withValues(alpha: 0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00897B).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.local_gas_station_rounded,
+                    color: Color(0xFF00897B), size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tankName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: KTColors.textHeading,
+                      ),
+                    ),
+                    if (branchName.isNotEmpty)
+                      Text(
+                        branchName,
+                        style: const TextStyle(fontSize: 12, color: KTColors.textMuted),
+                      ),
+                  ],
+                ),
+              ),
+              if (totalAmount != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00897B).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '₹${totalAmount.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: Color(0xFF00897B),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.water_drop_outlined, size: 14, color: KTColors.textMuted),
+              const SizedBox(width: 4),
+              Text(
+                '${qty.toStringAsFixed(0)} L required',
+                style: const TextStyle(fontSize: 12, color: KTColors.textMuted),
+              ),
+            ],
+          ),
+          if (remarks.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              remarks,
+              style: const TextStyle(fontSize: 12, color: KTColors.textMuted),
+            ),
+          ],
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      final id = request['id'] as int;
+                      final error = await ref
+                          .read(markTopUpPaidProvider.notifier)
+                          .markPaid(id);
+                      if (!context.mounted) return;
+                      if (error == null) {
+                        ref.invalidate(pendingTopUpRequestsProvider);
+                        ref.invalidate(paidTopUpRequestsProvider);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Payment recorded & tank stock updated'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(error),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00897B),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text(
+                      'Mark as Paid',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Paid Fuel Refill Card ───────────────────────────────────────────────────────────
+
+class _PaidFuelRefillCard extends StatelessWidget {
+  final Map<String, dynamic> request;
+  const _PaidFuelRefillCard({required this.request});
+
+  @override
+  Widget build(BuildContext context) {
+    final tankName = request['tank_name'] ?? 'Tank ${request['tank_id']}';
+    final branchName = (request['branch_name'] ?? '').toString();
+    final qty = (request['quantity_litres'] as num?)?.toDouble() ?? 0.0;
+    final totalAmount = request['total_amount'] != null
+        ? (request['total_amount'] as num).toDouble()
+        : null;
+    final creatorName = (request['creator_name'] ?? '').toString();
+    final paidAt = request['paid_at']?.toString() ?? '';
+
+    String dateLabel = '';
+    if (paidAt.isNotEmpty) {
+      try {
+        final dt = DateTime.parse(paidAt).toLocal();
+        const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        dateLabel = '${dt.day} ${months[dt.month]} ${dt.year}, '
+            '${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+      } catch (_) {
+        dateLabel = paidAt.substring(0, 10);
+      }
+    }
+
+    const teal = Color(0xFF00897B);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: KTColors.surface,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: teal.withValues(alpha: 0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: teal.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.local_gas_station_rounded, color: teal, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        tankName,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: KTColors.textHeading,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (totalAmount != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: teal.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '₹${totalAmount.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: teal,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                if (branchName.isNotEmpty)
+                  Text(
+                    branchName,
+                    style: const TextStyle(fontSize: 12, color: KTColors.textMuted),
+                  ),
+                const SizedBox(height: 3),
+                Text(
+                  '${qty.toStringAsFixed(0)} L  •  Requested by $creatorName',
+                  style: const TextStyle(fontSize: 12, color: KTColors.textSecondary),
+                ),
+                if (dateLabel.isNotEmpty) ...[const SizedBox(height: 2),
+                  Text(
+                    'Paid on $dateLabel',
+                    style: const TextStyle(fontSize: 11, color: KTColors.textMuted),
+                  )],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: teal.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Text(
+              'PAID',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: teal,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

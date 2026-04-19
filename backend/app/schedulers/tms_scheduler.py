@@ -13,6 +13,7 @@ Jobs:
   SCH-04  08:00 1st/mth — monthly P&L summary to admin/manager
   SCH-05  06:00 Sunday  — fuel efficiency anomaly detection
   SCH-06  09:00 daily   — stale trip detection
+  SCH-07  08:00 daily   — tank low-level alert to fleet_manager
   GPS-01  every 60s     — iALERT GPS poll (Ashok Leyland telematics)
 """
 
@@ -43,6 +44,7 @@ def start_tms_scheduler() -> None:
         sch_04_monthly_pnl,
         sch_05_fuel_efficiency,
         sch_06_stale_trips,
+        sch_07_tank_low_level_alert,
     )
 
     scheduler = get_scheduler()
@@ -110,6 +112,15 @@ def start_tms_scheduler() -> None:
         name="SCH-06: Stale trip detection",
     )
 
+    # SCH-07: Tank low-level alert — daily at 08:00
+    scheduler.add_job(
+        sch_07_tank_low_level_alert,
+        trigger=CronTrigger(hour=8, minute=0),
+        id="sch_07_tank_low_level",
+        replace_existing=True,
+        name="SCH-07: Tank low-level alert",
+    )
+
     # GPS-01: iALERT GPS poll — every N seconds (Ashok Leyland telematics)
     from app.core.config import settings
     if settings.IALERT_ENABLED and settings.IALERT_API_TOKEN:
@@ -127,7 +138,7 @@ def start_tms_scheduler() -> None:
         logger.info("GPS-01: iALERT polling disabled (IALERT_ENABLED=False or no token)")
 
     scheduler.start()
-    logger.info("TMS Automation Scheduler started with 7 jobs")
+    logger.info("TMS Automation Scheduler started with 8 jobs")
 
 
 def stop_tms_scheduler() -> None:

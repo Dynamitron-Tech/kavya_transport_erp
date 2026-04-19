@@ -14,21 +14,88 @@ from app.schemas.fuel_pump import (
     FuelIssueCreate, FuelStockTransactionCreate,
     FuelTheftAlertResolve,
 )
-from app.services import fuel_pump_service
+from app.services import fuel_pump_service, branch_service
+from pydantic import BaseModel
 
 router = APIRouter()
+
+
+# ──────────────────── Branches (fuel mgmt) ─────
+
+class _BranchCreate(BaseModel):
+    name: str
+    code: str
+    city: str | None = None
+    state: str | None = None
+    address: str | None = None
+    pincode: str | None = None
+    phone: str | None = None
+
+
+class _PumpCreate(BaseModel):
+    name: str
+    pump_number: str | None = None
+    booth_number: str | None = None
+    fuel_type: str | None = None
+    tank_id: int | None = None
+    secondary_tank_id: int | None = None
+    branch_id: int | None = None
+
+
+@router.get("/branches")
+async def list_fuel_branches(
+    current_user: TokenData = Depends(require_any_permission([
+        Permissions.FUEL_READ, Permissions.FUEL_STOCK_VIEW,
+    ])),
+    db: AsyncSession = Depends(get_db),
+):
+    branches = await branch_service.list_branches(
+        db, tenant_id=current_user.tenant_id, is_active=True
+    )
+    def _s(b):
+        return {
+            "id": b.id, "name": b.name, "code": b.code,
+            "city": b.city, "state": b.state, "is_active": b.is_active,
+        }
+    return APIResponse(success=True, data=[_s(b) for b in branches])
+
+
+@router.post("/branches", status_code=201)
+async def create_fuel_branch(
+    data: _BranchCreate,
+    current_user: TokenData = Depends(require_any_permission([
+        Permissions.FUEL_CREATE, Permissions.FUEL_STOCK_EDIT,
+    ])),
+    db: AsyncSession = Depends(get_db),
+):
+    branch = await branch_service.create_branch(db, {
+        **data.model_dump(exclude_none=True),
+        "tenant_id": current_user.tenant_id,
+        "is_active": True,
+    })
+    return {
+        "success": True,
+        "data": {
+            "id": branch.id, "name": branch.name, "code": branch.code,
+            "city": branch.city, "state": branch.state, "is_active": branch.is_active,
+        },
+        "message": "Branch created",
+    }
 
 
 # ──────────────────── Tanks ────────────────────
 
 @router.get("/tanks", response_model=APIResponse)
 async def list_tanks(
+    branch_id: Optional[int] = None,
     current_user: TokenData = Depends(require_any_permission([
         Permissions.FUEL_STOCK_VIEW, Permissions.FUEL_READ,
     ])),
     db: AsyncSession = Depends(get_db),
 ):
-    tanks = await fuel_pump_service.get_tanks(db, current_user.tenant_id)
+    # Pump operators are scoped to their branch; override any explicit branch_id param
+    effective_branch_id = current_user.branch_id if current_user.branch_id is not None else branch_id
+    tanks = await fuel_pump_service.get_tanks(db, current_user.tenant_id, branch_id=effective_branch_id)
     from app.schemas.fuel_pump import DepotFuelTankResponse
     return APIResponse(
         success=True,
@@ -136,6 +203,7 @@ async def list_fuel_issues(
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     flagged_only: bool = False,
+    registration: Optional[str] = None,
     current_user: TokenData = Depends(require_any_permission([
         Permissions.FUEL_READ, Permissions.FUEL_STOCK_VIEW,
     ])),
@@ -144,6 +212,8 @@ async def list_fuel_issues(
     issues, total = await fuel_pump_service.get_fuel_issues(
         db, page, limit, vehicle_id, driver_id, tank_id,
         date_from, date_to, flagged_only, current_user.tenant_id,
+        branch_id=current_user.branch_id,
+        registration=registration,
     )
     from app.schemas.fuel_pump import FuelIssueResponse
     pages = (total + limit - 1) // limit if limit else 1
@@ -228,6 +298,7 @@ async def list_theft_alerts(
 ):
     alerts, total = await fuel_pump_service.get_theft_alerts(
         db, status, page, limit, current_user.tenant_id,
+        branch_id=current_user.branch_id,
     )
     from app.schemas.fuel_pump import FuelTheftAlertResponse
     pages = (total + limit - 1) // limit if limit else 1
@@ -281,8 +352,70 @@ async def fuel_dashboard(
     ])),
     db: AsyncSession = Depends(get_db),
 ):
-    stats = await fuel_pump_service.get_dashboard_stats(db, current_user.tenant_id)
+    stats = await fuel_pump_service.get_dashboard_stats(
+        db, current_user.tenant_id, branch_id=current_user.branch_id
+    )
     return APIResponse(success=True, data=stats.model_dump())
+
+
+# ──────────────────── Pumps ────────────────────
+
+@router.get("/pumps", response_model=APIResponse)
+async def list_pumps(
+    tank_id: Optional[int] = None,
+    branch_id: Optional[int] = None,
+    current_user: TokenData = Depends(require_any_permission([
+        Permissions.FUEL_READ, Permissions.FUEL_STOCK_VIEW,
+    ])),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import select
+    from app.models.postgres.fuel_pump import DepotFuelPump
+    q = select(DepotFuelPump).where(
+        DepotFuelPump.is_deleted == False,
+        DepotFuelPump.tenant_id == current_user.tenant_id,
+    )
+    if tank_id is not None:
+        from sqlalchemy import or_
+        q = q.where(or_(DepotFuelPump.tank_id == tank_id, DepotFuelPump.secondary_tank_id == tank_id))
+    if branch_id is not None:
+        q = q.where(DepotFuelPump.branch_id == branch_id)
+    result = await db.execute(q.order_by(DepotFuelPump.name))
+    pumps = list(result.scalars().all())
+    from app.schemas.fuel_pump import DepotFuelPumpResponse
+    return APIResponse(
+        success=True,
+        data=[DepotFuelPumpResponse.model_validate(p).model_dump() for p in pumps],
+    )
+
+
+@router.post("/pumps", response_model=APIResponse, status_code=201)
+async def create_pump(
+    data: _PumpCreate,
+    current_user: TokenData = Depends(require_permission(Permissions.FUEL_STOCK_EDIT)),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.postgres.fuel_pump import DepotFuelPump
+    pump = DepotFuelPump(
+        name=data.name,
+        pump_number=data.pump_number,
+        booth_number=data.booth_number,
+        fuel_type=data.fuel_type,
+        tank_id=data.tank_id,
+        secondary_tank_id=data.secondary_tank_id,
+        branch_id=data.branch_id,
+        tenant_id=current_user.tenant_id,
+        is_active=True,
+    )
+    db.add(pump)
+    await db.flush()
+    await db.commit()
+    from app.schemas.fuel_pump import DepotFuelPumpResponse
+    return APIResponse(
+        success=True,
+        data=DepotFuelPumpResponse.model_validate(pump).model_dump(),
+        message="Pump created successfully",
+    )
 
 
 # ──────────────────── Shifts ────────────────────
@@ -358,3 +491,81 @@ async def close_shift(
     shift["closed_at"] = payload.get("closed_at", datetime.utcnow().isoformat())
     shift["closing_readings"] = payload.get("tank_readings", [])
     return APIResponse(success=True, data=shift, message="Shift closed")
+
+
+# ──────────────────── Top-Up Requests ────────────────────
+
+from app.schemas.fuel_pump import FuelTopUpRequestCreate as _FuelTopUpRequestCreate
+
+@router.post("/top-up-requests", response_model=APIResponse)
+async def create_top_up_request(
+    data: _FuelTopUpRequestCreate,
+    current_user: TokenData = Depends(require_any_permission([
+        Permissions.FUEL_STOCK_EDIT, Permissions.FUEL_CREATE,
+    ])),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        req = await fuel_pump_service.create_top_up_request(
+            db, data, current_user.user_id,
+            branch_id=current_user.branch_id,
+            tenant_id=current_user.tenant_id,
+        )
+        await db.commit()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    enriched = await fuel_pump_service.enrich_top_up_requests(db, [req])
+    return APIResponse(success=True, data=enriched[0], message="Top-up request created")
+
+
+@router.get("/top-up-requests", response_model=APIResponse)
+async def list_top_up_requests(
+    status: Optional[str] = Query(None),
+    current_user: TokenData = Depends(require_any_permission([
+        Permissions.FUEL_STOCK_EDIT, Permissions.FUEL_READ, Permissions.FUEL_STOCK_VIEW,
+    ])),
+    db: AsyncSession = Depends(get_db),
+):
+    requests = await fuel_pump_service.get_top_up_requests(
+        db, status=status, tenant_id=current_user.tenant_id,
+    )
+    enriched = await fuel_pump_service.enrich_top_up_requests(db, requests)
+    return APIResponse(success=True, data=enriched)
+
+
+@router.patch("/top-up-requests/{request_id}/mark-paid", response_model=APIResponse)
+async def mark_top_up_paid(
+    request_id: int,
+    current_user: TokenData = Depends(require_any_permission([
+        Permissions.FUEL_STOCK_EDIT, Permissions.FUEL_APPROVE,
+    ])),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        req = await fuel_pump_service.mark_top_up_paid(
+            db, request_id, current_user.user_id, tenant_id=current_user.tenant_id,
+        )
+        await db.commit()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    enriched = await fuel_pump_service.enrich_top_up_requests(db, [req])
+    return APIResponse(success=True, data=enriched[0], message="Marked as paid and stock updated")
+
+
+@router.patch("/top-up-requests/{request_id}/reject", response_model=APIResponse)
+async def reject_top_up_request(
+    request_id: int,
+    current_user: TokenData = Depends(require_any_permission([
+        Permissions.FUEL_STOCK_EDIT, Permissions.FUEL_APPROVE,
+    ])),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        req = await fuel_pump_service.reject_top_up_request(
+            db, request_id, current_user.user_id, tenant_id=current_user.tenant_id,
+        )
+        await db.commit()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    enriched = await fuel_pump_service.enrich_top_up_requests(db, [req])
+    return APIResponse(success=True, data=enriched[0], message="Request rejected")

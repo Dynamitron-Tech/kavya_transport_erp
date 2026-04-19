@@ -21,12 +21,12 @@ router = APIRouter()
 async def list_vehicles(
     page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=500),
     search: Optional[str] = None, status: Optional[str] = None,
-    vehicle_type: Optional[str] = None,
+    vehicle_type: Optional[str] = None, ownership_type: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.VEHICLE_READ)),
 ):
-    vehicles, total = await vehicle_service.list_vehicles(db, page, limit, search, status, vehicle_type)
+    vehicles, total = await vehicle_service.list_vehicles(db, page, limit, search, status, vehicle_type, ownership_type)
     pages = (total + limit - 1) // limit
 
     # Batch-fetch assigned driver names to avoid N+1 queries

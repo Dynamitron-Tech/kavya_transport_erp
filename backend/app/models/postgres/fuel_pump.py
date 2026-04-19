@@ -55,14 +55,38 @@ class DepotFuelTank(Base, TimestampMixin, SoftDeleteMixin):
         return f"<DepotFuelTank {self.name}>"
 
 
+class DepotFuelPump(Base, TimestampMixin, SoftDeleteMixin):
+    """A physical fuel pump nozzle at a depot. Multiple pumps can draw from one tank."""
+
+    __tablename__ = "depot_fuel_pumps"
+
+    name = Column(String(100), nullable=False)          # e.g. "Pump 1", "Nozzle A"
+    pump_number = Column(String(20), nullable=True)     # optional serial / label
+    booth_number = Column(String(50), nullable=True)    # e.g. Booth 3
+    fuel_type = Column(SQLEnum(FuelType, native_enum=False), nullable=True)  # inherited from primary tank
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # Primary nozzle — the tank this pump draws from
+    tank_id = Column(Integer, ForeignKey('depot_fuel_tanks.id'), nullable=True)
+    # Secondary nozzle — optional second tank (e.g. petrol nozzle on a dual-fuel pump)
+    secondary_tank_id = Column(Integer, ForeignKey('depot_fuel_tanks.id'), nullable=True)
+    branch_id = Column(Integer, ForeignKey('branches.id'), nullable=True)
+    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
+
+    def __repr__(self):
+        return f"<DepotFuelPump {self.name}>"
+
+
 class FuelIssue(Base, TimestampMixin):
     """Individual fuel dispensing record to a vehicle/driver."""
 
     __tablename__ = "fuel_issues"
 
     # References
-    tank_id = Column(Integer, ForeignKey('depot_fuel_tanks.id'), nullable=False)
-    vehicle_id = Column(Integer, ForeignKey('vehicles.id'), nullable=False)
+    tank_id = Column(Integer, ForeignKey('depot_fuel_tanks.id'), nullable=True)
+    pump_id = Column(Integer, ForeignKey('depot_fuel_pumps.id'), nullable=True)
+    vehicle_id = Column(Integer, ForeignKey('vehicles.id'), nullable=True)
+    external_vehicle_number = Column(String(50), nullable=True)   # for non-company vehicles
     driver_id = Column(Integer, ForeignKey('drivers.id'), nullable=True)
     trip_id = Column(Integer, ForeignKey('trips.id'), nullable=True)
 
@@ -214,3 +238,31 @@ class FuelTheftAlert(Base, TimestampMixin):
 
     def __repr__(self):
         return f"<FuelTheftAlert {self.alert_type} - {self.status.value}>"
+
+
+class FuelTopUpRequest(Base, TimestampMixin):
+    """Fuel tank top-up request submitted by fleet staff for finance manager approval."""
+
+    __tablename__ = "fuel_top_up_requests"
+
+    tank_id = Column(Integer, ForeignKey('depot_fuel_tanks.id'), nullable=False)
+    branch_id = Column(Integer, ForeignKey('branches.id'), nullable=True)
+    tenant_id = Column(Integer, ForeignKey('tenants.id'), nullable=True)
+
+    quantity_litres = Column(Numeric(10, 2), nullable=False)
+    total_amount = Column(Numeric(12, 2), nullable=True)   # rupees
+    remarks = Column(Text, nullable=True)
+
+    status = Column(String(20), default='pending', nullable=False)  # pending / paid
+
+    created_by = Column(Integer, ForeignKey('users.id'), nullable=False)
+    paid_by = Column(Integer, ForeignKey('users.id'), nullable=True)
+    paid_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    tank = relationship("DepotFuelTank", foreign_keys=[tank_id])
+    creator = relationship("User", foreign_keys=[created_by])
+    payer = relationship("User", foreign_keys=[paid_by])
+
+    def __repr__(self):
+        return f"<FuelTopUpRequest tank={self.tank_id} {self.quantity_litres}L status={self.status}>"

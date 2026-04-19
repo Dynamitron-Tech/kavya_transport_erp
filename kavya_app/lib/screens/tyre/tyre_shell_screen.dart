@@ -156,6 +156,11 @@ class TyreShellScreen extends ConsumerWidget {
             selectedIcon: Icon(Icons.history_rounded, color: _accent),
             label: 'History',
           ),
+          NavigationDestination(
+            icon: const Icon(Icons.inventory_2_outlined, color: KTColors.textMuted),
+            selectedIcon: Icon(Icons.inventory_2_rounded, color: _accent),
+            label: 'Inventory',
+          ),
         ],
       ),
     );

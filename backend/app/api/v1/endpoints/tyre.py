@@ -174,7 +174,193 @@ async def tyre_alerts(
     return APIResponse(success=True, data=items)
 
 
+# ── Flag for Inspection ────────────────────────────────────
+@router.post("/flag-inspection", response_model=APIResponse)
+async def flag_for_inspection(
+    vehicle_id: int = Body(..., embed=False),
+    tyre_id: int = Body(..., embed=False),
+    position: str = Body("", embed=False),
+    notes: str = Body("", embed=False),
+    db: AsyncSession = Depends(get_db),
+    user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Flag a tyre/vehicle for inspection by the tyre inspector."""
+    # Verify tyre exists
+    tyre = await db.get(VehicleTyre, tyre_id)
+    if not tyre:
+        raise HTTPException(status_code=404, detail="Tyre not found")
+
+    # Get vehicle registration
+    vehicle = await db.get(Vehicle, vehicle_id)
+    reg_no = vehicle.registration_number if vehicle else "Unknown"
+
+    # Create lifecycle event
+    event = TyreLifecycleEvent(
+        vehicle_tyre_id=tyre_id,
+        event_type="FLAG_INSPECTION",
+        notes=notes or f"Tyre at position {position.upper()} flagged for inspection on vehicle {reg_no}",
+        performed_by=user.user_id,
+    )
+    db.add(event)
+    await db.commit()
+    await db.refresh(event)
+
+    return APIResponse(
+        success=True,
+        data={"id": event.id, "vehicle_id": vehicle_id, "tyre_id": tyre_id},
+        message=f"Vehicle {reg_no} flagged for inspection",
+    )
+
+
+@router.get("/inspection-flags", response_model=APIResponse)
+async def get_inspection_flags(
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Get vehicles that have been flagged for inspection (recent FLAG_INSPECTION events)."""
+    result = await db.execute(
+        select(
+            TyreLifecycleEvent.id,
+            TyreLifecycleEvent.vehicle_tyre_id,
+            TyreLifecycleEvent.notes,
+            TyreLifecycleEvent.created_at,
+            VehicleTyre.vehicle_id,
+            VehicleTyre.tyre_number,
+            VehicleTyre.position,
+            Vehicle.registration_number,
+        )
+        .join(VehicleTyre, VehicleTyre.id == TyreLifecycleEvent.vehicle_tyre_id)
+        .outerjoin(Vehicle, Vehicle.id == VehicleTyre.vehicle_id)
+        .where(TyreLifecycleEvent.event_type == "FLAG_INSPECTION")
+        .order_by(TyreLifecycleEvent.created_at.desc())
+        .limit(200)
+    )
+
+    items = []
+    flagged_vehicle_ids = set()
+    for row in result.all():
+        vehicle_id = row.vehicle_id
+        flagged_vehicle_ids.add(vehicle_id)
+        items.append({
+            "id": row.id,
+            "vehicle_id": vehicle_id,
+            "vehicle_number": row.registration_number,
+            "tyre_number": row.tyre_number,
+            "position": row.position,
+            "notes": row.notes,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+        })
+
+    return APIResponse(
+        success=True,
+        data={
+            "items": items,
+            "flagged_vehicle_ids": list(flagged_vehicle_ids),
+        },
+    )
+
+
+@router.post("/flag-retreading", response_model=APIResponse)
+async def flag_for_retreading(
+    tyre_id: int = Body(..., embed=False),
+    notes: str = Body("", embed=False),
+    db: AsyncSession = Depends(get_db),
+    user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Flag a removed tyre for retreading."""
+    tyre = await db.get(VehicleTyre, tyre_id)
+    if not tyre:
+        raise HTTPException(status_code=404, detail="Tyre not found")
+
+    event = TyreLifecycleEvent(
+        vehicle_tyre_id=tyre_id,
+        event_type="FLAG_RETREADING",
+        notes=notes or f"Tyre {tyre.tyre_number} flagged for retreading",
+        performed_by=user.user_id,
+    )
+    db.add(event)
+    await db.commit()
+    await db.refresh(event)
+
+    return APIResponse(
+        success=True,
+        data={"id": event.id, "tyre_id": tyre_id},
+        message=f"Tyre {tyre.tyre_number} flagged for retreading",
+    )
+
+
+@router.get("/retread-flags", response_model=APIResponse)
+async def get_retread_flags(
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Get tyres flagged for retreading."""
+    result = await db.execute(
+        select(
+            TyreLifecycleEvent.id,
+            TyreLifecycleEvent.vehicle_tyre_id,
+            TyreLifecycleEvent.notes,
+            TyreLifecycleEvent.created_at,
+            VehicleTyre.tyre_number,
+            VehicleTyre.brand,
+            VehicleTyre.size,
+            VehicleTyre.tread_depth_mm,
+            VehicleTyre.manufacturer_serial,
+        )
+        .join(VehicleTyre, VehicleTyre.id == TyreLifecycleEvent.vehicle_tyre_id)
+        .where(TyreLifecycleEvent.event_type == "FLAG_RETREADING")
+        .order_by(TyreLifecycleEvent.created_at.desc())
+        .limit(200)
+    )
+
+    items = []
+    for row in result.all():
+        tread = float(row.tread_depth_mm) if row.tread_depth_mm is not None else 0.0
+        life_pct = round((tread / 18.0) * 100.0, 1)
+        items.append({
+            "id": row.id,
+            "tyre_id": row.vehicle_tyre_id,
+            "tyre_number": row.tyre_number,
+            "brand": row.brand,
+            "size": row.size,
+            "life_pct": life_pct,
+            "manufacturer_serial": row.manufacturer_serial,
+            "notes": row.notes,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+        })
+
+    return APIResponse(success=True, data={"items": items})
+
+
 # ── Stock management ──────────────────────────────────────
+@router.get("/next-number", response_model=APIResponse)
+async def next_tyre_number(
+    quantity: int = Query(1, ge=1),
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Get the next auto-generated tyre number(s)."""
+    ktt_result = await db.execute(
+        select(VehicleTyre.tyre_number)
+        .where(VehicleTyre.tyre_number.like("KTT%"))
+        .where(VehicleTyre.is_active == True)
+        .order_by(VehicleTyre.tyre_number.desc())
+        .limit(1)
+    )
+    last_ktt = ktt_result.scalar()
+    if last_ktt:
+        try:
+            last_seq = int(last_ktt.replace("KTT", ""))
+        except ValueError:
+            max_id = (await db.execute(select(func.max(VehicleTyre.id)))).scalar() or 0
+            last_seq = max_id
+    else:
+        max_id = (await db.execute(select(func.max(VehicleTyre.id)))).scalar() or 0
+        last_seq = max_id
+    numbers = [f"KTT{last_seq + i + 1:03d}" for i in range(quantity)]
+    return APIResponse(success=True, data={"next": numbers[0], "numbers": numbers})
+
+
 @router.get("/stock", response_model=APIResponse)
 async def tyre_stock(
     type: str = Query("new", regex="^(new|retreaded|removed|all)$"),
@@ -187,7 +373,7 @@ async def tyre_stock(
     """Get tyres in stock (not currently mounted on a vehicle)."""
     query = (
         select(VehicleTyre, Vehicle.registration_number)
-        .join(Vehicle, Vehicle.id == VehicleTyre.vehicle_id)
+        .outerjoin(Vehicle, Vehicle.id == VehicleTyre.vehicle_id)
         .where(VehicleTyre.is_active == True)
     )
 
@@ -214,9 +400,11 @@ async def tyre_stock(
         items.append({
             "id": tyre.id,
             "serial_number": tyre.tyre_number,
+            "manufacturer_serial": tyre.manufacturer_serial,
             "brand": tyre.brand,
             "size": tyre.size,
             "condition": tyre.condition,
+            "tread_depth_mm": float(tyre.tread_depth_mm) if tyre.tread_depth_mm is not None else None,
             "vehicle_number": reg_no,
             "vehicle_id": tyre.vehicle_id,
             "position": tyre.position,
@@ -289,6 +477,47 @@ async def move_tyre(
     db.add(lifecycle)
     await db.commit()
     return APIResponse(success=True, message=f"Tyre moved from {old_pos} to {new_position}")
+
+
+@router.patch("/{tyre_id}/remove", response_model=APIResponse)
+async def remove_tyre_from_vehicle(
+    tyre_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.VEHICLE_UPDATE)),
+):
+    """Remove a tyre from its vehicle position (puts it back into stock)."""
+    tyre = await db.get(VehicleTyre, tyre_id)
+    if not tyre or not tyre.is_active:
+        raise HTTPException(status_code=404, detail="Tyre not found")
+    if tyre.vehicle_id is None:
+        raise HTTPException(status_code=400, detail="Tyre is not fitted to any vehicle")
+
+    old_vehicle_id = tyre.vehicle_id
+    old_position = tyre.position
+
+    # If life >= 40% (tread >= 7.2mm of 18mm base), return to stock as 'new'
+    # Otherwise mark as 'removed'
+    tread = float(tyre.tread_depth_mm) if tyre.tread_depth_mm is not None else 0.0
+    life_pct = (tread / 18.0) * 100.0
+    new_condition = "new" if life_pct >= 40.0 else "removed"
+
+    tyre.vehicle_id = None
+    tyre.position = None
+    tyre.condition = new_condition
+
+    lifecycle = TyreLifecycleEvent(
+        vehicle_tyre_id=tyre_id,
+        event_type="REMOVED",
+        performed_by=current_user.user_id,
+        notes=f"Removed from vehicle {old_vehicle_id} at position {old_position}. Condition: {new_condition}",
+    )
+    db.add(lifecycle)
+    await db.commit()
+    return APIResponse(
+        success=True,
+        message="Tyre removed from vehicle and returned to stock" if new_condition == "new" else "Tyre removed from vehicle",
+        data={"tyre_id": tyre_id, "previous_vehicle_id": old_vehicle_id, "previous_position": old_position, "condition": new_condition},
+    )
 
 
 # ── Retreading management ─────────────────────────────────
@@ -528,11 +757,13 @@ async def list_tyres(
             "km_run": km_run,
             "tread_depth_mm": tread,
             "initial_tread_depth_mm": initial_tread,
+            "pressure_psi": float(tyre.last_psi or 0),
             "cost_per_km": float(purchase_cost / max(km_run, 1.0)) if km_run > 0 else 0,
             "retread_count": tyre.retread_count or 0,
             "max_retreads": tyre.max_retreads or 2,
             "retread_eligible": (tyre.retread_count or 0) < (tyre.max_retreads or 2),
             "total_retread_cost": float(tyre.total_retread_cost or 0),
+            "manufacturer_serial": tyre.manufacturer_serial,
         })
 
     pages = (total + limit - 1) // limit
@@ -554,23 +785,55 @@ async def create_tyre(
     db: AsyncSession = Depends(get_db),
     _user: TokenData = Depends(require_permission(Permissions.VEHICLE_UPDATE)),
 ):
-    tyre = VehicleTyre(
-        vehicle_id=data.vehicle_id,
-        tyre_number=data.serial_number,
-        position=data.axle_position,
-        brand=data.brand,
-        size=data.size,
-        purchase_date=data.purchase_date,
-        purchase_cost=data.cost or 0,
-        condition=str(data.status).lower(),
-        is_active=True,
-        tread_depth_mm=data.tread_depth_mm,
-        initial_tread_depth_mm=data.initial_tread_depth_mm if data.initial_tread_depth_mm is not None else data.tread_depth_mm,
+    # Auto-generate KTT serial numbers
+    max_result = await db.execute(
+        select(func.max(VehicleTyre.id)).where(VehicleTyre.is_active == True)
     )
-    db.add(tyre)
+    max_id = max_result.scalar() or 0
+    # Also check existing KTT numbers to find the highest sequence
+    ktt_result = await db.execute(
+        select(VehicleTyre.tyre_number)
+        .where(VehicleTyre.tyre_number.like("KTT%"))
+        .where(VehicleTyre.is_active == True)
+        .order_by(VehicleTyre.tyre_number.desc())
+        .limit(1)
+    )
+    last_ktt = ktt_result.scalar()
+    if last_ktt:
+        try:
+            last_seq = int(last_ktt.replace("KTT", ""))
+        except ValueError:
+            last_seq = max_id
+    else:
+        last_seq = max_id
+
+    created_ids = []
+    qty = max(1, data.quantity)
+    for i in range(qty):
+        seq = last_seq + i + 1
+        serial = f"KTT{seq:03d}"
+        tyre = VehicleTyre(
+            vehicle_id=data.vehicle_id,
+            tyre_number=serial,
+            manufacturer_serial=data.manufacturer_serial,
+            position=data.axle_position,
+            brand=data.brand,
+            model=data.model,
+            size=data.size,
+            ply_rating=data.ply_rating,
+            purchase_date=data.purchase_date,
+            purchase_cost=data.cost or 0,
+            condition=str(data.status).lower(),
+            is_active=True,
+            tread_depth_mm=data.tread_depth_mm,
+            initial_tread_depth_mm=data.initial_tread_depth_mm if data.initial_tread_depth_mm is not None else data.tread_depth_mm,
+            last_psi=data.pressure_psi,
+        )
+        db.add(tyre)
+        await db.flush()
+        created_ids.append({"id": tyre.id, "tyre_number": serial})
     await db.commit()
-    await db.refresh(tyre)
-    return APIResponse(success=True, data={"id": tyre.id}, message="Tyre created")
+    return APIResponse(success=True, data={"ids": created_ids}, message=f"{qty} tyre(s) created")
 
 
 @router.put("/{tyre_id}", response_model=APIResponse)
@@ -578,7 +841,7 @@ async def update_tyre(
     tyre_id: int,
     data: TyreUpdate,
     db: AsyncSession = Depends(get_db),
-    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_UPDATE)),
+    current_user: TokenData = Depends(require_permission(Permissions.VEHICLE_UPDATE)),
 ):
     tyre = await db.get(VehicleTyre, tyre_id)
     if not tyre or not tyre.is_active:
@@ -590,12 +853,31 @@ async def update_tyre(
         "axle_position": "position",
         "cost": "purchase_cost",
         "status": "condition",
+        "pressure_psi": "last_psi",
     }
+
+    # Track what changed for lifecycle logging
+    changes = []
     for key, value in payload.items():
         attr = field_map.get(key, key)
         if attr == "condition" and value is not None:
             value = str(value).lower()
+        old_value = getattr(tyre, attr, None)
         setattr(tyre, attr, value)
+        if key == "tread_depth_mm":
+            changes.append(f"Tread depth: {old_value} → {value} mm")
+        elif key == "pressure_psi":
+            changes.append(f"Pressure: {old_value} → {value} PSI")
+
+    # Log lifecycle event for tread/pressure updates
+    if changes:
+        event = TyreLifecycleEvent(
+            vehicle_tyre_id=tyre_id,
+            event_type="INSPECTION",
+            performed_by=current_user.user_id,
+            notes="; ".join(changes),
+        )
+        db.add(event)
 
     await db.commit()
     return APIResponse(success=True, message="Tyre updated")
@@ -1140,7 +1422,7 @@ async def list_tyre_readings(
     """List all field readings with optional filters."""
     from app.models.postgres.user import User
     q = (
-        select(TyreReading, Vehicle.registration_number, User.full_name)
+        select(TyreReading, Vehicle.registration_number, User.first_name, User.last_name)
         .join(Vehicle, Vehicle.id == TyreReading.vehicle_id)
         .outerjoin(User, User.id == TyreReading.driver_id)
     )
@@ -1156,7 +1438,8 @@ async def list_tyre_readings(
     result = await db.execute(q)
 
     items = []
-    for reading, reg_no, driver_name in result.all():
+    for reading, reg_no, first_name, last_name in result.all():
+        driver_name = f"{first_name or ''} {last_name or ''}".strip() or None
         items.append({
             "id": reading.id,
             "vehicle_id": reading.vehicle_id,

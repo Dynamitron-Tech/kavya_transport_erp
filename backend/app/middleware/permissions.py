@@ -245,6 +245,8 @@ ROLE_PERMISSIONS = {
         Permissions.INVOICE_READ,
         # Fuel
         Permissions.FUEL_CREATE, Permissions.FUEL_READ, Permissions.FUEL_APPROVE,
+        Permissions.FUEL_STOCK_VIEW, Permissions.FUEL_STOCK_EDIT, Permissions.FUEL_ISSUE,
+        Permissions.FUEL_REPORTS,
         # Maintenance
         Permissions.MAINTENANCE_CREATE, Permissions.MAINTENANCE_READ, 
         Permissions.MAINTENANCE_APPROVE,
@@ -382,8 +384,8 @@ ROLE_PERMISSIONS = {
         Permissions.VEHICLE_READ,
         # E-way Bill (read only - needed for Finance Hub expiry alerts)
         Permissions.EWAY_BILL_READ,
-        # Fuel (read)
-        Permissions.FUEL_READ,
+        # Fuel (approve top-up payments, read stock)
+        Permissions.FUEL_READ, Permissions.FUEL_APPROVE, Permissions.FUEL_STOCK_EDIT,
         # Reports
         Permissions.REPORT_VIEW, Permissions.REPORT_EXPORT,
         # User (read for employee list)
@@ -408,8 +410,9 @@ ROLE_PERMISSIONS = {
     ],
 
     "tyre_inspector": [
-        # Vehicle (read — needed to browse fleet for tyre inspections)
+        # Vehicle (read — browse fleet; update — fit/move/remove tyres)
         Permissions.VEHICLE_READ,
+        Permissions.VEHICLE_UPDATE,
         # Driver (read — context for trip/vehicle assignment)
         Permissions.DRIVER_READ,
         # Alerts / Notifications

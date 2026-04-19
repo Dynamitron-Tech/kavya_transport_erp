@@ -950,7 +950,24 @@ class _TripDetailSheetState extends State<_TripDetailSheet> {
     final hasLr = _tripDocPhotos.any((d) => d['type'] == 'lr');
     final hasEway = _tripDocPhotos.any((d) => d['type'] == 'eway');
 
-    if (!hasChecklist && !hasLr && !hasEway) {
+    // Driver-uploaded phase photos from trip fields
+    final loadedUrl = widget.trip['loaded_image_url'] as String?;
+    final reachedUrl = widget.trip['reached_image_url'] as String?;
+    final unloadedUrl = widget.trip['unloaded_image_url'] as String?;
+    final podUrl = widget.trip['pod_image_url'] as String?;
+    final phasePhotos = <Map<String, String>>[
+      if (loadedUrl != null && loadedUrl.isNotEmpty)
+        {'label': 'Loaded', 'url': '$staticBase$loadedUrl'},
+      if (reachedUrl != null && reachedUrl.isNotEmpty)
+        {'label': 'Reached', 'url': '$staticBase$reachedUrl'},
+      if (unloadedUrl != null && unloadedUrl.isNotEmpty)
+        {'label': 'Un-Loaded', 'url': '$staticBase$unloadedUrl'},
+      if (podUrl != null && podUrl.isNotEmpty)
+        {'label': 'Proof of Delivery', 'url': '$staticBase$podUrl'},
+    ];
+    final hasPhase = phasePhotos.isNotEmpty;
+
+    if (!hasPhase && !hasChecklist && !hasLr && !hasEway) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -988,8 +1005,70 @@ class _TripDetailSheetState extends State<_TripDetailSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Driver phase photos: LOADED, REACHED, UN-LOADED, POD
+              if (hasPhase) ...[
+                Row(children: [
+                  Icon(Icons.photo_camera_rounded, size: 13, color: KTColors.fleetAccent),
+                  const SizedBox(width: 5),
+                  const Text('Driver Trip Photos',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                          color: KTColors.textSecondary, letterSpacing: 0.3)),
+                ]),
+                const SizedBox(height: 10),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: phasePhotos.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    childAspectRatio: 1.3,
+                  ),
+                  itemBuilder: (_, idx) {
+                    final photo = phasePhotos[idx];
+                    final label = photo['label']!;
+                    final url = photo['url']!;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              url,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorBuilder: (_, __, ___) => Container(
+                                decoration: BoxDecoration(
+                                  color: KTColors.fleetAccent.withValues(alpha: 0.07),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: KTColors.fleetAccent.withValues(alpha: 0.3)),
+                                ),
+                                child: const Center(
+                                  child: Icon(Icons.broken_image_outlined, color: KTColors.textMuted),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(label,
+                            style: const TextStyle(
+                                fontSize: 11, color: KTColors.textMuted,
+                                fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ],
+                    );
+                  },
+                ),
+              ],
               // Checklist photos
               if (hasChecklist) ...[
+                if (hasPhase) ...[
+                  const Divider(height: 24),
+                ],
                 Row(children: [
                   Icon(Icons.checklist_rounded, size: 13, color: KTColors.fleetAccent),
                   const SizedBox(width: 5),
@@ -1044,7 +1123,7 @@ class _TripDetailSheetState extends State<_TripDetailSheet> {
               ],
               // LR Photo
               if (hasLr) ...[
-                if (hasChecklist) ...[
+                if (hasPhase || hasChecklist) ...[
                   const Divider(height: 24),
                 ],
                 Row(children: [
@@ -1063,7 +1142,7 @@ class _TripDetailSheetState extends State<_TripDetailSheet> {
               ],
               // E-way Photo
               if (hasEway) ...[
-                if (hasChecklist || hasLr) ...[
+                if (hasPhase || hasChecklist || hasLr) ...[
                   const Divider(height: 24),
                 ],
                 Row(children: [

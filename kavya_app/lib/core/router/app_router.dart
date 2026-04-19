@@ -44,6 +44,13 @@ import '../../screens/fleet/fleet_service_log_screen.dart';
 import '../../screens/fleet/fleet_tyre_event_screen.dart';
 import '../../screens/fleet/fleet_assign_driver_screen.dart';
 import '../../screens/fleet/fleet_notifications_screen.dart';
+import '../../screens/fleet/fleet_fuel_tanks_screen.dart';
+import '../../screens/fleet/fleet_tank_detail_screen.dart';
+import '../../screens/fleet/fleet_attendance_drivers_screen.dart';
+import '../../screens/fleet/fleet_attendance_pump_operators_screen.dart';
+import '../../screens/fleet/fleet_driver_attendance_history_screen.dart';
+import '../../screens/fleet/fleet_pump_operator_attendance_history_screen.dart';
+import '../../screens/fleet/fleet_fuel_employees_screen.dart';
 // Accountant screens
 import '../../screens/accountant/accountant_home_screen.dart';
 import '../../screens/accountant/accountant_shell_screen.dart';
@@ -114,8 +121,8 @@ import '../../features/admin/screens/admin_reports_screen.dart';
 import '../../screens/pump/pump_home_screen.dart';
 import '../../screens/pump/pump_dashboard_screen.dart';
 import '../../screens/pump/pump_fuel_log_screen.dart';
-import '../../screens/pump/pump_dispense_screen.dart';
-import '../../screens/pump/pump_reports_screen.dart';
+import '../../screens/pump/pump_history_screen.dart';
+import '../../screens/pump/pump_vehicles_screen.dart';
 import '../../screens/pump/pump_tank_refill_screen.dart';
 import '../../screens/pump/pump_create_tank_screen.dart';
 // Manager screens
@@ -151,7 +158,9 @@ import '../../screens/tyre/tyre_dashboard_screen.dart';
 import '../../screens/tyre/tyre_inspections_screen.dart';
 import '../../screens/tyre/tyre_vehicles_screen.dart';
 import '../../screens/tyre/tyre_history_screen.dart';
+import '../../screens/tyre/tyre_inventory_screen.dart';
 import '../../screens/tyre/tyre_profile_screen.dart';
+import '../../screens/tyre/tyre_vehicle_detail_screen.dart';
 
 final appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -419,6 +428,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/fleet/approvals', builder: (context, state) => const FleetDriverApprovalsScreen()),
       GoRoute(path: '/fleet/assign', builder: (context, state) => const FleetAssignDriverScreen()),
       GoRoute(path: '/fleet/notifications', builder: (context, state) => const FleetNotificationsScreen()),
+      GoRoute(path: '/fleet/fuel/tanks', builder: (context, state) => const FleetFuelTanksScreen()),
+      GoRoute(path: '/fleet/attendance/drivers', builder: (context, state) => const FleetAttendanceDriversScreen()),
+      GoRoute(path: '/fleet/attendance/pump-operators', builder: (context, state) => const FleetAttendancePumpOperatorsScreen()),
+      GoRoute(
+        path: '/fleet/attendance/driver/:driverId',
+        builder: (context, state) {
+          final driverId = int.parse(state.pathParameters['driverId']!);
+          final driverName = state.uri.queryParameters['name'] ?? 'Driver';
+          return FleetDriverAttendanceHistoryScreen(driverId: driverId, driverName: driverName);
+        },
+      ),
+      GoRoute(
+        path: '/fleet/attendance/pump-operator/:userId',
+        builder: (context, state) {
+          final userId = int.parse(state.pathParameters['userId']!);
+          final name = state.uri.queryParameters['name'] ?? 'Pump Operator';
+          return FleetPumpOperatorAttendanceHistoryScreen(userId: userId, operatorName: name);
+        },
+      ),
+      GoRoute(path: '/fleet/fuel/employees', builder: (context, state) => const FleetFuelEmployeesScreen()),
       
       // --- Accountant Routes --- (Stateful shell with bottom nav)
       StatefulShellRoute.indexedStack(
@@ -840,17 +869,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(path: '/pump/home', builder: (context, state) => const PumpDashboardScreen()),
           ]),
-          // index 1 → Dispense (was wrongly index 2)
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/pump/dispense', builder: (context, state) => const PumpDispenseScreen()),
-          ]),
-          // index 2 → Log (was wrongly index 1)
+          // index 1 → Log
           StatefulShellBranch(routes: [
             GoRoute(path: '/pump/log', builder: (context, state) => const PumpFuelLogScreen()),
           ]),
-          // index 3 → Reports (new)
+          // index 2 → History
           StatefulShellBranch(routes: [
-            GoRoute(path: '/pump/reports', builder: (context, state) => const PumpReportsScreen()),
+            GoRoute(path: '/pump/history', builder: (context, state) => const PumpHistoryScreen()),
+          ]),
+          // index 3 → Vehicles
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/pump/vehicles', builder: (context, state) => const PumpVehiclesScreen()),
           ]),
         ],
       ),
@@ -990,12 +1019,29 @@ final routerProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(path: '/tyre/history', builder: (context, state) => const TyreHistoryScreen()),
           ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/tyre/inventory', builder: (context, state) => const TyreInventoryScreen()),
+          ]),
         ],
       ),
       GoRoute(
         path: '/tyre/profile',
         parentNavigatorKey: appNavigatorKey,
         builder: (context, state) => const TyreProfileScreen(),
+      ),
+      GoRoute(
+        path: '/tyre/vehicle/:id',
+        parentNavigatorKey: appNavigatorKey,
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return TyreVehicleDetailScreen(
+            vehicleId: id,
+            registrationNumber: extra['registration_number'] ?? '',
+            axleWheelType: extra['axle_wheel_type'] ?? '6w',
+            source: extra['source'] ?? 'vehicles',
+          );
+        },
       ),
 
       // --- Market Driver Routes (phone OTP login → trips → detail) ---
