@@ -181,9 +181,9 @@ async def list_drivers(
         row["vehicle_id"] = None
         if vehicle_map.get(d.id):
             veh_id_res = await db.execute(
-                select(Vehicle.id).where(Vehicle.default_driver_id == d.id)
+                select(Vehicle.id).where(Vehicle.default_driver_id == d.id).limit(1)
             )
-            row["vehicle_id"] = veh_id_res.scalar_one_or_none()
+            row["vehicle_id"] = veh_id_res.scalars().first()
         # Include first license info if available
         licenses = await driver_service.get_driver_license(db, d.id)
         if licenses:

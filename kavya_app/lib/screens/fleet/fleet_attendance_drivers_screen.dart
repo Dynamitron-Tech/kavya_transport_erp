@@ -11,7 +11,7 @@ import '../../providers/fleet_dashboard_provider.dart';
 final _attendanceDriversProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final api = ref.read(apiServiceProvider);
-  final res = await api.get('/drivers', queryParameters: {'limit': 200});
+  final res = await api.get('/fleet/drivers', queryParameters: {'limit': 200});
   final payload = res['data'] ?? res;
   if (payload is List) return payload.cast<Map<String, dynamic>>();
   return [];

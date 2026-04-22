@@ -77,20 +77,11 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Fuel Mgmt', route: '/fleet/fuel', icon: 'fuel', description: 'Fuel entries and efficiency tracking' },
           { label: 'Tyres', route: '/fleet/tyres', icon: 'circle', description: 'Real-time tyre monitoring, stock & retreading' },
           { label: 'Fleet Alerts', route: '/fleet/alerts', icon: 'bell', description: 'Compliance and service alerts' },
-          { label: 'Geofences', route: '/fleet/geofences', icon: 'pin', description: 'Geofence zones and route corridors' },
-          { label: 'Compliance', route: '/fleet/compliance', icon: 'shield', description: 'AIS-140 compliance and alerts' },
           { label: 'Driver Leaderboard', route: '/fleet/driver-leaderboard', icon: 'trophy', description: 'Driver behavior scores and rankings' },
           { label: 'TPMS', route: '/fleet/tpms', icon: 'activity', description: 'Tyre pressure monitoring system' },
           { label: 'Fleet Reports', route: '/fleet/reports', icon: 'chart', description: 'Fleet analytics and reports' },
           { label: 'Assign Drivers', route: '/fleet/assign-drivers', icon: 'user', description: 'Assign a default driver to each vehicle' },
-        ],
-      },
-      {
-        label: 'Compliance',
-        items: [
-          { label: 'Vehicle Compliance', route: '/fleet/vehicle-compliance', icon: 'shield', description: 'RC, Insurance, Fitness, Permit, PUC checks' },
-          { label: 'Driver Compliance', route: '/fleet/driver-compliance', icon: 'id', description: 'DL verification and challan lookup' },
-          { label: 'GST Verification', route: '/fleet/gst-verify', icon: 'receipt', description: 'Verify GSTIN and filing status' },
+          { label: 'Pump Management', route: '/fleet/pump-management', icon: 'fuel', description: 'Bunks, tanks, pumps and pump employee activity' },
         ],
       },
       {
@@ -98,7 +89,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         items: [
           { label: 'GPS Live Map', route: '/tracking/gps', icon: 'pin', description: 'Live GPS positions of all vehicles' },
           { label: 'Trip Replay', route: '/tracking/replay', icon: 'play', description: 'Historical vehicle path replay' },
-          { label: 'Fuel Prices', route: '/fleet/fuel-prices', icon: 'fuel', description: 'Current diesel/petrol prices by city' },
           { label: 'Route Calculator', route: '/trips/route-calculator', icon: 'route', description: 'Calculate distance between locations' },
           { label: 'Notifications', route: '/settings/notifications', icon: 'bell', description: 'Send SMS, WhatsApp, Push notifications' },
         ],
@@ -156,18 +146,9 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Fuel Mgmt', route: '/fleet/fuel', icon: 'fuel', description: 'Fuel entries and efficiency tracking' },
           { label: 'Tyres', route: '/fleet/tyres', icon: 'circle', description: 'Real-time tyre monitoring, stock & retreading' },
           { label: 'Fleet Alerts', route: '/fleet/alerts', icon: 'bell', description: 'Compliance and service alerts' },
-          { label: 'Geofences', route: '/fleet/geofences', icon: 'pin', description: 'Geofence zones and route corridors' },
-          { label: 'Compliance', route: '/fleet/compliance', icon: 'shield', description: 'AIS-140 compliance and alerts' },
           { label: 'Driver Leaderboard', route: '/fleet/driver-leaderboard', icon: 'trophy', description: 'Driver behavior scores and rankings' },
           { label: 'TPMS', route: '/fleet/tpms', icon: 'activity', description: 'Tyre pressure monitoring system' },
           { label: 'Fleet Reports', route: '/fleet/reports', icon: 'chart', description: 'Fleet analytics and reports' },
-        ],
-      },
-      {
-        label: 'Compliance',
-        items: [
-          { label: 'Vehicle Compliance', route: '/fleet/vehicle-compliance', icon: 'shield', description: 'RC, Insurance, Fitness, Permit, PUC checks' },
-          { label: 'Driver Compliance', route: '/fleet/driver-compliance', icon: 'id', description: 'DL verification and challan lookup' },
         ],
       },
       {
@@ -198,12 +179,6 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         ],
       },
       {
-        label: 'Finance',
-        items: [
-          { label: 'Invoices', route: '/finance/invoices', icon: 'invoice', description: 'View invoices for trip reference' },
-        ],
-      },
-      {
         label: 'Fleet Manager',
         items: [
           { label: 'Fleet Dashboard', route: '/fleet', icon: 'gauge', description: 'Fleet overview and KPIs' },
@@ -214,19 +189,19 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Fuel Mgmt', route: '/fleet/fuel', icon: 'fuel', description: 'Fuel entries and efficiency tracking' },
           { label: 'Tyres', route: '/fleet/tyres', icon: 'circle', description: 'Real-time tyre monitoring, stock & retreading' },
           { label: 'Fleet Alerts', route: '/fleet/alerts', icon: 'bell', description: 'Compliance and service alerts' },
-          { label: 'Geofences', route: '/fleet/geofences', icon: 'pin', description: 'Geofence zones and route corridors' },
-          { label: 'AIS-140 Compliance', route: '/fleet/compliance', icon: 'shield', description: 'AIS-140 compliance and alerts' },
           { label: 'Driver Leaderboard', route: '/fleet/driver-leaderboard', icon: 'trophy', description: 'Driver behavior scores and rankings' },
           { label: 'TPMS', route: '/fleet/tpms', icon: 'activity', description: 'Tyre pressure monitoring system' },
           { label: 'Fleet Reports', route: '/fleet/reports', icon: 'chart', description: 'Fleet analytics and reports' },
           { label: 'Assign Drivers', route: '/fleet/assign-drivers', icon: 'user', description: 'Assign a default driver to each vehicle' },
+          { label: 'Pump Management', route: '/fleet/pump-management', icon: 'fuel', description: 'Bunks, tanks, pumps and pump employee activity' },
+          { label: 'Driver Approvals', route: '/fleet/approvals', icon: 'check', description: 'Review and action driver leave and advance requests' },
         ],
       },
       {
-        label: 'Compliance',
+        label: 'Attendance',
         items: [
-          { label: 'Vehicle Compliance', route: '/fleet/vehicle-compliance', icon: 'shield', description: 'RC, Insurance, Fitness, Permit, PUC checks' },
-          { label: 'Driver Compliance', route: '/fleet/driver-compliance', icon: 'id', description: 'DL verification and challan lookup' },
+          { label: 'Drivers', route: '/fleet/attendance/drivers', icon: 'user', description: 'Driver list with current status and assignment' },
+          { label: 'Pump Operators', route: '/fleet/pump-operators', icon: 'fuel', description: 'Pump operator attendance and day-by-day fuel activity' },
         ],
       },
       {
@@ -448,8 +423,6 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
       { label: 'Fuel Mgmt', path: '/fleet/fuel', roles: ['admin', 'fleet_manager'] },
       { label: 'Tyres', path: '/fleet/tyres', roles: ['admin', 'fleet_manager'] },
       { label: 'Fleet Alerts', path: '/fleet/alerts', roles: ['admin', 'fleet_manager'] },
-      { label: 'Geofences', path: '/fleet/geofences', roles: ['admin', 'fleet_manager'] },
-      { label: 'Compliance', path: '/fleet/compliance', roles: ['admin', 'fleet_manager'] },
       { label: 'Driver Leaderboard', path: '/fleet/driver-leaderboard', roles: ['admin', 'manager', 'fleet_manager'] },
       { label: 'TPMS', path: '/fleet/tpms', roles: ['admin', 'fleet_manager'] },
       { label: 'Fleet Reports', path: '/fleet/reports', roles: ['admin', 'fleet_manager'] },
@@ -474,21 +447,11 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
     roles: ['admin', 'accountant'],
   },
   {
-    label: 'Compliance',
-    roles: ['admin', 'manager', 'fleet_manager', 'accountant'],
-    items: [
-      { label: 'Vehicle Compliance', path: '/fleet/vehicle-compliance', roles: ['admin', 'manager', 'fleet_manager'] },
-      { label: 'Driver Compliance', path: '/fleet/driver-compliance', roles: ['admin', 'manager', 'fleet_manager'] },
-      { label: 'GST Verification', path: '/fleet/gst-verify', roles: ['admin', 'manager', 'accountant'] },
-    ],
-  },
-  {
     label: 'Tools',
     roles: ['admin', 'manager', 'fleet_manager', 'accountant'],
     items: [
       { label: 'GPS Live Map', path: '/tracking/gps', roles: ['admin', 'manager', 'fleet_manager'] },
       { label: 'Trip Replay', path: '/tracking/replay', roles: ['admin', 'manager'] },
-      { label: 'Fuel Prices', path: '/fleet/fuel-prices', roles: ['admin', 'manager', 'fleet_manager'] },
       { label: 'Route Calculator', path: '/trips/route-calculator', roles: ['admin', 'manager'] },
       { label: 'Notifications', path: '/settings/notifications', roles: ['admin', 'manager'] },
     ],

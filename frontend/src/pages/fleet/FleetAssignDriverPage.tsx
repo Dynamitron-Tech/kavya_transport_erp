@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Truck, User, Search, CheckCircle, XCircle, Link } from 'lucide-react';
-import { fleetService, driverService } from '@/services/dataService';
+import { fleetService } from '@/services/dataService';
 import { safeArray } from '@/utils/helpers';
 import { toast } from 'react-hot-toast';
 
@@ -41,7 +41,7 @@ export default function FleetAssignDriverPage() {
 
   const { data: driversData } = useQuery({
     queryKey: ['fleet-drivers-for-assign'],
-    queryFn: () => driverService.list({ limit: 200 }),
+    queryFn: () => fleetService.getDrivers({ limit: 200 }),
   });
 
   const assignments: VehicleAssignment[] = safeArray(assignmentsData);

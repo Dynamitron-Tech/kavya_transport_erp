@@ -45,7 +45,6 @@ import '../../screens/fleet/fleet_tyre_event_screen.dart';
 import '../../screens/fleet/fleet_assign_driver_screen.dart';
 import '../../screens/fleet/fleet_notifications_screen.dart';
 import '../../screens/fleet/fleet_fuel_tanks_screen.dart';
-import '../../screens/fleet/fleet_tank_detail_screen.dart';
 import '../../screens/fleet/fleet_attendance_drivers_screen.dart';
 import '../../screens/fleet/fleet_attendance_pump_operators_screen.dart';
 import '../../screens/fleet/fleet_driver_attendance_history_screen.dart';

@@ -31,7 +31,6 @@ class _AssociateEWBCreateScreenState extends ConsumerState<AssociateEWBCreateScr
   
   String _docType = 'Invoice';
   final _docNo = TextEditingController();
-  final DateTime _docDate = DateTime.now();
 
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return; // [cite: 116]

@@ -63,7 +63,7 @@ final vehicleListProvider = FutureProvider.autoDispose<List<Map<String, dynamic>
 });
 
 final driversProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final res = await _api.get('/drivers', queryParameters: {'limit': 500});
+  final res = await _api.get('/fleet/drivers', queryParameters: {'limit': 500});
   final payload = (res['data'] ?? res);
   if (payload is List) {
     return payload.cast<Map<String, dynamic>>();

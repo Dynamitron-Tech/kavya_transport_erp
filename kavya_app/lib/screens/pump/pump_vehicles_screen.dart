@@ -431,7 +431,7 @@ class _VehicleHistorySheet extends ConsumerWidget {
                             '${dt.year}';
                     final timeStr = '${dt.hour.toString().padLeft(2, '0')}:'
                             '${dt.minute.toString().padLeft(2, '0')}';
-                    final fuelColor = (issue.fuelType ?? '').toLowerCase() == 'petrol'
+                    final fuelColor = issue.fuelType.toLowerCase() == 'petrol'
                         ? const Color(0xFF10B981)
                         : _amber;
                     return Container(
@@ -474,7 +474,7 @@ class _VehicleHistorySheet extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  (issue.fuelType ?? 'Diesel').toUpperCase(),
+                                  issue.fuelType.toUpperCase(),
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,

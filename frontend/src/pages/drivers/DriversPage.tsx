@@ -66,13 +66,6 @@ export default function DriversPage() {
     queryFn: () => driverService.getDashboard(),
   });
 
-  const { data: usersData } = useQuery({
-    queryKey: ['drivers-users-catalog'],
-    queryFn: () => api.get('/users', { suppressErrorToast: true } as any),
-    retry: false,
-    throwOnError: false,
-  });
-
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['drivers', filters, statusFilter],
     queryFn: () => driverService.list({ ...filters, status: statusFilter || undefined }),
@@ -191,28 +184,7 @@ export default function DriversPage() {
   const normalizePhone = (value?: string) => String(value || '').replace(/\D/g, '').slice(-10);
   const normalizeStatus = (value?: string) => String(value || '').trim().toLowerCase();
   const rawDrivers = safeArray<Driver>(data);
-  const allUsers = safeArray<any>(usersData);
-  const driverUsers = allUsers.filter((u: any) => {
-    const role = String(u?.role || '').toLowerCase();
-    const roles = safeArray<string>(u?.roles).map((r) => String(r || '').toLowerCase());
-    return role === 'driver' || roles.includes('driver');
-  });
-  const hasUsersCatalog = allUsers.length > 0;
-  const driverUserIds = new Set(driverUsers.map((u: any) => Number(u?.id)).filter((id) => Number.isFinite(id) && id > 0));
-  const driverUserPhones = new Set(driverUsers.map((u: any) => normalizePhone(u?.phone)).filter(Boolean));
-  const driverUserEmails = new Set(driverUsers.map((u: any) => String(u?.email || '').trim().toLowerCase()).filter(Boolean));
-
-  const visibleDrivers = hasUsersCatalog
-    ? rawDrivers.filter((d: any) => {
-        const userId = Number(d?.user_id);
-        if (Number.isFinite(userId) && driverUserIds.has(userId)) return true;
-        const phone = normalizePhone(d?.phone);
-        if (phone && driverUserPhones.has(phone)) return true;
-        const email = String(d?.email || '').trim().toLowerCase();
-        if (email && driverUserEmails.has(email)) return true;
-        return false;
-      })
-    : rawDrivers;
+  const visibleDrivers = rawDrivers;
 
   const computedKpis = {
     total_drivers: visibleDrivers.length,
@@ -231,12 +203,10 @@ export default function DriversPage() {
       ? Number((visibleDrivers.reduce((sum, d) => sum + Number((d as any)?.rating || 0), 0) / visibleDrivers.length).toFixed(1))
       : 0,
   };
-  const kpiView = hasUsersCatalog
-    ? {
-        ...computedKpis,
-        active_drivers: computedKpis.available + computedKpis.on_trip,
-      }
-    : kpis;
+  const kpiView = {
+    ...computedKpis,
+    active_drivers: computedKpis.available + computedKpis.on_trip,
+  };
 
   const columns: Column<Driver>[] = [
     {
@@ -299,6 +269,16 @@ export default function DriversPage() {
       header: 'Status',
       render: (d) => <StatusBadge status={d.status} />,
     },
+    {
+      key: 'assigned_vehicle',
+      header: 'Vehicle',
+      render: (d) => d.assigned_vehicle ? (
+        <div className="flex items-center gap-1 text-sm">
+          <Truck className="w-3 h-3 text-gray-400" />
+          <span className="font-mono">{d.assigned_vehicle}</span>
+        </div>
+      ) : <span className="text-gray-400 text-sm">Unassigned</span>,
+    },
   ];
 
   return (
@@ -311,9 +291,6 @@ export default function DriversPage() {
         <div className="flex items-center gap-2">
           <button onClick={() => navigate('/drivers/dashboard')} className="btn-secondary flex items-center gap-2">
             <LayoutDashboard size={16} /> Dashboard
-          </button>
-          <button onClick={() => setIsCreateOpen(true)} className="btn-primary flex items-center gap-2">
-            <Plus size={16} /> Add Driver
           </button>
         </div>
       </div>
@@ -350,7 +327,7 @@ export default function DriversPage() {
       <DataTable
         columns={columns}
         data={visibleDrivers}
-        total={hasUsersCatalog ? visibleDrivers.length : (data?.total || 0)}
+        total={data?.pagination?.total || data?.total || visibleDrivers.length}
         page={filters.page}
         pageSize={filters.page_size}
         isLoading={isLoading}

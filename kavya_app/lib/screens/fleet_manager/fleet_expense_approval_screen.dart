@@ -26,17 +26,18 @@ class _FleetExpenseApprovalScreenState extends ConsumerState<FleetExpenseApprova
   final List<String> _filters = ['All', 'Pending', 'Approved', 'Rejected']; // [cite: 67-68]
 
   Future<void> _handleApprove(String id) async {
+    final sm = ScaffoldMessenger.of(context);
     try {
       await ref.read(apiServiceProvider).approveExpense(id); // [cite: 33, 68]
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        sm.showSnackBar(
           const SnackBar(content: Text('Expense approved'), backgroundColor: KTColors.success), // [cite: 117]
         );
         ref.invalidate(pendingExpensesProvider);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        sm.showSnackBar(
           SnackBar(content: Text(e.toString()), backgroundColor: KTColors.danger), // [cite: 117]
         );
       }
@@ -45,6 +46,7 @@ class _FleetExpenseApprovalScreenState extends ConsumerState<FleetExpenseApprova
 
   void _showRejectModal(String id) { // [cite: 68-69]
     final reasonController = TextEditingController();
+    final sm = ScaffoldMessenger.of(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -72,16 +74,12 @@ class _FleetExpenseApprovalScreenState extends ConsumerState<FleetExpenseApprova
                 Navigator.pop(context);
                 try {
                   await ref.read(apiServiceProvider).rejectExpense(id, reasonController.text); // [cite: 33, 68-69]
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Expense rejected'), backgroundColor: KTColors.danger), // [cite: 117]
-                    );
-                    ref.invalidate(pendingExpensesProvider);
-                  }
+                  sm.showSnackBar(
+                    const SnackBar(content: Text('Expense rejected'), backgroundColor: KTColors.danger), // [cite: 117]
+                  );
+                  ref.invalidate(pendingExpensesProvider);
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: KTColors.danger)); // [cite: 117]
-                  }
+                  sm.showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: KTColors.danger)); // [cite: 117]
                 }
               },
               child: const Text("Confirm reject"), // [cite: 68-69]

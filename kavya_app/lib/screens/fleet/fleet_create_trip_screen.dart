@@ -42,7 +42,7 @@ class _FleetCreateTripScreenState
       final results = await Future.wait([
         api.get('/trips/next-trip-number'),
         api.get('/vehicles', queryParameters: {'status': 'available', 'limit': 100}),
-        api.get('/drivers', queryParameters: {'status': 'available', 'limit': 100}),
+        api.get('/fleet/drivers', queryParameters: {'status': 'available', 'limit': 100}),
       ]);
       final nextNum = (results[0] is Map)
           ? ((results[0]['data']?['trip_number'] ?? results[0]['trip_number']) as String? ?? '')

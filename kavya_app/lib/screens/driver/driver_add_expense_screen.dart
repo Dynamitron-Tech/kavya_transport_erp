@@ -175,6 +175,7 @@ class _DriverAddExpenseScreenState extends ConsumerState<DriverAddExpenseScreen>
 
     // Security PIN verification for expenses >= ₹500
     if (amount >= _biometricThreshold) {
+      if (!mounted) return;
       final api = ref.read(apiServiceProvider);
       final pinResult = await Navigator.push<bool>(
         context,

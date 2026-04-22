@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import {
   CircleDot, Truck, AlertTriangle, Search, ChevronRight,
   Package, ShoppingCart, RotateCw,
-  X,
+  X, Ruler,
   Activity, MapPin, PlayCircle, Settings, Plus, CheckCircle, Gauge,
   Edit2, RefreshCw, CheckCircle2,
 } from 'lucide-react';
@@ -33,7 +33,7 @@ import type {
   TyreCatalogueItem, TyreCompareItem, TPMSReading,
 } from '@/types';
 
-const TYRE_TAB_KEYS = ['tracker', 'entry', 'vehicles'] as const;
+const TYRE_TAB_KEYS = ['dashboard', 'vehicles', 'history', 'inventory'] as const;
 type TyreTab = typeof TYRE_TAB_KEYS[number];
 
 // ── Human-readable position labels ──────────────────────
@@ -57,27 +57,56 @@ const DIAGRAM_TO_DB: Record<string, string> = {
   '3L0': 'RL3', '3L1': 'RL4', '3R1': 'RR4', '3R0': 'RR3',
 };
 
+// Map axle_wheel_type (set by admin during vehicle creation) → tyre layout
+function layoutFromAxleWheelType(axleWheelType: string): VehicleLayout | null {
+  switch ((axleWheelType || '').toLowerCase()) {
+    case '4w':    return 'LCV_4';
+    case '6w':    return 'TRUCK_2AXLE';
+    case '10w':   return 'TRUCK_3AXLE';
+    case '12w':   return 'TRUCK_12W';   // Double Steering — 2 steer + 2 dual drive
+    case '14w':   return 'TRUCK_14W';   // Lift Axle — 1 steer + 1 lift + 2 dual drive
+    case 'tr_6w': return 'TRUCK_2AXLE';
+    case 'tr_10w': return 'TRUCK_3AXLE';
+    default:      return null;
+  }
+}
+
+// Human-readable labels for axle_wheel_type
+const AXLE_WHEEL_LABELS: Record<string, { label: string; tyres: number }> = {
+  '4w':    { label: '4W — LCV / Mini Truck',          tyres: 4  },
+  '6w':    { label: '6W — Single Axle',               tyres: 6  },
+  '10w':   { label: '10W — Dual Axle',                tyres: 10 },
+  '12w':   { label: '12W — Double Steering',          tyres: 12 },
+  '14w':   { label: '14W — Lift Axle',                tyres: 14 },
+  'tr_6w': { label: 'TR-6W — Tractor Head Single',    tyres: 6  },
+  'tr_10w':{ label: 'TR-10W — Tractor Head Dual',     tyres: 10 },
+};
+
 // Vehicle types where layout can be auto-detected (set in admin)
 const KNOWN_VEHICLE_TYPES = new Set(['truck', 'trailer', 'tanker', 'container', 'mini_truck', 'lcv', 'bus']);
 
 const LAYOUT_LABELS: Record<string, { name: string; tyres: number }> = {
-  LCV_4:         { name: 'LCV / Mini Truck', tyres: 4  },
-  TRUCK_2AXLE:   { name: '2-Axle Truck',     tyres: 6  },
-  TRUCK_3AXLE:   { name: '3-Axle Truck',     tyres: 10 },
-  TRAILER_3AXLE: { name: 'Trailer',           tyres: 12 },
-  BUS_5AXLE:     { name: 'Bus',               tyres: 10 },
+  LCV_4:         { name: 'LCV / Mini Truck',      tyres: 4  },
+  TRUCK_2AXLE:   { name: '2-Axle Truck',          tyres: 6  },
+  TRUCK_3AXLE:   { name: '3-Axle Truck',          tyres: 10 },
+  TRUCK_12W:     { name: '12W Double Steering',   tyres: 12 },
+  TRUCK_14W:     { name: '14W Lift Axle',         tyres: 14 },
+  TRAILER_3AXLE: { name: 'Trailer',               tyres: 12 },
+  BUS_5AXLE:     { name: 'Bus',                   tyres: 10 },
 };
 
 const LAYOUT_POSITIONS: Record<string, string[]> = {
-  LCV_4:       ['1L0', '1R0', '2L0', '2R0'],
-  TRUCK_2AXLE: ['1L0', '1R0', '2L0', '2L1', '2R1', '2R0'],
-  TRUCK_3AXLE: ['1L0', '1R0', '2L0', '2L1', '2R1', '2R0', '3L0', '3L1', '3R1', '3R0'],
-  TRAILER_3AXLE: ['2L0', '2L1', '2R1', '2R0', '3L0', '3L1', '3R1', '3R0', '1L0', '1L1', '1R1', '1R0'],
-  BUS_5AXLE:   ['1L0', '1R0', '2L0', '2L1', '2R1', '2R0', '3L0', '3L1', '3R1', '3R0'],
+  LCV_4:         ['1L0', '1R0', '2L0', '2R0'],
+  TRUCK_2AXLE:   ['1L0', '1R0', '2L0', '2L1', '2R1', '2R0'],
+  TRUCK_3AXLE:   ['1L0', '1R0', '2L0', '2L1', '2R1', '2R0', '3L0', '3L1', '3R1', '3R0'],
+  TRUCK_12W:     ['1L1', '1L0', '1R0', '1R1', '2L1', '2L0', '2R0', '2R1', '3L1', '3L0', '3R0', '3R1'],
+  TRUCK_14W:     ['1L0', '1R0', '2L0', '2L1', '2R1', '2R0', '3L0', '3L1', '3R1', '3R0', '4L0', '4L1', '4R1', '4R0'],
+  TRAILER_3AXLE: ['1L0', '1L1', '1R1', '1R0', '2L0', '2L1', '2R1', '2R0', '3L0', '3L1', '3R1', '3R0'],
+  BUS_5AXLE:     ['1L0', '1R0', '2L0', '2R0', '3L0', '3R0', '4L0', '4L1', '4R1', '4R0', '5L0', '5L1', '5R1', '5R0'],
 };
 
 export default function TyreTrackerPage() {
-  const [activeTab, setActiveTab] = useState<TyreTab>('tracker');
+  const [activeTab, setActiveTab] = useState<TyreTab>('dashboard');
 
   // Connect WS on mount (use token from localStorage)
   useEffect(() => {
@@ -99,9 +128,10 @@ export default function TyreTrackerPage() {
       {/* Top tab pills */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
         {([
-          { key: 'tracker', label: 'Tyre Tracker', icon: <Activity className="w-4 h-4" /> },
-          { key: 'entry', label: 'Tyre Entry', icon: <Plus className="w-4 h-4" /> },
+          { key: 'dashboard', label: 'Dashboard', icon: <Activity className="w-4 h-4" /> },
           { key: 'vehicles', label: 'Vehicles', icon: <Truck className="w-4 h-4" /> },
+          { key: 'history', label: 'History', icon: <RotateCw className="w-4 h-4" /> },
+          { key: 'inventory', label: 'Inventory', icon: <Package className="w-4 h-4" /> },
         ] as { key: TyreTab; label: string; icon: React.ReactNode }[]).map(t => (
           <button
             key={t.key}
@@ -118,9 +148,10 @@ export default function TyreTrackerPage() {
       </div>
 
       {/* Tab content */}
-      {activeTab === 'tracker' && <TyreTrackerTab />}
-      {activeTab === 'entry' && <TyreEntryTab />}
+      {activeTab === 'dashboard' && <DashboardTab />}
       {activeTab === 'vehicles' && <VehiclesTab />}
+      {activeTab === 'history' && <HistoryTab />}
+      {activeTab === 'inventory' && <InventoryTab />}
     </div>
   );
 }
@@ -206,16 +237,19 @@ function TyreEntryTab() {
       return;
     }
     // No tyres → entry flow
-    const layout = layoutForVehicleType(v.vehicle_type || '', 0);
+    // Prefer axle_wheel_type (set by admin) for accurate tyre count; fallback to vehicle_type
+    const layout =
+      layoutFromAxleWheelType(v.axle_wheel_type || '') ||
+      layoutForVehicleType(v.vehicle_type || '', 0);
     setSelectedLayout(layout);
     const init: Record<string, { serial: string; brand: string; size: string; thickness: string }> = {};
     (LAYOUT_POSITIONS[layout] || LAYOUT_POSITIONS.TRUCK_2AXLE).forEach(pos => {
       init[pos] = { serial: '', brand: '', size: '', thickness: '' };
     });
     setTyreData(init);
-    const isKnown = KNOWN_VEHICLE_TYPES.has((v.vehicle_type || '').toLowerCase());
-    setAutoDetected(isKnown);
-    setStep(isKnown ? 2 : 1);
+    // Always auto-detected — axle_wheel_type is set during vehicle creation, skip step 1
+    setAutoDetected(true);
+    setStep(2);
   }
 
   function handleLayoutChange(layout: VehicleLayout) {
@@ -305,9 +339,12 @@ function TyreEntryTab() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {vehicles.slice(0, 60).map((v: any) => {
-            const vLayout = layoutForVehicleType(v.vehicle_type || '', 0);
+            const axleInfo = AXLE_WHEEL_LABELS[(v.axle_wheel_type || '').toLowerCase()];
+            const vLayout =
+              layoutFromAxleWheelType(v.axle_wheel_type || '') ||
+              layoutForVehicleType(v.vehicle_type || '', 0);
             const vInfo = LAYOUT_LABELS[vLayout];
-            const isKnown = KNOWN_VEHICLE_TYPES.has((v.vehicle_type || '').toLowerCase());
+            const tyreCount = axleInfo?.tyres ?? vInfo?.tyres;
             const vTyres = tyresByVehicle.get(v.id) || [];
             const hasTypres = vTyres.length > 0;
             const criticalCount = vTyres.filter((t: any) => t.tread_depth_mm != null && t.tread_depth_mm <= 2.5).length;
@@ -330,11 +367,16 @@ function TyreEntryTab() {
                   }
                 </div>
                 <div className="text-xs text-gray-500 space-y-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="capitalize">{(v.vehicle_type || 'truck').replace('_', ' ')}</span>
-                    {isKnown && (
-                      <span className="bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded text-[10px]">
-                        {vInfo.tyres} tyres
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="capitalize">{(v.vehicle_type || 'truck').replace(/_/g, ' ')}</span>
+                    {tyreCount && (
+                      <span className="bg-blue-100 text-blue-700 font-semibold px-1.5 py-0.5 rounded text-[10px]">
+                        {tyreCount} tyres
+                      </span>
+                    )}
+                    {v.axle_wheel_type && (
+                      <span className="bg-gray-100 text-gray-600 font-medium px-1.5 py-0.5 rounded text-[10px] uppercase">
+                        {v.axle_wheel_type}
                       </span>
                     )}
                   </div>
@@ -374,7 +416,7 @@ function TyreEntryTab() {
                   </div>
                 ) : (
                   <p className="text-xs text-blue-600 mt-2 font-medium">
-                    {isKnown ? `→ Auto-fill ${vInfo.name} layout` : 'Click to select tyre layout'}
+                    → Fill {tyreCount ?? vInfo?.tyres ?? '?'} tyre positions
                   </p>
                 )}
               </button>
@@ -440,7 +482,7 @@ function TyreEntryTab() {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <button onClick={() => setStep(autoDetected ? 0 : 1)} className="p-1.5 rounded-lg hover:bg-gray-100">
+          <button onClick={() => setStep(0)} className="p-1.5 rounded-lg hover:bg-gray-100">
             <ChevronRight className="w-5 h-5 text-gray-400 rotate-180" />
           </button>
           <div className="flex-1">
@@ -562,7 +604,9 @@ function TyreEntryTab() {
   }
 
   // ── Step 4: Detail View (already-registered vehicles) ────────────────────
-  const layout = layoutForVehicleType(selectedVehicle?.vehicle_type || '', 0);
+  const layout =
+    layoutFromAxleWheelType(selectedVehicle?.axle_wheel_type || '') ||
+    layoutForVehicleType(selectedVehicle?.vehicle_type || '', 0);
   const layoutInfo = LAYOUT_LABELS[layout];
   const detailPositions = LAYOUT_POSITIONS[layout] || LAYOUT_POSITIONS.TRUCK_2AXLE;
 
@@ -1014,10 +1058,25 @@ function ReplaceTyreModal({
    SCREEN 1 — TYRE TRACKER (Real-Time Dashboard)
    ═══════════════════════════════════════════════════════════ */
 
-function TyreTrackerTab() {
+/* ═══════════════════════════════════════════════════════════
+   DASHBOARD TAB — mirrors mobile Tyre Inspector dashboard
+   ═══════════════════════════════════════════════════════════ */
+function DashboardTab() {
   const { data: lifeSummary, isLoading } = useQuery<TyreLifeSummary>({
     queryKey: ['tyre-life-summary'],
     queryFn: tyreTrackerService.getLifeSummary,
+    refetchInterval: 30000,
+  });
+
+  const { data: inspectionFlagsData } = useQuery({
+    queryKey: ['tyre-inspection-flags'],
+    queryFn: tyreTrackerService.getInspectionFlags,
+    refetchInterval: 30000,
+  });
+
+  const { data: retreadFlagsData } = useQuery({
+    queryKey: ['tyre-retread-flags'],
+    queryFn: tyreTrackerService.getRetreadFlags,
     refetchInterval: 30000,
   });
 
@@ -1046,6 +1105,29 @@ function TyreTrackerTab() {
   const status = lifeSummary?.status_counts;
   const inspection = (inspectionData as any) || { count: 0 };
 
+  // Derived counts for mobile-style stat tiles
+  const inspectionFlags = (inspectionFlagsData as any) || {};
+  const retreadFlags = (retreadFlagsData as any) || {};
+  const flaggedVehicleIds: number[] = inspectionFlags?.flagged_vehicle_ids || [];
+  const inspectionFlagItems: any[] = inspectionFlags?.items || [];
+  const retreadFlagItems: any[] = retreadFlags?.items || [];
+
+  // Group inspection flags by vehicle for the "Trucks Needing Inspection" list
+  const vehicleInspectionMap = useMemo(() => {
+    const map = new Map<number, { vehicle_number: string; positions: string[] }>();
+    for (const item of inspectionFlagItems) {
+      if (!item.vehicle_id) continue;
+      if (!map.has(item.vehicle_id)) {
+        map.set(item.vehicle_id, { vehicle_number: item.vehicle_number || `Vehicle #${item.vehicle_id}`, positions: [] });
+      }
+      const entry = map.get(item.vehicle_id)!;
+      if (item.position && !entry.positions.includes(item.position)) {
+        entry.positions.push(item.position);
+      }
+    }
+    return Array.from(map.values());
+  }, [inspectionFlagItems]);
+
   if (isLoading) return <div className="flex justify-center py-16"><LoadingSpinner /></div>;
 
   const buckets = lifeSummary?.buckets || {};
@@ -1060,15 +1142,103 @@ function TyreTrackerTab() {
 
   return (
     <div className="space-y-6">
-      {/* Live Status Bar */}
+      {/* ── Mobile-style 4 stat tiles (matches Tyre Inspector app) ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatusCard label="Normal" value={status?.normal ?? 0} color="bg-green-100 text-green-700" dot="bg-green-500" />
-        <StatusCard label="Low PSI" value={status?.low_psi ?? 0} color="bg-yellow-100 text-yellow-700" dot="bg-yellow-500" />
-        <StatusCard label="Critical" value={status?.critical ?? 0} color="bg-red-100 text-red-700" dot="bg-red-500" />
-        <StatusCard label="Active Alerts" value={status?.alerts ?? 0} color="bg-orange-100 text-orange-700" dot="bg-orange-500" />
+        <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+          <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Total Tyres</p>
+          <p className="text-3xl font-bold text-blue-700 mt-1">{lifeSummary?.total ?? 0}</p>
+          <p className="text-xs text-blue-500 mt-1">{lifeSummary?.mounted ?? 0} mounted · {lifeSummary?.in_stock ?? 0} in stock</p>
+        </div>
+        <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+          <p className="text-xs font-medium text-amber-600 uppercase tracking-wide">Need Inspection</p>
+          <p className="text-3xl font-bold text-amber-700 mt-1">{flaggedVehicleIds.length}</p>
+          <p className="text-xs text-amber-500 mt-1">vehicles flagged</p>
+        </div>
+        <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
+          <p className="text-xs font-medium text-orange-600 uppercase tracking-wide">For Retreading</p>
+          <p className="text-3xl font-bold text-orange-700 mt-1">{retreadFlagItems.length}</p>
+          <p className="text-xs text-orange-500 mt-1">tyres flagged</p>
+        </div>
+        <div className="bg-red-50 rounded-xl p-4 border border-red-100">
+          <p className="text-xs font-medium text-red-600 uppercase tracking-wide">PSI Alerts</p>
+          <p className="text-3xl font-bold text-red-700 mt-1">{allAlerts.length}</p>
+          <p className="text-xs text-red-500 mt-1">active</p>
+        </div>
       </div>
 
-      {/* Tyre Life Grid */}
+      {/* ── Trucks Needing Inspection (mirrors mobile section) ── */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            Trucks Needing Inspection
+          </h3>
+          <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2.5 py-0.5 rounded-full">
+            {vehicleInspectionMap.length}
+          </span>
+        </div>
+        {vehicleInspectionMap.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">All vehicles are up to date</p>
+        ) : (
+          <div className="space-y-2">
+            {vehicleInspectionMap.slice(0, 8).map((v, i) => (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 border border-amber-100">
+                <Truck className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{v.vehicle_number}</p>
+                  <p className="text-xs text-gray-500">{v.positions.join(', ') || 'Flagged for inspection'}</p>
+                </div>
+                <span className="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-medium">Inspect</span>
+              </div>
+            ))}
+            {vehicleInspectionMap.length > 8 && (
+              <p className="text-xs text-gray-400 text-center pt-1">+{vehicleInspectionMap.length - 8} more vehicles</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Flagged for Retreading (mirrors mobile section) ── */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+            <RotateCw className="w-4 h-4 text-orange-500" />
+            Flagged for Retreading
+          </h3>
+          <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2.5 py-0.5 rounded-full">
+            {retreadFlagItems.length}
+          </span>
+        </div>
+        {retreadFlagItems.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">No tyres flagged for retreading</p>
+        ) : (
+          <div className="space-y-2">
+            {retreadFlagItems.slice(0, 6).map((t: any) => (
+              <div key={t.id} className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 border border-orange-100">
+                <CircleDot className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{t.tyre_number || `Tyre #${t.tyre_id}`}</p>
+                  <p className="text-xs text-gray-500">{[t.brand, t.size].filter(Boolean).join(' · ')}</p>
+                </div>
+                <div className="text-right">
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                    (t.life_pct ?? 0) <= 20 ? 'bg-red-100 text-red-700' :
+                    (t.life_pct ?? 0) <= 40 ? 'bg-orange-100 text-orange-700' :
+                    'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {(t.life_pct ?? 0).toFixed(0)}% life
+                  </span>
+                </div>
+              </div>
+            ))}
+            {retreadFlagItems.length > 6 && (
+              <p className="text-xs text-gray-400 text-center pt-1">+{retreadFlagItems.length - 6} more tyres</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Life Distribution ── */}
       <div>
         <h3 className="text-sm font-semibold text-gray-700 mb-3">Tyre Life Distribution</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -1086,64 +1256,45 @@ function TyreTrackerTab() {
         </div>
       </div>
 
-      {/* Inspection Banner + Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Inspection Banner */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-              Inspection / Rotation
-            </h3>
-            <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
-              {inspection.count}
-            </span>
-          </div>
-          <p className="text-sm text-gray-500 mb-3">Assets that need to be inspected immediately</p>
-          {(inspection.items || []).slice(0, 5).map((item: any) => (
-            <div key={item.id} className="flex items-center gap-2 py-2 border-b border-gray-50 last:border-0">
-              <CircleDot className="w-4 h-4 text-amber-500" />
-              <span className="text-sm font-medium">{item.vehicle_number} — {item.position}</span>
-              <span className="text-xs text-gray-400 ml-auto">{item.condition}</span>
+      {/* ── Live Status (TPMS) ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatusCard label="Normal" value={status?.normal ?? 0} color="bg-green-100 text-green-700" dot="bg-green-500" />
+        <StatusCard label="Low PSI" value={status?.low_psi ?? 0} color="bg-yellow-100 text-yellow-700" dot="bg-yellow-500" />
+        <StatusCard label="Critical" value={status?.critical ?? 0} color="bg-red-100 text-red-700" dot="bg-red-500" />
+        <StatusCard label="Active Alerts" value={status?.alerts ?? 0} color="bg-orange-100 text-orange-700" dot="bg-orange-500" />
+      </div>
+
+      {/* ── Real-Time Alerts Feed ── */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-gray-900">Real-Time Alerts</h3>
+          <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">
+            {allAlerts.length}
+          </span>
+        </div>
+        <div className="space-y-2 max-h-72 overflow-y-auto">
+          {allAlerts.map((a, i) => (
+            <div key={a.id || i} className="flex items-start gap-3 px-2 py-2.5 rounded-lg hover:bg-gray-50 transition">
+              <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                a.alert_type?.includes('critical') ? 'bg-red-500' :
+                a.alert_type?.includes('temp') ? 'bg-orange-500' : 'bg-yellow-500'
+              }`} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-800">
+                  {a.vehicle_number || `Vehicle #${a.vehicle_id}`} — Tyre {a.position}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {a.alert_type?.replace(/_/g, ' ')} {a.psi ? `• PSI: ${a.psi}` : ''}
+                </p>
+              </div>
+              <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                {a.timestamp ? timeAgo(a.timestamp) : ''}
+              </span>
             </div>
           ))}
-          {inspection.count === 0 && (
-            <p className="text-sm text-gray-400 text-center py-4">All tyres healthy</p>
+          {allAlerts.length === 0 && (
+            <p className="text-center text-sm text-gray-400 py-8">No active alerts</p>
           )}
-        </div>
-
-        {/* Real-Time Alerts Feed */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-gray-900">Real-Time Alerts</h3>
-            <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full">
-              {allAlerts.length}
-            </span>
-          </div>
-          <div className="space-y-2 max-h-72 overflow-y-auto">
-            {allAlerts.map((a, i) => (
-              <div key={a.id || i} className="flex items-start gap-3 px-2 py-2.5 rounded-lg hover:bg-gray-50 transition">
-                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                  a.alert_type?.includes('critical') ? 'bg-red-500' :
-                  a.alert_type?.includes('temp') ? 'bg-orange-500' : 'bg-yellow-500'
-                }`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800">
-                    {a.vehicle_number || `Vehicle #${a.vehicle_id}`} — Tyre {a.position}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {a.alert_type?.replace(/_/g, ' ')} {a.psi ? `• PSI: ${a.psi}` : ''}
-                  </p>
-                </div>
-                <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                  {a.timestamp ? timeAgo(a.timestamp) : ''}
-                </span>
-              </div>
-            ))}
-            {allAlerts.length === 0 && (
-              <p className="text-center text-sm text-gray-400 py-8">No active alerts</p>
-            )}
-          </div>
         </div>
       </div>
 
@@ -1319,6 +1470,406 @@ function TyreSettingsTab() {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   INSPECTIONS TAB — vehicles flagged for inspection
+   ═══════════════════════════════════════════════════════════ */
+
+function InspectionsTab() {
+  const [search, setSearch] = useState('');
+
+  const { data: vehiclesData, isLoading } = useQuery({
+    queryKey: ['vehicles-tyre-list'],
+    queryFn: () => vehicleService.list({ limit: 200 }),
+  });
+
+  const { data: flagsData } = useQuery({
+    queryKey: ['tyre-inspection-flags'],
+    queryFn: tyreTrackerService.getInspectionFlags,
+    refetchInterval: 30000,
+  });
+
+  const flaggedVehicleIds = useMemo<Set<number>>(() => {
+    const ids: number[] = (flagsData as any)?.flagged_vehicle_ids || [];
+    return new Set(ids);
+  }, [flagsData]);
+
+  const vehicles = useMemo(() => {
+    const raw = vehiclesData as any;
+    const list: any[] = Array.isArray(raw) ? raw : (raw?.data || raw?.items || []);
+    if (!search) return list;
+    const q = search.toLowerCase();
+    return list.filter((v: any) =>
+      (v.registration_number || '').toLowerCase().includes(q) ||
+      (v.make || '').toLowerCase().includes(q) ||
+      (v.vehicle_type || '').toLowerCase().includes(q)
+    );
+  }, [vehiclesData, search]);
+
+  if (isLoading) return <div className="flex justify-center py-16"><LoadingSpinner /></div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">Inspections</h2>
+          <p className="text-sm text-gray-500">
+            {flaggedVehicleIds.size} vehicle(s) flagged · {vehicles.length} total
+          </p>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+        <input
+          placeholder="Search vehicle..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+        />
+      </div>
+
+      {/* Vehicle list */}
+      <div className="space-y-2">
+        {vehicles.map((v: any) => {
+          const flagged = flaggedVehicleIds.has(v.id);
+          return (
+            <div
+              key={v.id}
+              className={`flex items-center gap-3 bg-white rounded-xl border p-4 ${
+                flagged ? 'border-amber-300' : 'border-gray-200'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                flagged ? 'bg-amber-100' : 'bg-gray-100'
+              }`}>
+                <Truck className={`w-5 h-5 ${flagged ? 'text-amber-600' : 'text-gray-500'}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-900">{v.registration_number}</p>
+                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                  <span className="text-xs text-gray-500 uppercase tracking-wide">
+                    {(v.vehicle_type || 'Vehicle').replace(/_/g, ' ')}
+                  </span>
+                  {v.vehicle_size_class && (
+                    <span className="text-[10px] bg-teal-50 text-teal-700 border border-teal-200 px-1.5 py-0.5 rounded font-semibold uppercase">
+                      {v.vehicle_size_class}
+                    </span>
+                  )}
+                  {v.axle_wheel_type && (
+                    <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-semibold uppercase">
+                      {v.axle_wheel_type}
+                    </span>
+                  )}
+                </div>
+                {(v.make || v.model) && (
+                  <p className="text-xs text-gray-400 mt-0.5">{[v.make, v.model].filter(Boolean).join(' ')}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {flagged && (
+                  <span className="text-xs bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
+                    Flagged
+                  </span>
+                )}
+                <span className="text-sm font-semibold text-teal-700 cursor-pointer hover:underline">
+                  Inspect
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-300" />
+              </div>
+            </div>
+          );
+        })}
+        {vehicles.length === 0 && (
+          <p className="text-center text-gray-400 py-12">No vehicles found</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HISTORY TAB — readings and lifecycle events timeline
+   ═══════════════════════════════════════════════════════════ */
+
+function HistoryTab() {
+  const { data: readingsData, isLoading } = useQuery({
+    queryKey: ['tyre-readings-history'],
+    queryFn: () => tyreTrackerService.getReadings({ limit: 60 }),
+    refetchInterval: 60000,
+  });
+
+  const { data: flagsData } = useQuery({
+    queryKey: ['tyre-inspection-flags'],
+    queryFn: tyreTrackerService.getInspectionFlags,
+  });
+
+  const { data: retreadData } = useQuery({
+    queryKey: ['tyre-retread-flags'],
+    queryFn: tyreTrackerService.getRetreadFlags,
+  });
+
+  const rawReadings: any[] = (readingsData as any)?.items || [];
+  const flagItems: any[] = (flagsData as any)?.items || [];
+  const retreadItems: any[] = (retreadData as any)?.items || [];
+
+  // Build unified timeline entries
+  const timeline = useMemo(() => {
+    const entries: { id: string; type: string; label: string; sub: string; time: string; color: string }[] = [];
+
+    for (const r of rawReadings) {
+      entries.push({
+        id: `r-${r.id}`,
+        type: 'reading',
+        label: `${r.vehicle_number || 'Vehicle'} — Tyre ${r.position || r.tyre_number || ''}`,
+        sub: [
+          r.psi_front != null ? `PSI: ${r.psi_front}` : null,
+          r.tread_depth_mm != null ? `Tread: ${r.tread_depth_mm}mm` : null,
+          r.odometer_km != null ? `ODO: ${r.odometer_km.toLocaleString()} km` : null,
+          r.notes || null,
+        ].filter(Boolean).join(' · '),
+        time: r.created_at || '',
+        color: 'bg-blue-500',
+      });
+    }
+
+    for (const f of flagItems) {
+      entries.push({
+        id: `fi-${f.id}`,
+        type: 'flag_inspection',
+        label: `${f.vehicle_number || 'Vehicle'} — Flagged for Inspection`,
+        sub: `Tyre ${f.tyre_number || ''} at ${f.position || ''}${f.notes ? ' · ' + f.notes : ''}`,
+        time: f.created_at || '',
+        color: 'bg-amber-500',
+      });
+    }
+
+    for (const r of retreadItems) {
+      entries.push({
+        id: `rt-${r.id}`,
+        type: 'flag_retread',
+        label: `${r.tyre_number || 'Tyre'} — Flagged for Retreading`,
+        sub: [r.brand, r.size].filter(Boolean).join(' · ') + (r.notes ? ' · ' + r.notes : ''),
+        time: r.created_at || '',
+        color: 'bg-orange-500',
+      });
+    }
+
+    return entries.sort((a, b) => (b.time > a.time ? 1 : -1));
+  }, [rawReadings, flagItems, retreadItems]);
+
+  // Group by date
+  const grouped = useMemo(() => {
+    const map = new Map<string, typeof timeline>();
+    for (const e of timeline) {
+      const day = e.time ? e.time.split('T')[0] : 'Unknown';
+      if (!map.has(day)) map.set(day, []);
+      map.get(day)!.push(e);
+    }
+    return Array.from(map.entries());
+  }, [timeline]);
+
+  if (isLoading) return <div className="flex justify-center py-16"><LoadingSpinner /></div>;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-base font-bold text-gray-900">Tyre Activity History</h2>
+        <p className="text-sm text-gray-500">Readings, inspections, and retreading flags — latest 60 entries</p>
+      </div>
+
+      {timeline.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <RotateCw className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="font-medium text-gray-600">No history yet</p>
+          <p className="text-sm text-gray-400 mt-1">Tyre readings logged via the mobile app or web will appear here</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {grouped.map(([day, events]) => (
+            <div key={day}>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 px-1">
+                {day === 'Unknown' ? 'Unknown date' : new Date(day + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+              <div className="space-y-2">
+                {events.map(e => (
+                  <div key={e.id} className="flex gap-3 bg-white rounded-xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition">
+                    <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${e.color}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{e.label}</p>
+                      {e.sub && <p className="text-xs text-gray-500 mt-0.5 truncate">{e.sub}</p>}
+                    </div>
+                    <span className="text-[10px] text-gray-400 whitespace-nowrap pt-0.5">
+                      {e.time ? timeAgo(e.time) : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INVENTORY TAB — stock management (New / Retreaded / Removed)
+   ═══════════════════════════════════════════════════════════ */
+
+function InventoryTab() {
+  const queryClient = useQueryClient();
+  const [stockType, setStockType] = useState<'new' | 'retreaded' | 'removed'>('new');
+  const [showEntry, setShowEntry] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const { data: stockData, isLoading } = useQuery({
+    queryKey: ['tyre-stock', stockType],
+    queryFn: () => tyreTrackerService.getStock({ type: stockType }),
+    refetchInterval: 30000,
+  });
+
+  const rawItems: any[] = (stockData as any)?.items || [];
+  const items = useMemo(() => {
+    if (!search) return rawItems;
+    const q = search.toLowerCase();
+    return rawItems.filter((t: any) =>
+      (t.tyre_number || '').toLowerCase().includes(q) ||
+      (t.brand || '').toLowerCase().includes(q) ||
+      (t.size || '').toLowerCase().includes(q) ||
+      (t.manufacturer_serial || '').toLowerCase().includes(q)
+    );
+  }, [rawItems, search]);
+
+  // Group by brand
+  const brandGroups = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const t of items) {
+      const brand = t.brand || 'Unknown';
+      if (!map.has(brand)) map.set(brand, []);
+      map.get(brand)!.push(t);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [items]);
+
+  const handleFlagRetread = async (tyreId: number) => {
+    try {
+      await tyreTrackerService.getStock({ type: 'removed' }); // preload
+      const api = (await import('@/services/api')).default;
+      await api.post('/tyre/flag-retreading', { tyre_id: tyreId, notes: '' });
+      queryClient.invalidateQueries({ queryKey: ['tyre-retread-flags'] });
+      queryClient.invalidateQueries({ queryKey: ['tyre-stock'] });
+      toast.success('Tyre flagged for retreading');
+    } catch {
+      toast.error('Failed to flag tyre');
+    }
+  };
+
+  if (showEntry) {
+    return (
+      <div>
+        <button onClick={() => setShowEntry(false)} className="mb-4 flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
+          ← Back to Inventory
+        </button>
+        <TyreEntryTab />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">Tyre Inventory</h2>
+          <p className="text-sm text-gray-500">{rawItems.length} {stockType} tyre(s) in stock</p>
+        </div>
+        <button
+          onClick={() => setShowEntry(true)}
+          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
+        >
+          <Plus className="w-4 h-4" /> Register Tyres
+        </button>
+      </div>
+
+      {/* Filter chips */}
+      <div className="flex gap-2">
+        {(['new', 'retreaded', 'removed'] as const).map(type => (
+          <button
+            key={type}
+            onClick={() => setStockType(type)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+              stockType === type
+                ? type === 'new' ? 'bg-green-600 text-white'
+                  : type === 'retreaded' ? 'bg-blue-600 text-white'
+                  : 'bg-gray-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {type === 'new' ? 'New' : type === 'retreaded' ? 'Retreaded' : 'Removed'}
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+        <input
+          placeholder="Search tyre number, brand, size..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+        />
+      </div>
+
+      {isLoading && <div className="flex justify-center py-16"><LoadingSpinner /></div>}
+
+      {!isLoading && brandGroups.length === 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <Package className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="font-medium text-gray-600">No {stockType} tyres in stock</p>
+          <p className="text-sm text-gray-400 mt-1">Use "Register Tyres" to add tyres to inventory</p>
+        </div>
+      )}
+
+      {/* Brand groups */}
+      <div className="space-y-4">
+        {brandGroups.map(([brand, tyres]) => (
+          <div key={brand} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+              <p className="text-sm font-semibold text-gray-800">{brand}</p>
+              <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{tyres.length}</span>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {tyres.map((t: any) => (
+                <div key={t.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">{t.tyre_number}</p>
+                    <p className="text-xs text-gray-500">{[t.size, t.manufacturer_serial].filter(Boolean).join(' · ')}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    {t.tread_depth_mm != null && (
+                      <p className="text-xs text-gray-500">{t.tread_depth_mm}mm tread</p>
+                    )}
+                    {stockType === 'removed' && (
+                      <button
+                        onClick={() => handleFlagRetread(t.id)}
+                        className="mt-1 text-xs bg-orange-100 hover:bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full transition"
+                      >
+                        Flag Retread
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
    SCREEN 2 — VEHICLES (Asset List with Live Status)
    ═══════════════════════════════════════════════════════════ */
 
@@ -1399,10 +1950,12 @@ function VehiclesTab() {
         initial_tread_depth_mm: t.initial_tread_depth_mm ?? null,
       });
     }
-    // From TPMS dashboard
+    // From TPMS dashboard — only enrich positions that already have a real tyre from DB
+    // (prevents ghost entries at positions where tyre was removed but sensor still reports)
     const wheels = (tpmsDash as any)?.wheels || [];
     for (const w of wheels) {
-      const existing = map.get(w.position) || {};
+      const existing = map.get(w.position);
+      if (!existing) continue; // skip: no DB tyre at this position
       map.set(w.position, {
         ...existing,
         position: w.position,
@@ -1412,8 +1965,9 @@ function VehiclesTab() {
         id: w.tyre_id || existing.id,
       });
     }
-    // From live WebSocket
+    // From live WebSocket — same rule: only enrich existing positions
     liveTyreMap.forEach((live, pos) => {
+      if (!map.has(pos)) return;
       const existing = map.get(pos) || {};
       map.set(pos, { ...existing, ...live });
     });
@@ -1427,11 +1981,16 @@ function VehiclesTab() {
 
   // Determine vehicle layout from vehicle_type (with tyre count fallback)
   const vehicleLayout: VehicleLayout = useMemo(() => {
-    return layoutForVehicleType(
-      selectedVehicle?.vehicle_type || '',
-      diagramTyreMap.size || (tpmsDash as any)?.num_tyres || 0,
+    // Prefer axle_wheel_type (set during vehicle creation) for exact wheel count
+    // Fall back to vehicle_type + tyre count detection
+    return (
+      layoutFromAxleWheelType(selectedVehicle?.axle_wheel_type || '') ||
+      layoutForVehicleType(
+        selectedVehicle?.vehicle_type || '',
+        diagramTyreMap.size || (tpmsDash as any)?.num_tyres || 0,
+      )
     );
-  }, [selectedVehicle?.vehicle_type, diagramTyreMap.size, tpmsDash]);
+  }, [selectedVehicle?.axle_wheel_type, selectedVehicle?.vehicle_type, diagramTyreMap.size, tpmsDash]);
 
   if (isLoading) return <div className="flex justify-center py-16"><LoadingSpinner /></div>;
 
@@ -1532,6 +2091,9 @@ function AssetView({
   onBack: () => void;
 }) {
   const selectedTyreData = selectedPosition ? mergedTyreMap.get(selectedPosition) : null;
+  const isEmptyPosition = selectedPosition !== null && !selectedTyreData;
+  const [allocatePosition, setAllocatePosition] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // Compute stats from merged tyre map
   const stats = useMemo(() => {
@@ -1541,7 +2103,7 @@ function AssetView({
       const life = t.life_percent ?? 100;
       const tread = t.tread_depth_mm ?? null;
       const isCrit = t.alert === 'critical_pressure' || t.alert === 'critical' || life < 30 || (tread !== null && tread <= 2.5);
-      const isWarn = !isCrit && (t.alert || life < 50 || (tread !== null && tread > 2.5 && tread <= 5));
+      const isWarn = !isCrit && (t.alert || life < 50 || (tread !== null && tread > 2.5 && tread <= 8));
       if (isCrit) critical++;
       else if (isWarn) warnings++;
       else healthy++;
@@ -1691,7 +2253,15 @@ function AssetView({
           <VehicleTyreDiagram
             vehicleType={vehicleLayout}
             tyres={mergedTyreMap}
-            onTyreClick={pos => setSelectedPosition(pos === selectedPosition ? null : pos)}
+            onTyreClick={pos => {
+              const hasTyre = mergedTyreMap.has(pos);
+              if (hasTyre) {
+                setSelectedPosition(pos === selectedPosition ? null : pos);
+              } else {
+                setAllocatePosition(pos);
+                setSelectedPosition(null);
+              }
+            }}
             selectedPosition={selectedPosition}
           />
           <div className="mt-4 flex flex-wrap gap-3 justify-center text-[10px]">
@@ -1712,7 +2282,24 @@ function AssetView({
               historyData={historyData}
               wearData={tyreWearMap[selectedPosition!] ?? null}
               onClose={() => setSelectedPosition(null)}
+              onRemoved={() => {
+                setSelectedPosition(null);
+                queryClient.invalidateQueries({ queryKey: ['vehicle-tyres', vehicle.id] });
+                queryClient.invalidateQueries({ queryKey: ['tyre-stock'] });
+              }}
             />
+          ) : isEmptyPosition ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center h-full flex flex-col items-center justify-center">
+              <CircleDot className="w-10 h-10 text-gray-300 mb-3" />
+              <p className="text-gray-700 font-semibold">Position {selectedPosition}</p>
+              <p className="text-sm text-gray-400 mt-1 mb-4">No tyre fitted at this position</p>
+              <button
+                onClick={() => setAllocatePosition(selectedPosition)}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-lg transition"
+              >
+                + Allocate Tyre
+              </button>
+            </div>
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 p-8 text-center h-full flex flex-col items-center justify-center">
               <CircleDot className="w-10 h-10 text-gray-300 mb-3" />
@@ -1724,6 +2311,19 @@ function AssetView({
           )}
         </div>
       </div>
+
+      {/* Allocate Tyre Modal */}
+      {allocatePosition && (
+        <AllocateTyreModal
+          vehicleId={vehicle.id}
+          position={allocatePosition}
+          onClose={() => setAllocatePosition(null)}
+          onAllocated={() => {
+            setAllocatePosition(null);
+            queryClient.invalidateQueries({ queryKey: ['vehicle-tyres', vehicle.id] });
+          }}
+        />
+      )}
 
       {/* Post-Trip Check Due banner */}
       {postTripDue && mergedTyreMap.size > 0 && (
@@ -1763,13 +2363,14 @@ function AssetView({
 }
 
 function TyreDetailPanel({
-  tyre, position, historyData, wearData, onClose,
+  tyre, position, historyData, wearData, onClose, onRemoved,
 }: {
   tyre: any;
   position: string;
   historyData?: TPMSReading[];
   wearData?: { avgDailyWear: number | null; daysRemaining: number | null; lastReadingDate: string | null } | null;
   onClose: () => void;
+  onRemoved?: () => void;
 }) {
   const queryClient = useQueryClient();
   const psi = tyre.psi || 0;
@@ -1783,6 +2384,9 @@ function TyreDetailPanel({
   const condition = tyre.condition ? String(tyre.condition).toUpperCase() : null;
   const [showLogModal, setShowLogModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showTreadModal, setShowTreadModal] = useState(false);
+  const [showPressureModal, setShowPressureModal] = useState(false);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
 
   const { data: fullHistory } = useQuery({
     queryKey: ['tyre-full-history', tyre.id],
@@ -1797,9 +2401,9 @@ function TyreDetailPanel({
 
   return (
     <>
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden overflow-y-auto max-h-[82vh]">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col max-h-[82vh]">
       {/* Header */}
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+      <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-lg font-bold text-gray-900">Position {position}</span>
           <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-50 text-green-700">MOUNTED</span>
@@ -1814,6 +2418,9 @@ function TyreDetailPanel({
         </div>
         <button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
       </div>
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto">
 
       {/* PSI Gauge */}
       <div className="p-4 border-b border-gray-100">
@@ -1992,23 +2599,76 @@ function TyreDetailPanel({
         </div>
       )}
 
-      {/* Action buttons */}
-      <div className="p-4 flex flex-wrap gap-2">
+      </div>{/* end scrollable content */}
+
+      {/* Action buttons — always visible at bottom, matching mobile */}
+      <div className="p-4 space-y-2 border-t border-gray-100 flex-shrink-0 bg-white">
+        {/* Primary actions: 2-column grid matching mobile */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setShowTreadModal(true)}
+            className="flex flex-col items-center gap-1 p-3 rounded-xl border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-700 transition"
+          >
+            <Ruler className="w-5 h-5" />
+            <span className="text-xs font-semibold text-center">Update Tread Depth</span>
+          </button>
+          <button
+            onClick={() => setShowPressureModal(true)}
+            className="flex flex-col items-center gap-1 p-3 rounded-xl border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-700 transition"
+          >
+            <Gauge className="w-5 h-5" />
+            <span className="text-xs font-semibold text-center">Update Tyre Pressure</span>
+          </button>
+        </div>
+        {/* Remove tyre - red, full width */}
         <button
-          onClick={() => setShowLogModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-blue-200 text-blue-700 hover:bg-blue-50 transition"
+          onClick={() => setShowRemoveModal(true)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold transition"
         >
-          <Gauge className="w-3.5 h-3.5" /> Log Reading
-        </button>
-        <button
-          onClick={() => setShowHistory(h => !h)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition"
-        >
-          <Activity className="w-3.5 h-3.5" /> {showHistory ? 'Hide History' : 'View History'}
+          <AlertTriangle className="w-4 h-4" /> Remove Tyre
         </button>
       </div>
     </div>
 
+    {/* Quick Update Modals */}
+    {showTreadModal && (
+      <UpdateTreadModal
+        tyre={tyre}
+        position={position}
+        onClose={() => setShowTreadModal(false)}
+        onSaved={() => {
+          setShowTreadModal(false);
+          queryClient.invalidateQueries({ queryKey: ['vehicle-tyres', tyre.vehicle_id] });
+          queryClient.invalidateQueries({ queryKey: ['tyre-full-history', tyre.id] });
+          queryClient.invalidateQueries({ queryKey: ['vehicle-tread-readings', tyre.vehicle_id] });
+        }}
+      />
+    )}
+    {showPressureModal && (
+      <UpdatePressureModal
+        tyre={tyre}
+        position={position}
+        onClose={() => setShowPressureModal(false)}
+        onSaved={() => {
+          setShowPressureModal(false);
+          queryClient.invalidateQueries({ queryKey: ['vehicle-tyres', tyre.vehicle_id] });
+          queryClient.invalidateQueries({ queryKey: ['tpms-vehicle-dash', tyre.vehicle_id] });
+        }}
+      />
+    )}
+    {showRemoveModal && (
+      <RemoveTyreModal
+        tyre={tyre}
+        position={position}
+        onClose={() => setShowRemoveModal(false)}
+        onRemoved={() => {
+          setShowRemoveModal(false);
+          queryClient.invalidateQueries({ queryKey: ['vehicle-tyres', tyre.vehicle_id] });
+          queryClient.invalidateQueries({ queryKey: ['tyre-stock'] });
+          onRemoved?.();
+        }}
+      />
+    )}
     {/* Log Reading Modal */}
     {showLogModal && (
       <LogReadingModal
@@ -2029,6 +2689,363 @@ function TyreDetailPanel({
 }
 
 /* ── Post-trip / Field Log Reading Modal ─────────────── */
+
+/* ── Update Tread Depth Modal ────────────────────────── */
+function UpdateTreadModal({
+  tyre, position, onClose, onSaved,
+}: { tyre: any; position: string; onClose: () => void; onSaved: () => void }) {
+  const [value, setValue] = useState(tyre.tread_depth_mm != null ? String(tyre.tread_depth_mm) : '');
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    const mm = parseFloat(value);
+    if (isNaN(mm) || mm < 0 || mm > 30) { toast.error('Enter a valid tread depth (0–30 mm)'); return; }
+    setSaving(true);
+    try {
+      await tyreTrackerService.updateTyreDetails(tyre.id, { tread_depth_mm: mm });
+      toast.success(`Tread depth updated to ${mm.toFixed(1)} mm`);
+      if (mm <= MINIMUM_TREAD_MM) {
+        toast.error(`⚠ Replace Now — tread ${mm.toFixed(1)} mm is critical!`, { duration: 6000 });
+      }
+      onSaved();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to update tread depth');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const mm = parseFloat(value);
+  const colour = !isNaN(mm)
+    ? mm <= 2.5 ? 'text-red-600' : mm <= 5 ? 'text-orange-500' : mm <= 8 ? 'text-yellow-500' : 'text-green-600'
+    : 'text-gray-400';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs mx-4 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-900">Update Tread Depth</h3>
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
+        </div>
+        <p className="text-xs text-gray-500 mb-3">Position <strong>{position}</strong></p>
+        <div className="flex items-center gap-2 mb-4">
+          <input
+            type="number" min="0" max="30" step="0.1"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            placeholder="e.g. 12.5"
+            className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-lg font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+            autoFocus
+          />
+          <span className={`text-sm font-semibold ${colour}`}>mm</span>
+        </div>
+        <div className="flex justify-between text-[10px] text-gray-400 mb-1 px-0.5">
+          <span className="text-red-400">Critical ≤2.5</span>
+          <span className="text-orange-400">Warn ≤5</span>
+          <span className="text-green-500">Good &gt;8</span>
+        </div>
+        <div className="h-2 w-full rounded-full overflow-hidden flex mb-4">
+          <div className="bg-red-400" style={{ width: '15%' }} />
+          <div className="bg-orange-400" style={{ width: '18%' }} />
+          <div className="bg-yellow-400" style={{ width: '22%' }} />
+          <div className="bg-green-400" style={{ width: '45%' }} />
+        </div>
+        <button
+          onClick={handleSave} disabled={saving || !value}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2 rounded-lg transition"
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Update Tyre Pressure Modal ──────────────────────── */
+function UpdatePressureModal({
+  tyre, position, onClose, onSaved,
+}: { tyre: any; position: string; onClose: () => void; onSaved: () => void }) {
+  const targetPsi = tyre.target_psi || 80;
+  const [value, setValue] = useState(tyre.psi > 0 ? String(Math.round(tyre.psi)) : '');
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    const psi = parseFloat(value);
+    if (isNaN(psi) || psi < 0 || psi > 300) { toast.error('Enter a valid PSI (0–300)'); return; }
+    setSaving(true);
+    try {
+      await tyreTrackerService.updateTyreDetails(tyre.id, { pressure_psi: psi });
+      toast.success(`Pressure updated to ${psi.toFixed(0)} PSI`);
+      onSaved();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to update pressure');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const psiVal = parseFloat(value);
+  const psiStatus = !isNaN(psiVal) ? getPSIStatus(psiVal, targetPsi) : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs mx-4 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-900">Update Tyre Pressure</h3>
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100"><X className="w-4 h-4" /></button>
+        </div>
+        <p className="text-xs text-gray-500 mb-3">Position <strong>{position}</strong> · Target: <strong>{targetPsi} PSI</strong></p>
+        <div className="flex items-center gap-2 mb-2">
+          <input
+            type="number" min="0" max="300" step="1"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            placeholder={`e.g. ${targetPsi}`}
+            className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-lg font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+            autoFocus
+          />
+          <span className="text-sm font-semibold text-gray-500">PSI</span>
+        </div>
+        {psiStatus && (
+          <p className="text-xs font-semibold mb-3" style={{ color: psiStatus.color }}>{psiStatus.label}</p>
+        )}
+        <button
+          onClick={handleSave} disabled={saving || !value}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2 rounded-lg transition"
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Remove Tyre Confirmation ─────────────────────────── */
+function RemoveTyreModal({
+  tyre, position, onClose, onRemoved,
+}: { tyre: any; position: string; onClose: () => void; onRemoved: () => void }) {
+  const [removing, setRemoving] = useState(false);
+
+  async function handleRemove() {
+    setRemoving(true);
+    try {
+      const result: any = await tyreTrackerService.removeTyre(tyre.id);
+      const condition = result?.data?.condition || 'removed';
+      if (condition === 'new') {
+        toast.success('Tyre removed and returned to New stock');
+      } else {
+        toast.success('Tyre removed — appears in Inventory › Removed tab');
+      }
+      onRemoved();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to remove tyre');
+    } finally {
+      setRemoving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs mx-4 p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900">Remove Tyre</h3>
+            <p className="text-xs text-gray-500">Position {position}</p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 mb-1">
+          Remove <strong>{tyre.tyre_number || tyre.serial_number || 'this tyre'}</strong> from the vehicle?
+        </p>
+        <p className="text-xs text-gray-400 mb-5">
+          Based on remaining tread, it will appear in the <strong>Removed</strong> or <strong>New</strong> inventory tab.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleRemove} disabled={removing}
+            className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold transition"
+          >
+            {removing ? 'Removing...' : 'Remove Tyre'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Allocate Tyre Modal ─────────────────────────────── */
+function AllocateTyreModal({
+  vehicleId, position, onClose, onAllocated,
+}: {
+  vehicleId: number;
+  position: string;
+  onClose: () => void;
+  onAllocated: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [stockType, setStockType] = useState<'new' | 'retreaded' | 'removed'>('new');
+  const [search, setSearch] = useState('');
+  const [allocating, setAllocating] = useState<number | null>(null);
+
+  const { data: stockData, isLoading } = useQuery({
+    queryKey: ['tyre-stock-modal', stockType],
+    queryFn: () => tyreTrackerService.getStock({ type: stockType }),
+  });
+
+  const rawItems: any[] = (stockData as any)?.items || [];
+  const items = useMemo(() => {
+    const q = search.toLowerCase();
+    if (!q) return rawItems;
+    return rawItems.filter((t: any) =>
+      (t.tyre_number || '').toLowerCase().includes(q) ||
+      (t.brand || '').toLowerCase().includes(q) ||
+      (t.size || '').toLowerCase().includes(q)
+    );
+  }, [rawItems, search]);
+
+  const handleAllocate = async (tyre: any) => {
+    setAllocating(tyre.id);
+    try {
+      // position is already in diagram format (1L0, 2R0…) — same format mobile uses
+      await tyreTrackerService.fitTyre(tyre.id, vehicleId, position);
+      queryClient.invalidateQueries({ queryKey: ['vehicle-tyres', vehicleId] });
+      queryClient.invalidateQueries({ queryKey: ['tyre-stock'] });
+      queryClient.invalidateQueries({ queryKey: ['tyre-stock-modal'] });
+      toast.success(`Tyre ${tyre.tyre_number} allocated to position ${position}`);
+      onAllocated();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to allocate tyre');
+    } finally {
+      setAllocating(null);
+    }
+  };
+
+  // Tread life helpers
+  const treadLife = (mm: number | null) => {
+    if (mm == null) return null;
+    return Math.min(100, Math.max(0, Math.round((mm / 20) * 100)));
+  };
+  const lifeColor = (pct: number) =>
+    pct >= 60 ? '#16a34a' : pct >= 30 ? '#d97706' : '#dc2626';
+  const lifeBg = (pct: number) =>
+    pct >= 60 ? '#dcfce7' : pct >= 30 ? '#fef3c7' : '#fee2e2';
+
+  const TABS = [
+    { key: 'new' as const,       label: 'New',      activeCls: 'bg-green-600 text-white' },
+    { key: 'retreaded' as const, label: 'Retreaded', activeCls: 'bg-blue-600 text-white' },
+    { key: 'removed' as const,   label: 'Removed',   activeCls: 'bg-orange-500 text-white' },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 flex flex-col max-h-[80vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h3 className="text-base font-bold text-gray-900">Allocate Tyre</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Position <strong>{position}</strong> — pick a tyre from inventory</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition">
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Filter + Search */}
+        <div className="px-4 pt-3 pb-2 space-y-2">
+          <div className="flex gap-2">
+            {TABS.map(({ key, label, activeCls }) => (
+              <button
+                key={key}
+                onClick={() => setStockType(key)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
+                  stockType === key ? activeCls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-gray-400" />
+            <input
+              placeholder="Search tyre number, brand, size..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Tyre list */}
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {isLoading && <div className="flex justify-center py-8"><LoadingSpinner /></div>}
+          {!isLoading && items.length === 0 && (
+            <div className="text-center py-10">
+              <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">No {stockType} tyres in stock</p>
+              <p className="text-xs text-gray-400 mt-1">Register tyres in the Inventory tab first</p>
+            </div>
+          )}
+          <div className="space-y-2">
+            {items.map((t: any) => {
+              const life = treadLife(t.tread_depth_mm);
+              const color = life != null ? lifeColor(life) : '#9ca3af';
+              const bg    = life != null ? lifeBg(life)   : '#f3f4f6';
+              return (
+                <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50/30 transition">
+                  {/* Tread life indicator */}
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
+                    style={{ background: bg, color }}
+                  >
+                    {life != null ? `${life}%` : <CircleDot className="w-4 h-4" style={{ color }} />}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900">{t.tyre_number}</p>
+                    <p className="text-xs text-gray-500">
+                      {[t.brand, t.size].filter(Boolean).join(' · ')}
+                    </p>
+                    {/* Tread depth bar — prominent for removed tyres */}
+                    {t.tread_depth_mm != null && (
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${life}%`, background: color }}
+                          />
+                        </div>
+                        <span className="text-xs font-semibold" style={{ color }}>
+                          {t.tread_depth_mm}mm
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleAllocate(t)}
+                    disabled={allocating === t.id}
+                    className="flex-shrink-0 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                  >
+                    {allocating === t.id ? '...' : 'Allocate'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LogReadingModal({
   tyre, position, onClose, onSaved,
 }: {
@@ -2078,7 +3095,8 @@ function LogReadingModal({
       const odometerVal = form.end_odometer || form.start_odometer;
       await tyreTrackerService.submitReading({
         vehicle_id: tyre.vehicle_id,
-        position: tyre.db_position || tyre.position || position,
+        // Use diagram position (1L0 format) — consistent with mobile
+        position: tyre.position || position,
         psi: Number(form.psi),
         tread_depth_mm: form.tread_depth_mm ? Number(form.tread_depth_mm) : undefined,
         temperature_c: form.temperature_c ? Number(form.temperature_c) : undefined,

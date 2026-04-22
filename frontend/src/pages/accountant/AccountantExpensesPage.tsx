@@ -156,7 +156,7 @@ export default function AccountantExpensesPage() {
 
   const { data: driversData } = useQuery({
     queryKey: ['drivers-list'],
-    queryFn: () => api.get('/drivers', { params: { limit: 200 } }),
+    queryFn: () => api.get('/fleet/drivers', { params: { limit: 200 } }),
   });
 
   const approveMut = useMutation({

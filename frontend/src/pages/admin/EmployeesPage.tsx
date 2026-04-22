@@ -1,5 +1,5 @@
 // Force full-page reload on HMR update to prevent stale module double-submit.
-if (import.meta.hot) { import.meta.hot.decline(); }
+if (import.meta.hot) { import.meta.hot.invalidate(); }
 
 // Convert DD-MM-YYYY (manual entry) → YYYY-MM-DD (ISO, expected by backend)
 const parseDMY = (val: string): string | undefined => {
@@ -580,6 +580,7 @@ export default function EmployeesPage() {
     dl_number: '',
     dl_issue_date: '',
     dl_expiry_date: '',
+    avatar_url: '',
   });
   const [editForm, setEditForm] = useState({
     id: 0,

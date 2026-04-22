@@ -136,7 +136,7 @@ class _FleetCreateLRScreenState extends ConsumerState<FleetCreateLRScreen> {
       final api = ref.read(apiServiceProvider);
       final results = await Future.wait([
         api.get('/vehicles', queryParameters: {'status': 'available', 'limit': 100}),
-        api.get('/drivers', queryParameters: {'status': 'available', 'limit': 100}),
+        api.get('/fleet/drivers', queryParameters: {'status': 'available', 'limit': 100}),
         api.get('/clients', queryParameters: {'limit': 200}),
         api.get('/lr/next-eway-bill-number'),
       ]);

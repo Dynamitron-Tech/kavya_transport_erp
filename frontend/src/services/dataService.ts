@@ -880,8 +880,8 @@ export const financeService = {
     const data = await api.put(`/accountant/expenses/${id}/approve`);
     return data;
   },
-  rejectExpense: async (id: number, reason: string) => {
-    const data = await api.put(`/accountant/expenses/${id}/reject`, { reason });
+  rejectExpense: async (id: number, reason?: string) => {
+    const data = await api.put(`/accountant/expenses/${id}/reject`, reason ? { reason } : undefined);
     return data;
   },
   payExpense: async (id: number, paymentData: {
@@ -2287,8 +2287,18 @@ export const tyreTrackerService = {
     const data = await api.get('/tyre', { params: { limit: 500 } });
     return unwrap(data);
   },
-  updateTyreDetails: async (tyreId: number, payload: { serial_number?: string; brand?: string; size?: string }) => {
+  updateTyreDetails: async (tyreId: number, payload: {
+    serial_number?: string;
+    brand?: string;
+    size?: string;
+    tread_depth_mm?: number;
+    pressure_psi?: number;
+  }) => {
     const data = await api.put(`/tyre/${tyreId}`, payload);
+    return unwrap(data);
+  },
+  removeTyre: async (tyreId: number) => {
+    const data = await api.patch(`/tyre/${tyreId}/remove`, null);
     return unwrap(data);
   },
   replaceTyre: async (tyreId: number, payload: {
@@ -2373,6 +2383,14 @@ export const tyreTrackerService = {
   },
   getDriverCompliance: async () => {
     const data = await api.get('/tyre/analytics/driver-compliance');
+    return unwrap(data);
+  },
+  getInspectionFlags: async () => {
+    const data = await api.get('/tyre/inspection-flags');
+    return unwrap(data);
+  },
+  getRetreadFlags: async () => {
+    const data = await api.get('/tyre/retread-flags');
     return unwrap(data);
   },
 };

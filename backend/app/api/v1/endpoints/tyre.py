@@ -29,7 +29,7 @@ async def tyre_life_summary(
     """Tyre life % distribution: 0-10, 10-30, 30-50, 50-70, 70-90, 90-100."""
     result = await db.execute(
         select(VehicleTyre, Vehicle.registration_number)
-        .join(Vehicle, Vehicle.id == VehicleTyre.vehicle_id)
+        .outerjoin(Vehicle, Vehicle.id == VehicleTyre.vehicle_id)
         .where(VehicleTyre.is_active == True)
     )
     tyres = result.all()
@@ -105,6 +105,9 @@ async def tyre_life_summary(
             "alerts": alert_count,
         },
         "total": len(tyres),
+        "mounted": sum(1 for t, _ in tyres if str(t.condition or '').lower() == 'mounted'),
+        "in_stock": sum(1 for t, _ in tyres if str(t.condition or '').lower() not in ('mounted', 'removed', 'scrapped')),
+        "removed": sum(1 for t, _ in tyres if str(t.condition or '').lower() == 'removed'),
     })
 
 
@@ -2078,28 +2081,64 @@ async def inspection_coverage(
         last_reading_at = latest_result.scalar_one_or_none()
         if last_reading_at:
             days_since = (today - last_reading_at).days
+            overdue = days_since > interval_days
+            due_soon = not overdue and days_since > (interval_days - 2)
+            never = False
         else:
-            days_since = 9999
+            days_since = None
+            overdue = False
+            due_soon = False
+            never = True
 
-        overdue = days_since > interval_days
-        due_soon = not overdue and days_since > (interval_days - 2)
+        # Per-vehicle tyre health stats from mounted active tyres
+        tyres_result = await db.execute(
+            select(VehicleTyre.tread_depth_mm, VehicleTyre.last_psi)
+            .where(
+                VehicleTyre.vehicle_id == v.id,
+                VehicleTyre.is_active == True,
+                VehicleTyre.position != None,
+            )
+        )
+        tyres_rows = tyres_result.all()
+        tyre_total = len(tyres_rows)
+        tyre_healthy = 0
+        tyre_warnings = 0
+        tyre_critical = 0
+        for row in tyres_rows:
+            tread = float(row.tread_depth_mm) if row.tread_depth_mm is not None else None
+            if tread is not None:
+                if tread <= 2.5:
+                    tyre_critical += 1
+                elif tread <= 8.0:
+                    tyre_warnings += 1
+                else:
+                    tyre_healthy += 1
+            else:
+                tyre_healthy += 1  # no reading = assume healthy
 
         items.append({
             "vehicle_id": v.id,
             "registration_number": v.registration_number,
             "vehicle_type": v.vehicle_type.value if hasattr(v.vehicle_type, 'value') else str(v.vehicle_type or ""),
             "last_inspection": last_reading_at.isoformat() if last_reading_at else None,
-            "days_since_inspection": days_since if days_since < 9999 else None,
+            "days_since_inspection": days_since,
             "overdue": overdue,
             "due_soon": due_soon,
+            "never": never,
+            "tyre_total": tyre_total,
+            "tyre_healthy": tyre_healthy,
+            "tyre_warnings": tyre_warnings,
+            "tyre_critical": tyre_critical,
         })
 
     overdue_count = sum(1 for i in items if i["overdue"])
     due_soon_count = sum(1 for i in items if i["due_soon"])
+    never_count = sum(1 for i in items if i["never"])
     return APIResponse(success=True, data={
         "items": items,
         "overdue_count": overdue_count,
         "due_soon_count": due_soon_count,
+        "never_count": never_count,
         "inspection_interval_days": interval_days,
     })
 

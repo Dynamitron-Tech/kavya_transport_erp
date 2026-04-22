@@ -101,7 +101,7 @@ class _DriverExpenseListScreenState extends ConsumerState<DriverExpenseListScree
 
   /// Matches a raw city string (any capitalisation/alias) to the
   /// canonical city key used in city_aliases and route_index.
-  /// city_aliases is a map of canonical_key → List<String> of aliases.
+  /// city_aliases is a map of canonical_key → List of aliases.
   String? _normCity(String raw, Map<String, dynamic> cityAliases) {
     final lower = raw.trim().toLowerCase();
     for (final entry in cityAliases.entries) {

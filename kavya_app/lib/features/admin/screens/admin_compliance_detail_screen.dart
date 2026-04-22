@@ -276,6 +276,8 @@ class _AdminComplianceDetailScreenState
     }
     setState(() => _submitting = true);
     final api = ref.read(apiServiceProvider);
+    final sm = ScaffoldMessenger.of(context);
+    final nav = GoRouter.of(context);
     try {
       await api.patch(
         '/admin/vehicles/$entityId/compliance',
@@ -290,14 +292,14 @@ class _AdminComplianceDetailScreenState
       );
       ref.invalidate(adminComplianceAlertsProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        sm.showSnackBar(
           const SnackBar(content: Text('Compliance marked as renewed')),
         );
-        context.pop();
+        nav.pop();
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        sm.showSnackBar(
           const SnackBar(content: Text('Failed to update compliance')),
         );
       }

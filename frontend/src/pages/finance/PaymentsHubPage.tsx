@@ -200,7 +200,7 @@ function DriverSettlementsTab() {
     queryKey: ['settlements-payables', statusFilter],
     queryFn: () => financeService.listDriverSettlements({ status: statusFilter || undefined }),
   });
-  const settlements = safeArray(raw?.data ?? raw);
+  const settlements = safeArray<any>(raw?.data ?? raw);
 
   const approveMut = useMutation({
     mutationFn: (id: number) => financeService.approveDriverSettlement(id),
