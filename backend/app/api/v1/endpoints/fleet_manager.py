@@ -213,10 +213,11 @@ async def fleet_drivers(
     if driver_ids:
         veh_result = await db.execute(
             select(Vehicle.default_driver_id, Vehicle.registration_number)
-            .where(Vehicle.default_driver_id.in_(driver_ids), Vehicle.is_deleted == False)
+            .where(Vehicle.default_driver_id.in_(driver_ids))
         )
         for row in veh_result.all():
-            vehicle_map[row.default_driver_id] = row.registration_number
+            if row.default_driver_id not in vehicle_map:
+                vehicle_map[row.default_driver_id] = row.registration_number
 
     # Batch: Count completed trips per driver
     trips_map: dict = {}

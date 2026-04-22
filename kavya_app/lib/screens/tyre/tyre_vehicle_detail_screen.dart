@@ -186,6 +186,14 @@ bool _isTractor(String type) {
   return t.startsWith('tr');
 }
 
+/// Convert legacy DB positions (FL, RL1…) to diagram positions (1L0, 2L0…)
+/// so web-allocated and mobile-allocated tyres both display correctly.
+const Map<String, String> _dbToDiagram = {
+  'FL': '1L0', 'FR': '1R0',
+  'RL1': '2L0', 'RR1': '2R0', 'RL2': '2L1', 'RR2': '2R1',
+  'RL3': '3L0', 'RR3': '3R0', 'RL4': '3L1', 'RR4': '3R1',
+};
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 final vehicleTyresProvider =
@@ -324,9 +332,11 @@ class _VehicleTyreBodyState extends ConsumerState<_VehicleTyreBody> {
   Map<String, Map<String, dynamic>> _tyreMap() {
     final m = <String, Map<String, dynamic>>{};
     for (final t in widget.tyres) {
-      final pos =
+      final raw =
           (t['position'] ?? t['axle_position'] ?? '').toString().toUpperCase();
-      if (pos.isNotEmpty) m[pos] = t;
+      // Normalize DB format (FL, RL1…) → diagram format (1L0, 2L0…)
+      final pos = _dbToDiagram[raw] ?? raw;
+      if (pos.isNotEmpty) m[pos] = {...t, 'position': pos};
     }
     return m;
   }
@@ -340,12 +350,16 @@ class _VehicleTyreBodyState extends ConsumerState<_VehicleTyreBody> {
         ? map[_selectedPosition!.toUpperCase()]
         : null;
 
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
-      child: Column(
-        children: [
-          // ── Tyre Diagram ───────────────────────────────────────
+    return RefreshIndicator(
+      color: _accent,
+      onRefresh: () async =>
+          ref.invalidate(vehicleTyresProvider(widget.vehicleId)),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+        child: Column(
+          children: [
+            // ── Tyre Diagram ───────────────────────────────────────
           _TyreDiagram(
             layout: layout,
             tyreMap: map,
@@ -377,7 +391,8 @@ class _VehicleTyreBodyState extends ConsumerState<_VehicleTyreBody> {
                 setState(() => _selectedPosition = null);
               },
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1025,6 +1040,16 @@ class _TyreDetailPanel extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: _ActionButton(
+                icon: Icons.remove_circle_outline_rounded,
+                label: 'Remove Tyre',
+                onTap: () => _showRemoveTyreConfirm(context),
+                color: const Color(0xFFDC2626),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: _ActionButton(
                 icon: Icons.flag_rounded,
                 label: 'Flag for Inspection',
                 onTap: () => _showFlagInspectionConfirm(context),
@@ -1615,6 +1640,7 @@ class _AllocateTyreSheetState extends ConsumerState<_AllocateTyreSheet> {
   String? _error;
   String _search = '';
   bool _fitting = false;
+  String _stockType = 'new'; // 'new' | 'retreaded' | 'removed'
 
   @override
   void initState() {
@@ -1622,15 +1648,17 @@ class _AllocateTyreSheetState extends ConsumerState<_AllocateTyreSheet> {
     _loadStock();
   }
 
-  Future<void> _loadStock() async {
+  Future<void> _loadStock({String? type}) async {
+    final t = type ?? _stockType;
     setState(() {
       _loading = true;
       _error = null;
+      if (type != null) _stockType = type;
     });
     try {
       final api = ref.read(apiServiceProvider);
       final res =
-          await api.get('/tyre/stock', queryParameters: {'type': 'new'});
+          await api.get('/tyre/stock', queryParameters: {'type': t});
       final data = (res is Map) ? (res['data'] ?? res) : res;
       final items = (data is Map) ? (data['items'] ?? []) : data;
       setState(() {
@@ -1724,6 +1752,48 @@ class _AllocateTyreSheetState extends ConsumerState<_AllocateTyreSheet> {
             ),
             const SizedBox(height: 12),
 
+            // Stock type tabs
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  for (final tab in [
+                    ('new', 'New', const Color(0xFF16a34a)),
+                    ('retreaded', 'Retreaded', const Color(0xFF2563eb)),
+                    ('removed', 'Removed', const Color(0xFFd97706)),
+                  ]) ...[
+                    GestureDetector(
+                      onTap: () => _loadStock(type: tab.$1),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _stockType == tab.$1
+                              ? tab.$3
+                              : KTColors.lightBg,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          tab.$2,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _stockType == tab.$1
+                                ? Colors.white
+                                : KTColors.textMuted,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+
             // Search
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1771,7 +1841,7 @@ class _AllocateTyreSheetState extends ConsumerState<_AllocateTyreSheet> {
                           ? Center(
                               child: Text(
                                 _search.isEmpty
-                                    ? 'No tyres available in stock'
+                                    ? 'No $_stockType tyres in stock'
                                     : 'No matching tyres found',
                                 style: KTTextStyles.body.copyWith(
                                   color: KTColors.textMuted,
@@ -1871,10 +1941,25 @@ class _StockTyreCard extends StatelessWidget {
                     decoration: TextDecoration.none,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    if (tread != null)
+                const SizedBox(height: 4),
+                if (tread != null) ...[
+                  // Tread life bar
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: LinearProgressIndicator(
+                            value: life / 100,
+                            minHeight: 5,
+                            backgroundColor:
+                                color.withValues(alpha: 0.12),
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(color),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
                       Text(
                         '${tread.toStringAsFixed(1)}mm · $life%',
                         style: TextStyle(
@@ -1883,27 +1968,27 @@ class _StockTyreCard extends StatelessWidget {
                           color: color,
                         ),
                       ),
-                    if (condition.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: KTColors.lightBg,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          condition,
-                          style: const TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            color: KTColors.textMuted,
-                          ),
-                        ),
-                      ),
                     ],
-                  ],
-                ),
+                  ),
+                ],
+                if (condition.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: KTColors.lightBg,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      condition,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: KTColors.textMuted,
+                      ),
+                    ),
+                  ),
                 if (vehicleNo.toString().isNotEmpty)
                   Text(
                     'On $vehicleNo ($currentPos)',

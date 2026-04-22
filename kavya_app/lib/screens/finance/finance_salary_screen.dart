@@ -329,6 +329,7 @@ class _BulkPayButtonState extends ConsumerState<_BulkPayButton> {
   Future<void> _bulkPay() async {
     setState(() => _loading = true);
     final api = ref.read(apiServiceProvider);
+    final sm = ScaffoldMessenger.of(context);
     final unpaid = widget.staff
         .where((s) => s['status'] == 'unpaid' && s['has_bank_account'] == true)
         .map((s) => {'employee_id': s['employee_id'], 'amount_paise': s['salary_paise']})
@@ -349,7 +350,7 @@ class _BulkPayButtonState extends ConsumerState<_BulkPayButton> {
       });
       if (res['success'] == true) {
         final d = res['data'];
-        ScaffoldMessenger.of(context).showSnackBar(
+        sm.showSnackBar(
           SnackBar(
             content: Text('Initiated ${d['initiated']} payments, ${d['failed']} failed'),
             backgroundColor: Colors.green,
@@ -357,12 +358,12 @@ class _BulkPayButtonState extends ConsumerState<_BulkPayButton> {
         );
         ref.invalidate(salarySummaryProvider);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
+        sm.showSnackBar(
           SnackBar(content: Text(res['message'] ?? 'Failed'), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      sm.showSnackBar(
         SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
       );
     }

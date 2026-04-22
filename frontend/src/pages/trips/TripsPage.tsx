@@ -65,7 +65,7 @@ export default function TripsPage() {
 
   const { data: driversData } = useQuery({
     queryKey: ['trips-create-drivers'],
-    queryFn: () => api.get('/drivers', { params: { page: 1, limit: 100 }, suppressErrorToast: true } as any),
+    queryFn: () => api.get('/fleet/drivers', { params: { page: 1, limit: 100 }, suppressErrorToast: true } as any),
     retry: false,
     throwOnError: false,
   });

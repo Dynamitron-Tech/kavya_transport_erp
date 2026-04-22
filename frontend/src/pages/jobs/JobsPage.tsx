@@ -84,7 +84,7 @@ export default function JobsPage() {
 
   const { data: driversData } = useQuery({
     queryKey: ['jobs-assign-drivers'],
-    queryFn: () => api.get('/drivers', { params: { page: 1, limit: 100 }, suppressErrorToast: true } as any),
+    queryFn: () => api.get('/fleet/drivers', { params: { page: 1, limit: 100 }, suppressErrorToast: true } as any),
     retry: false,
     throwOnError: false,
   });

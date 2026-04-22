@@ -2,7 +2,7 @@ import { NavLink, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { useAppStore } from '@/store/appStore';
 import { useFinanceAlertStore } from '@/store/financeAlertStore';
-import { NAV_CONFIG, type HeaderNavRole } from './nav/navConfig';
+import { NAV_CONFIG, type HeaderNavRole, type HeaderNavSection } from './nav/navConfig';
 import {
   LayoutDashboard, Building2, Truck, UserCheck, ClipboardList,
   FileText, Navigation, Receipt, DollarSign, BookOpen, TrendingUp,
@@ -77,7 +77,7 @@ const ROLE_OWNS_FINANCE_ROUTES = new Set(['ACCOUNTANT', 'FINANCE_MANAGER']);
 const FINANCE_ROUTES = ['/finance', '/accountant', '/fm'];
 
 // Finance context sidebar — shown only for admin/manager when they navigate to finance paths
-const FINANCE_CONTEXT_SECTIONS = [
+const FINANCE_CONTEXT_SECTIONS: HeaderNavSection[] = [
   {
     label: 'OVERVIEW',
     items: [

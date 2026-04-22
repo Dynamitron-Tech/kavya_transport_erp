@@ -22,7 +22,7 @@ export default function PumpIssueFuelPage() {
 
   const { data: driversData } = useQuery({
     queryKey: ['drivers-list'],
-    queryFn: () => api.get('/drivers', { params: { limit: 200 } }),
+    queryFn: () => api.get('/fleet/drivers', { params: { limit: 200 } }),
   });
 
   const tanks = tanksData?.data || [];

@@ -9,11 +9,10 @@ import { BadgeCheck, AlertTriangle } from 'lucide-react';
 interface DriverRow {
   driver_id: number;
   driver_name: string;
-  total_inspections: number;
-  expected_inspections: number;
+  readings_last_30_days: number;
+  expected_readings: number;
   compliance_pct: number;
   last_inspection: string | null;
-  days_since_last: number | null;
 }
 
 export default function DriverComplianceTable() {
@@ -49,6 +48,12 @@ export default function DriverComplianceTable() {
             const barColor = pct >= 80 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500';
             const textColor = pct >= 80 ? 'text-green-700' : pct >= 50 ? 'text-amber-700' : 'text-red-600';
 
+            let lastInspLabel = '—';
+            if (row.last_inspection) {
+              const days = Math.floor((Date.now() - new Date(row.last_inspection).getTime()) / 86400000);
+              lastInspLabel = days === 0 ? 'Today' : `${days}d ago`;
+            }
+
             return (
               <tr key={row.driver_id} className="hover:bg-gray-50">
                 <td className="px-4 py-2 text-gray-400">{idx + 1}</td>
@@ -60,7 +65,7 @@ export default function DriverComplianceTable() {
                   {row.driver_name}
                 </td>
                 <td className="px-4 py-2 text-right text-gray-600">
-                  {row.total_inspections} / {row.expected_inspections}
+                  {row.readings_last_30_days} / {row.expected_readings}
                 </td>
                 <td className="px-4 py-2 text-right">
                   <div className="flex items-center justify-end gap-2">
@@ -74,7 +79,7 @@ export default function DriverComplianceTable() {
                   </div>
                 </td>
                 <td className="px-4 py-2 text-right text-gray-500">
-                  {row.days_since_last !== null ? `${row.days_since_last}d ago` : '—'}
+                  {lastInspLabel}
                 </td>
               </tr>
             );

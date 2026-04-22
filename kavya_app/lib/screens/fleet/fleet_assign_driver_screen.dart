@@ -113,7 +113,7 @@ class _FleetAssignDriverScreenState extends ConsumerState<FleetAssignDriverScree
     try {
       final api = ref.read(apiServiceProvider);
       final rawAssign = await api.get('/fleet/vehicle-assignments') as Map<String, dynamic>;
-      final rawDrivers = await api.get('/drivers', queryParameters: {'limit': 200}) as Map<String, dynamic>;
+      final rawDrivers = await api.get('/fleet/drivers', queryParameters: {'limit': 200}) as Map<String, dynamic>;
 
       final assignList = (rawAssign['data'] ?? rawAssign) as List<dynamic>;
       final driverList = (() {

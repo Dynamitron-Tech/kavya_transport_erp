@@ -581,11 +581,11 @@ export default function TripDetailPage() {
           return 0;
         });
 
-        const allStops: StopNode[] = [
-          { city: t.origin || '', type: 'origin', ts: t.actual_start ?? null, isLogged: !!t.actual_start },
+        const allStops: StopNode[] = ([
+          { city: t.origin || '', type: 'origin' as const, ts: t.actual_start ?? null, isLogged: !!t.actual_start },
           ...middle,
-          { city: t.destination || '', type: 'destination', ts: t.actual_end ?? null, isLogged: !!t.actual_end },
-        ].filter(s => s.city);
+          { city: t.destination || '', type: 'destination' as const, ts: t.actual_end ?? null, isLogged: !!t.actual_end },
+        ] as StopNode[]).filter(s => s.city);
 
         const N = allStops.length - 1; // total segments
         const estHoursPerSeg = routeDetail?.estimated_hours && N > 0 ? routeDetail.estimated_hours / N : null;
@@ -1133,7 +1133,7 @@ export default function TripDetailPage() {
           })()}
 
           {/* Empty state — only when truly nothing to show */}
-          {!trip.actual_start && !getStatusRecord('started') && !preChecklist && !postChecklist && !getStatusRecord('in_transit') && ((trip as any).lrs || tripLRs || []).length === 0 && (
+          {!trip.actual_start && !getStatusRecord('started') && !preChecklist && !getStatusRecord('in_transit') && ((trip as any).lrs || tripLRs || []).length === 0 && (
             <div className="py-8 text-center">
               <p className="text-sm text-gray-400">No driver activity yet. Trip has not started.</p>
             </div>

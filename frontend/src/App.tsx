@@ -82,6 +82,7 @@ import FleetAlertsPage from '@/pages/fleet/FleetAlertsPage';
 import FleetReportsPage from '@/pages/fleet/FleetReportsPage';
 import TyrePage from '@/pages/fleet/TyrePage';
 import TyreTrackerPage from '@/pages/fleet/TyreTrackerPage';
+import FleetPumpManagementPage from '@/pages/fleet/FleetPumpManagementPage';
 import GeofenceManagementPage from '@/pages/fleet/GeofenceManagementPage';
 import ComplianceDashboardPage from '@/pages/fleet/ComplianceDashboardPage';
 import DriverLeaderboardPage from '@/pages/fleet/DriverLeaderboardPage';
@@ -134,6 +135,9 @@ import EmployeesPage from '@/pages/admin/EmployeesPage';
 import AttendancePage from '@/pages/admin/AttendancePage';
 import BranchesPage from '@/pages/admin/BranchesPage';
 import BranchDetailPage from '@/pages/admin/BranchDetailPage';
+import PumpOperatorsPage from '@/pages/admin/PumpOperatorsPage';
+import FleetDriverApprovalsPage from '@/pages/fleet/FleetDriverApprovalsPage';
+import FleetDriverAttendancePage from '@/pages/fleet/FleetDriverAttendancePage';
 import NotFoundPage from '@/pages/common/NotFoundPage';
 import { getRoleHomePage } from '@/utils/roleRouting';
 
@@ -342,6 +346,18 @@ function App() {
             element={
               <AuthGuard requiredRole="admin">
                 <AttendancePage />
+              </AuthGuard>
+            }
+          />
+          <Route path="/fleet/pump-management" element={<FleetPumpManagementPage />} />
+          <Route path="/fleet/pump-operators" element={<PumpOperatorsPage />} />
+          <Route path="/fleet/approvals" element={<FleetDriverApprovalsPage />} />
+          <Route path="/fleet/attendance/drivers" element={<FleetDriverAttendancePage />} />
+          <Route
+            path="/admin/pump-operators"
+            element={
+              <AuthGuard requiredRole="admin">
+                <PumpOperatorsPage />
               </AuthGuard>
             }
           />

@@ -278,6 +278,8 @@ export interface Vehicle {
   id: number;
   registration_number: string;
   vehicle_type: VehicleType;
+  vehicle_size_class?: string;
+  axle_wheel_type?: string;
   status: VehicleStatus;
   ownership_type: OwnershipType;
   make: string;
@@ -820,24 +822,33 @@ export interface LR {
   consignor_address?: string;
   consignor_gstin?: string;
   consignor_gst?: string;
+  consignor_phone?: string;
   consignee_name: string;
   consignee_address?: string;
   consignee_gstin?: string;
   consignee_gst?: string;
+  consignee_phone?: string;
   origin: string;
   destination: string;
   vehicle_id?: number;
   vehicle_registration?: string;
   driver_id?: number;
   driver_name?: string;
+  driver_phone?: string;
+  transport_type?: string;
   eway_bill_number?: string;
   eway_bill_date?: string;
   eway_bill_expiry?: string;
+  eway_bill_valid_until?: string;
   payment_mode: PaymentMode;
   freight_amount: number;
   total_freight: number;
   advance_amount?: number;
   balance_amount?: number;
+  loading_charges?: number;
+  unloading_charges?: number;
+  detention_charges?: number;
+  other_charges?: number;
   total_weight?: number;
   total_packages?: number;
   declared_value?: number;
@@ -982,6 +993,9 @@ export interface Trip {
   notes?: string;
   payment_approved?: boolean;
   driver_pay?: number;
+  status_history?: Array<{ status: string; timestamp: string; note?: string }>;
+  unloading_start?: string;
+  unloading_end?: string;
   created_by: number;
   created_at: string;
   updated_at: string;
@@ -1214,6 +1228,8 @@ export interface PaginatedResponse<T> {
   page: number;
   page_size: number;
   total_pages: number;
+  pagination?: { total: number; page: number; page_size: number; total_pages: number };
+  data?: T[];
 }
 
 export interface ApiError {
@@ -2096,6 +2112,8 @@ export interface TyreLifeSummary {
     alerts: number;
   };
   total: number;
+  mounted?: number;
+  in_stock?: number;
 }
 
 export interface TyreLifeBucketItem {

@@ -95,7 +95,7 @@ export default function ClientDetailPage() {
 
   const { data: driversRaw } = useQuery({
     queryKey: ['available-drivers'],
-    queryFn: () => api.get('/drivers', { params: { page: 1, limit: 100 } }),
+    queryFn: () => api.get('/fleet/drivers', { params: { page: 1, limit: 100 } }),
     enabled: showCreateJob && step >= 3,
   });
 

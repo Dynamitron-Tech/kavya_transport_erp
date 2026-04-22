@@ -44,17 +44,6 @@ class _AssociateLRCreateScreenState extends ConsumerState<AssociateLRCreateScree
     setState(() => _isLoading = true);
 
     try {
-      final payload = { //
-        "job_id": widget.jobId ?? "UNKNOWN_JOB",
-        "consignor": {"name": _consignorName.text, "address": _consignorAddress.text, "gst": _consignorGst.text},
-        "consignee": {"name": _consigneeName.text, "address": _consigneeAddress.text, "gst": _consigneeGst.text},
-        "goods": {"description": _goodsDesc.text, "packages": int.parse(_packagesCount.text), "weight": double.parse(_weight.text), "value": double.parse(_goodsValue.text)},
-        "freight_amount": double.parse(_freightAmount.text),
-        "payment_mode": _paymentMode,
-        "risk_type": _riskType,
-        "notes": _notes.text,
-      };
-
       // Mocking API call: POST /api/v1/lr
       await Future.delayed(const Duration(seconds: 2));
       final lrNumber = "KT-LR-2026-0899"; // Normally returned from API

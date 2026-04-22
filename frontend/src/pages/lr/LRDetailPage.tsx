@@ -143,7 +143,7 @@ export default function LRDetailPage() {
             <div className="flex justify-between"><span className="text-gray-500">Balance</span><span className="font-semibold text-red-600">₹{Number(lr.balance_amount || 0).toLocaleString('en-IN')}</span></div>
             <div className="border-t border-gray-100 pt-2 space-y-1">
               <div className="flex justify-between"><span className="text-gray-500">Total Weight</span><span>{lr.total_weight ? `${lr.total_weight} kg` : '—'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Packages</span><span>{lr.total_packages > 0 ? lr.total_packages : '—'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Packages</span><span>{(lr.total_packages ?? 0) > 0 ? lr.total_packages : '—'}</span></div>
               {lr.declared_value && Number(lr.declared_value) > 0 && <div className="flex justify-between"><span className="text-gray-500">Declared Value</span><span>₹{Number(lr.declared_value).toLocaleString('en-IN')}</span></div>}
             </div>
           </div>

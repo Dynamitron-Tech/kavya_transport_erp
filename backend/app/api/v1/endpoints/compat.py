@@ -323,6 +323,19 @@ async def fleet_drivers(
 ):
     rows, total = await driver_service.list_drivers(db, page, limit, search or None, None)
     pages = (total + limit - 1) // limit
+
+    # Batch: vehicle assigned per driver
+    driver_ids = [d.id for d in rows]
+    vehicle_map: dict = {}
+    if driver_ids:
+        veh_result = await db.execute(
+            select(Vehicle.default_driver_id, Vehicle.registration_number)
+            .where(Vehicle.default_driver_id.in_(driver_ids))
+        )
+        for vrow in veh_result.all():
+            if vrow.default_driver_id not in vehicle_map:
+                vehicle_map[vrow.default_driver_id] = vrow.registration_number
+
     items = []
     for d in rows:
         row = {c.key: getattr(d, c.key) for c in d.__table__.columns}
@@ -336,6 +349,7 @@ async def fleet_drivers(
         )
         row["name"] = computed_name
         row["employee_id"] = row.get("employee_code") or f"driver-{row.get('id')}"
+        row["assigned_vehicle"] = vehicle_map.get(d.id)
 
         if row.get("status") and hasattr(row["status"], "value"):
             row["status"] = row["status"].value

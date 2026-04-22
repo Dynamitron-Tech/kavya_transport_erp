@@ -5,7 +5,7 @@
 import React, { memo, useState, useCallback } from 'react';
 import type { TyreData } from '@/types';
 
-export type VehicleLayout = 'LCV_4' | 'TRUCK_2AXLE' | 'TRUCK_3AXLE' | 'TRAILER_3AXLE' | 'BUS_5AXLE';
+export type VehicleLayout = 'LCV_4' | 'TRUCK_2AXLE' | 'TRUCK_3AXLE' | 'TRAILER_3AXLE' | 'BUS_5AXLE' | 'TRUCK_12W' | 'TRUCK_14W';
 
 /**
  * Map raw DB position codes (FL, FR, RL1 …) to diagram positions (1L0, 1R0, 2L0 …).
@@ -57,7 +57,7 @@ export function getTyreColor(tyre: Partial<TyreData>): string {
     return '#22c55e';                       // good
   }
   // Alert-based overrides
-  if (tyre.alert === 'critical_pressure' || tyre.alert === 'critical') return '#dc2626';
+  if (tyre.alert === 'critical_pressure') return '#dc2626';
   if (tyre.alert === 'low_pressure') return '#f97316';
   if (tyre.alert === 'high_temp') return '#ef4444';
   // Condition-based fallback
@@ -149,8 +149,49 @@ function getLayout(type: VehicleLayout): { positions: TyrePosition[]; width: num
           { position: '3R0', x: rightX, y: 270 },
         ],
       };
+    case 'TRUCK_12W':
+      // Double Steering — 1 dual steer axle (4) + 2 dual drive axles (4+4) = 12 tyres
+      return {
+        width: W, height: 400,
+        bodyPath: `M${leftX + tyreW + 10},20 h${rightX - leftX - tyreW - 20} q20,0 20,20 v320 q0,20 -20,20 h-${rightX - leftX - tyreW - 20} q-20,0 -20,-20 v-320 q0,-20 20,-20 z`,
+        positions: [
+          { position: '1L1', x: leftX,      y: 40 },
+          { position: '1L0', x: leftInner,  y: 40 },
+          { position: '1R0', x: rightInner, y: 40 },
+          { position: '1R1', x: rightX,     y: 40 },
+          { position: '2L1', x: leftX,      y: 180 },
+          { position: '2L0', x: leftInner,  y: 180 },
+          { position: '2R0', x: rightInner, y: 180 },
+          { position: '2R1', x: rightX,     y: 180 },
+          { position: '3L1', x: leftX,      y: 270 },
+          { position: '3L0', x: leftInner,  y: 270 },
+          { position: '3R0', x: rightInner, y: 270 },
+          { position: '3R1', x: rightX,     y: 270 },
+        ],
+      };
+    case 'TRUCK_14W':
+      // 14W — 1 single steer + 3 dual drive rear = 14 tyres
+      return {
+        width: W, height: 460,
+        bodyPath: `M${leftX + tyreW + 10},20 h${rightX - leftX - tyreW - 20} q20,0 20,20 v380 q0,20 -20,20 h-${rightX - leftX - tyreW - 20} q-20,0 -20,-20 v-380 q0,-20 20,-20 z`,
+        positions: [
+          { position: '1L0', x: leftX, y: 40 },
+          { position: '1R0', x: rightX, y: 40 },
+          { position: '2L0', x: leftX, y: 160 },
+          { position: '2L1', x: leftInner, y: 160 },
+          { position: '2R1', x: rightInner, y: 160 },
+          { position: '2R0', x: rightX, y: 160 },
+          { position: '3L0', x: leftX, y: 255 },
+          { position: '3L1', x: leftInner, y: 255 },
+          { position: '3R1', x: rightInner, y: 255 },
+          { position: '3R0', x: rightX, y: 255 },
+          { position: '4L0', x: leftX, y: 350 },
+          { position: '4L1', x: leftInner, y: 350 },
+          { position: '4R1', x: rightInner, y: 350 },
+          { position: '4R0', x: rightX, y: 350 },
+        ],
+      };
     case 'TRAILER_3AXLE':
-      // Trailer — no cab / no front steer axle, 3 dual axles = 12 tyres
       return {
         width: W, height: 360,
         bodyPath: `M${leftX + tyreW + 10},14 h${rightX - leftX - tyreW - 20} q20,0 20,20 v280 q0,20 -20,20 h-${rightX - leftX - tyreW - 20} q-20,0 -20,-20 v-280 q0,-20 20,-20 z`,
@@ -223,7 +264,7 @@ const TyreRect = memo(function TyreRect({
   const treadMm = (tyre as any)?.tread_depth_mm;
   const temp = tyre?.temperature;
   const isCritical = tyre &&
-    (tyre.alert === 'critical_pressure' || tyre.alert === 'critical' ||
+    (tyre.alert === 'critical_pressure' ||
      condition === 'damaged' || condition === 'worn' || (tyre.life_percent ?? 100) < 20 ||
      (treadMm != null && treadMm <= 2.5));
 

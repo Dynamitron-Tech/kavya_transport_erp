@@ -86,6 +86,7 @@ class ManagerNotificationsScreen extends ConsumerWidget {
     final type = (notif['type'] ?? '').toString();
     final refId = notif['reference_id']?.toString();
     if (refId == null) return;
+    if (!context.mounted) return;
     if (type.contains('job')) {
       context.push('/manager/jobs/$refId');
     } else if (type.contains('vehicle') || type.contains('fleet')) {
