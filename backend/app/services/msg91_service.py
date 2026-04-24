@@ -26,13 +26,13 @@ async def send_otp_msg91(phone: str, otp: str) -> tuple[bool, str]:
         "authkey": settings.MSG91_AUTH_KEY,
         "template_id": settings.MSG91_OTP_TEMPLATE_ID,
         "mobile": normalised,
-        "otp": otp,
     }
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 MSG91_SEND_URL,
                 params=params,
+                json={"otp": otp},
                 headers={"Content-Type": "application/json"},
             )
         data = resp.json()
