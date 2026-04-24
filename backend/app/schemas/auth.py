@@ -64,6 +64,10 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: Optional[str] = None
+
+
 class FCMTokenRequest(BaseModel):
     fcm_token: str
     device_type: str = "android"  # android, ios, web
