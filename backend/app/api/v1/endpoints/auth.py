@@ -126,11 +126,12 @@ async def send_otp_for_login(data: OtpSendRequest, request: Request, db: AsyncSe
 
     # Try MSG91 SendOTP first (DLT-compliant SMS for India)
     sms_ok = False
-    try:
-        msg91_ok, _ = await send_otp_msg91(phone, otp)
-        sms_ok = msg91_ok
-    except Exception as exc:
-        logger.warning(f"[OTP] MSG91 send failed: {exc}")
+    if settings.MSG91_ENABLED:
+        try:
+            msg91_ok, _ = await send_otp_msg91(phone, otp)
+            sms_ok = msg91_ok
+        except Exception as exc:
+            logger.warning(f"[OTP] MSG91 send failed: {exc}")
 
     email_ok = False
     if not sms_ok:
