@@ -335,28 +335,34 @@ async def attendance_check_in(
     )
     db.add(entry)
     await db.flush()
+    # Commit attendance now so it is persisted regardless of notification outcome
+    await db.commit()
 
-    # Notify fleet managers if the check-in is from a driver
+    # Notify fleet managers if the check-in is from a driver (non-fatal)
     if 'driver' in current_roles:
-        driver_result = await db.execute(
-            select(Driver).where(Driver.user_id == current_user.user_id)
-        )
-        driver_obj = driver_result.scalar_one_or_none()
-        driver_name = (
-            f"{driver_obj.first_name} {driver_obj.last_name or ''}".strip()
-            if driver_obj else current_user.email or 'Driver'
-        )
-        date_label = today.strftime('%d %b %Y')
-        await notification_service.send(
-            db,
-            event_type='DRIVER_ATTENDANCE',
-            title='Driver Attendance',
-            body=f'{driver_name} is present for {date_label}',
-            target_roles=['FLEET_MANAGER'],
-            data={'driver_id': str(driver_obj.id) if driver_obj else ''},
-            urgency='normal',
-            triggered_by=current_user.user_id,
-        )
+        try:
+            driver_result = await db.execute(
+                select(Driver).where(Driver.user_id == current_user.user_id)
+            )
+            driver_obj = driver_result.scalar_one_or_none()
+            driver_name = (
+                f"{driver_obj.first_name} {driver_obj.last_name or ''}".strip()
+                if driver_obj else current_user.email or 'Driver'
+            )
+            date_label = today.strftime('%d %b %Y')
+            await notification_service.send(
+                db,
+                event_type='DRIVER_ATTENDANCE',
+                title='Driver Attendance',
+                body=f'{driver_name} is present for {date_label}',
+                target_roles=['FLEET_MANAGER'],
+                data={'driver_id': str(driver_obj.id) if driver_obj else ''},
+                urgency='normal',
+                triggered_by=current_user.user_id,
+            )
+        except Exception as _notify_exc:
+            import logging as _log
+            _log.getLogger(__name__).warning(f"Attendance notification failed: {_notify_exc}")
 
     message = 'Attendance marked successfully'
     if status_value == 'late':

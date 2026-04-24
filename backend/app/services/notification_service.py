@@ -50,6 +50,30 @@ class NotificationService:
         Dispatch a notification to the specified roles and/or specific users.
         Must be called AFTER db.commit() so that the triggering entity is persisted.
         """
+        try:
+            await self._send_impl(
+                db, event_type, title, body,
+                target_roles=target_roles,
+                target_user_ids=target_user_ids,
+                data=data,
+                urgency=urgency,
+                triggered_by=triggered_by,
+            )
+        except Exception as exc:
+            logger.error(f"NotificationService.send failed (event={event_type}): {exc}", exc_info=True)
+
+    async def _send_impl(
+        self,
+        db: AsyncSession,
+        event_type: str,
+        title: str,
+        body: str,
+        target_roles: list[str] | None = None,
+        target_user_ids: list[int] | None = None,
+        data: dict | None = None,
+        urgency: str = "normal",
+        triggered_by: int | None = None,
+    ) -> None:
         if data is None:
             data = {}
         if target_roles is None:
