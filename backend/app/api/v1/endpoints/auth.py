@@ -124,22 +124,13 @@ async def send_otp_for_login(data: OtpSendRequest, request: Request, db: AsyncSe
     session = await create_otp_session(user.id, phone)
     otp = session["otp"]
 
-    # Try MSG91 Widget first (DLT-compliant SMS for India)
-    # MSG91 manages its own OTP — store the access_token for verification
-    msg91_access_token: str | None = None
+    # Try MSG91 SendOTP first (DLT-compliant SMS for India)
     sms_ok = False
     try:
-        msg91_ok, msg91_token = await send_otp_msg91("91" + phone)
-        if msg91_ok and msg91_token:
-            msg91_access_token = msg91_token
-            sms_ok = True
-            # Store MSG91 access_token in the session for verification
-            await MongoDB.db.otp_sessions.update_one(
-                {"session_id": session["session_id"]},
-                {"$set": {"msg91_access_token": msg91_access_token}},
-            )
+        msg91_ok, _ = await send_otp_msg91(phone, otp)
+        sms_ok = msg91_ok
     except Exception as exc:
-        logger.warning(f"[OTP] MSG91 initiation failed: {exc}")
+        logger.warning(f"[OTP] MSG91 send failed: {exc}")
 
     email_ok = False
     if not sms_ok:

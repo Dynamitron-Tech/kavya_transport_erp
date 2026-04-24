@@ -122,7 +122,7 @@ class Settings(BaseSettings):
     
     # Communication — MSG91 Widget API (for OTP)
     MSG91_AUTH_KEY: str = "YOUR_MSG91_AUTH_KEY_HERE"
-    MSG91_WIDGET_ID: str = "YOUR_MSG91_WIDGET_ID_HERE"
+    MSG91_OTP_TEMPLATE_ID: str = "69ebeb-b96f6cb395630194e2"
     MSG91_API_KEY: str = "YOUR_MSG91_API_KEY_HERE"
     MSG91_SENDER_ID: str = "KAVYAT"
     WHATSAPP_API_KEY: str = "YOUR_GUPSHUP_API_KEY_HERE"
