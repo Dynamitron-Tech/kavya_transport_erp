@@ -19,6 +19,7 @@ from app.models.postgres.lr import LR
 from app.models.postgres.user import User, EmployeeAttendance
 from app.models.postgres.vehicle import Vehicle, VehicleDocument
 from app.services.document_extraction_service import DocumentExtractionService
+from app.utils.tenant_guard import assert_tenant_access
 
 router = APIRouter()
 
@@ -75,7 +76,26 @@ async def _get_current_driver_profile(db: AsyncSession, current_user: TokenData)
     if driver and not driver.user_id:
         driver.user_id = current_user.user_id
         await db.flush()
-    return driver
+        return driver
+    if driver:
+        return driver
+
+    # Auto-create a driver profile if the user has the driver role but no record exists yet
+    if "driver" in current_user.roles:
+        new_driver = Driver(
+            user_id=current_user.user_id,
+            first_name=user.first_name or user.email.split("@")[0],
+            last_name=user.last_name or "",
+            email=user.email,
+            phone=user.phone or "0000000000",
+            employee_code=f"DRV-{current_user.user_id:04d}",
+            is_deleted=False,
+        )
+        db.add(new_driver)
+        await db.flush()
+        return new_driver
+
+    return None
 
 
 async def _collect_driver_documents(db: AsyncSession, driver_id: int):
@@ -1104,10 +1124,14 @@ async def update_my_document(
 
 
 @router.get("/{driver_id}", response_model=APIResponse)
-async def get_driver(driver_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+async def get_driver(
+    driver_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.DRIVER_READ)),
+):
     driver = await driver_service.get_driver(db, driver_id)
-    if not driver:
-        raise HTTPException(status_code=404, detail="Driver not found")
+    assert_tenant_access(driver, current_user, not_found_detail="Driver not found")
     data = {c.key: getattr(driver, c.key) for c in driver.__table__.columns}
     computed_name = f"{data.get('first_name', '')} {data.get('last_name', '')}".strip() or "Unknown"
     data["name"] = computed_name
@@ -1173,6 +1197,8 @@ async def update_driver(
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.DRIVER_UPDATE)),
 ):
+    existing = await driver_service.get_driver(db, driver_id)
+    assert_tenant_access(existing, current_user, not_found_detail="Driver not found")
     driver = await driver_service.update_driver(db, driver_id, data.model_dump(exclude_unset=True))
     if not driver:
         raise HTTPException(status_code=404, detail="Driver not found")
@@ -1185,6 +1211,8 @@ async def delete_driver(
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.DRIVER_DELETE)),
 ):
+    existing = await driver_service.get_driver(db, driver_id)
+    assert_tenant_access(existing, current_user, not_found_detail="Driver not found")
     success = await driver_service.delete_driver(db, driver_id)
     if not success:
         raise HTTPException(status_code=404, detail="Driver not found")
@@ -1202,8 +1230,7 @@ async def set_driver_pin(
 ):
     """Admin sets or resets a driver's 6-digit security PIN."""
     driver = await driver_service.get_driver(db, driver_id)
-    if not driver:
-        raise HTTPException(status_code=404, detail="Driver not found")
+    assert_tenant_access(driver, current_user, not_found_detail="Driver not found")
     driver.security_pin_hash = get_password_hash(pin)
     await db.flush()
     return APIResponse(success=True, message="Security PIN updated")
@@ -1238,8 +1265,7 @@ async def get_driver_payment_info(
 ):
     """Return payment details (UPI VPA, bank info) for a driver — used by accountant UPI flow."""
     driver = await driver_service.get_driver(db, driver_id)
-    if not driver:
-        raise HTTPException(status_code=404, detail="Driver not found")
+    assert_tenant_access(driver, current_user, not_found_detail="Driver not found")
     return APIResponse(
         success=True,
         data={
@@ -1255,14 +1281,29 @@ async def get_driver_payment_info(
 
 # --- License ---
 @router.get("/{driver_id}/licenses", response_model=APIResponse)
-async def list_licenses(driver_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+async def list_licenses(
+    driver_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.DRIVER_READ)),
+):
+    driver = await driver_service.get_driver(db, driver_id)
+    assert_tenant_access(driver, current_user, not_found_detail="Driver not found")
     licenses = await driver_service.get_driver_license(db, driver_id)
     items = [{c.key: getattr(l, c.key) for c in l.__table__.columns} for l in licenses]
     return APIResponse(success=True, data=items)
 
 
 @router.post("/{driver_id}/licenses", response_model=APIResponse, status_code=201)
-async def add_license(driver_id: int, data: DriverLicenseCreate, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+async def add_license(
+    driver_id: int,
+    data: DriverLicenseCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.DRIVER_UPDATE)),
+):
+    driver = await driver_service.get_driver(db, driver_id)
+    assert_tenant_access(driver, current_user, not_found_detail="Driver not found")
     lic = await driver_service.add_driver_license(db, driver_id, data.model_dump())
     return APIResponse(success=True, data={"id": lic.id}, message="License added")
 
@@ -1275,8 +1316,11 @@ async def get_driver_trips(
     page_size: int = Query(10, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.DRIVER_READ)),
 ):
     """Get trips for a specific driver."""
+    driver = await driver_service.get_driver(db, driver_id)
+    assert_tenant_access(driver, current_user, not_found_detail="Driver not found")
     base = select(Trip).where(Trip.driver_id == driver_id, Trip.is_deleted == False)
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar() or 0
     offset = (page - 1) * page_size
@@ -1322,11 +1366,11 @@ async def get_driver_behaviour(
     period: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.DRIVER_READ)),
 ):
     """Get driving behaviour analytics for a driver."""
     driver = await driver_service.get_driver(db, driver_id)
-    if not driver:
-        raise HTTPException(status_code=404, detail="Driver not found")
+    assert_tenant_access(driver, current_user, not_found_detail="Driver not found")
 
     today = datetime.utcnow().date()
     daily_trends = []
@@ -1371,11 +1415,11 @@ async def get_driver_documents(
     driver_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.DRIVER_READ)),
 ):
     """Get documents for a specific driver (licenses + uploaded documents)."""
     driver = await driver_service.get_driver(db, driver_id)
-    if not driver:
-        raise HTTPException(status_code=404, detail="Driver not found")
+    assert_tenant_access(driver, current_user, not_found_detail="Driver not found")
 
     licenses = await driver_service.get_driver_license(db, driver_id)
     docs = []
@@ -1423,6 +1467,7 @@ async def upload_driver_document_for_fleet(
     document_number: str = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.DRIVER_UPDATE)),
 ):
     """Fleet manager uploads a document for a specific driver (upsert)."""
     ALLOWED_TYPES = [
@@ -1434,16 +1479,16 @@ async def upload_driver_document_for_fleet(
         raise HTTPException(status_code=400, detail=f"Invalid document_type. Allowed: {ALLOWED_TYPES}")
 
     driver = await driver_service.get_driver(db, driver_id)
-    if not driver:
-        raise HTTPException(status_code=404, detail="Driver not found")
+    assert_tenant_access(driver, current_user, not_found_detail="Driver not found")
 
-    content = await file.read()
-    if len(content) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+    from app.utils.upload_validator import validate_upload, ALLOWED_IMAGE_DOC_MIMES
+    content, detected_mime, safe_name = await validate_upload(
+        file, allowed_mimes=ALLOWED_IMAGE_DOC_MIMES, max_bytes=10 * 1024 * 1024,
+    )
 
     from app.services import s3_service
     folder = f"driver-documents/{driver_id}"
-    result = await s3_service.upload_file(content, file.filename, folder, file.content_type)
+    result = await s3_service.upload_file(content, safe_name, folder, detected_mime)
     file_url = result.get("url", "")
 
     # Upsert: update if same document_type already exists, else insert
@@ -1494,11 +1539,11 @@ async def get_driver_performance(
     driver_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.DRIVER_READ)),
 ):
     """Get performance data for a driver."""
     driver = await driver_service.get_driver(db, driver_id)
-    if not driver:
-        raise HTTPException(status_code=404, detail="Driver not found")
+    assert_tenant_access(driver, current_user, not_found_detail="Driver not found")
 
     # Count real trips
     total_trips = (await db.execute(
@@ -1552,13 +1597,13 @@ async def get_driver_attendance(
     month: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.DRIVER_READ)),
 ):
     """Get attendance for a specific driver for a month."""
     import calendar, re as _re
 
     driver = await driver_service.get_driver(db, driver_id)
-    if not driver:
-        raise HTTPException(status_code=404, detail="Driver not found")
+    assert_tenant_access(driver, current_user, not_found_detail="Driver not found")
 
     if month:
         try:

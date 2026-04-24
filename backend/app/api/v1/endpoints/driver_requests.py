@@ -30,16 +30,16 @@ router = APIRouter()
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 async def _get_driver_id(current_user: TokenData, db: AsyncSession) -> int:
-    result = await db.execute(select(Driver.id).where(Driver.user_id == current_user.user_id))
-    row = result.scalar_one_or_none()
-    if not row:
+    from app.api.v1.endpoints.drivers import _get_current_driver_profile
+    driver = await _get_current_driver_profile(db, current_user)
+    if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
-    return row
+    return driver.id
 
 
 async def _get_driver(current_user: TokenData, db: AsyncSession) -> Driver:
-    result = await db.execute(select(Driver).where(Driver.user_id == current_user.user_id))
-    driver = result.scalar_one_or_none()
+    from app.api.v1.endpoints.drivers import _get_current_driver_profile
+    driver = await _get_current_driver_profile(db, current_user)
     if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
     return driver
