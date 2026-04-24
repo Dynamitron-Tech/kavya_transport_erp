@@ -493,9 +493,12 @@ async def get_unified_vehicles(
         if t.vehicle_id:
             trip_by_vehicle[t.vehicle_id] = t
 
-    # Get provider statuses
+    # Get provider statuses (table may not exist yet if migration hasn't run)
     from app.services.gps.provider_registry import get_all_provider_statuses
-    provider_statuses = await get_all_provider_statuses()
+    try:
+        provider_statuses = await get_all_provider_statuses()
+    except Exception:
+        provider_statuses = []
     provider_status_map = {p["id"]: p for p in provider_statuses}
 
     now = datetime.now(timezone.utc)
@@ -589,7 +592,10 @@ async def get_provider_statuses(
 ):
     """Get GPS provider status info (for the provider pills in the UI)."""
     from app.services.gps.provider_registry import get_all_provider_statuses
-    providers = await get_all_provider_statuses()
+    try:
+        providers = await get_all_provider_statuses()
+    except Exception:
+        providers = []
     return APIResponse(success=True, data=providers)
 
 
