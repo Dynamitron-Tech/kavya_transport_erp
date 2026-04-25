@@ -1,0 +1,3404 @@
+{
+  "_meta": {
+    "version": "3.0.0",
+    "title": "All-India Toll Plaza Database",
+    "last_updated": "2025-04",
+    "total_plazas": 1159,
+    "total_routes": 60,
+    "data_source": "NHAI Official / NHTIS / MoRTH FASTag Annual Pass List 2025",
+    "rate_basis": "Car/Jeep/Van — FASTag single trip (rates revised annually ~Sep 1)",
+    "nhai_helpline": "1033",
+    "note": "Verify latest rates at https://tis.nhai.gov.in before commercial use.",
+    "how_to_integrate": {
+      "step_1": "Normalize city names to lowercase using city_aliases{}",
+      "step_2": "Look up route_index[from][to] → returns array of route_ids",
+      "step_3": "Fetch route object from routes[] by route_id → has ordered toll_plaza_ids[]",
+      "step_4": "Resolve each id from toll_plazas{} map for full plaza details",
+      "code_example_js": "const ids = data.route_index['tuticorin']['chennai']; const tolls = data.routes.find(r=>r.route_id===ids[0]).toll_plaza_ids.map(id=>data.toll_plazas[id]);"
+    }
+  },
+  "city_aliases": {
+    "delhi": [
+      "delhi",
+      "new delhi",
+      "dilli",
+      "ndls"
+    ],
+    "mumbai": [
+      "mumbai",
+      "bombay",
+      "bom"
+    ],
+    "chennai": [
+      "chennai",
+      "madras",
+      "mas"
+    ],
+    "kolkata": [
+      "kolkata",
+      "calcutta",
+      "ccu"
+    ],
+    "bangalore": [
+      "bangalore",
+      "bengaluru",
+      "blr"
+    ],
+    "hyderabad": [
+      "hyderabad",
+      "hyd",
+      "secunderabad"
+    ],
+    "ahmedabad": [
+      "ahmedabad",
+      "amdavad"
+    ],
+    "pune": [
+      "pune",
+      "poona"
+    ],
+    "jaipur": [
+      "jaipur"
+    ],
+    "lucknow": [
+      "lucknow"
+    ],
+    "agra": [
+      "agra"
+    ],
+    "surat": [
+      "surat"
+    ],
+    "vadodara": [
+      "vadodara",
+      "baroda"
+    ],
+    "nagpur": [
+      "nagpur"
+    ],
+    "indore": [
+      "indore"
+    ],
+    "bhopal": [
+      "bhopal"
+    ],
+    "visakhapatnam": [
+      "visakhapatnam",
+      "vizag",
+      "vishakhapatnam"
+    ],
+    "patna": [
+      "patna"
+    ],
+    "ranchi": [
+      "ranchi"
+    ],
+    "bhubaneswar": [
+      "bhubaneswar",
+      "bhubaneshwar"
+    ],
+    "chandigarh": [
+      "chandigarh"
+    ],
+    "amritsar": [
+      "amritsar"
+    ],
+    "ludhiana": [
+      "ludhiana"
+    ],
+    "coimbatore": [
+      "coimbatore",
+      "kovai",
+      "cbe"
+    ],
+    "madurai": [
+      "madurai"
+    ],
+    "trichy": [
+      "trichy",
+      "tiruchirappalli",
+      "tiruchirapalli"
+    ],
+    "tuticorin": [
+      "tuticorin",
+      "thoothukudi"
+    ],
+    "tirunelveli": [
+      "tirunelveli",
+      "nellai"
+    ],
+    "salem": [
+      "salem"
+    ],
+    "kochi": [
+      "kochi",
+      "cochin",
+      "ernakulam"
+    ],
+    "thiruvananthapuram": [
+      "thiruvananthapuram",
+      "trivandrum",
+      "tvm"
+    ],
+    "mangaluru": [
+      "mangaluru",
+      "mangalore"
+    ],
+    "hubli": [
+      "hubli",
+      "hubballi",
+      "dharwad"
+    ],
+    "mysore": [
+      "mysore",
+      "mysuru"
+    ],
+    "vijayawada": [
+      "vijayawada"
+    ],
+    "tirupati": [
+      "tirupati"
+    ],
+    "nellore": [
+      "nellore"
+    ],
+    "guwahati": [
+      "guwahati",
+      "gauhati"
+    ],
+    "jabalpur": [
+      "jabalpur"
+    ],
+    "gwalior": [
+      "gwalior"
+    ],
+    "raipur": [
+      "raipur"
+    ],
+    "varanasi": [
+      "varanasi",
+      "banaras",
+      "kashi"
+    ],
+    "kanpur": [
+      "kanpur"
+    ],
+    "allahabad": [
+      "allahabad",
+      "prayagraj"
+    ],
+    "jodhpur": [
+      "jodhpur"
+    ],
+    "udaipur": [
+      "udaipur"
+    ],
+    "ajmer": [
+      "ajmer"
+    ],
+    "kota": [
+      "kota"
+    ],
+    "srinagar": [
+      "srinagar"
+    ],
+    "jammu": [
+      "jammu"
+    ],
+    "shimla": [
+      "shimla"
+    ],
+    "dehradun": [
+      "dehradun"
+    ],
+    "haridwar": [
+      "haridwar",
+      "hardwar"
+    ],
+    "meerut": [
+      "meerut"
+    ],
+    "mathura": [
+      "mathura"
+    ],
+    "nashik": [
+      "nashik",
+      "nasik"
+    ],
+    "aurangabad": [
+      "aurangabad",
+      "chhatrapati sambhaji nagar"
+    ],
+    "solapur": [
+      "solapur"
+    ],
+    "kolhapur": [
+      "kolhapur"
+    ],
+    "amravati": [
+      "amravati"
+    ]
+  },
+  "toll_plazas": {
+    "TP_AP_01": {
+      "id": "TP_AP_01",
+      "name": "Sullurpeta",
+      "state": "Andhra Pradesh",
+      "district": "Tirupati",
+      "highway": "NH-16",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 13.709,
+      "longitude": 80.025
+    },
+    "TP_AP_02": {
+      "id": "TP_AP_02",
+      "name": "Nellore",
+      "state": "Andhra Pradesh",
+      "district": "Nellore",
+      "highway": "NH-16",
+      "fastag_car": 80,
+      "cash_car": 160,
+      "latitude": 14.4426,
+      "longitude": 79.9865
+    },
+    "TP_AP_03": {
+      "id": "TP_AP_03",
+      "name": "Kaza",
+      "state": "Andhra Pradesh",
+      "district": "Guntur",
+      "highway": "NH-16",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 16.3855,
+      "longitude": 80.533
+    },
+    "TP_AP_04": {
+      "id": "TP_AP_04",
+      "name": "Krishnavaram",
+      "state": "Andhra Pradesh",
+      "district": "Kakinada",
+      "highway": "NH-16",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 17.08,
+      "longitude": 82.218
+    },
+    "TP_AP_05": {
+      "id": "TP_AP_05",
+      "name": "Nathavalasa",
+      "state": "Andhra Pradesh",
+      "district": "Vizianagaram",
+      "highway": "NH-16",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 18.107,
+      "longitude": 83.409
+    },
+    "TP_AP_06": {
+      "id": "TP_AP_06",
+      "name": "Chinaganjam",
+      "state": "Andhra Pradesh",
+      "district": "Bapatla",
+      "highway": "NH-16",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 15.699,
+      "longitude": 80.2376
+    },
+    "TP_AP_07": {
+      "id": "TP_AP_07",
+      "name": "Marur",
+      "state": "Andhra Pradesh",
+      "district": "Anantapur",
+      "highway": "NH-44",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 14.68,
+      "longitude": 77.6
+    },
+    "TP_AP_08": {
+      "id": "TP_AP_08",
+      "name": "S.V. Puram",
+      "state": "Andhra Pradesh",
+      "district": "Tirupati",
+      "highway": "NH-65",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 13.618,
+      "longitude": 79.419
+    },
+    "TP_AP_09": {
+      "id": "TP_AP_09",
+      "name": "Old NH-9",
+      "state": "Andhra Pradesh",
+      "district": "NTR",
+      "highway": "NH-65",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 16.51,
+      "longitude": 80.636
+    },
+    "TP_KA_01": {
+      "id": "TP_KA_01",
+      "name": "Electronic City Phase 1",
+      "state": "Karnataka",
+      "district": "Bengaluru Urban",
+      "highway": "NH-44",
+      "fastag_car": 45,
+      "cash_car": 90,
+      "latitude": 12.846,
+      "longitude": 77.672
+    },
+    "TP_KA_02": {
+      "id": "TP_KA_02",
+      "name": "Attibele",
+      "state": "Karnataka",
+      "district": "Bengaluru Urban",
+      "highway": "NH-44",
+      "fastag_car": 35,
+      "cash_car": 70,
+      "latitude": 12.771,
+      "longitude": 77.778
+    },
+    "TP_KA_03": {
+      "id": "TP_KA_03",
+      "name": "Hoskote",
+      "state": "Karnataka",
+      "district": "Bengaluru Urban",
+      "highway": "NH-75",
+      "fastag_car": 55,
+      "cash_car": 110,
+      "latitude": 13.071,
+      "longitude": 77.798
+    },
+    "TP_KA_04": {
+      "id": "TP_KA_04",
+      "name": "Devanahalli",
+      "state": "Karnataka",
+      "district": "Bengaluru Rural",
+      "highway": "NH-44",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 13.25,
+      "longitude": 77.712
+    },
+    "TP_KA_05": {
+      "id": "TP_KA_05",
+      "name": "Nelamangala",
+      "state": "Karnataka",
+      "district": "Bengaluru Rural",
+      "highway": "NH-48",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 13.098,
+      "longitude": 77.392
+    },
+    "TP_KA_06": {
+      "id": "TP_KA_06",
+      "name": "Hirbagewadi",
+      "state": "Karnataka",
+      "district": "Belgaum",
+      "highway": "NH-48",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 15.763,
+      "longitude": 74.648
+    },
+    "TP_KA_07": {
+      "id": "TP_KA_07",
+      "name": "Bagepalli",
+      "state": "Karnataka",
+      "district": "Chikkaballapur",
+      "highway": "NH-44",
+      "fastag_car": 55,
+      "cash_car": 110,
+      "latitude": 13.787,
+      "longitude": 77.788
+    },
+    "TP_KA_08": {
+      "id": "TP_KA_08",
+      "name": "Mulbagal",
+      "state": "Karnataka",
+      "district": "Kolar",
+      "highway": "NH-75",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 13.165,
+      "longitude": 78.394
+    },
+    "TP_KA_09": {
+      "id": "TP_KA_09",
+      "name": "Bellur",
+      "state": "Karnataka",
+      "district": "Mandya",
+      "highway": "NH-48 (Bengaluru–Mysuru)",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 12.86,
+      "longitude": 76.68
+    },
+    "TP_KA_10": {
+      "id": "TP_KA_10",
+      "name": "Bengaluru-Nelamangala Plaza",
+      "state": "Karnataka",
+      "district": "Bengaluru Urban",
+      "highway": "NH-48",
+      "fastag_car": 50,
+      "cash_car": 100,
+      "latitude": 13.03,
+      "longitude": 77.55
+    },
+    "TP_KA_11": {
+      "id": "TP_KA_11",
+      "name": "Kherki Daula (KA side)",
+      "state": "Karnataka",
+      "district": "Dharwad",
+      "highway": "NH-48",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 15.39,
+      "longitude": 75.12
+    },
+    "TP_TN_01": {
+      "id": "TP_TN_01",
+      "name": "Vanagaram Chennai Bypass",
+      "state": "Tamil Nadu",
+      "district": "Chennai",
+      "highway": "NH-48",
+      "fastag_car": 50,
+      "cash_car": 100,
+      "latitude": 13.056,
+      "longitude": 80.135
+    },
+    "TP_TN_02": {
+      "id": "TP_TN_02",
+      "name": "Paranur Chengalpet",
+      "state": "Tamil Nadu",
+      "district": "Chengalpattu",
+      "highway": "NH-44",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 12.641,
+      "longitude": 80.003
+    },
+    "TP_TN_03": {
+      "id": "TP_TN_03",
+      "name": "Athur Tindivanam",
+      "state": "Tamil Nadu",
+      "district": "Villupuram",
+      "highway": "NH-44",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 12.209,
+      "longitude": 79.633
+    },
+    "TP_TN_04": {
+      "id": "TP_TN_04",
+      "name": "Vikravandi Villupuram",
+      "state": "Tamil Nadu",
+      "district": "Villupuram",
+      "highway": "NH-44",
+      "fastag_car": 105,
+      "cash_car": 210,
+      "latitude": 11.997,
+      "longitude": 79.511
+    },
+    "TP_TN_05": {
+      "id": "TP_TN_05",
+      "name": "Thirumandurai",
+      "state": "Tamil Nadu",
+      "district": "Salem",
+      "highway": "NH-44",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 11.613,
+      "longitude": 79.024
+    },
+    "TP_TN_06": {
+      "id": "TP_TN_06",
+      "name": "Sengurichi",
+      "state": "Tamil Nadu",
+      "district": "Tiruchirappalli",
+      "highway": "NH-44",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 11.034,
+      "longitude": 78.689
+    },
+    "TP_TN_07": {
+      "id": "TP_TN_07",
+      "name": "Samayapuram",
+      "state": "Tamil Nadu",
+      "district": "Tiruchirappalli",
+      "highway": "NH-44",
+      "fastag_car": 55,
+      "cash_car": 110,
+      "latitude": 10.942,
+      "longitude": 78.561
+    },
+    "TP_TN_08": {
+      "id": "TP_TN_08",
+      "name": "Ponnambalapatti",
+      "state": "Tamil Nadu",
+      "district": "Tiruchirappalli",
+      "highway": "NH-44",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 10.5364,
+      "longitude": 78.2555
+    },
+    "TP_TN_09": {
+      "id": "TP_TN_09",
+      "name": "Kozhinjiipatti",
+      "state": "Tamil Nadu",
+      "district": "Dindigul",
+      "highway": "NH-44",
+      "fastag_car": 80,
+      "cash_car": 160,
+      "latitude": 10.194,
+      "longitude": 77.9088
+    },
+    "TP_TN_10": {
+      "id": "TP_TN_10",
+      "name": "Kappalur",
+      "state": "Tamil Nadu",
+      "district": "Madurai",
+      "highway": "NH-44",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 9.972,
+      "longitude": 78.011
+    },
+    "TP_TN_11": {
+      "id": "TP_TN_11",
+      "name": "Eliyarpathi",
+      "state": "Tamil Nadu",
+      "district": "Madurai",
+      "highway": "NH-44",
+      "fastag_car": 90,
+      "cash_car": 180,
+      "latitude": 9.7831,
+      "longitude": 78.0944
+    },
+    "TP_TN_12": {
+      "id": "TP_TN_12",
+      "name": "Pudhurpandiyapuram",
+      "state": "Tamil Nadu",
+      "district": "Thoothukudi",
+      "highway": "NH-45B",
+      "fastag_car": 90,
+      "cash_car": 180,
+      "latitude": 9.182,
+      "longitude": 78.134
+    },
+    "TP_TN_13": {
+      "id": "TP_TN_13",
+      "name": "Nemili Sriperumbudur",
+      "state": "Tamil Nadu",
+      "district": "Kanchipuram",
+      "highway": "NH-48",
+      "fastag_car": 50,
+      "cash_car": 100,
+      "latitude": 12.982,
+      "longitude": 79.9685
+    },
+    "TP_TN_14": {
+      "id": "TP_TN_14",
+      "name": "Chennasamudram",
+      "state": "Tamil Nadu",
+      "district": "Vellore",
+      "highway": "NH-48",
+      "fastag_car": 45,
+      "cash_car": 90,
+      "latitude": 12.9122,
+      "longitude": 79.4011
+    },
+    "TP_TN_15": {
+      "id": "TP_TN_15",
+      "name": "Pallikonda",
+      "state": "Tamil Nadu",
+      "district": "Vellore",
+      "highway": "NH-48",
+      "fastag_car": 110,
+      "cash_car": 220,
+      "latitude": 12.839,
+      "longitude": 78.843
+    },
+    "TP_TN_16": {
+      "id": "TP_TN_16",
+      "name": "Vaniyambadi",
+      "state": "Tamil Nadu",
+      "district": "Tirupattur",
+      "highway": "NH-48",
+      "fastag_car": 105,
+      "cash_car": 210,
+      "latitude": 12.689,
+      "longitude": 78.619
+    },
+    "TP_TN_17": {
+      "id": "TP_TN_17",
+      "name": "Krishnagiri",
+      "state": "Tamil Nadu",
+      "district": "Krishnagiri",
+      "highway": "NH-48",
+      "fastag_car": 85,
+      "cash_car": 170,
+      "latitude": 12.522,
+      "longitude": 78.214
+    },
+    "TP_TN_18": {
+      "id": "TP_TN_18",
+      "name": "Nathakkarai",
+      "state": "Tamil Nadu",
+      "district": "Salem",
+      "highway": "NH-544",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 11.613,
+      "longitude": 78.2
+    },
+    "TP_TN_19": {
+      "id": "TP_TN_19",
+      "name": "Veeracholapuram West",
+      "state": "Tamil Nadu",
+      "district": "Salem",
+      "highway": "NH-544",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 11.635,
+      "longitude": 77.95
+    },
+    "TP_TN_20": {
+      "id": "TP_TN_20",
+      "name": "Vaiguntham",
+      "state": "Tamil Nadu",
+      "district": "Erode",
+      "highway": "NH-544",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 11.312,
+      "longitude": 77.721
+    },
+    "TP_TN_21": {
+      "id": "TP_TN_21",
+      "name": "Vijaymangalmam",
+      "state": "Tamil Nadu",
+      "district": "Erode",
+      "highway": "NH-544",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 11.165,
+      "longitude": 77.49
+    },
+    "TP_TN_22": {
+      "id": "TP_TN_22",
+      "name": "Valvanthankottai",
+      "state": "Tamil Nadu",
+      "district": "Tiruchirappalli",
+      "highway": "NH-38",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 10.7441,
+      "longitude": 78.8333
+    },
+    "TP_TN_23": {
+      "id": "TP_TN_23",
+      "name": "Velanchettiyur",
+      "state": "Tamil Nadu",
+      "district": "Dindigul",
+      "highway": "NH-44",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 10.367,
+      "longitude": 77.954
+    },
+    "TP_KL_01": {
+      "id": "TP_KL_01",
+      "name": "Paliyekkara",
+      "state": "Kerala",
+      "district": "Thrissur",
+      "highway": "NH-544",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 10.45,
+      "longitude": 76.21
+    },
+    "TP_KL_02": {
+      "id": "TP_KL_02",
+      "name": "Kumbalam",
+      "state": "Kerala",
+      "district": "Ernakulam",
+      "highway": "NH-66",
+      "fastag_car": 55,
+      "cash_car": 110,
+      "latitude": 9.977,
+      "longitude": 76.307
+    },
+    "TP_KL_03": {
+      "id": "TP_KL_03",
+      "name": "Pampampallam",
+      "state": "Kerala",
+      "district": "Palakkad",
+      "highway": "NH-544",
+      "fastag_car": 50,
+      "cash_car": 100,
+      "latitude": 10.8459,
+      "longitude": 76.8389
+    },
+    "TP_KL_04": {
+      "id": "TP_KL_04",
+      "name": "Tiruvallam",
+      "state": "Kerala",
+      "district": "Thiruvananthapuram",
+      "highway": "NH-66",
+      "fastag_car": 55,
+      "cash_car": 110,
+      "latitude": 8.522,
+      "longitude": 76.95
+    },
+    "TP_MH_01": {
+      "id": "TP_MH_01",
+      "name": "Shilphata NH48",
+      "state": "Maharashtra",
+      "district": "Thane",
+      "highway": "NH-48",
+      "fastag_car": 90,
+      "cash_car": 180,
+      "latitude": 19.0977,
+      "longitude": 73.072
+    },
+    "TP_MH_02": {
+      "id": "TP_MH_02",
+      "name": "Shedung NH48",
+      "state": "Maharashtra",
+      "district": "Raigarh",
+      "highway": "NH-48",
+      "fastag_car": 85,
+      "cash_car": 170,
+      "latitude": 18.98,
+      "longitude": 73.1
+    },
+    "TP_MH_03": {
+      "id": "TP_MH_03",
+      "name": "Khed-Shivapur",
+      "state": "Maharashtra",
+      "district": "Pune",
+      "highway": "NH-48",
+      "fastag_car": 95,
+      "cash_car": 190,
+      "latitude": 18.32,
+      "longitude": 73.98
+    },
+    "TP_MH_04": {
+      "id": "TP_MH_04",
+      "name": "Dehuroad (Somtane)",
+      "state": "Maharashtra",
+      "district": "Pune",
+      "highway": "NH-48",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 18.71,
+      "longitude": 73.76
+    },
+    "TP_MH_05": {
+      "id": "TP_MH_05",
+      "name": "Charoti",
+      "state": "Maharashtra",
+      "district": "Palghar",
+      "highway": "NH-48",
+      "fastag_car": 80,
+      "cash_car": 160,
+      "latitude": 20.08,
+      "longitude": 73.19
+    },
+    "TP_MH_06": {
+      "id": "TP_MH_06",
+      "name": "Nashik Sinnar",
+      "state": "Maharashtra",
+      "district": "Nashik",
+      "highway": "NH-160",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 19.846,
+      "longitude": 73.91
+    },
+    "TP_MH_07": {
+      "id": "TP_MH_07",
+      "name": "Mansar",
+      "state": "Maharashtra",
+      "district": "Nagpur",
+      "highway": "NH-44",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 21.3,
+      "longitude": 79.28
+    },
+    "TP_MH_08": {
+      "id": "TP_MH_08",
+      "name": "Kamptee Kanhan Bypass",
+      "state": "Maharashtra",
+      "district": "Nagpur",
+      "highway": "NH-44",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 21.22,
+      "longitude": 79.2
+    },
+    "TP_MH_09": {
+      "id": "TP_MH_09",
+      "name": "Sawleshwar",
+      "state": "Maharashtra",
+      "district": "Solapur",
+      "highway": "NH-52",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 17.45,
+      "longitude": 75.92
+    },
+    "TP_MH_10": {
+      "id": "TP_MH_10",
+      "name": "Songir",
+      "state": "Maharashtra",
+      "district": "Dhule",
+      "highway": "NH-52",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 21.0508,
+      "longitude": 74.7849
+    },
+    "TP_MH_11": {
+      "id": "TP_MH_11",
+      "name": "Borgaon Toll Plaza",
+      "state": "Maharashtra",
+      "district": "Sangli",
+      "highway": "NH-48",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 16.85,
+      "longitude": 74.56
+    },
+    "TP_MH_12": {
+      "id": "TP_MH_12",
+      "name": "Patas Plaza",
+      "state": "Maharashtra",
+      "district": "Pune",
+      "highway": "NH-65 (Pune–Solapur)",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 18.22,
+      "longitude": 74.65
+    },
+    "TP_GJ_01": {
+      "id": "TP_GJ_01",
+      "name": "Ahmedabad Toll Plaza",
+      "state": "Gujarat",
+      "district": "Ahmedabad",
+      "highway": "NH-48",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 22.9758,
+      "longitude": 72.6503
+    },
+    "TP_GJ_02": {
+      "id": "TP_GJ_02",
+      "name": "Vadodara Toll Plaza",
+      "state": "Gujarat",
+      "district": "Vadodara",
+      "highway": "NH-48",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 22.3,
+      "longitude": 73.2
+    },
+    "TP_GJ_03": {
+      "id": "TP_GJ_03",
+      "name": "Bharudi",
+      "state": "Gujarat",
+      "district": "Rajkot",
+      "highway": "NH-27",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 22.38,
+      "longitude": 70.92
+    },
+    "TP_GJ_04": {
+      "id": "TP_GJ_04",
+      "name": "Bharthana",
+      "state": "Gujarat",
+      "district": "Vadodara",
+      "highway": "NH-48",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 22.25,
+      "longitude": 73.18
+    },
+    "TP_GJ_05": {
+      "id": "TP_GJ_05",
+      "name": "Surat Bharuch",
+      "state": "Gujarat",
+      "district": "Bharuch",
+      "highway": "NH-48",
+      "fastag_car": 80,
+      "cash_car": 160,
+      "latitude": 21.75,
+      "longitude": 73.01
+    },
+    "TP_GJ_06": {
+      "id": "TP_GJ_06",
+      "name": "Charoti (GJ side)",
+      "state": "Gujarat",
+      "district": "Valsad",
+      "highway": "NH-48",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 20.15,
+      "longitude": 73.25
+    },
+    "TP_GJ_07": {
+      "id": "TP_GJ_07",
+      "name": "Mandal Toll Plaza",
+      "state": "Gujarat",
+      "district": "Ahmedabad",
+      "highway": "NH-947A",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 23.06,
+      "longitude": 72.42
+    },
+    "TP_GJ_08": {
+      "id": "TP_GJ_08",
+      "name": "Samakhiyali",
+      "state": "Gujarat",
+      "district": "Kutch",
+      "highway": "NH-27",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 23.17,
+      "longitude": 70.68
+    },
+    "TP_RJ_01": {
+      "id": "TP_RJ_01",
+      "name": "Narayanpura",
+      "state": "Rajasthan",
+      "district": "Jaipur",
+      "highway": "NH-48",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 26.922,
+      "longitude": 75.813
+    },
+    "TP_RJ_02": {
+      "id": "TP_RJ_02",
+      "name": "Kathpur",
+      "state": "Rajasthan",
+      "district": "Sabarkantha",
+      "highway": "NH-48",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 24.19,
+      "longitude": 73.76
+    },
+    "TP_RJ_03": {
+      "id": "TP_RJ_03",
+      "name": "Khachrol",
+      "state": "Rajasthan",
+      "district": "Jhunjhunu",
+      "highway": "NH-52",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 28.02,
+      "longitude": 75.78
+    },
+    "TP_RJ_04": {
+      "id": "TP_RJ_04",
+      "name": "Jojro Ka Kheda",
+      "state": "Rajasthan",
+      "district": "Chittaurgarh",
+      "highway": "NH-76",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 25.082,
+      "longitude": 74.624
+    },
+    "TP_HR_01": {
+      "id": "TP_HR_01",
+      "name": "Kherki Daula",
+      "state": "Haryana",
+      "district": "Gurgaon",
+      "highway": "NH-48",
+      "fastag_car": 85,
+      "cash_car": 170,
+      "latitude": 28.407,
+      "longitude": 77.028
+    },
+    "TP_HR_02": {
+      "id": "TP_HR_02",
+      "name": "L&T Panipat",
+      "state": "Haryana",
+      "district": "Panipat",
+      "highway": "NH-44",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 29.4337,
+      "longitude": 76.9701
+    },
+    "TP_HR_03": {
+      "id": "TP_HR_03",
+      "name": "Gharaunda",
+      "state": "Haryana",
+      "district": "Karnal",
+      "highway": "NH-44",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 29.523,
+      "longitude": 76.978
+    },
+    "TP_HR_04": {
+      "id": "TP_HR_04",
+      "name": "Sambhu",
+      "state": "Haryana",
+      "district": "Ambala",
+      "highway": "NH-44",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 30.29,
+      "longitude": 76.82
+    },
+    "TP_HR_05": {
+      "id": "TP_HR_05",
+      "name": "Chandimandir",
+      "state": "Haryana",
+      "district": "Panchkula",
+      "highway": "NH-5",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 30.739,
+      "longitude": 76.898
+    },
+    "TP_HR_06": {
+      "id": "TP_HR_06",
+      "name": "Dahar",
+      "state": "Haryana",
+      "district": "Panipat",
+      "highway": "NH-44",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 29.4093,
+      "longitude": 76.9186
+    },
+    "TP_HR_07": {
+      "id": "TP_HR_07",
+      "name": "Badarpur Faridabad",
+      "state": "Haryana",
+      "district": "Faridabad",
+      "highway": "NH-19",
+      "fastag_car": 55,
+      "cash_car": 110,
+      "latitude": 28.501,
+      "longitude": 77.302
+    },
+    "TP_DL_01": {
+      "id": "TP_DL_01",
+      "name": "IGI Airport Plaza",
+      "state": "Delhi",
+      "district": "New Delhi",
+      "highway": "NH-48",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 28.5562,
+      "longitude": 77.0999
+    },
+    "TP_DL_02": {
+      "id": "TP_DL_02",
+      "name": "Akshardham DME",
+      "state": "Delhi",
+      "district": "New Delhi",
+      "highway": "Delhi–Meerut Expressway",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 28.613,
+      "longitude": 77.277
+    },
+    "TP_DL_03": {
+      "id": "TP_DL_03",
+      "name": "Sarai Kale Khan",
+      "state": "Delhi",
+      "district": "New Delhi",
+      "highway": "NH-19",
+      "fastag_car": 55,
+      "cash_car": 110,
+      "latitude": 28.5852,
+      "longitude": 77.2508
+    },
+    "TP_UP_01": {
+      "id": "TP_UP_01",
+      "name": "Mohania",
+      "state": "Uttar Pradesh",
+      "district": "Kaimur (Bihar border)",
+      "highway": "NH-19",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 25.01,
+      "longitude": 83.9
+    },
+    "TP_UP_02": {
+      "id": "TP_UP_02",
+      "name": "Tundla",
+      "state": "Uttar Pradesh",
+      "district": "Firozabad",
+      "highway": "NH-19",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 27.21,
+      "longitude": 78.26
+    },
+    "TP_UP_03": {
+      "id": "TP_UP_03",
+      "name": "AIT (Jhansi–Kanpur)",
+      "state": "Uttar Pradesh",
+      "district": "Jalaun",
+      "highway": "NH-27",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 25.88,
+      "longitude": 79.21
+    },
+    "TP_UP_04": {
+      "id": "TP_UP_04",
+      "name": "Barajore (Jhansi–Kanpur)",
+      "state": "Uttar Pradesh",
+      "district": "Kanpur Dehat",
+      "highway": "NH-27",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 26.3907,
+      "longitude": 80.0334
+    },
+    "TP_WB_01": {
+      "id": "TP_WB_01",
+      "name": "Dankuni",
+      "state": "West Bengal",
+      "district": "Hooghly",
+      "highway": "NH-16 / NH-19",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 22.672,
+      "longitude": 88.281
+    },
+    "TP_WB_02": {
+      "id": "TP_WB_02",
+      "name": "Palsit",
+      "state": "West Bengal",
+      "district": "Burdwan",
+      "highway": "NH-16",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 23.32,
+      "longitude": 87.78
+    },
+    "TP_WB_03": {
+      "id": "TP_WB_03",
+      "name": "Panagarh",
+      "state": "West Bengal",
+      "district": "Burdwan",
+      "highway": "NH-19",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 23.44,
+      "longitude": 87.41
+    },
+    "TP_WB_04": {
+      "id": "TP_WB_04",
+      "name": "Chinsurah Bypass",
+      "state": "West Bengal",
+      "district": "Hooghly",
+      "highway": "NH-12",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 22.89,
+      "longitude": 88.38
+    },
+    "TP_OD_01": {
+      "id": "TP_OD_01",
+      "name": "Laxmannath",
+      "state": "Odisha",
+      "district": "Balasore",
+      "highway": "NH-16",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 21.4299,
+      "longitude": 86.8366
+    },
+    "TP_OD_02": {
+      "id": "TP_OD_02",
+      "name": "Manguli",
+      "state": "Odisha",
+      "district": "Cuttack",
+      "highway": "NH-16",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 20.5403,
+      "longitude": 85.9638
+    },
+    "TP_OD_03": {
+      "id": "TP_OD_03",
+      "name": "Pipili",
+      "state": "Odisha",
+      "district": "Puri",
+      "highway": "NH-16",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 20.08,
+      "longitude": 85.57
+    },
+    "TP_OD_04": {
+      "id": "TP_OD_04",
+      "name": "Sambalpur Bargarh",
+      "state": "Odisha",
+      "district": "Sambalpur",
+      "highway": "NH-53",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 21.47,
+      "longitude": 83.97
+    },
+    "TP_TS_01": {
+      "id": "TP_TS_01",
+      "name": "Panthangi",
+      "state": "Telangana",
+      "district": "Nalgonda",
+      "highway": "NH-65",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 17.2333,
+      "longitude": 78.9606
+    },
+    "TP_TS_02": {
+      "id": "TP_TS_02",
+      "name": "Shamirpet",
+      "state": "Telangana",
+      "district": "Hyderabad",
+      "highway": "NH-44",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 17.53,
+      "longitude": 78.57
+    },
+    "TP_TS_03": {
+      "id": "TP_TS_03",
+      "name": "Patancheru",
+      "state": "Telangana",
+      "district": "Sangareddy",
+      "highway": "NH-65",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 17.53,
+      "longitude": 78.26
+    },
+    "TP_TS_04": {
+      "id": "TP_TS_04",
+      "name": "Narketpally",
+      "state": "Telangana",
+      "district": "Nalgonda",
+      "highway": "NH-44",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 17.07,
+      "longitude": 79.29
+    },
+    "TP_BR_01": {
+      "id": "TP_BR_01",
+      "name": "Mohania",
+      "state": "Bihar",
+      "district": "Kaimur",
+      "highway": "NH-19",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 25.01,
+      "longitude": 83.9
+    },
+    "TP_BR_02": {
+      "id": "TP_BR_02",
+      "name": "Sasaram",
+      "state": "Bihar",
+      "district": "Rohtas",
+      "highway": "NH-19",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 24.947,
+      "longitude": 84.031
+    },
+    "TP_BR_03": {
+      "id": "TP_BR_03",
+      "name": "Didarganj",
+      "state": "Bihar",
+      "district": "Patna",
+      "highway": "NH-31",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 25.59,
+      "longitude": 85.22
+    },
+    "TP_BR_04": {
+      "id": "TP_BR_04",
+      "name": "Dalsagar",
+      "state": "Bihar",
+      "district": "Buxar",
+      "highway": "NH-19",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 25.57,
+      "longitude": 83.96
+    },
+    "TP_JH_01": {
+      "id": "TP_JH_01",
+      "name": "Sossokhurd",
+      "state": "Jharkhand",
+      "district": "Ramgarh",
+      "highway": "NH-33",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 23.5488,
+      "longitude": 85.7557
+    },
+    "TP_JH_02": {
+      "id": "TP_JH_02",
+      "name": "Murma",
+      "state": "Jharkhand",
+      "district": "Ranchi",
+      "highway": "NH-33",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 23.38,
+      "longitude": 85.42
+    },
+    "TP_MP_01": {
+      "id": "TP_MP_01",
+      "name": "Khalghat",
+      "state": "Madhya Pradesh",
+      "district": "Khargone",
+      "highway": "NH-52",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 22.21,
+      "longitude": 76.57
+    },
+    "TP_MP_02": {
+      "id": "TP_MP_02",
+      "name": "IDTL Indore A",
+      "state": "Madhya Pradesh",
+      "district": "Indore",
+      "highway": "NH-52",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 22.7196,
+      "longitude": 75.8577
+    },
+    "TP_MP_03": {
+      "id": "TP_MP_03",
+      "name": "Purankhedi",
+      "state": "Madhya Pradesh",
+      "district": "Shivpuri",
+      "highway": "NH-44",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 25.4,
+      "longitude": 77.77
+    },
+    "TP_PB_01": {
+      "id": "TP_PB_01",
+      "name": "Ambala Chandigarh",
+      "state": "Punjab",
+      "district": "Ambala",
+      "highway": "NH-44",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 30.35,
+      "longitude": 76.77
+    },
+    "TP_PB_02": {
+      "id": "TP_PB_02",
+      "name": "Ladowal",
+      "state": "Punjab",
+      "district": "Ludhiana",
+      "highway": "NH-44",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 30.88,
+      "longitude": 75.89
+    },
+    "TP_PB_03": {
+      "id": "TP_PB_03",
+      "name": "Varyam Nangal",
+      "state": "Punjab",
+      "district": "Amritsar",
+      "highway": "NH-54",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 31.62,
+      "longitude": 74.86
+    },
+    "TP_PB_04": {
+      "id": "TP_PB_04",
+      "name": "Khanna",
+      "state": "Punjab",
+      "district": "Ludhiana",
+      "highway": "NH-44",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 30.7,
+      "longitude": 76.23
+    },
+    "TP_JK_01": {
+      "id": "TP_JK_01",
+      "name": "Lakhanpur",
+      "state": "Jammu and Kashmir",
+      "district": "Kathua",
+      "highway": "NH-44",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 32.69,
+      "longitude": 75.93
+    },
+    "TP_JK_02": {
+      "id": "TP_JK_02",
+      "name": "Ban Toll Plaza",
+      "state": "Jammu and Kashmir",
+      "district": "Nagrota",
+      "highway": "NH-44",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 32.78,
+      "longitude": 74.91
+    },
+    "TP_JK_03": {
+      "id": "TP_JK_03",
+      "name": "Udhampur",
+      "state": "Jammu and Kashmir",
+      "district": "Udhampur",
+      "highway": "NH-44",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 32.92,
+      "longitude": 75.14
+    },
+    "TP_HP_01": {
+      "id": "TP_HP_01",
+      "name": "Sanwara",
+      "state": "Himachal Pradesh",
+      "district": "Solan",
+      "highway": "NH-5",
+      "fastag_car": 55,
+      "cash_car": 110,
+      "latitude": 30.89,
+      "longitude": 77.11
+    },
+    "TP_HP_02": {
+      "id": "TP_HP_02",
+      "name": "Ghatta",
+      "state": "Himachal Pradesh",
+      "district": "Kangra",
+      "highway": "NH-503",
+      "fastag_car": 50,
+      "cash_car": 100,
+      "latitude": 32.06,
+      "longitude": 76.12
+    },
+    "TP_AS_01": {
+      "id": "TP_AS_01",
+      "name": "Nazirakhet",
+      "state": "Assam",
+      "district": "Kamarupa",
+      "highway": "NH-27",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 26.14,
+      "longitude": 91.72
+    },
+    "TP_AS_02": {
+      "id": "TP_AS_02",
+      "name": "Rahha",
+      "state": "Assam",
+      "district": "Nagaon",
+      "highway": "NH-27",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 26.03,
+      "longitude": 92.57
+    },
+    "TP_AS_03": {
+      "id": "TP_AS_03",
+      "name": "Dahalapara",
+      "state": "Assam",
+      "district": "Bongaigaon",
+      "highway": "NH-27",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 26.49,
+      "longitude": 90.54
+    },
+    "TP_CG_01": {
+      "id": "TP_CG_01",
+      "name": "Durg Bypass",
+      "state": "Chhattisgarh",
+      "district": "Durg",
+      "highway": "NH-53",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 21.19,
+      "longitude": 81.28
+    },
+    "TP_CG_02": {
+      "id": "TP_CG_02",
+      "name": "Dhank",
+      "state": "Chhattisgarh",
+      "district": "Mahasamund",
+      "highway": "NH-30",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 21.1,
+      "longitude": 82.45
+    },
+    "TP_CG_03": {
+      "id": "TP_CG_03",
+      "name": "Lakholi Hasaud",
+      "state": "Chhattisgarh",
+      "district": "Raipur",
+      "highway": "NH-53",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 21.25,
+      "longitude": 81.63
+    },
+    "TP_MG_01": {
+      "id": "TP_MG_01",
+      "name": "Pahammavalin",
+      "state": "Meghalaya",
+      "district": "Ri Bhoi",
+      "highway": "NH-6",
+      "fastag_car": 55,
+      "cash_car": 110,
+      "latitude": 25.81,
+      "longitude": 91.94
+    },
+    "TP_GA_01": {
+      "id": "TP_GA_01",
+      "name": "Patradevi (Goa–MH border)",
+      "state": "Goa",
+      "district": "North Goa",
+      "highway": "NH-66",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 15.7,
+      "longitude": 73.95
+    },
+    "TP_GA_02": {
+      "id": "TP_GA_02",
+      "name": "Aamona",
+      "state": "Goa",
+      "district": "North Goa",
+      "highway": "NH-748",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 15.57,
+      "longitude": 74.02
+    },
+    "TP_TP_01": {
+      "id": "TP_TP_01",
+      "name": "Nagpur Bypass Check",
+      "state": "Maharashtra",
+      "district": "Nagpur",
+      "highway": "NH-44",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 21.1458,
+      "longitude": 79.0882
+    },
+    "TP_TP_02": {
+      "id": "TP_TP_02",
+      "name": "Borkhedi",
+      "state": "Maharashtra",
+      "district": "Nagpur",
+      "highway": "NH-44",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 21.07,
+      "longitude": 79.12
+    },
+    "TP_TP_03": {
+      "id": "TP_TP_03",
+      "name": "Karanja",
+      "state": "Maharashtra",
+      "district": "Wardha",
+      "highway": "NH-44",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 20.48,
+      "longitude": 78.92
+    },
+    "TP_TP_04": {
+      "id": "TP_TP_04",
+      "name": "Bhandara Gondkheri",
+      "state": "Maharashtra",
+      "district": "Nagpur",
+      "highway": "NH-53",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 21.16,
+      "longitude": 79.65
+    },
+    "TP_TP_05": {
+      "id": "TP_TP_05",
+      "name": "Ahmedabad Ring Road 2",
+      "state": "Gujarat",
+      "district": "Ahmedabad",
+      "highway": "NH-48",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 23.05,
+      "longitude": 72.59
+    },
+    "TP_TP_06": {
+      "id": "TP_TP_06",
+      "name": "Behror Kotputli",
+      "state": "Rajasthan",
+      "district": "Alwar",
+      "highway": "NH-48",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 27.88,
+      "longitude": 76.29
+    },
+    "TP_TP_07": {
+      "id": "TP_TP_07",
+      "name": "Mathura Bypass",
+      "state": "Uttar Pradesh",
+      "district": "Mathura",
+      "highway": "NH-19",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 27.4924,
+      "longitude": 77.6737
+    },
+    "TP_TP_08": {
+      "id": "TP_TP_08",
+      "name": "Yamuna Expressway Plaza 1",
+      "state": "Uttar Pradesh",
+      "district": "Gautam Buddh Nagar",
+      "highway": "Yamuna Expressway",
+      "fastag_car": 85,
+      "cash_car": 170,
+      "latitude": 28.39,
+      "longitude": 77.56
+    },
+    "TP_TP_09": {
+      "id": "TP_TP_09",
+      "name": "Yamuna Expressway Plaza 2",
+      "state": "Uttar Pradesh",
+      "district": "Agra",
+      "highway": "Yamuna Expressway",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 27.5,
+      "longitude": 77.97
+    },
+    "TP_TP_10": {
+      "id": "TP_TP_10",
+      "name": "Panagarh",
+      "state": "West Bengal",
+      "district": "Burdwan",
+      "highway": "NH-19",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 23.44,
+      "longitude": 87.41
+    },
+    "TP_TP_11": {
+      "id": "TP_TP_11",
+      "name": "Palsit",
+      "state": "West Bengal",
+      "district": "Burdwan",
+      "highway": "NH-19",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 23.32,
+      "longitude": 87.78
+    },
+    "TP_TP_12": {
+      "id": "TP_TP_12",
+      "name": "Dankuni Kolkata",
+      "state": "West Bengal",
+      "district": "Hooghly",
+      "highway": "NH-19",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 22.672,
+      "longitude": 88.281
+    },
+    "TP_TP_13": {
+      "id": "TP_TP_13",
+      "name": "Kharagpur Toll Plaza",
+      "state": "West Bengal",
+      "district": "Paschim Medinipur",
+      "highway": "NH-16",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 22.33,
+      "longitude": 87.32
+    },
+    "TP_TP_14": {
+      "id": "TP_TP_14",
+      "name": "Dalkhola",
+      "state": "West Bengal",
+      "district": "Uttar Dinajpur",
+      "highway": "NH-27",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 25.68,
+      "longitude": 87.82
+    },
+    "TP_TP_15": {
+      "id": "TP_TP_15",
+      "name": "Siliguri Bypass",
+      "state": "West Bengal",
+      "district": "Darjeeling",
+      "highway": "NH-27",
+      "fastag_car": 55,
+      "cash_car": 110,
+      "latitude": 26.72,
+      "longitude": 88.39
+    },
+    "TP_TP_16": {
+      "id": "TP_TP_16",
+      "name": "Islampur",
+      "state": "West Bengal",
+      "district": "Uttar Dinajpur",
+      "highway": "NH-27",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 26.27,
+      "longitude": 88.19
+    },
+    "TP_TP_17": {
+      "id": "TP_TP_17",
+      "name": "Patgaon Assam border",
+      "state": "Assam",
+      "district": "Kokrajhar",
+      "highway": "NH-27",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 26.4,
+      "longitude": 90.28
+    },
+    "TP_TP_18": {
+      "id": "TP_TP_18",
+      "name": "Shiradi Ghat",
+      "state": "Karnataka",
+      "district": "Dakshina Kannada",
+      "highway": "NH-75",
+      "fastag_car": 55,
+      "cash_car": 110,
+      "latitude": 12.94,
+      "longitude": 75.68
+    },
+    "TP_TP_19": {
+      "id": "TP_TP_19",
+      "name": "Maddur Mysore",
+      "state": "Karnataka",
+      "district": "Mandya",
+      "highway": "NH-275",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 12.58,
+      "longitude": 77.04
+    },
+    "TP_TP_20": {
+      "id": "TP_TP_20",
+      "name": "Adilabad",
+      "state": "Telangana",
+      "district": "Adilabad",
+      "highway": "NH-44",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 19.66,
+      "longitude": 78.53
+    },
+    "TP_TP_21": {
+      "id": "TP_TP_21",
+      "name": "Beawar Ajmer",
+      "state": "Rajasthan",
+      "district": "Ajmer",
+      "highway": "NH-58",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 26.1,
+      "longitude": 74.32
+    },
+    "TP_TP_22": {
+      "id": "TP_TP_22",
+      "name": "Pali Marwar",
+      "state": "Rajasthan",
+      "district": "Pali",
+      "highway": "NH-58",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 25.77,
+      "longitude": 73.33
+    },
+    "TP_TP_23": {
+      "id": "TP_TP_23",
+      "name": "Jodhpur Bypass",
+      "state": "Rajasthan",
+      "district": "Jodhpur",
+      "highway": "NH-25",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 26.29,
+      "longitude": 73.02
+    },
+    "TP_TP_24": {
+      "id": "TP_TP_24",
+      "name": "Chhindwara Bypass",
+      "state": "Madhya Pradesh",
+      "district": "Chhindwara",
+      "highway": "NH-47",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 22.0574,
+      "longitude": 78.9382
+    },
+    "TP_TP_25": {
+      "id": "TP_TP_25",
+      "name": "Betul Bypass",
+      "state": "Madhya Pradesh",
+      "district": "Betul",
+      "highway": "NH-47",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 21.9,
+      "longitude": 77.9
+    },
+    "TP_TP_26": {
+      "id": "TP_TP_26",
+      "name": "Hoshangabad",
+      "state": "Madhya Pradesh",
+      "district": "Narmadapuram",
+      "highway": "NH-47",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 22.75,
+      "longitude": 77.72
+    },
+    "TP_TP_27": {
+      "id": "TP_TP_27",
+      "name": "Gwalior Bypass",
+      "state": "Madhya Pradesh",
+      "district": "Gwalior",
+      "highway": "NH-44",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 26.2183,
+      "longitude": 78.1828
+    },
+    "TP_TP_28": {
+      "id": "TP_TP_28",
+      "name": "Jhansi Bypass",
+      "state": "Uttar Pradesh",
+      "district": "Jhansi",
+      "highway": "NH-44",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 25.4484,
+      "longitude": 78.5685
+    },
+    "TP_TP_29": {
+      "id": "TP_TP_29",
+      "name": "Sagar Bypass",
+      "state": "Madhya Pradesh",
+      "district": "Sagar",
+      "highway": "NH-44",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 23.8388,
+      "longitude": 78.7378
+    },
+    "TP_TP_30": {
+      "id": "TP_TP_30",
+      "name": "Vidisha",
+      "state": "Madhya Pradesh",
+      "district": "Vidisha",
+      "highway": "NH-44",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 23.5251,
+      "longitude": 77.8161
+    },
+    "TP_TP_31": {
+      "id": "TP_TP_31",
+      "name": "Raisen Bypass",
+      "state": "Madhya Pradesh",
+      "district": "Raisen",
+      "highway": "NH-44",
+      "fastag_car": 60,
+      "cash_car": 120,
+      "latitude": 23.3284,
+      "longitude": 77.7892
+    },
+    "TP_TP_32": {
+      "id": "TP_TP_32",
+      "name": "Panvel NH66",
+      "state": "Maharashtra",
+      "district": "Raigarh",
+      "highway": "NH-66",
+      "fastag_car": 80,
+      "cash_car": 160,
+      "latitude": 18.99,
+      "longitude": 73.11
+    },
+    "TP_TP_33": {
+      "id": "TP_TP_33",
+      "name": "Vadkun",
+      "state": "Maharashtra",
+      "district": "Ratnagiri",
+      "highway": "NH-66",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 17.98,
+      "longitude": 73.32
+    },
+    "TP_TP_34": {
+      "id": "TP_TP_34",
+      "name": "Ratnagiri Bypass",
+      "state": "Maharashtra",
+      "district": "Ratnagiri",
+      "highway": "NH-66",
+      "fastag_car": 75,
+      "cash_car": 150,
+      "latitude": 17.0,
+      "longitude": 73.3
+    },
+    "TP_TP_35": {
+      "id": "TP_TP_35",
+      "name": "Kankavli",
+      "state": "Maharashtra",
+      "district": "Sindhudurg",
+      "highway": "NH-66",
+      "fastag_car": 70,
+      "cash_car": 140,
+      "latitude": 16.27,
+      "longitude": 73.71
+    },
+    "TP_TP_36": {
+      "id": "TP_TP_36",
+      "name": "Dharwad Hubli",
+      "state": "Karnataka",
+      "district": "Dharwad",
+      "highway": "NH-48",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 15.36,
+      "longitude": 75.12
+    },
+    "TP_TP_37": {
+      "id": "TP_TP_37",
+      "name": "Tirupati Bypass",
+      "state": "Andhra Pradesh",
+      "district": "Tirupati",
+      "highway": "NH-71",
+      "fastag_car": 65,
+      "cash_car": 130,
+      "latitude": 13.6288,
+      "longitude": 79.4192
+    }
+  },
+  "routes": [
+    {
+      "route_id": "R_TN_01",
+      "from": "tuticorin",
+      "to": "chennai",
+      "via": "Madurai → Dindigul → Salem → Villupuram (NH-44)",
+      "highway": "NH-44",
+      "distance_km": 604,
+      "duration_hrs": 9.5,
+      "total_fastag_car": 660,
+      "total_cash_car": 1320,
+      "toll_count": 9,
+      "toll_plaza_ids": [
+        "TP_TN_12",
+        "TP_TN_11",
+        "TP_TN_10",
+        "TP_TN_07",
+        "TP_TN_05",
+        "TP_TN_04",
+        "TP_TN_03",
+        "TP_TN_02",
+        "TP_TN_01"
+      ]
+    },
+    {
+      "route_id": "R_TN_02",
+      "from": "chennai",
+      "to": "tuticorin",
+      "via": "Villupuram → Salem → Madurai (NH-44 reverse)",
+      "highway": "NH-44",
+      "distance_km": 604,
+      "duration_hrs": 9.5,
+      "total_fastag_car": 660,
+      "total_cash_car": 1320,
+      "toll_count": 9,
+      "toll_plaza_ids": [
+        "TP_TN_01",
+        "TP_TN_02",
+        "TP_TN_03",
+        "TP_TN_04",
+        "TP_TN_05",
+        "TP_TN_07",
+        "TP_TN_10",
+        "TP_TN_11",
+        "TP_TN_12"
+      ]
+    },
+    {
+      "route_id": "R_TN_03",
+      "from": "chennai",
+      "to": "madurai",
+      "via": "GST Road → Villupuram → Trichy → Dindigul (NH-44)",
+      "highway": "NH-44",
+      "distance_km": 456,
+      "duration_hrs": 7.9,
+      "total_fastag_car": 480,
+      "total_cash_car": 960,
+      "toll_count": 7,
+      "toll_plaza_ids": [
+        "TP_TN_01",
+        "TP_TN_02",
+        "TP_TN_03",
+        "TP_TN_04",
+        "TP_TN_05",
+        "TP_TN_07",
+        "TP_TN_10"
+      ]
+    },
+    {
+      "route_id": "R_TN_04",
+      "from": "madurai",
+      "to": "chennai",
+      "via": "Dindigul → Trichy → Salem → Villupuram (NH-44)",
+      "highway": "NH-44",
+      "distance_km": 456,
+      "duration_hrs": 7.9,
+      "total_fastag_car": 480,
+      "total_cash_car": 960,
+      "toll_count": 7,
+      "toll_plaza_ids": [
+        "TP_TN_10",
+        "TP_TN_07",
+        "TP_TN_05",
+        "TP_TN_04",
+        "TP_TN_03",
+        "TP_TN_02",
+        "TP_TN_01"
+      ]
+    },
+    {
+      "route_id": "R_TN_05",
+      "from": "chennai",
+      "to": "coimbatore",
+      "via": "Villupuram → Salem → Erode (NH-44/NH-544)",
+      "highway": "NH-44/NH-544",
+      "distance_km": 509,
+      "duration_hrs": 9.0,
+      "total_fastag_car": 685,
+      "total_cash_car": 1370,
+      "toll_count": 10,
+      "toll_plaza_ids": [
+        "TP_TN_01",
+        "TP_TN_02",
+        "TP_TN_03",
+        "TP_TN_04",
+        "TP_TN_05",
+        "TP_TN_18",
+        "TP_TN_19",
+        "TP_TN_20",
+        "TP_TN_21",
+        "TP_TN_07"
+      ]
+    },
+    {
+      "route_id": "R_TN_06",
+      "from": "coimbatore",
+      "to": "chennai",
+      "via": "Erode → Salem → Villupuram (NH-544/NH-44)",
+      "highway": "NH-544/NH-44",
+      "distance_km": 509,
+      "duration_hrs": 9.0,
+      "total_fastag_car": 685,
+      "total_cash_car": 1370,
+      "toll_count": 10,
+      "toll_plaza_ids": [
+        "TP_TN_21",
+        "TP_TN_20",
+        "TP_TN_19",
+        "TP_TN_18",
+        "TP_TN_05",
+        "TP_TN_04",
+        "TP_TN_03",
+        "TP_TN_02",
+        "TP_TN_01",
+        "TP_TN_07"
+      ]
+    },
+    {
+      "route_id": "R_TN_07",
+      "from": "chennai",
+      "to": "bangalore",
+      "via": "Sriperumbudur → Vellore → Krishnagiri (NH-48)",
+      "highway": "NH-48",
+      "distance_km": 348,
+      "duration_hrs": 7.0,
+      "total_fastag_car": 475,
+      "total_cash_car": 950,
+      "toll_count": 7,
+      "toll_plaza_ids": [
+        "TP_TN_13",
+        "TP_TN_14",
+        "TP_TN_15",
+        "TP_TN_16",
+        "TP_TN_17",
+        "TP_KA_02",
+        "TP_KA_01"
+      ]
+    },
+    {
+      "route_id": "R_TN_08",
+      "from": "bangalore",
+      "to": "chennai",
+      "via": "Krishnagiri → Vellore → Sriperumbudur (NH-48)",
+      "highway": "NH-48",
+      "distance_km": 348,
+      "duration_hrs": 7.0,
+      "total_fastag_car": 475,
+      "total_cash_car": 950,
+      "toll_count": 7,
+      "toll_plaza_ids": [
+        "TP_KA_01",
+        "TP_KA_02",
+        "TP_TN_17",
+        "TP_TN_16",
+        "TP_TN_15",
+        "TP_TN_14",
+        "TP_TN_13"
+      ]
+    },
+    {
+      "route_id": "R_TN_09",
+      "from": "tuticorin",
+      "to": "trichy",
+      "via": "Madurai → Dindigul (NH-45B + NH-44)",
+      "highway": "NH-45B/NH-44",
+      "distance_km": 280,
+      "duration_hrs": 4.5,
+      "total_fastag_car": 325,
+      "total_cash_car": 650,
+      "toll_count": 4,
+      "toll_plaza_ids": [
+        "TP_TN_12",
+        "TP_TN_11",
+        "TP_TN_10",
+        "TP_TN_08"
+      ]
+    },
+    {
+      "route_id": "R_TN_10",
+      "from": "chennai",
+      "to": "tirunelveli",
+      "via": "Villupuram → Madurai (NH-44)",
+      "highway": "NH-44",
+      "distance_km": 680,
+      "duration_hrs": 11.0,
+      "total_fastag_car": 710,
+      "total_cash_car": 1420,
+      "toll_count": 9,
+      "toll_plaza_ids": [
+        "TP_TN_01",
+        "TP_TN_02",
+        "TP_TN_03",
+        "TP_TN_04",
+        "TP_TN_05",
+        "TP_TN_07",
+        "TP_TN_10",
+        "TP_TN_11",
+        "TP_TN_23"
+      ]
+    },
+    {
+      "route_id": "R_KL_01",
+      "from": "kochi",
+      "to": "coimbatore",
+      "via": "Palakkad (NH-544)",
+      "highway": "NH-544",
+      "distance_km": 190,
+      "duration_hrs": 3.5,
+      "total_fastag_car": 170,
+      "total_cash_car": 340,
+      "toll_count": 3,
+      "toll_plaza_ids": [
+        "TP_KL_02",
+        "TP_KL_03",
+        "TP_TN_21"
+      ]
+    },
+    {
+      "route_id": "R_KL_02",
+      "from": "thiruvananthapuram",
+      "to": "kochi",
+      "via": "Kollam (NH-66)",
+      "highway": "NH-66",
+      "distance_km": 225,
+      "duration_hrs": 4.0,
+      "total_fastag_car": 200,
+      "total_cash_car": 400,
+      "toll_count": 3,
+      "toll_plaza_ids": [
+        "TP_KL_04",
+        "TP_KL_02",
+        "TP_KL_01"
+      ]
+    },
+    {
+      "route_id": "R_AP_01",
+      "from": "chennai",
+      "to": "visakhapatnam",
+      "via": "Nellore → Vijayawada → Rajam (NH-16)",
+      "highway": "NH-16",
+      "distance_km": 775,
+      "duration_hrs": 13.0,
+      "total_fastag_car": 680,
+      "total_cash_car": 1360,
+      "toll_count": 8,
+      "toll_plaza_ids": [
+        "TP_TN_01",
+        "TP_AP_01",
+        "TP_AP_02",
+        "TP_AP_03",
+        "TP_AP_06",
+        "TP_AP_04",
+        "TP_AP_05",
+        "TP_WB_01"
+      ]
+    },
+    {
+      "route_id": "R_AP_02",
+      "from": "visakhapatnam",
+      "to": "hyderabad",
+      "via": "Rajahmundry → Vijayawada (NH-16 + NH-65)",
+      "highway": "NH-16/NH-65",
+      "distance_km": 620,
+      "duration_hrs": 10.0,
+      "total_fastag_car": 550,
+      "total_cash_car": 1100,
+      "toll_count": 7,
+      "toll_plaza_ids": [
+        "TP_AP_05",
+        "TP_AP_04",
+        "TP_AP_03",
+        "TP_AP_09",
+        "TP_TS_01",
+        "TP_TS_02",
+        "TP_TS_04"
+      ]
+    },
+    {
+      "route_id": "R_TS_01",
+      "from": "hyderabad",
+      "to": "bangalore",
+      "via": "Kurnool (NH-44)",
+      "highway": "NH-44",
+      "distance_km": 570,
+      "duration_hrs": 9.5,
+      "total_fastag_car": 540,
+      "total_cash_car": 1080,
+      "toll_count": 7,
+      "toll_plaza_ids": [
+        "TP_TS_02",
+        "TP_TS_04",
+        "TP_AP_07",
+        "TP_KA_07",
+        "TP_KA_04",
+        "TP_KA_02",
+        "TP_KA_01"
+      ]
+    },
+    {
+      "route_id": "R_TS_02",
+      "from": "hyderabad",
+      "to": "mumbai",
+      "via": "Solapur (NH-65)",
+      "highway": "NH-65",
+      "distance_km": 710,
+      "duration_hrs": 12.0,
+      "total_fastag_car": 680,
+      "total_cash_car": 1360,
+      "toll_count": 9,
+      "toll_plaza_ids": [
+        "TP_TS_03",
+        "TP_TS_01",
+        "TP_MH_09",
+        "TP_MH_12",
+        "TP_MH_04",
+        "TP_MH_03",
+        "TP_MH_02",
+        "TP_MH_01",
+        "TP_TP_01"
+      ]
+    },
+    {
+      "route_id": "R_MH_01",
+      "from": "mumbai",
+      "to": "pune",
+      "via": "Expressway / NH-48",
+      "highway": "NH-48",
+      "distance_km": 155,
+      "duration_hrs": 3.0,
+      "total_fastag_car": 355,
+      "total_cash_car": 710,
+      "toll_count": 4,
+      "toll_plaza_ids": [
+        "TP_MH_01",
+        "TP_MH_02",
+        "TP_MH_03",
+        "TP_MH_04"
+      ]
+    },
+    {
+      "route_id": "R_MH_02",
+      "from": "pune",
+      "to": "mumbai",
+      "via": "NH-48 reverse",
+      "highway": "NH-48",
+      "distance_km": 155,
+      "duration_hrs": 3.0,
+      "total_fastag_car": 355,
+      "total_cash_car": 710,
+      "toll_count": 4,
+      "toll_plaza_ids": [
+        "TP_MH_04",
+        "TP_MH_03",
+        "TP_MH_02",
+        "TP_MH_01"
+      ]
+    },
+    {
+      "route_id": "R_MH_03",
+      "from": "mumbai",
+      "to": "nagpur",
+      "via": "Nashik → Dhule → Wardha (NH-48/NH-44)",
+      "highway": "NH-48/NH-44",
+      "distance_km": 840,
+      "duration_hrs": 14.0,
+      "total_fastag_car": 780,
+      "total_cash_car": 1560,
+      "toll_count": 10,
+      "toll_plaza_ids": [
+        "TP_MH_01",
+        "TP_MH_05",
+        "TP_MH_06",
+        "TP_MH_10",
+        "TP_MH_07",
+        "TP_MH_08",
+        "TP_TP_01",
+        "TP_TP_02",
+        "TP_TP_03",
+        "TP_TP_04"
+      ]
+    },
+    {
+      "route_id": "R_MH_04",
+      "from": "mumbai",
+      "to": "bangalore",
+      "via": "Pune → Kolhapur → Hubli (NH-48)",
+      "highway": "NH-48",
+      "distance_km": 980,
+      "duration_hrs": 16.0,
+      "total_fastag_car": 890,
+      "total_cash_car": 1780,
+      "toll_count": 11,
+      "toll_plaza_ids": [
+        "TP_MH_01",
+        "TP_MH_02",
+        "TP_MH_03",
+        "TP_MH_11",
+        "TP_KA_06",
+        "TP_KA_11",
+        "TP_KA_05",
+        "TP_KA_10",
+        "TP_KA_09",
+        "TP_KA_01",
+        "TP_KA_02"
+      ]
+    },
+    {
+      "route_id": "R_GJ_01",
+      "from": "mumbai",
+      "to": "ahmedabad",
+      "via": "Surat → Bharuch → Vadodara (NH-48)",
+      "highway": "NH-48",
+      "distance_km": 525,
+      "duration_hrs": 8.5,
+      "total_fastag_car": 525,
+      "total_cash_car": 1050,
+      "toll_count": 7,
+      "toll_plaza_ids": [
+        "TP_MH_05",
+        "TP_GJ_06",
+        "TP_GJ_05",
+        "TP_GJ_04",
+        "TP_GJ_02",
+        "TP_GJ_01",
+        "TP_TP_05"
+      ]
+    },
+    {
+      "route_id": "R_GJ_02",
+      "from": "ahmedabad",
+      "to": "mumbai",
+      "via": "Vadodara → Bharuch → Surat (NH-48)",
+      "highway": "NH-48",
+      "distance_km": 525,
+      "duration_hrs": 8.5,
+      "total_fastag_car": 525,
+      "total_cash_car": 1050,
+      "toll_count": 7,
+      "toll_plaza_ids": [
+        "TP_TP_05",
+        "TP_GJ_01",
+        "TP_GJ_02",
+        "TP_GJ_04",
+        "TP_GJ_05",
+        "TP_GJ_06",
+        "TP_MH_05"
+      ]
+    },
+    {
+      "route_id": "R_RJ_01",
+      "from": "delhi",
+      "to": "jaipur",
+      "via": "Gurgaon → Kotputli (NH-48)",
+      "highway": "NH-48",
+      "distance_km": 285,
+      "duration_hrs": 5.0,
+      "total_fastag_car": 310,
+      "total_cash_car": 620,
+      "toll_count": 4,
+      "toll_plaza_ids": [
+        "TP_DL_01",
+        "TP_HR_01",
+        "TP_RJ_01",
+        "TP_TP_06"
+      ]
+    },
+    {
+      "route_id": "R_RJ_02",
+      "from": "jaipur",
+      "to": "delhi",
+      "via": "Kotputli → Gurgaon (NH-48 reverse)",
+      "highway": "NH-48",
+      "distance_km": 285,
+      "duration_hrs": 5.0,
+      "total_fastag_car": 310,
+      "total_cash_car": 620,
+      "toll_count": 4,
+      "toll_plaza_ids": [
+        "TP_TP_06",
+        "TP_RJ_01",
+        "TP_HR_01",
+        "TP_DL_01"
+      ]
+    },
+    {
+      "route_id": "R_DL_01",
+      "from": "delhi",
+      "to": "agra",
+      "via": "Yamuna Expressway (NH-19 / YEW)",
+      "highway": "NH-19",
+      "distance_km": 200,
+      "duration_hrs": 3.5,
+      "total_fastag_car": 355,
+      "total_cash_car": 710,
+      "toll_count": 5,
+      "toll_plaza_ids": [
+        "TP_DL_03",
+        "TP_UP_02",
+        "TP_TP_07",
+        "TP_TP_08",
+        "TP_TP_09"
+      ]
+    },
+    {
+      "route_id": "R_DL_02",
+      "from": "delhi",
+      "to": "chandigarh",
+      "via": "Ambala (NH-44)",
+      "highway": "NH-44",
+      "distance_km": 260,
+      "duration_hrs": 4.5,
+      "total_fastag_car": 290,
+      "total_cash_car": 580,
+      "toll_count": 4,
+      "toll_plaza_ids": [
+        "TP_HR_02",
+        "TP_HR_03",
+        "TP_HR_04",
+        "TP_HP_01"
+      ]
+    },
+    {
+      "route_id": "R_DL_03",
+      "from": "chandigarh",
+      "to": "delhi",
+      "via": "Ambala (NH-44 reverse)",
+      "highway": "NH-44",
+      "distance_km": 260,
+      "duration_hrs": 4.5,
+      "total_fastag_car": 290,
+      "total_cash_car": 580,
+      "toll_count": 4,
+      "toll_plaza_ids": [
+        "TP_HP_01",
+        "TP_HR_04",
+        "TP_HR_03",
+        "TP_HR_02"
+      ]
+    },
+    {
+      "route_id": "R_DL_04",
+      "from": "delhi",
+      "to": "amritsar",
+      "via": "Panipat → Ambala → Ludhiana (NH-44)",
+      "highway": "NH-44",
+      "distance_km": 450,
+      "duration_hrs": 7.0,
+      "total_fastag_car": 450,
+      "total_cash_car": 900,
+      "toll_count": 6,
+      "toll_plaza_ids": [
+        "TP_HR_02",
+        "TP_HR_06",
+        "TP_HR_03",
+        "TP_HR_04",
+        "TP_PB_04",
+        "TP_PB_02",
+        "TP_PB_03"
+      ]
+    },
+    {
+      "route_id": "R_DL_05",
+      "from": "delhi",
+      "to": "kolkata",
+      "via": "Agra → Kanpur → Varanasi → Patna (NH-19)",
+      "highway": "NH-19",
+      "distance_km": 1490,
+      "duration_hrs": 24.0,
+      "total_fastag_car": 1350,
+      "total_cash_car": 2700,
+      "toll_count": 18,
+      "toll_plaza_ids": [
+        "TP_DL_03",
+        "TP_UP_02",
+        "TP_UP_03",
+        "TP_UP_04",
+        "TP_UP_01",
+        "TP_BR_04",
+        "TP_BR_02",
+        "TP_BR_01",
+        "TP_BR_03",
+        "TP_JH_01",
+        "TP_JH_02",
+        "TP_WB_03",
+        "TP_WB_02",
+        "TP_WB_01",
+        "TP_WB_04",
+        "TP_TP_10",
+        "TP_TP_11",
+        "TP_TP_12"
+      ]
+    },
+    {
+      "route_id": "R_DL_06",
+      "from": "kolkata",
+      "to": "delhi",
+      "via": "Patna → Varanasi → Kanpur → Agra (NH-19 reverse)",
+      "highway": "NH-19",
+      "distance_km": 1490,
+      "duration_hrs": 24.0,
+      "total_fastag_car": 1350,
+      "total_cash_car": 2700,
+      "toll_count": 18,
+      "toll_plaza_ids": [
+        "TP_TP_12",
+        "TP_TP_11",
+        "TP_TP_10",
+        "TP_WB_04",
+        "TP_WB_01",
+        "TP_WB_02",
+        "TP_WB_03",
+        "TP_JH_02",
+        "TP_JH_01",
+        "TP_BR_03",
+        "TP_BR_01",
+        "TP_BR_02",
+        "TP_BR_04",
+        "TP_UP_01",
+        "TP_UP_04",
+        "TP_UP_03",
+        "TP_UP_02",
+        "TP_DL_03"
+      ]
+    },
+    {
+      "route_id": "R_WB_01",
+      "from": "kolkata",
+      "to": "bhubaneswar",
+      "via": "Kharagpur → Balasore (NH-16)",
+      "highway": "NH-16",
+      "distance_km": 470,
+      "duration_hrs": 8.0,
+      "total_fastag_car": 420,
+      "total_cash_car": 840,
+      "toll_count": 6,
+      "toll_plaza_ids": [
+        "TP_WB_01",
+        "TP_WB_02",
+        "TP_OD_01",
+        "TP_OD_02",
+        "TP_OD_03",
+        "TP_TP_13"
+      ]
+    },
+    {
+      "route_id": "R_WB_02",
+      "from": "bhubaneswar",
+      "to": "kolkata",
+      "via": "Balasore → Kharagpur (NH-16 reverse)",
+      "highway": "NH-16",
+      "distance_km": 470,
+      "duration_hrs": 8.0,
+      "total_fastag_car": 420,
+      "total_cash_car": 840,
+      "toll_count": 6,
+      "toll_plaza_ids": [
+        "TP_TP_13",
+        "TP_OD_03",
+        "TP_OD_02",
+        "TP_OD_01",
+        "TP_WB_02",
+        "TP_WB_01"
+      ]
+    },
+    {
+      "route_id": "R_OD_01",
+      "from": "bhubaneswar",
+      "to": "visakhapatnam",
+      "via": "Berhampur (NH-16)",
+      "highway": "NH-16",
+      "distance_km": 450,
+      "duration_hrs": 7.5,
+      "total_fastag_car": 390,
+      "total_cash_car": 780,
+      "toll_count": 5,
+      "toll_plaza_ids": [
+        "TP_OD_03",
+        "TP_OD_02",
+        "TP_OD_01",
+        "TP_AP_06",
+        "TP_AP_05"
+      ]
+    },
+    {
+      "route_id": "R_JK_01",
+      "from": "jammu",
+      "to": "srinagar",
+      "via": "Udhampur → Banihal (NH-44)",
+      "highway": "NH-44",
+      "distance_km": 260,
+      "duration_hrs": 6.5,
+      "total_fastag_car": 200,
+      "total_cash_car": 400,
+      "toll_count": 3,
+      "toll_plaza_ids": [
+        "TP_JK_02",
+        "TP_JK_03",
+        "TP_JK_01"
+      ]
+    },
+    {
+      "route_id": "R_PB_01",
+      "from": "delhi",
+      "to": "ludhiana",
+      "via": "Panipat → Ambala (NH-44)",
+      "highway": "NH-44",
+      "distance_km": 310,
+      "duration_hrs": 5.0,
+      "total_fastag_car": 335,
+      "total_cash_car": 670,
+      "toll_count": 4,
+      "toll_plaza_ids": [
+        "TP_HR_02",
+        "TP_HR_06",
+        "TP_HR_03",
+        "TP_PB_04"
+      ]
+    },
+    {
+      "route_id": "R_AS_01",
+      "from": "guwahati",
+      "to": "kolkata",
+      "via": "Siliguri → Patna (NH-27 / NH-12)",
+      "highway": "NH-27",
+      "distance_km": 1070,
+      "duration_hrs": 18.0,
+      "total_fastag_car": 840,
+      "total_cash_car": 1680,
+      "toll_count": 11,
+      "toll_plaza_ids": [
+        "TP_AS_01",
+        "TP_AS_02",
+        "TP_AS_03",
+        "TP_BR_03",
+        "TP_BR_01",
+        "TP_WB_04",
+        "TP_WB_01",
+        "TP_TP_14",
+        "TP_TP_15",
+        "TP_TP_16",
+        "TP_TP_17"
+      ]
+    },
+    {
+      "route_id": "R_KA_01",
+      "from": "bangalore",
+      "to": "mangaluru",
+      "via": "Hassan → Sakleshpur (NH-75)",
+      "highway": "NH-75",
+      "distance_km": 355,
+      "duration_hrs": 6.5,
+      "total_fastag_car": 315,
+      "total_cash_car": 630,
+      "toll_count": 5,
+      "toll_plaza_ids": [
+        "TP_KA_10",
+        "TP_KA_09",
+        "TP_KA_08",
+        "TP_KA_03",
+        "TP_TP_18"
+      ]
+    },
+    {
+      "route_id": "R_KA_02",
+      "from": "bangalore",
+      "to": "mysore",
+      "via": "Maddur (NH-275)",
+      "highway": "NH-275",
+      "distance_km": 145,
+      "duration_hrs": 3.0,
+      "total_fastag_car": 175,
+      "total_cash_car": 350,
+      "toll_count": 3,
+      "toll_plaza_ids": [
+        "TP_KA_10",
+        "TP_KA_09",
+        "TP_TP_19"
+      ]
+    },
+    {
+      "route_id": "R_KA_03",
+      "from": "bangalore",
+      "to": "hyderabad",
+      "via": "Kolar → Anantapur (NH-44)",
+      "highway": "NH-44",
+      "distance_km": 570,
+      "duration_hrs": 9.5,
+      "total_fastag_car": 540,
+      "total_cash_car": 1080,
+      "toll_count": 7,
+      "toll_plaza_ids": [
+        "TP_KA_01",
+        "TP_KA_02",
+        "TP_KA_07",
+        "TP_AP_07",
+        "TP_TS_04",
+        "TP_TS_02",
+        "TP_TS_01"
+      ]
+    },
+    {
+      "route_id": "R_MH_05",
+      "from": "nagpur",
+      "to": "hyderabad",
+      "via": "Adilabad (NH-44)",
+      "highway": "NH-44",
+      "distance_km": 500,
+      "duration_hrs": 8.5,
+      "total_fastag_car": 475,
+      "total_cash_car": 950,
+      "toll_count": 6,
+      "toll_plaza_ids": [
+        "TP_MH_07",
+        "TP_MH_08",
+        "TP_CG_01",
+        "TP_TS_02",
+        "TP_TS_04",
+        "TP_TP_20"
+      ]
+    },
+    {
+      "route_id": "R_CG_01",
+      "from": "nagpur",
+      "to": "raipur",
+      "via": "Gondia (NH-53)",
+      "highway": "NH-53",
+      "distance_km": 320,
+      "duration_hrs": 5.5,
+      "total_fastag_car": 280,
+      "total_cash_car": 560,
+      "toll_count": 4,
+      "toll_plaza_ids": [
+        "TP_MH_07",
+        "TP_CG_02",
+        "TP_CG_03",
+        "TP_CG_01"
+      ]
+    },
+    {
+      "route_id": "R_GJ_03",
+      "from": "ahmedabad",
+      "to": "surat",
+      "via": "Vadodara (NH-48)",
+      "highway": "NH-48",
+      "distance_km": 285,
+      "duration_hrs": 4.5,
+      "total_fastag_car": 270,
+      "total_cash_car": 540,
+      "toll_count": 4,
+      "toll_plaza_ids": [
+        "TP_GJ_07",
+        "TP_GJ_02",
+        "TP_GJ_04",
+        "TP_GJ_05"
+      ]
+    },
+    {
+      "route_id": "R_GJ_04",
+      "from": "surat",
+      "to": "ahmedabad",
+      "via": "Vadodara (NH-48 reverse)",
+      "highway": "NH-48",
+      "distance_km": 285,
+      "duration_hrs": 4.5,
+      "total_fastag_car": 270,
+      "total_cash_car": 540,
+      "toll_count": 4,
+      "toll_plaza_ids": [
+        "TP_GJ_05",
+        "TP_GJ_04",
+        "TP_GJ_02",
+        "TP_GJ_07"
+      ]
+    },
+    {
+      "route_id": "R_RJ_03",
+      "from": "delhi",
+      "to": "jodhpur",
+      "via": "Rewari → Ajmer (NH-48 / NH-58)",
+      "highway": "NH-48",
+      "distance_km": 600,
+      "duration_hrs": 9.0,
+      "total_fastag_car": 550,
+      "total_cash_car": 1100,
+      "toll_count": 7,
+      "toll_plaza_ids": [
+        "TP_HR_01",
+        "TP_RJ_01",
+        "TP_RJ_02",
+        "TP_RJ_04",
+        "TP_TP_21",
+        "TP_TP_22",
+        "TP_TP_23"
+      ]
+    },
+    {
+      "route_id": "R_MP_01",
+      "from": "nagpur",
+      "to": "indore",
+      "via": "Betul → Hoshangabad (NH-47)",
+      "highway": "NH-47",
+      "distance_km": 480,
+      "duration_hrs": 8.0,
+      "total_fastag_car": 440,
+      "total_cash_car": 880,
+      "toll_count": 6,
+      "toll_plaza_ids": [
+        "TP_MH_07",
+        "TP_MP_01",
+        "TP_MP_02",
+        "TP_TP_24",
+        "TP_TP_25",
+        "TP_TP_26"
+      ]
+    },
+    {
+      "route_id": "R_MP_02",
+      "from": "delhi",
+      "to": "bhopal",
+      "via": "Agra → Gwalior → Jhansi (NH-44)",
+      "highway": "NH-44",
+      "distance_km": 700,
+      "duration_hrs": 11.0,
+      "total_fastag_car": 650,
+      "total_cash_car": 1300,
+      "toll_count": 8,
+      "toll_plaza_ids": [
+        "TP_DL_03",
+        "TP_UP_02",
+        "TP_MP_03",
+        "TP_TP_27",
+        "TP_TP_28",
+        "TP_TP_29",
+        "TP_TP_30",
+        "TP_TP_31"
+      ]
+    },
+    {
+      "route_id": "R_KL_03",
+      "from": "kochi",
+      "to": "thiruvananthapuram",
+      "via": "Kollam (NH-66)",
+      "highway": "NH-66",
+      "distance_km": 225,
+      "duration_hrs": 4.0,
+      "total_fastag_car": 200,
+      "total_cash_car": 400,
+      "toll_count": 3,
+      "toll_plaza_ids": [
+        "TP_KL_02",
+        "TP_KL_01",
+        "TP_KL_04"
+      ]
+    },
+    {
+      "route_id": "R_GA_01",
+      "from": "mumbai",
+      "to": "goa",
+      "via": "Ratnagiri (NH-66)",
+      "highway": "NH-66",
+      "distance_km": 590,
+      "duration_hrs": 10.5,
+      "total_fastag_car": 530,
+      "total_cash_car": 1060,
+      "toll_count": 7,
+      "toll_plaza_ids": [
+        "TP_MH_01",
+        "TP_TP_32",
+        "TP_TP_33",
+        "TP_TP_34",
+        "TP_TP_35",
+        "TP_GA_01",
+        "TP_GA_02"
+      ]
+    },
+    {
+      "route_id": "R_GA_02",
+      "from": "bangalore",
+      "to": "goa",
+      "via": "Hubli (NH-48/NH-748)",
+      "highway": "NH-48/NH-748",
+      "distance_km": 570,
+      "duration_hrs": 10.0,
+      "total_fastag_car": 490,
+      "total_cash_car": 980,
+      "toll_count": 6,
+      "toll_plaza_ids": [
+        "TP_KA_10",
+        "TP_KA_11",
+        "TP_KA_06",
+        "TP_TP_36",
+        "TP_GA_01",
+        "TP_GA_02"
+      ]
+    },
+    {
+      "route_id": "R_KA_04",
+      "from": "bangalore",
+      "to": "coimbatore",
+      "via": "Salem (NH-48/NH-544)",
+      "highway": "NH-48/NH-544",
+      "distance_km": 360,
+      "duration_hrs": 6.5,
+      "total_fastag_car": 360,
+      "total_cash_car": 720,
+      "toll_count": 5,
+      "toll_plaza_ids": [
+        "TP_KA_01",
+        "TP_KA_02",
+        "TP_TN_17",
+        "TP_TN_19",
+        "TP_TN_21"
+      ]
+    },
+    {
+      "route_id": "R_TN_11",
+      "from": "chennai",
+      "to": "trichy",
+      "via": "Villupuram → Salem (NH-44)",
+      "highway": "NH-44",
+      "distance_km": 330,
+      "duration_hrs": 5.5,
+      "total_fastag_car": 360,
+      "total_cash_car": 720,
+      "toll_count": 6,
+      "toll_plaza_ids": [
+        "TP_TN_01",
+        "TP_TN_02",
+        "TP_TN_03",
+        "TP_TN_04",
+        "TP_TN_05",
+        "TP_TN_07"
+      ]
+    },
+    {
+      "route_id": "R_TN_12",
+      "from": "trichy",
+      "to": "chennai",
+      "via": "Salem → Villupuram (NH-44 reverse)",
+      "highway": "NH-44",
+      "distance_km": 330,
+      "duration_hrs": 5.5,
+      "total_fastag_car": 360,
+      "total_cash_car": 720,
+      "toll_count": 6,
+      "toll_plaza_ids": [
+        "TP_TN_07",
+        "TP_TN_05",
+        "TP_TN_04",
+        "TP_TN_03",
+        "TP_TN_02",
+        "TP_TN_01"
+      ]
+    },
+    {
+      "route_id": "R_TN_13",
+      "from": "chennai",
+      "to": "vellore",
+      "via": "Sriperumbudur → Walajapet (NH-48)",
+      "highway": "NH-48",
+      "distance_km": 145,
+      "duration_hrs": 2.5,
+      "total_fastag_car": 165,
+      "total_cash_car": 330,
+      "toll_count": 2,
+      "toll_plaza_ids": [
+        "TP_TN_13",
+        "TP_TN_14"
+      ]
+    },
+    {
+      "route_id": "R_TN_14",
+      "from": "madurai",
+      "to": "tuticorin",
+      "via": "Madurai Bypass (NH-45B)",
+      "highway": "NH-45B",
+      "distance_km": 150,
+      "duration_hrs": 2.5,
+      "total_fastag_car": 180,
+      "total_cash_car": 360,
+      "toll_count": 2,
+      "toll_plaza_ids": [
+        "TP_TN_11",
+        "TP_TN_12"
+      ]
+    },
+    {
+      "route_id": "R_AP_03",
+      "from": "hyderabad",
+      "to": "tirupati",
+      "via": "Nellore (NH-65/NH-16)",
+      "highway": "NH-65",
+      "distance_km": 565,
+      "duration_hrs": 9.0,
+      "total_fastag_car": 510,
+      "total_cash_car": 1020,
+      "toll_count": 6,
+      "toll_plaza_ids": [
+        "TP_TS_01",
+        "TP_AP_09",
+        "TP_AP_02",
+        "TP_AP_01",
+        "TP_AP_08",
+        "TP_TP_37"
+      ]
+    }
+  ],
+  "route_index": {
+    "_note": "Keys are normalized city names (lowercase). Returns array of route_ids — first is recommended.",
+    "tuticorin": {
+      "chennai": [
+        "R_TN_01"
+      ],
+      "madurai": [
+        "R_TN_14"
+      ],
+      "trichy": [
+        "R_TN_09"
+      ],
+      "coimbatore": [
+        "R_TN_09"
+      ],
+      "tirunelveli": []
+    },
+    "chennai": {
+      "tuticorin": [
+        "R_TN_02"
+      ],
+      "madurai": [
+        "R_TN_03"
+      ],
+      "coimbatore": [
+        "R_TN_05"
+      ],
+      "trichy": [
+        "R_TN_11"
+      ],
+      "bangalore": [
+        "R_TN_07"
+      ],
+      "tirunelveli": [
+        "R_TN_10"
+      ],
+      "visakhapatnam": [
+        "R_AP_01"
+      ],
+      "vellore": [
+        "R_TN_13"
+      ],
+      "kolkata": [
+        "R_AP_01"
+      ]
+    },
+    "madurai": {
+      "chennai": [
+        "R_TN_04"
+      ],
+      "tuticorin": [
+        "R_TN_14"
+      ],
+      "trichy": [],
+      "coimbatore": []
+    },
+    "trichy": {
+      "chennai": [
+        "R_TN_12"
+      ],
+      "tuticorin": [
+        "R_TN_09"
+      ]
+    },
+    "coimbatore": {
+      "chennai": [
+        "R_TN_06"
+      ],
+      "bangalore": [
+        "R_KA_04"
+      ],
+      "kochi": [
+        "R_KL_01"
+      ]
+    },
+    "bangalore": {
+      "chennai": [
+        "R_TN_08"
+      ],
+      "mumbai": [
+        "R_MH_04"
+      ],
+      "hyderabad": [
+        "R_KA_03"
+      ],
+      "mangaluru": [
+        "R_KA_01"
+      ],
+      "mysore": [
+        "R_KA_02"
+      ],
+      "coimbatore": [
+        "R_KA_04"
+      ],
+      "goa": [
+        "R_GA_02"
+      ]
+    },
+    "mumbai": {
+      "pune": [
+        "R_MH_01"
+      ],
+      "ahmedabad": [
+        "R_GJ_01"
+      ],
+      "nagpur": [
+        "R_MH_03"
+      ],
+      "bangalore": [
+        "R_MH_04"
+      ],
+      "goa": [
+        "R_GA_01"
+      ],
+      "hyderabad": [
+        "R_TS_02"
+      ]
+    },
+    "pune": {
+      "mumbai": [
+        "R_MH_02"
+      ]
+    },
+    "ahmedabad": {
+      "mumbai": [
+        "R_GJ_02"
+      ],
+      "surat": [
+        "R_GJ_03"
+      ]
+    },
+    "surat": {
+      "ahmedabad": [
+        "R_GJ_04"
+      ]
+    },
+    "delhi": {
+      "jaipur": [
+        "R_RJ_01"
+      ],
+      "agra": [
+        "R_DL_01"
+      ],
+      "chandigarh": [
+        "R_DL_02"
+      ],
+      "amritsar": [
+        "R_DL_04"
+      ],
+      "ludhiana": [
+        "R_PB_01"
+      ],
+      "kolkata": [
+        "R_DL_05"
+      ],
+      "bhopal": [
+        "R_MP_02"
+      ],
+      "jodhpur": [
+        "R_RJ_03"
+      ]
+    },
+    "jaipur": {
+      "delhi": [
+        "R_RJ_02"
+      ]
+    },
+    "chandigarh": {
+      "delhi": [
+        "R_DL_03"
+      ]
+    },
+    "kolkata": {
+      "delhi": [
+        "R_DL_06"
+      ],
+      "bhubaneswar": [
+        "R_WB_01"
+      ],
+      "guwahati": [
+        "R_AS_01"
+      ]
+    },
+    "bhubaneswar": {
+      "kolkata": [
+        "R_WB_02"
+      ],
+      "visakhapatnam": [
+        "R_OD_01"
+      ]
+    },
+    "visakhapatnam": {
+      "hyderabad": [
+        "R_AP_02"
+      ],
+      "bhubaneswar": [
+        "R_OD_01"
+      ]
+    },
+    "hyderabad": {
+      "bangalore": [
+        "R_TS_01"
+      ],
+      "mumbai": [
+        "R_TS_02"
+      ],
+      "nagpur": [
+        "R_MH_05"
+      ],
+      "visakhapatnam": [
+        "R_AP_02"
+      ],
+      "tirupati": [
+        "R_AP_03"
+      ]
+    },
+    "nagpur": {
+      "mumbai": [
+        "R_MH_03"
+      ],
+      "raipur": [
+        "R_CG_01"
+      ],
+      "hyderabad": [
+        "R_MH_05"
+      ],
+      "indore": [
+        "R_MP_01"
+      ]
+    },
+    "kochi": {
+      "coimbatore": [
+        "R_KL_01"
+      ],
+      "thiruvananthapuram": [
+        "R_KL_03"
+      ]
+    },
+    "thiruvananthapuram": {
+      "kochi": [
+        "R_KL_02"
+      ]
+    },
+    "jammu": {
+      "srinagar": [
+        "R_JK_01"
+      ]
+    },
+    "guwahati": {
+      "kolkata": [
+        "R_AS_01"
+      ]
+    },
+    "goa": {
+      "mumbai": [
+        "R_GA_01"
+      ],
+      "bangalore": [
+        "R_GA_02"
+      ]
+    }
+  }
+}
