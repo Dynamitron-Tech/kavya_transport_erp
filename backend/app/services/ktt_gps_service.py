@@ -210,6 +210,9 @@ async def ingest_ktt_positions(positions: list[dict]) -> dict:
                         current_latitude=pos["latitude"],
                         current_longitude=pos["longitude"],
                         current_location=f"{pos['latitude']:.6f}, {pos['longitude']:.6f}",
+                        last_speed=pos["speed"],
+                        last_ignition_on=pos["ignition_on"],
+                        last_gps_at=pos["timestamp"],
                     )
                 )
 

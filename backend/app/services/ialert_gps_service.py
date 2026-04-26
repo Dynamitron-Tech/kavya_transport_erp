@@ -214,6 +214,9 @@ async def ingest_ialert_positions(positions: list[dict]) -> dict:
                         current_longitude=pos["longitude"],
                         current_location=f"{pos['latitude']:.6f}, {pos['longitude']:.6f}",
                         odometer_reading=pos["odometer"] if pos["odometer"] > 0 else Vehicle.odometer_reading,
+                        last_speed=pos["speed"],
+                        last_ignition_on=pos["ignition_on"],
+                        last_gps_at=pos["timestamp"],
                     )
                 )
 
