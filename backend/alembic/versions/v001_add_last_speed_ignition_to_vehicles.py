@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "v001_add_last_speed_ignition_to_vehicles"
-down_revision = "u001_add_transport_type_to_lrs"
+down_revision = "v001_invoice_payment_proof"
 branch_labels = None
 depends_on = None
 
