@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Calendar, ClipboardList, Package, CircleDot, Battery, AlertTriangle, TrendingUp
+  Calendar, ClipboardList, Package, CircleDot, Battery, AlertTriangle, TrendingUp,
+  CheckCircle2, Play, X, Loader2
 } from 'lucide-react';
 import DataTable, { Column } from '@/components/common/DataTable';
 import { KPICard, StatusBadge } from '@/components/common/Modal';
 import { fleetService, tpmsService } from '@/services/dataService';
+import { api } from '@/services/api';
 import type { MaintenanceScheduleItem, WorkOrder, PartInventory, TyreRecord, BatteryRecord, MaintenancePrediction } from '@/types';
 import { safeArray } from '@/utils/helpers';
 
@@ -22,6 +24,9 @@ const tabs = [
 
 export default function FleetMaintenancePage() {
   const [activeTab, setActiveTab] = useState<TabKey>('schedule');
+  const [completingWO, setCompletingWO] = useState<WorkOrder | null>(null);
+  const [form, setForm] = useState({ odometer: '', actual_cost: '', notes: '' });
+  const queryClient = useQueryClient();
 
   const formatDate = (value?: string | null) => {
     if (!value) return '—';
@@ -65,6 +70,29 @@ export default function FleetMaintenancePage() {
     enabled: activeTab === 'predictive',
   });
 
+  // ── Mutations ────────────────────────────────────────────────────────────
+  const refetchAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['fleet-maintenance-schedule'] });
+    queryClient.invalidateQueries({ queryKey: ['fleet-work-orders'] });
+    queryClient.invalidateQueries({ queryKey: ['fleet-predictive-maintenance'] });
+  };
+
+  const completeMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await api.patch(`/fleet/maintenance/work-orders/${id}/complete`, data);
+      return (res.data as any)?.data ?? res.data;
+    },
+    onSuccess: () => { setCompletingWO(null); setForm({ odometer: '', actual_cost: '', notes: '' }); refetchAll(); },
+  });
+
+  const startMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await api.patch(`/fleet/maintenance/work-orders/${id}/start`, {});
+      return (res.data as any)?.data ?? res.data;
+    },
+    onSuccess: refetchAll,
+  });
+
   // Schedule columns
   const scheduleColumns: Column<MaintenanceScheduleItem>[] = [
     { key: 'vehicle', header: 'Vehicle', render: (r) => <span className="font-medium">{r.vehicle}</span> },
@@ -78,16 +106,41 @@ export default function FleetMaintenancePage() {
     { key: 'estimated_cost', header: 'Est. Cost', render: (r) => <span className="text-sm">₹{(r.estimated_cost ?? 0).toLocaleString('en-IN')}</span> },
   ];
 
-  // Work Order columns
+  // Work Order columns — with Start + Mark Done actions
   const woColumns: Column<WorkOrder>[] = [
     { key: 'work_order_number', header: 'WO #', render: (r) => <span className="font-medium text-blue-600">{r.work_order_number}</span> },
     { key: 'vehicle', header: 'Vehicle', render: (r) => <span className="text-sm">{r.vehicle}</span> },
     { key: 'type', header: 'Type', render: (r) => <StatusBadge status={r.type} /> },
-    { key: 'description', header: 'Description', render: (r) => <span className="text-sm truncate max-w-[200px] block">{r.description}</span> },
+    { key: 'description', header: 'Description', render: (r) => <span className="text-sm truncate max-w-[180px] block">{r.description}</span> },
     { key: 'workshop', header: 'Workshop', render: (r) => <span className="text-sm">{r.workshop}</span> },
     { key: 'expected_completion', header: 'Expected', render: (r) => <span className="text-sm">{formatDate(r.expected_completion)}</span> },
     { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
     { key: 'cost', header: 'Cost', render: (r) => <span className="text-sm">₹{(r.cost ?? 0).toLocaleString('en-IN')}</span> },
+    {
+      key: 'id' as any,
+      header: 'Actions',
+      render: (r: any) => (
+        <div className="flex items-center gap-1.5">
+          {r.status === 'pending' && (
+            <button
+              onClick={() => startMutation.mutate(r.id)}
+              disabled={startMutation.isPending}
+              title="Mark as In Progress"
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-md hover:bg-amber-100 transition-colors disabled:opacity-50"
+            >
+              <Play className="w-3 h-3" /> Start
+            </button>
+          )}
+          <button
+            onClick={() => { setCompletingWO(r); setForm({ odometer: '', actual_cost: String(r.cost || ''), notes: '' }); }}
+            title="Mark as Done"
+            className="flex items-center gap-1 px-2 py-1 text-xs bg-green-50 text-green-700 border border-green-200 rounded-md hover:bg-green-100 transition-colors"
+          >
+            <CheckCircle2 className="w-3 h-3" /> Done
+          </button>
+        </div>
+      ),
+    },
   ];
 
   // Parts columns
@@ -198,6 +251,88 @@ export default function FleetMaintenancePage() {
           <PredictiveTab data={safeArray<MaintenancePrediction>(predictData)} isLoading={predictLoading} />
         )}
       </div>
+
+      {/* ── Complete Work Order Modal ── */}
+      {completingWO && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Mark as Completed</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{completingWO.work_order_number} — {completingWO.vehicle}</p>
+              </div>
+              <button onClick={() => setCompletingWO(null)} className="p-1.5 rounded-lg hover:bg-gray-100"><X className="w-4 h-4 text-gray-500" /></button>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4 text-sm text-blue-800">
+              <p className="font-medium">{completingWO.description}</p>
+              <p className="text-xs mt-0.5 text-blue-600">Workshop: {completingWO.workshop}</p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Current Odometer (km) <span className="text-gray-400 font-normal">— optional</span></label>
+                <input
+                  type="number"
+                  placeholder="e.g. 145000"
+                  value={form.odometer}
+                  onChange={e => setForm(f => ({ ...f, odometer: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Actual Cost (₹)</label>
+                <input
+                  type="number"
+                  placeholder="Actual cost incurred"
+                  value={form.actual_cost}
+                  onChange={e => setForm(f => ({ ...f, actual_cost: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Notes <span className="text-gray-400 font-normal">— optional</span></label>
+                <textarea
+                  placeholder="Parts replaced, observations, mechanic name…"
+                  value={form.notes}
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  rows={2}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setCompletingWO(null)}
+                className="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={completeMutation.isPending}
+                onClick={() => completeMutation.mutate({
+                  id: (completingWO as any).id,
+                  data: {
+                    completed_date: new Date().toISOString().split('T')[0],
+                    odometer_reading: form.odometer ? parseFloat(form.odometer) : null,
+                    actual_cost: form.actual_cost ? parseFloat(form.actual_cost) : null,
+                    notes: form.notes || null,
+                  },
+                })}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium"
+              >
+                {completeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                Confirm Done
+              </button>
+            </div>
+
+            {completeMutation.isError && (
+              <p className="mt-2 text-xs text-red-600 text-center">Failed to complete. Please try again.</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

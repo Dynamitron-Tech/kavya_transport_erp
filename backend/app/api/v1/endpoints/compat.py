@@ -2,6 +2,7 @@
 from datetime import date, datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import func, select, case, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -744,6 +745,133 @@ async def fleet_maintenance_battery(db: AsyncSession = Depends(get_db), current_
             "expected_replacement": (date.today() + timedelta(days=max(0, (100 - health) * 30))).isoformat(),
         })
     return APIResponse(success=True, data=items)
+
+
+# ── Work-Order Action Endpoints ─────────────────────────────────────────────
+
+class CompleteWorkOrderRequest(BaseModel):
+    completed_date: date | None = None
+    odometer_reading: float | None = None
+    actual_cost: float | None = None
+    notes: str | None = None
+
+
+@router.patch("/fleet/maintenance/work-orders/{wo_id}/complete", response_model=APIResponse)
+async def complete_work_order(
+    wo_id: int,
+    payload: CompleteWorkOrderRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Mark a work order as completed.
+
+    - Sets status → 'completed', records actual service date and odometer
+    - Auto-creates the NEXT scheduled record based on the service interval
+      so the service reappears in future (not immediately)
+    - Updates vehicle odometer if provided
+    """
+    from app.models.postgres.vehicle import Vehicle, VehicleMaintenance
+    from decimal import Decimal
+
+    svc = (await db.execute(
+        select(VehicleMaintenance).where(VehicleMaintenance.id == wo_id)
+    )).scalar_one_or_none()
+    if not svc:
+        raise HTTPException(status_code=404, detail="Work order not found")
+    if svc.status == "completed":
+        raise HTTPException(status_code=400, detail="Work order is already completed")
+
+    done_date = payload.completed_date or date.today()
+    done_odo = Decimal(str(payload.odometer_reading)) if payload.odometer_reading else svc.odometer_at_service
+
+    # 1. Mark this WO completed
+    svc.status = "completed"
+    svc.service_date = done_date
+    if done_odo:
+        svc.odometer_at_service = done_odo
+    if payload.actual_cost is not None:
+        svc.total_cost = Decimal(str(payload.actual_cost))
+    if payload.notes:
+        svc.description = (svc.description or "") + f"\n[Done {done_date}] {payload.notes}"
+
+    # 2. Update vehicle odometer if provided
+    if payload.odometer_reading:
+        vehicle = (await db.execute(
+            select(Vehicle).where(Vehicle.id == svc.vehicle_id)
+        )).scalar_one_or_none()
+        if vehicle:
+            current_odo = float(vehicle.odometer_reading or 0)
+            if payload.odometer_reading > current_odo:
+                vehicle.odometer_reading = Decimal(str(payload.odometer_reading))
+
+    # 3. Auto-schedule next service
+    # Determine interval from service_type
+    INTERVALS = {
+        "oil_change":         (90,   5000),
+        "tyre_rotation":      (120,  8000),
+        "brake_service":      (180, 15000),
+        "air_filter":         (90,   6000),
+        "battery_check":      (180, 12000),
+        "greasing":           (60,   4000),
+        "coolant_flush":      (365, 30000),
+        "clutch_service":     (365, 40000),
+        "suspension_check":   (180, 20000),
+        "electrical_check":   (90,   8000),
+    }
+    svc_key = (svc.service_type or "").lower().replace(" ", "_")
+    interval_days, interval_km = INTERVALS.get(svc_key, (180, 15000))
+
+    next_date = done_date + timedelta(days=interval_days)
+    next_km = (done_odo + Decimal(str(interval_km))) if done_odo else svc.next_service_km
+
+    # Only create next record if one doesn't already exist for this vehicle+service_type in the future
+    existing_next = (await db.execute(
+        select(VehicleMaintenance).where(
+            VehicleMaintenance.vehicle_id == svc.vehicle_id,
+            VehicleMaintenance.service_type == svc.service_type,
+            VehicleMaintenance.status.in_(["pending", "in_progress"]),
+        )
+    )).scalar_one_or_none()
+
+    if not existing_next:
+        db.add(VehicleMaintenance(
+            vehicle_id=svc.vehicle_id,
+            maintenance_type="scheduled",
+            service_type=svc.service_type,
+            description=svc.description.split("\n[Done")[0].strip() if svc.description else f"{svc.service_type or 'Service'} (auto-scheduled)",
+            service_date=next_date,
+            next_service_date=next_date,
+            next_service_km=next_km,
+            vendor_name=svc.vendor_name,
+            work_order_number=f"WO-AUTO-{svc.vehicle_id}-{svc_key[:8]}",
+            parts_cost=svc.parts_cost,
+            labor_cost=svc.labor_cost,
+            total_cost=svc.total_cost,
+            status="pending",
+        ))
+
+    await db.commit()
+    return APIResponse(success=True, data={"message": "Work order completed. Next service scheduled.", "next_due": next_date.isoformat()})
+
+
+@router.patch("/fleet/maintenance/work-orders/{wo_id}/start", response_model=APIResponse)
+async def start_work_order(
+    wo_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Move a work order from pending → in_progress."""
+    from app.models.postgres.vehicle import VehicleMaintenance
+
+    svc = (await db.execute(
+        select(VehicleMaintenance).where(VehicleMaintenance.id == wo_id)
+    )).scalar_one_or_none()
+    if not svc:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    svc.status = "in_progress"
+    await db.commit()
+    return APIResponse(success=True, data={"message": "Work order started"})
 
 
 @router.get("/fleet/fuel/records", response_model=APIResponse)
