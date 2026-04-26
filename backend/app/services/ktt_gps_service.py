@@ -137,7 +137,9 @@ def _parse_ktt_packet(pkt: dict) -> dict:
 
     dt_raw = pkt.get("time", "")
     try:
-        timestamp = datetime.strptime(dt_raw, "%Y-%m-%d %H:%M:%S")
+        # KTT API returns IST (UTC+5:30) — convert to UTC so last_gps_at is stored correctly
+        from datetime import timedelta
+        timestamp = datetime.strptime(dt_raw, "%Y-%m-%d %H:%M:%S") - timedelta(hours=5, minutes=30)
     except (ValueError, TypeError):
         timestamp = datetime.utcnow()
 
