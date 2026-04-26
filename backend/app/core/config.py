@@ -198,7 +198,7 @@ class Settings(BaseSettings):
     # KT Telematic (KTT) GPS Pull API
     KTT_ENABLED: bool = False  # Enable after setting KTT_ACCESS_TOKEN
     KTT_ACCESS_TOKEN: Optional[str] = None  # Token from KTT email (X-AT-AccessToken)
-    KTT_POLL_INTERVAL_SECONDS: int = 60  # KTT enforces 1 req/min rate limit
+    KTT_POLL_INTERVAL_SECONDS: int = 30
 
     # Tata Motors GPS (fill when API key arrives)
     TATA_GPS_API_KEY: Optional[str] = None
