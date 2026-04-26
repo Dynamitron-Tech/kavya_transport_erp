@@ -264,7 +264,7 @@ export default function Sidebar() {
             <div className="flex-1 min-w-0">
               <p className="text-gray-900 text-sm font-medium truncate">{user?.full_name}</p>
               <p className="text-gray-500 text-[11px] truncate capitalize">
-                {user?.roles[0]?.replace('_', ' ') || 'User'}
+                {user?.roles?.[0]?.replace('_', ' ') || 'User'}
               </p>
             </div>
             <button

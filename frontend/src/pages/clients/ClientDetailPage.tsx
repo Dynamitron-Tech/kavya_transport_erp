@@ -328,7 +328,7 @@ export default function ClientDetailPage() {
                   <div className="min-w-0">
                     <p className="font-medium text-gray-900 truncate flex items-center gap-2"><FileText size={14} /> {doc.title || doc.file_name || 'Document'}</p>
                     <p className="text-xs text-gray-500 mt-1">Type: {show(doc.document_type)}</p>
-                    <p className="text-xs text-gray-500">Uploaded: {doc.created_at ? new Date(doc.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}</p>
+                    <p className="text-xs text-gray-500">Uploaded: {doc.created_at ? new Date(doc.created_at.endsWith('Z') || doc.created_at.includes('+') ? doc.created_at : doc.created_at + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}</p>
                   </div>
                   {doc.file_url && (
                     <a href={doc.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-medium">
@@ -441,7 +441,7 @@ export default function ClientDetailPage() {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Contact Person</label>
               <input className="input-field" value={editPayload.contact_person} onChange={(e) => setEditPayload((p) => ({ ...p, contact_person: e.target.value }))} />
@@ -449,10 +449,6 @@ export default function ClientDetailPage() {
             <div>
               <label className="label">Designation</label>
               <input className="input-field" value={editPayload.designation} onChange={(e) => setEditPayload((p) => ({ ...p, designation: e.target.value }))} />
-            </div>
-            <div>
-              <label className="label">Industry</label>
-              <input className="input-field" value={editPayload.industry} onChange={(e) => setEditPayload((p) => ({ ...p, industry: e.target.value }))} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -467,7 +463,7 @@ export default function ClientDetailPage() {
           </div>
 
           <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 pb-1">Tax & Identity</div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="label">PAN</label>
               <input className="input-field font-mono" value={editPayload.pan} onChange={(e) => setEditPayload((p) => ({ ...p, pan: e.target.value }))} />
@@ -476,30 +472,12 @@ export default function ClientDetailPage() {
               <label className="label">GSTIN</label>
               <input className="input-field font-mono" value={editPayload.gstin} onChange={(e) => setEditPayload((p) => ({ ...p, gstin: e.target.value }))} />
             </div>
-          </div>
-
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 pb-1">TDS Details</div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="label">TDS Rate</label>
-              <input className="input-field" value={editPayload.tds_rate} onChange={(e) => setEditPayload((p) => ({ ...p, tds_rate: e.target.value }))} />
-            </div>
             <div>
               <label className="label">Tax Exempt</label>
               <select className="input-field" value={editPayload.tax_exempt ? 'yes' : 'no'} onChange={(e) => setEditPayload((p) => ({ ...p, tax_exempt: e.target.value === 'yes' }))}>
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Name of Deductor</label>
-              <input className="input-field" value={editPayload.name_deductor} onChange={(e) => setEditPayload((p) => ({ ...p, name_deductor: e.target.value }))} />
-            </div>
-            <div>
-              <label className="label">Name of Deductee</label>
-              <input className="input-field" value={editPayload.name_deductee} onChange={(e) => setEditPayload((p) => ({ ...p, name_deductee: e.target.value }))} />
             </div>
           </div>
 
@@ -565,10 +543,6 @@ export default function ClientDetailPage() {
                 <option value="cash">Cash</option>
               </select>
             </div>
-          </div>
-          <div>
-            <label className="label">IFSC Code</label>
-            <input className="input-field font-mono" value={editPayload.ifsc_code} onChange={(e) => setEditPayload((p) => ({ ...p, ifsc_code: e.target.value }))} />
           </div>
           <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
             <button type="button" className="btn-secondary" onClick={() => setShowEditClient(false)}>Cancel</button>

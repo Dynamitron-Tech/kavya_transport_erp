@@ -1706,10 +1706,14 @@ class DocumentExtractionService:
             )
         )
 
-        # Engine/Motor Number and Chassis Number: next-line extraction
+        # Engine/Motor Number and Chassis Number: next-line extraction with inline fallback
         engine_number = self._extract_next_line_after_label(
             lines,
-            [r"ENGINE\s*/\s*MOTOR\s*NUMBER", r"ENGINE\s*MOTOR\s*NUMBER", r"ENGINE\s*NUMBER", r"ENGINE\s*NO"],
+            [
+                r"ENGINE\s*/\s*MOTOR\s*NUMBER", r"ENGINE\s*MOTOR\s*NUMBER",
+                r"ENGINE\s*[/\-]?\s*MOTOR", r"ENGINE\s*NUMBER", r"ENGINE\s*NO\.?",
+                r"MOTOR\s*NUMBER", r"MOTOR\s*NO\.?",
+            ],
             max_chars=60,
         )
         # Validate: must be alphanumeric code, not a name
@@ -1717,10 +1721,32 @@ class DocumentExtractionService:
             engine_number = None
         if engine_number and re.fullmatch(r"[A-Z ]+", engine_number.upper()):
             engine_number = None
+        # Fallback: try inline label pattern (e.g. "Engine No.: ABCD1234")
+        if not engine_number:
+            engine_number = self._extract_rc_labeled_text(
+                cleaned,
+                [r"ENGINE\s*[/\-]?\s*MOTOR\s*(?:NUMBER|NO\.?)", r"ENGINE\s*(?:NUMBER|NO\.?)"],
+                max_chars=60,
+            )
+            if engine_number and not re.search(r"[A-Z0-9]{4,}", engine_number.upper()):
+                engine_number = None
+            if engine_number and re.fullmatch(r"[A-Z ]+", engine_number.upper()):
+                engine_number = None
+        # Broad fallback: scan joined OCR text for ENGINE/MOTOR keyword near alphanumeric code
+        if not engine_number:
+            joined_upper = cleaned_upper.replace("\n", " ")
+            m = re.search(
+                r"(?:ENGINE\s*[/\-]?\s*MOTOR|ENGINE|MOTOR)\s*(?:NUMBER|NO\.?)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-\/\s]{4,28})",
+                joined_upper,
+            )
+            if m:
+                candidate = re.sub(r"\s+", "", m.group(1)).strip(" :.-")
+                if re.search(r"\d", candidate) and re.search(r"[A-Z]", candidate) and len(candidate) >= 5:
+                    engine_number = candidate
 
         chassis_number = self._extract_next_line_after_label(
             lines,
-            [r"CHASSIS\s*NUMBER", r"CHASSIS\s*NO"],
+            [r"CHASSIS\s*NUMBER", r"CHASSIS\s*NO\.?", r"CHASIS\s*NUMBER", r"CHASIS\s*NO\.?"],
             max_chars=60,
         )
         # Validate: must be long alphanumeric VIN, not a name
@@ -1728,6 +1754,63 @@ class DocumentExtractionService:
             chassis_number = None
         if chassis_number and len(chassis_number) < 8:
             chassis_number = None
+        # Fallback: try inline label pattern (e.g. "Chassis No.: ABCD1234")
+        if not chassis_number:
+            chassis_number = self._extract_rc_labeled_text(
+                cleaned,
+                [r"CHASSIS\s*(?:NUMBER|NO\.?)", r"CHASIS\s*(?:NUMBER|NO\.?)"],
+                max_chars=60,
+            )
+            if chassis_number and re.fullmatch(r"[A-Z ]+", chassis_number.upper()):
+                chassis_number = None
+            if chassis_number and len(chassis_number) < 8:
+                chassis_number = None
+        # Broad fallback: scan joined OCR text for CHASSIS keyword near alphanumeric code
+        if not chassis_number:
+            joined_upper = cleaned_upper.replace("\n", " ")
+            m = re.search(
+                r"CHASS?IS\s*(?:NUMBER|NO\.?)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\-\/\s]{8,32})",
+                joined_upper,
+            )
+            if m:
+                candidate = re.sub(r"\s+", "", m.group(1)).strip(" :.-")
+                if re.search(r"\d", candidate) and re.search(r"[A-Z]", candidate) and len(candidate) >= 8:
+                    chassis_number = candidate
+
+        # Make / Model / Year of Manufacture (mapped by frontend handleRCDocAutoFill)
+        make = self._extract_next_line_after_label(
+            lines,
+            [r"MAKER'?\s*S?\s*NAME", r"^MAKE$", r"MAKE\s*OF\s*VEHICLE"],
+            max_chars=60,
+        ) or self._extract_rc_labeled_text(
+            cleaned,
+            [r"MAKER'?\s*S?\s*NAME", r"MAKE(?:\s*OF\s*VEHICLE)?", r"MANUFACTURER"],
+            max_chars=60,
+        )
+
+        model_name = self._extract_next_line_after_label(
+            lines,
+            [r"^MODEL$", r"MODEL\s*(?:NAME|OF\s*VEHICLE)?"],
+            max_chars=60,
+        ) or self._extract_rc_labeled_text(
+            cleaned,
+            [r"MODEL(?:\s*NAME|\s*OF\s*VEHICLE)?"],
+            max_chars=60,
+        )
+
+        year_raw = self._extract_next_line_after_label(
+            lines,
+            [r"YEAR\s*OF\s*(?:MFR|MANUFACTURE)", r"MFG\.?\s*YEAR", r"M\.?Y\.?"],
+            max_chars=20,
+        ) or self._extract_rc_labeled_text(
+            cleaned,
+            [r"YEAR\s*OF\s*(?:MFR|MANUFACTURE)", r"MFG\.?\s*YEAR"],
+            max_chars=20,
+        )
+        year_of_manufacture = None
+        if year_raw:
+            ym = re.search(r"\b(19|20)\d{2}\b", year_raw)
+            year_of_manufacture = ym.group(0) if ym else None
 
         issue_date = self._extract_date_from_line_context(
             lines,
@@ -1755,6 +1838,9 @@ class DocumentExtractionService:
             "fuel_type": fuel_type,
             "engine_number": engine_number,
             "chassis_number": chassis_number,
+            "make": make,
+            "model_name": model_name,
+            "year_of_manufacture": year_of_manufacture,
             "issue_date": issue_date,
             "validity_date": validity_date,
         }

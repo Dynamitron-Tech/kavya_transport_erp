@@ -201,7 +201,6 @@ export function DocumentUploadWithExtraction({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const docLabel = label ?? DOC_TYPE_LABELS[documentType] ?? documentType;
-  const isSystemGenerated = SYSTEM_GENERATED_TYPES.has(documentType);
 
   // ── File handlers ─────────────────────────────────────────────────────────
 
@@ -209,35 +208,10 @@ export function DocumentUploadWithExtraction({
     setFile(f);
     setError('');
     setExtractionWarning('');
-
-    if (isSystemGenerated) {
-      setState('saving');
-      await saveDocument(f, {});
-      return;
-    }
-
-    setState('extracting');
-    try {
-      const fd = new FormData();
-      fd.append('file', f);
-      fd.append('document_type', documentType);
-      fd.append('entity_type', entityType);
-
-      const result = await documentService.extract(fd);
-      setEditedData(result.data ?? {});
-      setState('review');
-
-      if (onExtracted) {
-        onExtracted({ documentType, data: result.data ?? {}, entityType: result.entity_type });
-      }
-    } catch (err: any) {
-      const msg = err?.response?.data?.message ?? err?.message ?? 'Extraction failed';
-      // Fallback path: allow user to continue with manual upload/review.
-      setExtractionWarning(msg);
-      setEditedData({});
-      setState('review');
-    }
-  }, [documentType, entityType, isSystemGenerated, onExtracted]);
+    // Always upload directly — no frontend extraction step
+    setState('saving');
+    await saveDocument(f, {});
+  }, [documentType, entityType]);
 
   const onDropZone = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -364,6 +338,23 @@ export function DocumentUploadWithExtraction({
     const fields = Object.entries(editedData).filter(([, v]) => v !== null && v !== undefined && v !== '');
     return (
       <div className="space-y-4">
+        {/* Step 2 banner — always visible */}
+        <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <CheckCircle size={16} className="text-green-600 shrink-0" />
+            <p className="text-sm font-medium text-green-800">
+              {fields.length > 0 ? 'Data extracted — review below, then save.' : 'File ready — click Save Document to upload.'}
+            </p>
+          </div>
+          <button
+            onClick={handleConfirmSave}
+            disabled={!entityId}
+            className="shrink-0 flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Save Document
+          </button>
+        </div>
+
         {extractionWarning && (
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-sm text-amber-700">

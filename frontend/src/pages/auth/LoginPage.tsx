@@ -101,14 +101,13 @@ export default function LoginPage() {
   };
 
   const demoRoles = [
-    { label: 'Admin', email: 'admin@kavyatransports.com', password: 'admin123', color: 'bg-blue-50 text-blue-700 ring-blue-600/20' },
-    { label: 'Manager', email: 'manager@kavyatransports.com', password: 'manager123', color: 'bg-purple-50 text-purple-700 ring-purple-600/20' },
-    { label: 'Fleet Manager', email: 'fleet@kavyatransports.com', password: 'fleet123', color: 'bg-green-50 text-green-700 ring-green-600/20' },
-    { label: 'Accountant', email: 'accountant@kavyatransports.com', password: 'accountant123', color: 'bg-amber-50 text-amber-700 ring-amber-600/20' },
-    { label: 'Finance Manager', email: 'finance@kavyatransports.com', password: 'Finance@123', color: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' },
-    { label: 'Project Associate', email: 'pa@kavyatransports.com', password: 'pa123456', color: 'bg-cyan-50 text-cyan-700 ring-cyan-600/20' },
-    { label: 'Driver', email: 'driver@kavyatransports.com', password: 'driver123', color: 'bg-rose-50 text-rose-700 ring-rose-600/20' },
-    { label: 'Pump Operator', email: 'pump@kavyatransports.com', password: 'pump123', color: 'bg-orange-50 text-orange-700 ring-orange-600/20' },
+    { label: 'Admin', email: 'admin@kavyatransports.com', password: 'Kavya@Admin2026!', color: 'bg-blue-50 text-blue-700 ring-blue-600/20' },
+    { label: 'Manager', email: 'manager@kavyatransports.com', password: 'Kavya@Manager2026!', color: 'bg-purple-50 text-purple-700 ring-purple-600/20' },
+    { label: 'Fleet Manager', email: 'fleetmanager@kavyatransports.com', password: 'Kavya@Fleet2026!', color: 'bg-green-50 text-green-700 ring-green-600/20' },
+    { label: 'Accountant', email: 'accountant@kavyatransports.com', password: 'Kavya@Accounts2026!', color: 'bg-amber-50 text-amber-700 ring-amber-600/20' },
+    { label: 'Finance Manager', email: 'finance@kavyatransports.com', password: 'Kavya@Finance2026!', color: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' },
+    { label: 'Driver', email: 'driver@kavyatransports.com', password: 'Kavya@Driver2026!', color: 'bg-rose-50 text-rose-700 ring-rose-600/20' },
+    { label: 'Pump Operator', email: 'pump@kavyatransports.com', password: 'Kavya@Pump2026!', color: 'bg-orange-50 text-orange-700 ring-orange-600/20' },
   ];
 
   return (
@@ -374,25 +373,6 @@ export default function LoginPage() {
                   </form>
                 )}
               </>
-            )}
-
-            {/* Demo credentials (password tab only) */}
-            {activeTab === 'password' && (
-              <div className="mt-6 pt-5 border-t border-gray-100">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Quick Login</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {demoRoles.map((role) => (
-                    <button
-                      key={role.label}
-                      onClick={() => { setEmail(role.email); setPassword(role.password); }}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-full ring-1 ring-inset transition-all hover:scale-105 ${role.color}`}
-                    >
-                      {role.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-gray-400 mt-2">Click any role to auto-fill credentials</p>
-              </div>
             )}
           </div>
         </div>

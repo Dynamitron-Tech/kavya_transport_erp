@@ -58,7 +58,8 @@ class KTWebSocketService {
     if (!token) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    const host = apiUrl ? apiUrl.replace(/^https?:\/\//, '').replace(/\/api\/v1$/, '') : window.location.host;
     const url = `${protocol}//${host}/ws?token=${encodeURIComponent(token)}`;
 
     try {

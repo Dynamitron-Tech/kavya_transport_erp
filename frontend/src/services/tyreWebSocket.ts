@@ -22,7 +22,8 @@ class TyreWebSocketService {
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const host = window.location.host;
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    const host = apiUrl ? apiUrl.replace(/^https?:\/\//, '').replace(/\/api\/v1$/, '') : window.location.host;
     const wsUrl = `${protocol}://${host}/ws?token=${encodeURIComponent(token)}`;
 
     this.ws = new WebSocket(wsUrl);

@@ -9,7 +9,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  CheckCircle, AlertCircle, Clock, FileX, Upload, ChevronDown, ChevronUp,
+  CheckCircle, AlertCircle, Clock, FileX, Upload, ChevronDown, ChevronUp, Eye,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { DocumentUploadWithExtraction, type ExtractionResult } from './DocumentUploadWithExtraction';
@@ -105,14 +105,26 @@ interface CardProps {
   status: DocStatus | 'missing';
   expiryDate?: string;
   documentNumber?: string;
+  fileUrl?: string;
   entityId?: number;
   entityType: string;
   onExtracted?: (result: ExtractionResult) => void;
   onUploaded?: () => void;
 }
 
+function resolveFileUrl(fileUrl?: string | null): string {
+  if (!fileUrl) return '';
+  if (/^https?:\/\//i.test(fileUrl)) return fileUrl;
+  const normalizedPath = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
+  if (import.meta.env.DEV) {
+    const backendOrigin = (import.meta.env.VITE_PROXY_TARGET || 'http://localhost:8000').replace(/\/$/, '');
+    return `${backendOrigin}${normalizedPath}`;
+  }
+  return normalizedPath;
+}
+
 function DocumentCard({
-  req, status, expiryDate, documentNumber, entityId, entityType, onExtracted, onUploaded,
+  req, status, expiryDate, documentNumber, fileUrl, entityId, entityType, onExtracted, onUploaded,
 }: CardProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const cfg = STATUS_CONFIG[status];
@@ -157,13 +169,26 @@ function DocumentCard({
           )}
         </div>
 
-        <button
-          onClick={() => setModalOpen(true)}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-600"
-        >
-          <Upload size={12} />
-          {status === 'missing' ? 'Upload' : 'Replace'}
-        </button>
+        <div className="shrink-0 flex items-center gap-2">
+          {status !== 'missing' && fileUrl && (
+            <a
+              href={resolveFileUrl(fileUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors text-blue-600"
+            >
+              <Eye size={12} />
+              View
+            </a>
+          )}
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-600"
+          >
+            <Upload size={12} />
+            {status === 'missing' ? 'Upload' : 'Replace'}
+          </button>
+        </div>
       </div>
 
       <Modal
@@ -260,11 +285,11 @@ export function DocumentChecklist({ entityType, entityId, onExtracted, onAllRequ
     };
   };
 
-  const getStatus = (type: string): { status: DocStatus | 'missing'; expiryDate?: string; documentNumber?: string } => {
+  const getStatus = (type: string): { status: DocStatus | 'missing'; expiryDate?: string; documentNumber?: string; fileUrl?: string } => {
     const doc = docMap[normalizeDocType(type)];
     if (!doc) return { status: 'missing' };
     const status = getDocStatus(doc.expiry_date);
-    return { status, expiryDate: doc.expiry_date, documentNumber: doc.document_number };
+    return { status, expiryDate: doc.expiry_date, documentNumber: doc.document_number, fileUrl: doc.file_url };
   };
 
   const handleUploaded = () => {
@@ -299,7 +324,7 @@ export function DocumentChecklist({ entityType, entityId, onExtracted, onAllRequ
           </h4>
           <div className="space-y-2">
             {requiredItems.map(req => {
-              const { status, expiryDate, documentNumber } = getStatus(req.type);
+              const { status, expiryDate, documentNumber, fileUrl } = getStatus(req.type);
               return (
                 <DocumentCard
                   key={req.type}
@@ -307,6 +332,7 @@ export function DocumentChecklist({ entityType, entityId, onExtracted, onAllRequ
                   status={status}
                   expiryDate={expiryDate}
                   documentNumber={documentNumber}
+                  fileUrl={fileUrl}
                   entityId={entityId}
                   entityType={entityType}
                   onExtracted={result => onExtracted && onExtracted(req, result)}
@@ -333,7 +359,7 @@ export function DocumentChecklist({ entityType, entityId, onExtracted, onAllRequ
           {optionalExpanded && (
             <div className="space-y-2 mt-3">
               {optionalItems.map(req => {
-                const { status, expiryDate, documentNumber } = getStatus(req.type);
+                const { status, expiryDate, documentNumber, fileUrl } = getStatus(req.type);
                 return (
                   <DocumentCard
                     key={req.type}
@@ -341,6 +367,7 @@ export function DocumentChecklist({ entityType, entityId, onExtracted, onAllRequ
                     status={status}
                     expiryDate={expiryDate}
                     documentNumber={documentNumber}
+                    fileUrl={fileUrl}
                     entityId={entityId}
                     entityType={entityType}
                     onExtracted={result => onExtracted && onExtracted(req, result)}

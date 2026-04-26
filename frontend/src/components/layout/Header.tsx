@@ -279,7 +279,7 @@ export default function Header() {
             <div className="hidden lg:block text-left">
               <p className="text-sm font-semibold text-gray-800 leading-tight">{user?.full_name}</p>
               <p className="text-[10px] text-gray-400 capitalize font-medium">
-                {user?.roles[0]?.replace('_', ' ')}
+                {user?.roles?.[0]?.replace('_', ' ')}
               </p>
             </div>
             <ChevronDown size={14} className="hidden lg:block text-gray-400" />
