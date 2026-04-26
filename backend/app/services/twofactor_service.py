@@ -22,7 +22,9 @@ _TIMEOUT_SECONDS = 10
 def _build_url(phone: str, otp: str) -> str:
     """Build the 2Factor API URL for sending an OTP SMS."""
     api_key = settings.TWOFACTOR_API_KEY
-    return f"{_2FACTOR_BASE_URL}/{api_key}/SMS/{phone}/{otp}"
+    template = (settings.TWOFACTOR_TEMPLATE_NAME or "").strip()
+    base = f"{_2FACTOR_BASE_URL}/{api_key}/SMS/{phone}/{otp}"
+    return f"{base}/{template}" if template else base
 
 
 async def _do_send(phone: str, otp: str) -> tuple[bool, str]:

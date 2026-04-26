@@ -123,6 +123,9 @@ class Settings(BaseSettings):
     # Communication — 2Factor.in SMS OTP API
     TWOFACTOR_ENABLED: bool = True
     TWOFACTOR_API_KEY: str = "ca8497f8-41ac-11f1-9800-0200cd936042"
+    # Optional: name of an approved SMS OTP template on 2Factor dashboard.
+    # When set, appended to the URL to force SMS delivery instead of voice.
+    TWOFACTOR_TEMPLATE_NAME: str = ""
 
     # Communication — MSG91 SendOTP API (fallback)
     MSG91_ENABLED: bool = True
