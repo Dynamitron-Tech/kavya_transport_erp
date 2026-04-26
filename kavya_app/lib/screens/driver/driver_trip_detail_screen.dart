@@ -217,10 +217,60 @@ class DriverTripDetailScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
             ],
-            KtButton(
-              label: s.completeDeliveryEpod,
-              icon: Icons.verified,
-              onPressed: () => context.push('/driver/trip/${trip.id}/epod'),
+            // Complete Delivery (ePOD) — hide if POD already uploaded by driver or fleet manager
+            ref.watch(tripLRsProvider(trip.id)).when(
+              data: (lrs) {
+                final podAlreadyDone = trip.podImageUrl != null ||
+                    lrs.any((lr) =>
+                        lr['pod_uploaded'] == true ||
+                        lr['pod_file_url'] != null ||
+                        lr['status'] == 'pod_received');
+                if (podAlreadyDone) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: KTColors.success.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: KTColors.success.withValues(alpha: 0.35)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.verified_outlined, color: KTColors.success, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'POD Uploaded',
+                          style: TextStyle(
+                            color: KTColors.success,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return Column(
+                  children: [
+                    KtButton(
+                      label: s.completeDeliveryEpod,
+                      icon: Icons.verified,
+                      onPressed: () => context.push('/driver/trip/${trip.id}/epod'),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                );
+              },
+              loading: () => KtButton(
+                label: s.completeDeliveryEpod,
+                icon: Icons.verified,
+                onPressed: () => context.push('/driver/trip/${trip.id}/epod'),
+              ),
+              error: (_, __) => KtButton(
+                label: s.completeDeliveryEpod,
+                icon: Icons.verified,
+                onPressed: () => context.push('/driver/trip/${trip.id}/epod'),
+              ),
             ),
             const SizedBox(height: 12),
           ],

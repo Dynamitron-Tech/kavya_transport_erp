@@ -6,6 +6,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import api from '@/services/api';
 import { lrService } from '@/services/dataService';
+import { openDocumentUrl } from '@/utils/helpers';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -238,9 +239,9 @@ function TruckDetail({ truck, onBack }: { truck: TruckLocation; onBack: () => vo
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
               <p className="font-semibold text-sm text-gray-900">{viewDoc.title}</p>
               <div className="flex items-center gap-3">
-                <a href={viewDoc.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                <button type="button" onClick={() => openDocumentUrl(viewDoc.url)} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
                   Open in new tab ↗
-                </a>
+                </button>
                 <button onClick={() => setViewDoc(null)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500">✕</button>
               </div>
             </div>

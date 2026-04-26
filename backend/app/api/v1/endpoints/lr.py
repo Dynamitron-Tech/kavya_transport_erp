@@ -76,6 +76,46 @@ async def get_lr(lr_id: int, db: AsyncSession = Depends(get_db), current_user: T
     return APIResponse(success=True, data=data)
 
 
+@router.get("/{lr_id}/print", response_model=APIResponse)
+async def print_lr(lr_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+    lr = await lr_service.get_lr(db, lr_id)
+    if not lr:
+        raise HTTPException(status_code=404, detail="LR not found")
+    data = await lr_service.get_lr_with_details(db, lr)
+    # Serialize date/datetime fields
+    for key, val in data.items():
+        import datetime as _dt
+        if isinstance(val, (_dt.date, _dt.datetime)):
+            data[key] = str(val)
+    # Field aliases for print template
+    data["vehicle_number"] = data.get("vehicle_registration") or data.get("vehicle_number")
+    # Compute totals for print template
+    freight = float(data.get("freight_amount") or 0)
+    loading = float(data.get("loading_charges") or 0)
+    unloading = float(data.get("unloading_charges") or 0)
+    detention = float(data.get("detention_charges") or 0)
+    other = float(data.get("other_charges") or 0)
+    subtotal = freight + loading + unloading + detention + other
+    gst_pct = float(data.get("gst_percentage") or 5)
+    gst_amount = round(subtotal * gst_pct / 100, 2)
+    data["subtotal"] = subtotal
+    data["gst_percentage"] = gst_pct
+    data["gst_amount"] = gst_amount
+    data["total_amount"] = round(subtotal + gst_amount, 2)
+    # Company info
+    data["company_name"] = "Kavya Transports"
+    data["company_address"] = ""
+    data["company_gstin"] = ""
+    data["company_phone"] = ""
+    data["terms"] = [
+        "Goods once booked will not be returned without prior notice.",
+        "The consignor is responsible for proper packing of goods.",
+        "Liability is limited to the declared value of goods.",
+        "Subject to jurisdiction of local courts only.",
+    ]
+    return APIResponse(success=True, data=data)
+
+
 @router.post("", response_model=APIResponse, status_code=201)
 async def create_lr(
     data: LRCreate, db: AsyncSession = Depends(get_db),

@@ -14,7 +14,7 @@ import DataTable, { Column } from '@/components/common/DataTable';
 import { Modal, TabPills } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import type { Document, FilterParams } from '@/types';
-import { safeArray } from '@/utils/helpers';
+import { safeArray, openDocumentUrl } from '@/utils/helpers';
 import { handleApiError } from '../../utils/handleApiError';
 import {
   FileText, Clock, CheckCircle2, XCircle,
@@ -273,7 +273,7 @@ export default function DocumentListPage() {
             onClick={(e) => {
               e.stopPropagation();
               const fileUrl = resolveFileUrl(d.file_url);
-              if (fileUrl) window.open(fileUrl, '_blank');
+              openDocumentUrl(fileUrl);
             }}
             className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-primary-600"
             title="View File"

@@ -187,6 +187,16 @@ async def list_drivers(
         for vid, reg in veh_res.all():
             vehicle_map[vid] = reg
 
+    # Build user_id → user map (for dl_expiry_date / dl_number fallback)
+    user_ids = [d.user_id for d in drivers if d.user_id]
+    user_map: dict = {}
+    if user_ids:
+        u_res = await db.execute(
+            select(User).where(User.id.in_(user_ids))
+        )
+        for u in u_res.scalars().all():
+            user_map[u.id] = u
+
     items = []
     for d in drivers:
         row = {c.key: getattr(d, c.key) for c in d.__table__.columns}
@@ -212,8 +222,10 @@ async def list_drivers(
             row["license_expiry"] = str(lic.expiry_date) if lic.expiry_date else None
             row["license_type"] = lic.license_type.value if hasattr(lic.license_type, 'value') else str(lic.license_type)
         else:
-            row["license_number"] = None
-            row["license_expiry"] = None
+            # Fall back to User.dl_* fields when no DriverLicense record exists
+            linked_user = user_map.get(d.user_id) if d.user_id else None
+            row["license_number"] = (linked_user.dl_number if linked_user and linked_user.dl_number else None)
+            row["license_expiry"] = (str(linked_user.dl_expiry_date) if linked_user and linked_user.dl_expiry_date else None)
             row["license_type"] = None
         items.append(row)
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
@@ -1146,23 +1158,37 @@ async def get_driver(
         data["license_number"] = lic.license_number
         data["license_expiry"] = str(lic.expiry_date) if lic.expiry_date else None
         data["license_type"] = lic.license_type.value if hasattr(lic.license_type, 'value') else str(lic.license_type)
+    else:
+        data["license_number"] = None
+        data["license_expiry"] = None
+        data["license_type"] = None
     # Augment with User model fields (documents uploaded via employee onboarding)
     if driver.user_id:
         user_result = await db.execute(select(User).where(User.id == driver.user_id))
         user = user_result.scalar_one_or_none()
         if user:
+            from app.services import s3_service as _s3
+
+            async def _presign(url):
+                return await _s3.presign_stored_url(url) if url else None
+
             data["avatar_url"] = data.get("photo_url") or user.avatar_url
-            data["aadhaar_file_url"] = user.aadhaar_file_url
+            data["aadhaar_file_url"] = await _presign(user.aadhaar_file_url)
             data["aadhaar_file_name"] = user.aadhaar_file_name
-            data["pan_file_url"] = user.pan_file_url
+            data["pan_file_url"] = await _presign(user.pan_file_url)
             data["pan_file_name"] = user.pan_file_name
-            data["passbook_file_url"] = user.passbook_file_url
+            data["passbook_file_url"] = await _presign(user.passbook_file_url)
             data["passbook_file_name"] = user.passbook_file_name
-            data["dl_file_url"] = user.dl_file_url
+            data["dl_file_url"] = await _presign(user.dl_file_url)
             data["dl_file_name"] = user.dl_file_name
-            data["dl_number"] = data.get("dl_number") or user.dl_number
+            # Fall back to user DL fields when no DriverLicense record exists
+            if not data.get("license_number"):
+                data["license_number"] = user.dl_number
+            if not data.get("license_expiry"):
+                data["license_expiry"] = str(user.dl_expiry_date) if user.dl_expiry_date else None
+            data["dl_number"] = data.get("license_number")
             data["dl_issue_date"] = data.get("dl_issue_date") or (str(user.dl_issue_date) if user.dl_issue_date else None)
-            data["dl_expiry_date"] = data.get("license_expiry") or (str(user.dl_expiry_date) if user.dl_expiry_date else None)
+            data["dl_expiry_date"] = data.get("license_expiry")
             data["bank_account_holder"] = user.bank_account_holder
             data["account_number"] = user.account_number
             data["ifsc_code"] = user.ifsc_code
@@ -1436,12 +1462,15 @@ async def get_driver_documents(
 
     extra_docs = await _collect_driver_documents(db, driver_id)
     for dd in extra_docs:
+        raw_url = dd.get("file_url")
+        from app.services import s3_service as _s3
+        view_url = await _s3.presign_stored_url(raw_url) if raw_url else None
         docs.append({
             "id": dd.get("id"),
             "doc_type": dd.get("document_type"),
             "doc_name": dd.get("file_name") or str(dd.get("document_type") or "Document").replace('_', ' ').title(),
             "doc_number": dd.get("document_number"),
-            "file_url": dd.get("file_url"),
+            "file_url": view_url,
             "status": "verified" if dd.get("is_verified") else "pending",
             "verified": bool(dd.get("is_verified")),
             "uploaded_at": dd.get("uploaded_at"),
@@ -1522,6 +1551,21 @@ async def upload_driver_document_for_fleet(
             linked_user = user_result.scalar_one_or_none()
             if linked_user:
                 linked_user.avatar_url = file_url
+
+    # Sync document URL to User model fields so GET /drivers/{id} reflects the upload
+    _DOC_TYPE_TO_USER_FIELD = {
+        "aadhaar_card":    ("aadhaar_file_url",    "aadhaar_file_name"),
+        "driving_license": ("dl_file_url",          "dl_file_name"),
+        "pan_card":        ("pan_file_url",         "pan_file_name"),
+        "bank_passbook":   ("passbook_file_url",    "passbook_file_name"),
+    }
+    if document_type in _DOC_TYPE_TO_USER_FIELD and driver.user_id:
+        url_field, name_field = _DOC_TYPE_TO_USER_FIELD[document_type]
+        user_result = await db.execute(select(User).where(User.id == driver.user_id))
+        linked_user = user_result.scalar_one_or_none()
+        if linked_user:
+            setattr(linked_user, url_field, file_url)
+            setattr(linked_user, name_field, safe_name)
 
     await db.commit()
     await db.refresh(doc)

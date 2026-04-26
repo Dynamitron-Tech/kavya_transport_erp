@@ -10,6 +10,7 @@ ROLE_PREFIX: dict[str, str] = {
     "FLEET_MANAGER": "KTFM",
     "ACCOUNTANT": "KTA",
     "PROJECT_ASSOCIATE": "KTPA",
+    "TYRE_INSPECTOR": "KTTI",
     # Also accept lowercase keys
     "driver": "KTD",
     "pump_operator": "KTP",
@@ -17,6 +18,7 @@ ROLE_PREFIX: dict[str, str] = {
     "fleet_manager": "KTFM",
     "accountant": "KTA",
     "project_associate": "KTPA",
+    "tyre_inspector": "KTTI",
 }
 
 

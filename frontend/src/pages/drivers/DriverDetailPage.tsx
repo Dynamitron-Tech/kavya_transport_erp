@@ -1,15 +1,16 @@
 // @ts-nocheck
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { driverService } from '@/services/dataService';
 import { StatusBadge, LoadingPage } from '@/components/common/Modal';
 import type { Driver, DriverTrip, DriverBehaviour, DriverPerformance, DriverDocument, DriverAttendance } from '@/types';
-import { safeArray } from '@/utils/helpers';
+import { safeArray, openDocumentUrl } from '@/utils/helpers';
+import api from '@/services/api';
 import {
   ArrowLeft, Edit, Star, ChevronRight, Phone, Mail, MapPin, Calendar,
   Shield, Truck, TrendingUp, FileText, User, Activity, AlertTriangle,
-  CheckCircle2, XCircle, Fuel, Gauge, Zap, Eye,
+  CheckCircle2, XCircle, Fuel, Gauge, Zap, Eye, Upload, RefreshCw,
 } from 'lucide-react';
 import { DocumentChecklist } from '@/components/documents/DocumentChecklist';
 
@@ -63,6 +64,7 @@ function OverviewTab({ driver }: { driver: Driver }) {
   const joiningDate = formatDateSafe((driver as any).joining_date || (driver as any).created_at || null);
   const licenseExpiryRaw = (driver as any).license_expiry || null;
   const licenseExpiry = formatDateSafe(licenseExpiryRaw);
+  const licenseIssueDate = formatDateSafe((driver as any).dl_issue_date || null);
   const isLicenseExpired = Boolean(
     licenseExpiryRaw && !Number.isNaN(new Date(licenseExpiryRaw).getTime()) && new Date(licenseExpiryRaw) < new Date()
   );
@@ -89,11 +91,11 @@ function OverviewTab({ driver }: { driver: Driver }) {
         <InfoRow label="Designation" value={driver.designation || 'Driver'} />
         <InfoRow label="Joining Date" value={joiningDate} icon={Calendar} />
         <InfoRow label="License No." value={<span className="font-mono">{driver.license_number || '—'}</span>} />
-        <InfoRow label="License Type" value={driver.license_type || '—'} />
+        <InfoRow label="License Issue Date" value={licenseIssueDate || '—'} icon={Calendar} />
         <InfoRow label="License Expiry" value={licenseExpiry}
           className={isLicenseExpired ? 'text-red-600' : ''} />
         <InfoRow label="Salary Type" value={driver.salary_type || '—'} />
-        <InfoRow label="Base Salary" value={`₹${Number((driver.salary_base || 0) ?? 0).toLocaleString('en-IN')}`} />
+        <InfoRow label="Base Salary" value={`₹${Number(((driver as any).base_salary || 0) ?? 0).toLocaleString('en-IN')}`} />
         {driver.per_km_rate && <InfoRow label="Per KM Rate" value={`₹${driver.per_km_rate}`} />}
         <InfoRow label="Bank" value={driver.bank_name} />
       </div>
@@ -358,66 +360,158 @@ function BehaviourTab({ driverId }: { driverId: number }) {
 // ═══════════════════════════════════════════════════════
 // Tab: Documents
 // ═══════════════════════════════════════════════════════
-// Tab: Documents
-// ═══════════════════════════════════════════════════════
-function DocCard({ label, fileUrl, fileName, icon }: { label: string; fileUrl?: string | null; fileName?: string | null; icon: React.ReactNode }) {
-  if (!fileUrl) return (
-    <div className="flex items-center gap-3 p-4 rounded-xl border border-dashed border-gray-200 bg-gray-50">
-      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300">{icon}</div>
-      <div>
-        <p className="text-sm font-medium text-gray-500">{label}</p>
-        <p className="text-xs text-gray-400">Not uploaded</p>
-      </div>
-    </div>
-  );
-  const isImage = /\.(jpg|jpeg|png|webp|gif)(?:\?|$)/i.test(fileUrl) || fileUrl.startsWith('data:image');
+function DocCard({
+  label, fileUrl, fileName, icon, docType, driverId, onUploaded,
+}: {
+  label: string;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  icon: React.ReactNode;
+  docType: string;
+  driverId: number;
+  onUploaded: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('document_type', docType);
+      await api.post(`/drivers/${driverId}/documents`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      onUploaded();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Upload failed');
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const isImage = fileUrl && (/\.(jpg|jpeg|png|webp|gif)(?:\?|$)/i.test(fileUrl) || fileUrl.startsWith('data:image'));
+
   return (
-    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-      {isImage ? (
-        <a href={fileUrl} target="_blank" rel="noreferrer">
-          <img src={fileUrl} alt={label} className="w-full h-36 object-cover" />
-        </a>
-      ) : (
-        <div className="h-36 flex items-center justify-center bg-indigo-50">
-          <div className="text-center">
-            <div className="text-indigo-400 text-3xl mb-1">{icon}</div>
-            <p className="text-xs text-indigo-400">PDF Document</p>
+    <div className={`rounded-xl border ${fileUrl ? 'border-gray-200 bg-white shadow-sm' : 'border-dashed border-gray-200 bg-gray-50'} overflow-hidden`}>
+      {fileUrl ? (
+        <>
+          {isImage ? (
+            <button type="button" onClick={() => openDocumentUrl(fileUrl)} className="w-full block cursor-pointer">
+              <img src={fileUrl} alt={label} className="w-full h-36 object-cover" />
+            </button>
+          ) : (
+            <div className="h-36 flex items-center justify-center bg-indigo-50">
+              <div className="text-center">
+                <div className="text-indigo-400 text-3xl mb-1">{icon}</div>
+                <p className="text-xs text-indigo-400">PDF Document</p>
+              </div>
+            </div>
+          )}
+          <div className="px-3 py-2 flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-700 truncate">{label}</p>
+              {fileName && <p className="text-xs text-gray-400 truncate">{fileName}</p>}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button type="button" onClick={() => openDocumentUrl(fileUrl)}
+                className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md hover:bg-indigo-100 transition-colors flex items-center gap-1">
+                <Eye size={11} /> View
+              </button>
+              <button
+                onClick={() => inputRef.current?.click()}
+                disabled={uploading}
+                className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-md hover:bg-amber-100 transition-colors flex items-center gap-1 disabled:opacity-50"
+              >
+                {uploading ? <RefreshCw size={11} className="animate-spin" /> : <RefreshCw size={11} />} Replace
+              </button>
+            </div>
           </div>
+        </>
+      ) : (
+        <div className="flex items-center gap-3 p-4">
+          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300 shrink-0">{icon}</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-500">{label}</p>
+            <p className="text-xs text-gray-400">Not uploaded</p>
+            {error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}
+          </div>
+          <button
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className="shrink-0 text-xs font-semibold text-primary-600 bg-primary-50 px-3 py-1.5 rounded-md hover:bg-primary-100 transition-colors flex items-center gap-1 disabled:opacity-50"
+          >
+            {uploading ? <RefreshCw size={11} className="animate-spin" /> : <Upload size={11} />} Upload
+          </button>
         </div>
       )}
-      <div className="px-3 py-2 flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold text-gray-700 truncate">{label}</p>
-          {fileName && <p className="text-xs text-gray-400 truncate">{fileName}</p>}
-        </div>
-        <a href={fileUrl} target="_blank" rel="noreferrer"
-          className="shrink-0 text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md hover:bg-indigo-100 transition-colors">
-          View
-        </a>
-      </div>
+      {error && fileUrl && <p className="text-xs text-red-500 px-3 pb-2">{error}</p>}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        className="hidden"
+        onChange={handleFileChange}
+      />
     </div>
   );
 }
 
-function DocumentsTab({ driver }: { driver: any }) {
+function DocumentsTab({ driver, driverId }: { driver: any; driverId: number }) {
+  const queryClient = useQueryClient();
   const d = driver as any;
-  const hasAny = d.aadhaar_file_url || d.dl_file_url || d.pan_file_url || d.passbook_file_url || d.avatar_url || d.photo_url;
+
+  // Fetch directly from DriverDocument table — source of truth after upload
+  const { data: docsResponse, refetch: refetchDocs } = useQuery({
+    queryKey: ['driver-documents', driverId],
+    queryFn: () => api.get(`/drivers/${driverId}/documents`),
+  });
+
+  const docItems: any[] = safeArray(
+    (docsResponse as any)?.data?.items ?? (docsResponse as any)?.items ?? docsResponse
+  );
+
+  // Build a map: document_type → { file_url, doc_name }
+  const docMap = new Map<string, { file_url: string; doc_name: string }>();
+  docItems.forEach((item: any) => {
+    if (item.file_url) {
+      docMap.set(String(item.doc_type || ''), { file_url: item.file_url, doc_name: item.doc_name });
+    }
+  });
+
+  const getUrl = (docType: string, fallbackUrl?: string | null) =>
+    docMap.get(docType)?.file_url || fallbackUrl || null;
+
+  const onUploaded = () => {
+    refetchDocs();
+    queryClient.invalidateQueries({ queryKey: ['driver', String(driverId)] });
+  };
+
   return (
     <div className="space-y-5">
-      {/* Uploaded Documents */}
       <div className="card">
-        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><FileText size={16} className="text-indigo-500" />Uploaded Documents</h3>
-        {!hasAny && (
-          <p className="text-sm text-gray-400 text-center py-6">No documents uploaded yet. Upload documents during employee onboarding.</p>
-        )}
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <FileText size={16} className="text-indigo-500" />Uploaded Documents
+        </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {(d.avatar_url || d.photo_url) && (
-            <DocCard label="Employee Photo" fileUrl={d.avatar_url || d.photo_url} icon={<User size={22} />} />
+            <DocCard label="Employee Photo" fileUrl={getUrl('driver_photo', d.avatar_url || d.photo_url)} icon={<User size={22} />}
+              docType="driver_photo" driverId={driverId} onUploaded={onUploaded} />
           )}
-          <DocCard label="Aadhaar Card" fileUrl={d.aadhaar_file_url} fileName={d.aadhaar_file_name} icon={<Shield size={22} />} />
-          <DocCard label="Driving License" fileUrl={d.dl_file_url} fileName={d.dl_file_name} icon={<FileText size={22} />} />
-          <DocCard label="PAN Card" fileUrl={d.pan_file_url} fileName={d.pan_file_name} icon={<User size={22} />} />
-          <DocCard label="Passbook" fileUrl={d.passbook_file_url} fileName={d.passbook_file_name} icon={<FileText size={22} />} />
+          <DocCard label="Aadhaar Card" fileUrl={getUrl('aadhaar_card', d.aadhaar_file_url)} fileName={d.aadhaar_file_name}
+            icon={<Shield size={22} />} docType="aadhaar_card" driverId={driverId} onUploaded={onUploaded} />
+          <DocCard label="Driving License" fileUrl={getUrl('driving_license', d.dl_file_url)} fileName={d.dl_file_name}
+            icon={<FileText size={22} />} docType="driving_license" driverId={driverId} onUploaded={onUploaded} />
+          <DocCard label="PAN Card" fileUrl={getUrl('pan_card', d.pan_file_url)} fileName={d.pan_file_name}
+            icon={<User size={22} />} docType="pan_card" driverId={driverId} onUploaded={onUploaded} />
+          <DocCard label="Passbook" fileUrl={getUrl('bank_passbook', d.passbook_file_url)} fileName={d.passbook_file_name}
+            icon={<FileText size={22} />} docType="bank_passbook" driverId={driverId} onUploaded={onUploaded} />
         </div>
       </div>
     </div>
@@ -737,7 +831,7 @@ export default function DriverDetailPage() {
         {activeTab === 'overview' && <OverviewTab driver={driver} />}
         {activeTab === 'trips' && <TripsTab driverId={driverId} />}
         {activeTab === 'behaviour' && <BehaviourTab driverId={driverId} />}
-        {activeTab === 'documents' && <DocumentsTab driver={driver} />}
+        {activeTab === 'documents' && <DocumentsTab driver={driver} driverId={driverId} />}
         {activeTab === 'performance' && <PerformanceTab driverId={driverId} />}
         {activeTab === 'attendance' && <AttendanceTab driverId={driverId} />}
       </div>

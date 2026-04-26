@@ -260,6 +260,8 @@ ROLE_PERMISSIONS = {
         Permissions.REPORT_VIEW,
         # Documents
         Permissions.DOCUMENT_CREATE, Permissions.DOCUMENT_READ, Permissions.DOCUMENT_UPDATE,
+        # User (read — needed for driver/user cross-reference in drivers dashboard and attendance)
+        Permissions.USER_READ,
         # Intelligence
         Permissions.GPS_DATA_READ, Permissions.DRIVER_SCORE_READ,
         Permissions.INTELLIGENCE_VIEW, Permissions.EVENT_BUS_READ, Permissions.EVENT_BUS_ACK,
@@ -332,6 +334,8 @@ ROLE_PERMISSIONS = {
         Permissions.VEHICLE_READ,
         # Driver
         Permissions.DRIVER_READ,
+        # User (read — needed for driver user cross-reference on Create LR and Attendance)
+        Permissions.USER_READ,
         # Documents
         Permissions.DOCUMENT_CREATE, Permissions.DOCUMENT_READ, Permissions.DOCUMENT_UPDATE,
         # Alerts / Notifications

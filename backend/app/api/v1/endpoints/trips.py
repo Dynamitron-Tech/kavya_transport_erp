@@ -858,6 +858,7 @@ async def lookup_vehicles(
     current_user: TokenData = Depends(get_current_user),
 ):
     from app.models.postgres.driver import DriverLicense
+    from app.models.postgres.user import User
     query = select(Vehicle.id, Vehicle.registration_number, Vehicle.vehicle_type, Vehicle.default_driver_id).where(Vehicle.is_deleted == False)
     if search:
         query = query.where(Vehicle.registration_number.ilike(f"%{search}%"))
@@ -872,7 +873,7 @@ async def lookup_vehicles(
         # Prefer the explicitly assigned default driver
         if v.default_driver_id:
             dr_result = await db.execute(
-                select(Driver.id, Driver.first_name, Driver.last_name, Driver.phone)
+                select(Driver.id, Driver.first_name, Driver.last_name, Driver.phone, Driver.user_id)
                 .where(Driver.id == v.default_driver_id, Driver.is_deleted == False)
             )
             driver_row = dr_result.first()
@@ -880,7 +881,7 @@ async def lookup_vehicles(
             # Fall back to most recently assigned driver via trips
             driver_row = None
             trip_result = await db.execute(
-                select(Driver.id, Driver.first_name, Driver.last_name, Driver.phone)
+                select(Driver.id, Driver.first_name, Driver.last_name, Driver.phone, Driver.user_id)
                 .join(Trip, Trip.driver_id == Driver.id)
                 .where(Trip.vehicle_id == v.id, Driver.is_deleted == False)
                 .order_by(Trip.id.desc())
@@ -896,11 +897,17 @@ async def lookup_vehicles(
                 .limit(1)
             )
             lic = lic_result.scalars().first()
+            license_number = lic.license_number if lic else None
+            if not license_number and driver_row.user_id:
+                u_res = await db.execute(
+                    select(User.dl_number).where(User.id == driver_row.user_id)
+                )
+                license_number = u_res.scalar_one_or_none()
             driver_info = {
                 "id": driver_row.id,
                 "name": f"{driver_row.first_name} {driver_row.last_name or ''}".strip(),
                 "phone": driver_row.phone,
-                "license_number": lic.license_number if lic else None,
+                "license_number": license_number,
             }
 
         items.append({
@@ -919,8 +926,9 @@ async def lookup_drivers(
     current_user: TokenData = Depends(get_current_user),
 ):
     from app.models.postgres.driver import DriverLicense
+    from app.models.postgres.user import User
 
-    query = select(Driver.id, Driver.first_name, Driver.last_name, Driver.phone).where(Driver.is_deleted == False)
+    query = select(Driver.id, Driver.first_name, Driver.last_name, Driver.phone, Driver.user_id).where(Driver.is_deleted == False)
     if search:
         query = query.where(Driver.first_name.ilike(f"%{search}%"))
     query = query.order_by(Driver.first_name).limit(50)
@@ -933,13 +941,24 @@ async def lookup_drivers(
             .order_by(DriverLicense.id.desc())
         )
         lic = lic_result.scalars().first()
+        license_number = lic.license_number if lic else None
+        license_expiry = str(lic.expiry_date) if lic and lic.expiry_date else None
+        if not license_number and r.user_id:
+            u_res = await db.execute(
+                select(User.dl_number, User.dl_expiry_date).where(User.id == r.user_id)
+            )
+            u_row = u_res.first()
+            if u_row:
+                license_number = u_row[0]
+                if not license_expiry and u_row[1]:
+                    license_expiry = str(u_row[1])
         items.append(
             {
                 "id": r.id,
                 "name": f"{r.first_name} {r.last_name}".strip(),
                 "phone": r.phone,
-                "license_number": lic.license_number if lic else None,
-                "license_expiry": str(lic.expiry_date) if lic and lic.expiry_date else None,
+                "license_number": license_number,
+                "license_expiry": license_expiry,
             }
         )
     return APIResponse(success=True, data=items)

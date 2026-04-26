@@ -77,3 +77,10 @@ frontend/*_result.png
 
 # Uploaded user files (binaries, not source code)
 backend/uploads/documents/
+
+# Environment secrets
+.env
+*.env
+.env.*
+!.env.example
+

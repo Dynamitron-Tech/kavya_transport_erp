@@ -14,6 +14,7 @@ import {
 import { Modal } from '@/components/common/Modal';
 import { DocumentUploadWithExtraction, type ExtractionResult } from './DocumentUploadWithExtraction';
 import { documentService } from '@/services/dataService';
+import { openDocumentUrl } from '@/utils/helpers';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -171,15 +172,14 @@ function DocumentCard({
 
         <div className="shrink-0 flex items-center gap-2">
           {status !== 'missing' && fileUrl && (
-            <a
-              href={resolveFileUrl(fileUrl)}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => openDocumentUrl(resolveFileUrl(fileUrl))}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors text-blue-600"
             >
               <Eye size={12} />
               View
-            </a>
+            </button>
           )}
           <button
             onClick={() => setModalOpen(true)}

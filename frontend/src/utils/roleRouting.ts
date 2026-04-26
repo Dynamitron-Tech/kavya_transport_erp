@@ -38,6 +38,8 @@ export const getRoleHomePage = (role?: unknown): string => {
       return '/dashboard';
     case 'PUMP_OPERATOR':
       return '/pump/dashboard';
+    case 'TYRE_INSPECTOR':
+      return '/fleet/tyres';
     default:
       return '/dashboard';
   }

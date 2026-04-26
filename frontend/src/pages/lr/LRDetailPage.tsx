@@ -110,8 +110,6 @@ export default function LRDetailPage() {
       {/* Stats row */}
       <div className="flex gap-3">
         <StatChip label="Total Freight" value={fmt(totalFreight)} color="bg-emerald-50 text-emerald-800" />
-        <StatChip label="Advance Paid" value={fmt(advance)} color="bg-blue-50 text-blue-800" />
-        <StatChip label="Balance Due" value={fmt(balance)} color={balance > 0 ? "bg-red-50 text-red-700" : "bg-gray-50 text-gray-600"} />
         {lr.total_weight && <StatChip label="Total Weight" value={`${lr.total_weight} kg`} color="bg-amber-50 text-amber-800" />}
       </div>
 
@@ -225,17 +223,6 @@ export default function LRDetailPage() {
                 </div>
                 <span className="font-semibold">{fmt(totalFreight)}</span>
               </div>
-              <div className="flex justify-between items-center p-3 rounded-lg bg-blue-50">
-                <div className="flex items-center gap-2">
-                  <CreditCard size={14} className="text-blue-400" />
-                  <span className="text-sm text-blue-700">Advance Paid</span>
-                </div>
-                <span className="font-semibold text-blue-700">- {fmt(advance)}</span>
-              </div>
-              <div className={`flex justify-between items-center p-3 rounded-lg ${balance > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
-                <span className={`text-sm font-medium ${balance > 0 ? 'text-red-700' : 'text-green-700'}`}>Balance Due</span>
-                <span className={`text-lg font-bold ${balance > 0 ? 'text-red-700' : 'text-green-700'}`}>{fmt(balance)}</span>
-              </div>
             </div>
             {/* Weight/packages */}
             <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-3">
@@ -276,12 +263,11 @@ export default function LRDetailPage() {
                   <th className="table-header">Packages</th>
                   <th className="table-header">Actual Wt.</th>
                   <th className="table-header">Charged Wt.</th>
-                  <th className="table-header">Rate</th>
                   <th className="table-header text-right">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {lr.items.map((item: any) => (
+                {lr.items.map((item: any, idx: number) => (
                   <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                     <td className="table-cell">
                       <div className="font-medium text-gray-900">{item.description}</div>
@@ -291,8 +277,9 @@ export default function LRDetailPage() {
                     <td className="table-cell">{item.packages ?? '—'}</td>
                     <td className="table-cell">{item.actual_weight != null ? `${item.actual_weight} kg` : '—'}</td>
                     <td className="table-cell">{item.charged_weight != null ? `${item.charged_weight} kg` : '—'}</td>
-                    <td className="table-cell">₹{Number(item.rate || 0).toLocaleString('en-IN')}</td>
-                    <td className="table-cell text-right font-semibold text-gray-900">₹{Number(item.amount || 0).toLocaleString('en-IN')}</td>
+                    <td className="table-cell text-right font-semibold text-gray-900">
+                      {idx === 0 ? fmt(totalFreight) : '—'}
+                    </td>
                   </tr>
                 ))}
               </tbody>

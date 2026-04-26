@@ -830,10 +830,17 @@ class DocumentExtractionService:
         tesseract_fn = _tesseract_methods.get(normalized_document_type)
         if tesseract_fn is not None:
             try:
-                tess_result = tesseract_fn(
-                    file_bytes=file_bytes,
-                    media_type=media_type,
-                    document_type=document_type,
+                import asyncio
+                import functools
+                loop = asyncio.get_event_loop()
+                tess_result = await loop.run_in_executor(
+                    None,
+                    functools.partial(
+                        tesseract_fn,
+                        file_bytes=file_bytes,
+                        media_type=media_type,
+                        document_type=document_type,
+                    ),
                 )
                 return tess_result
             except Exception as e:
@@ -1221,7 +1228,7 @@ class DocumentExtractionService:
 
         # ── 1. Upscale ──
         w, h = image.size
-        min_long_edge = 2400
+        min_long_edge = 1200
         if max(w, h) < min_long_edge:
             scale = min_long_edge / max(w, h)
             image = image.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
@@ -1265,10 +1272,8 @@ class DocumentExtractionService:
 
     def _run_tesseract_multipass(self, image: "Image.Image") -> str:  # type: ignore[name-defined]
         """
-        Run Tesseract in multiple PSM modes and languages, returning combined text.
-        Uses PSM 6 (uniform block), 4 (single column), and 11 (sparse text).
-        Tries English first, then Hindi+English for Indian documents.
-        Returns the longest non-empty result from the first successful pass.
+        Run Tesseract with two PSM passes (PSM 6 block + PSM 11 sparse) in English.
+        Kept lightweight to avoid blocking the asyncio event loop for too long.
         """
         import pytesseract
 
@@ -1285,32 +1290,108 @@ class DocumentExtractionService:
                         break
 
         results: list[str] = []
-        for psm in ("6", "4", "11", "3"):
-            for lang in ("eng", "eng+hin"):
-                try:
-                    t = pytesseract.image_to_string(
-                        image, lang=lang,
-                        config=f"--oem 3 --psm {psm}",
-                    ) or ""
-                    if t.strip():
-                        results.append(t)
-                except Exception:
-                    pass
-            if results:
-                break  # stop at first PSM mode that yields text
+        for psm in ("6", "11"):
+            try:
+                t = pytesseract.image_to_string(
+                    image, lang="eng",
+                    config=f"--oem 3 --psm {psm}",
+                ) or ""
+                if t.strip() and t not in results:
+                    results.append(t)
+            except Exception:
+                pass
 
-        # Also try to get any remaining text from other modes and append
-        for psm in ("4", "11"):
-            for lang in ("eng",):
-                try:
-                    t = pytesseract.image_to_string(
-                        image, lang=lang,
-                        config=f"--oem 3 --psm {psm}",
-                    ) or ""
-                    if t.strip() and t not in results:
-                        results.append(t)
-                except Exception:
-                    pass
+        return "\n".join(results)
+
+    def _preprocess_dl_for_ocr(self, image: "Image.Image") -> "Image.Image":  # type: ignore[name-defined]
+        """
+        DL-specific preprocessing using OpenCV.
+        Indian DL smart cards have holographic (rainbow iridescent) backgrounds.
+        Key insight: printed text is DARK in ALL color channels, but hologram
+        patches are bright in at least one channel.  Taking min(R,G,B) per pixel
+        suppresses hologram highlights while preserving dark text.
+        Falls back to standard preprocessing if OpenCV is unavailable.
+        """
+        try:
+            import cv2
+            import numpy as np
+            from PIL import Image
+
+            # Keep as RGB so we can exploit color channel information
+            rgb = image.convert("RGB")
+            arr = np.array(rgb, dtype=np.uint8)  # shape: (H, W, 3)
+
+            # 1. Upscale — keep max edge at 1800 px (fast, still good for OCR)
+            h, w = arr.shape[:2]
+            if max(h, w) < 1800:
+                scale = 1800 / max(h, w)
+                arr = cv2.resize(arr, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_CUBIC)
+
+            # 2. min(R,G,B) channel — text is dark in all channels, hologram
+            #    highlights are bright in ≥1 channel so min() suppresses them.
+            min_ch = np.min(arr, axis=2).astype(np.uint8)
+
+            # 3. CLAHE — boosts local contrast
+            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+            enhanced = clahe.apply(min_ch)
+
+            # 4. Median blur — removes salt-and-pepper hologram speckles better
+            #    than Gaussian blur does
+            blurred = cv2.medianBlur(enhanced, 3)
+
+            # 5. Adaptive threshold — local binarization handles the brightness
+            #    gradient across the holographic card surface
+            binary = cv2.adaptiveThreshold(
+                blurred, 255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY,
+                blockSize=21,
+                C=8,
+            )
+
+            # 6. Morphological open (remove isolated noise) then close (fill gaps)
+            k = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+            binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, k)
+            binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, k)
+
+            return Image.fromarray(binary)
+        except Exception:
+            # If OpenCV unavailable fall back to standard pipeline
+            return self._preprocess_for_ocr(image)
+
+    def _run_tesseract_multipass_dl(self, image: "Image.Image") -> str:  # type: ignore[name-defined]
+        """
+        Multi-pass Tesseract run tuned for DL smart cards.
+        The image is expected to be correctly oriented (landscape) before
+        this method is called — orientation correction is done upstream in
+        _extract_driving_license_tesseract.
+        """
+        import pytesseract
+
+        if os.name == "nt":
+            current = getattr(pytesseract.pytesseract, "tesseract_cmd", "tesseract")
+            if not os.path.exists(current):
+                for win_path in [
+                    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+                    r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+                ]:
+                    if os.path.exists(win_path):
+                        pytesseract.pytesseract.tesseract_cmd = win_path
+                        break
+
+        results: list[str] = []
+        for cfg in [
+            "--oem 3 --psm 6",   # uniform block of text
+            "--oem 3 --psm 11",  # sparse text — good for DL number area
+            # alphanumeric whitelist pass — reduces misreads on DL number
+            "--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/-",
+        ]:
+            try:
+                t = pytesseract.image_to_string(image, lang="eng", config=cfg) or ""
+                if t.strip():
+                    results.append(t)
+            except Exception:
+                pass
 
         return "\n".join(results)
 
@@ -1324,7 +1405,8 @@ class DocumentExtractionService:
         try:
             from PIL import Image
             import io
-            import pytesseract  # noqa: F401 — triggers the import check
+            import numpy as np
+            import pytesseract
         except Exception as e:
             return {
                 "extracted": False,
@@ -1348,9 +1430,45 @@ class DocumentExtractionService:
         text_chunks: list[str] = []
         try:
             for page_bytes in image_pages:
-                raw_image = Image.open(io.BytesIO(page_bytes)).convert("L")
-                image = self._preprocess_for_ocr(raw_image)
-                text_chunks.append(self._run_tesseract_multipass(image))
+                # Keep as RGB so _preprocess_dl_for_ocr can use color channel info
+                raw_image = Image.open(io.BytesIO(page_bytes)).convert("RGB")
+                rw, rh = raw_image.size
+
+                # Build candidate orientations to try.
+                # DL cards are landscape; portrait phone photos have the card
+                # rotated 90°.  Pre-rotating BEFORE preprocessing ensures the
+                # adaptive-threshold tiles align with horizontal text, giving
+                # Tesseract the best character recognition accuracy.
+                # PIL rotate() is CCW: rotate(270)=90°CW, rotate(90)=90°CCW.
+                candidates = [raw_image]
+                if rh > rw:  # portrait image — try both landscape orientations
+                    candidates.append(raw_image.rotate(270, expand=True))  # 90° CW
+                    candidates.append(raw_image.rotate(90, expand=True))   # 90° CCW
+
+                for i, candidate in enumerate(candidates):
+                    if i == 0:
+                        # Original orientation: full min-channel multipass (hologram suppression
+                        # for landscape DLs scanned directly).
+                        dl_image = self._preprocess_dl_for_ocr(candidate)
+                        text_chunks.append(self._run_tesseract_multipass_dl(dl_image))
+                    else:
+                        # Rotated candidates (portrait phone photos): plain gray single PSM-6
+                        # pass reads license number AND dates better than min-channel
+                        # preprocessing (which blurs fine digits at this angle).
+                        try:
+                            _gray_arr = np.array(candidate.convert("L"))
+                            _gray_text = pytesseract.image_to_string(
+                                _gray_arr, lang="eng", config="--oem 3 --psm 6"
+                            ) or ""
+                            if _gray_text.strip():
+                                text_chunks.append(_gray_text)
+                        except Exception:
+                            pass
+
+                # Also run standard grayscale preprocessing on original as fallback
+                gray_image = raw_image.convert("L")
+                std_image = self._preprocess_for_ocr(gray_image)
+                text_chunks.append(self._run_tesseract_multipass(std_image))
             text = "\n".join(chunk for chunk in text_chunks if chunk)
         except Exception as e:
             return {
@@ -1359,7 +1477,48 @@ class DocumentExtractionService:
                 "message": f"Tesseract OCR failed: {str(e)}",
             }
 
-        data = self._parse_driving_license_text(text)
+        # Parse each OCR chunk individually first — this prevents the license
+        # number parser from being buried past its line-limit when many chunks
+        # are concatenated together (e.g. 9 passes × ~50 lines each).
+        # We take the best fields found across all chunks.
+        merged: dict = {
+            "license_number": None,
+            "holder_name": None,
+            "issue_date": None,
+            "expiry_date": None,
+            "dob": None,
+            "blood_group": None,
+        }
+        for chunk in text_chunks:
+            if not chunk:
+                continue
+            parsed = self._parse_driving_license_text(chunk)
+            for field, val in parsed.items():
+                if val is not None and merged.get(field) is None:
+                    merged[field] = val
+            if all(v is not None for v in merged.values()):
+                break  # all fields found, no need to keep parsing
+
+        # Final pass on full combined text to catch anything missed per-chunk
+        if any(v is None for v in merged.values()):
+            full_parsed = self._parse_driving_license_text(text)
+            for field, val in full_parsed.items():
+                if val is not None and merged.get(field) is None:
+                    merged[field] = val
+
+        data = merged
+
+        # Final fallback: if expiry still not found, compute as issue_date + 20 years
+        # (Indian non-transport DL validity). Done AFTER all chunks merged so a real
+        # OCR-read expiry from any chunk takes priority over this estimate.
+        if data.get("issue_date") and not data.get("expiry_date"):
+            try:
+                _iss_dt = datetime.strptime(data["issue_date"], "%d/%m/%Y")
+                _exp_dt = _iss_dt.replace(year=_iss_dt.year + 20)
+                data["expiry_date"] = _exp_dt.strftime("%d/%m/%Y")
+            except Exception:
+                pass
+
         if not any(v is not None for v in data.values()):
             return {
                 "extracted": False,
@@ -2964,7 +3123,13 @@ class DocumentExtractionService:
         # ══════════════════════════════════════════════
         issue_date = self._extract_date_from_line_context(
             lines,
-            [r"(?:I|L)SSUE\s*DATE", r"DATE\s*OF\s*ISSUE", r"ISSUED\s*ON", r"\bDOI\b"],
+            [
+                r"(?:I|L)SSUE\s*DATE",
+                r"DATE\s*OF\s*(?:FIRST\s*)?(?:I|L)SSUE",
+                r"FIRST\s*(?:I|L)SSUE",
+                r"(?:I|L)SSUED\s*ON",
+                r"\bDOI\b",
+            ],
             pick="first",
         )
 
@@ -3032,9 +3197,16 @@ class DocumentExtractionService:
             if all_dates:
                 unique_dates = self._sort_dates_unique(all_dates)
                 if not issue_date:
-                    issue_date = unique_dates[0]
+                    # Don't assign a date that is already the expiry — avoids duplicating
+                    # the validity-NT date into the issue field when only one date is found.
+                    issue_candidates = [d for d in unique_dates if d != expiry_date]
+                    if issue_candidates:
+                        issue_date = issue_candidates[0]
                 if not expiry_date:
-                    expiry_date = unique_dates[-1]
+                    # Don't assign the same date as issue_date to expiry
+                    expiry_candidates = [d for d in unique_dates if d != issue_date]
+                    if expiry_candidates:
+                        expiry_date = expiry_candidates[-1]
 
         # Sanity check: if issue_date == dob, it's probably wrong
         if issue_date and dob and issue_date == dob:
@@ -3295,6 +3467,51 @@ class DocumentExtractionService:
                 normalized = self._normalize_license_token(token)
                 if self._is_probable_driving_license_number(normalized):
                     return normalized
+
+        # ── Fragment recovery ─────────────────────────────────────────────────────
+        # Holographic DL cards cause OCR to fragment the number across lines and
+        # drop characters (e.g. "TN7220240005499" → "N722024000" on line A and
+        # "5499" on line B, with the leading "T" lost entirely).
+        #
+        # Strategy:
+        #   1. Extract digit-only groups (≥4 digits) from all tokens in first 20 lines
+        #   2. For every ordered pair (i, j) within ±5 positions, concatenate
+        #      digit_groups[i] + digit_groups[j]
+        #   3. Validate: combined[2:6] must be a plausible issue year (2010-2035)
+        #   4. Prepend each known Indian state code; validate full DL number
+        _STATE_CODES = [
+            "TN", "MH", "KA", "AP", "TG", "KL", "GJ", "DL", "UP", "RJ",
+            "MP", "HR", "PB", "WB", "OD", "AS", "JH", "CG", "UK", "HP",
+            "BR", "NL", "MN", "TR", "SK", "AR", "MZ", "GA", "AN", "CH",
+        ]
+
+        digit_groups: list[str] = []
+        for ln in lines[:20]:
+            for tok in re.findall(r"[A-Z0-9]+", ln.upper()):
+                dg = re.sub(r"[^0-9]", "", tok)
+                if len(dg) >= 4:
+                    digit_groups.append(dg)
+
+        for i, dg_i in enumerate(digit_groups):
+            lo = max(0, i - 5)
+            hi = min(len(digit_groups), i + 6)
+            for j in range(lo, hi):
+                combined = dg_i if j == i else dg_i + digit_groups[j]
+                if not (11 <= len(combined) <= 14):
+                    continue
+                # Digits[2:6] must be a plausible DL issue year
+                try:
+                    if not (2010 <= int(combined[2:6]) <= 2035):
+                        continue
+                except Exception:
+                    continue
+                for code in _STATE_CODES:
+                    candidate = self._normalize_license_token(code + combined)
+                    if (
+                        self._is_probable_driving_license_number(candidate)
+                        and len(candidate) >= 13
+                    ):
+                        return candidate
 
         return None
 

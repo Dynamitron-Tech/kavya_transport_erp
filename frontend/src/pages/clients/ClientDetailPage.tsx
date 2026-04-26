@@ -6,7 +6,7 @@ import { clientService, jobService, documentService } from '@/services/dataServi
 import { StatusBadge, LoadingPage, Modal } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import { ArrowLeft, Phone, Mail, MapPin, Edit, ChevronRight, Plus, Truck, User, Package, IndianRupee, Calendar, CheckCircle2, FileText, ExternalLink } from 'lucide-react';
-import { safeArray } from '@/utils/helpers';
+import { safeArray, openDocumentUrl } from '@/utils/helpers';
 import { handleApiError } from '../../utils/handleApiError';
 import api from '@/services/api';
 
@@ -331,9 +331,9 @@ export default function ClientDetailPage() {
                     <p className="text-xs text-gray-500">Uploaded: {doc.created_at ? new Date(doc.created_at.endsWith('Z') || doc.created_at.includes('+') ? doc.created_at : doc.created_at + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}</p>
                   </div>
                   {doc.file_url && (
-                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-medium">
+                    <button type="button" onClick={() => openDocumentUrl(doc.file_url)} className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-medium">
                       View <ExternalLink size={14} />
-                    </a>
+                    </button>
                   )}
                 </div>
                 {doc.file_url && /\.(jpg|jpeg|png|webp)$/i.test(doc.file_url) && (
@@ -377,7 +377,7 @@ export default function ClientDetailPage() {
               </thead>
               <tbody>
                 {jobs.map((j: any) => (
-                  <tr key={j.id} onClick={() => navigate(`/jobs/${j.id}`)} className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors">
+                  <tr key={j.id} onClick={() => j.lr_id ? navigate(`/lr/${j.lr_id}`) : navigate(`/jobs/${j.id}`)} className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors">
                     <td className="py-2.5 px-3 font-mono font-semibold text-primary-600">{j.job_number}</td>
                     <td className="py-2.5 px-3">{j.origin_city || '—'} → {j.destination_city || '—'}</td>
                     <td className="py-2.5 px-3">{j.material_type || '—'}</td>

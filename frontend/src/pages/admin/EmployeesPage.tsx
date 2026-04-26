@@ -12,13 +12,13 @@ const parseDMY = (val: string): string | undefined => {
 
 import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Search, Plus, Shield, X, Trash2, Mail, Lock, Phone, User, BadgeCheck, Eye, EyeOff, Pencil, Upload, ExternalLink, FileText, Camera, FolderOpen } from 'lucide-react';
+import { Users, Search, Plus, Shield, X, Trash2, Mail, Lock, Phone, User, BadgeCheck, Eye, EyeOff, Pencil, Upload, ExternalLink, FileText, Camera, FolderOpen, RefreshCw } from 'lucide-react';
 import DataTable, { Column } from '@/components/common/DataTable';
 import { KPICard, StatusBadge } from '@/components/common/Modal';
 import { DocAutoFill } from '@/components/documents/DocAutoFill';
 import { documentService } from '@/services/dataService';
 import api from '@/services/api';
-import { safeArray } from '@/utils/helpers';
+import { safeArray, openDocumentUrl } from '@/utils/helpers';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 
@@ -70,6 +70,7 @@ const ROLE_OPTIONS = [
   { value: 'project_associate', label: 'Project Associate', description: 'Job & trip coordination', color: 'bg-amber-50 border-amber-200 text-amber-700' },
   { value: 'driver', label: 'Driver', description: 'Trip execution & mobile app', color: 'bg-purple-50 border-purple-200 text-purple-700' },
   { value: 'pump_operator', label: 'Pump Operator', description: 'Fuel dispensing & stock management', color: 'bg-orange-50 border-orange-200 text-orange-700' },
+  { value: 'tyre_inspector', label: 'Tyre Inspector', description: 'Tyre lifecycle, inspection & stock', color: 'bg-teal-50 border-teal-200 text-teal-700' },
 ] as const;
 
 // ── Shared helpers (module-level) ────────────────────────────────────────────
@@ -337,7 +338,7 @@ interface DLSectionProps {
   dlNumber: string;
   dlIssueDate: string;
   dlExpiryDate: string;
-  onChange: (patch: { dl_file_url?: string; dl_file_name?: string; dl_number?: string; dl_issue_date?: string; dl_expiry_date?: string; dl_holder_name?: string }) => void;
+  onChange: (patch: { dl_file_url?: string; dl_file_name?: string; dl_number?: string; dl_issue_date?: string; dl_expiry_date?: string }) => void;
 }
 
 function DrivingLicenseSection({ dlFileUrl, dlFileName, dlNumber, dlIssueDate, dlExpiryDate, onChange }: DLSectionProps) {
@@ -364,7 +365,6 @@ function DrivingLicenseSection({ dlFileUrl, dlFileName, dlNumber, dlIssueDate, d
         dl_number: data.license_number || data.dl_number || undefined,
         dl_issue_date: toISODate(data.issue_date || data.doi) || undefined,
         dl_expiry_date: toISODate(data.expiry_date || data.validity || data.valid_till) || undefined,
-        dl_holder_name: data.holder_name || undefined,
       });
       setExtractState('done');
     } catch (err: any) {
@@ -536,6 +536,98 @@ function DrivingLicenseSection({ dlFileUrl, dlFileName, dlNumber, dlIssueDate, d
     </div>
   );
 }
+
+// ─── Employee Document Upload Card ───────────────────────────────────────────
+const DOC_URL_FIELDS: Record<string, [string, string]> = {
+  aadhaar_card:    ['aadhaar_file_url',  'aadhaar_file_name'],
+  pan_card:        ['pan_file_url',      'pan_file_name'],
+  bank_passbook:   ['passbook_file_url', 'passbook_file_name'],
+  driving_license: ['dl_file_url',       'dl_file_name'],
+};
+
+function EmployeeDocCard({
+  label, docType, fileUrl, fileName, userId, onUploaded,
+}: {
+  label: string;
+  docType: string;
+  fileUrl?: string;
+  fileName?: string;
+  userId: number;
+  onUploaded: (urlField: string, url: string, nameField: string, name: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('document_type', docType);
+      const res: any = await api.post(`/users/${userId}/documents`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const [urlField, nameField] = DOC_URL_FIELDS[docType];
+      const data = res?.data ?? res ?? {};
+      onUploaded(urlField, data[urlField] ?? '', nameField, data[nameField] ?? file.name);
+      toast.success(`${label} uploaded`);
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Upload failed');
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const isImage = fileUrl && (/\.(jpg|jpeg|png|webp|gif)(?:\?|$)/i.test(fileUrl) || fileUrl.startsWith('data:image/'));
+
+  return (
+    <div className={`rounded-xl border p-4 ${fileUrl ? 'bg-slate-50 border-slate-100' : 'bg-white border-dashed border-slate-200'}`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-0.5">{label}</p>
+          {fileUrl && fileName && <p className="text-xs text-slate-700 truncate">{fileName}</p>}
+          {!fileUrl && <p className="text-xs text-slate-400">Not uploaded</p>}
+          {error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {fileUrl && (
+            <button onClick={() => openDocumentUrl(fileUrl)}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100">
+              <ExternalLink size={12} /> View
+            </button>
+          )}
+          <button
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors ${
+              fileUrl
+                ? 'text-amber-700 bg-amber-50 hover:bg-amber-100'
+                : 'text-primary-700 bg-primary-50 hover:bg-primary-100'
+            }`}
+          >
+            {uploading
+              ? <><RefreshCw size={12} className="animate-spin" /> Uploading…</>
+              : fileUrl
+              ? <><RefreshCw size={12} /> Replace</>
+              : <><Upload size={12} /> Upload</>
+            }
+          </button>
+        </div>
+      </div>
+      {fileUrl && isImage && (
+        <img src={fileUrl} alt={label} className="w-full max-h-48 object-contain rounded-lg border border-slate-200 bg-white mt-3" />
+      )}
+      <input ref={inputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFile} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function EmployeesPage() {
   const authUser = useAuthStore((s) => s.user);
@@ -1105,49 +1197,28 @@ export default function EmployeesPage() {
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Documents</p>
                 {(() => {
                   const emp = selectedEmployee;
-                  const docs = [
-                    { label: 'Employee Photo', url: emp.avatar_url, name: undefined, isPhoto: true },
-                    { label: 'Aadhaar Card', url: emp.aadhaar_file_url, name: emp.aadhaar_file_name },
-                    { label: 'PAN Card', url: emp.pan_file_url, name: emp.pan_file_name },
-                    { label: 'Passbook', url: emp.passbook_file_url, name: emp.passbook_file_name },
-                    { label: 'Driving License', url: emp.dl_file_url, name: emp.dl_file_name,
-                      meta: emp.dl_file_url ? [
-                        { key: 'License No.', val: emp.dl_number || '—' },
-                        { key: 'Issue Date', val: emp.dl_issue_date ? new Date(emp.dl_issue_date).toLocaleDateString('en-IN') : '—' },
-                        { key: 'Expiry Date', val: emp.dl_expiry_date ? new Date(emp.dl_expiry_date).toLocaleDateString('en-IN') : '—' },
-                      ] : undefined },
+                  const docDefs = [
+                    { label: 'Aadhaar Card', docType: 'aadhaar_card', url: emp.aadhaar_file_url, name: emp.aadhaar_file_name },
+                    { label: 'PAN Card', docType: 'pan_card', url: emp.pan_file_url, name: emp.pan_file_name },
+                    { label: 'Passbook', docType: 'bank_passbook', url: emp.passbook_file_url, name: emp.passbook_file_name },
+                    { label: 'Driving License', docType: 'driving_license', url: emp.dl_file_url, name: emp.dl_file_name },
                   ];
-                  const uploaded = docs.filter(d => d.url);
-                  if (!uploaded.length) return <p className="text-sm text-slate-500 py-2">No documents uploaded.</p>;
                   return (
                     <div className="space-y-3">
-                      {uploaded.map((doc) => (
-                        <div key={doc.label} className="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">{doc.label}</p>
-                              {doc.name && <p className="text-sm font-semibold text-slate-900 break-all">{doc.name}</p>}
-                            </div>
-                            <a href={doc.url} target="_blank" rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 shrink-0">
-                              <ExternalLink size={14} /> View File
-                            </a>
-                          </div>
-                          {doc.url!.startsWith('data:image') && (
-                            <img src={doc.url} alt={doc.label}
-                              className={`w-full object-contain rounded-lg border border-slate-200 bg-white mt-3 ${doc.isPhoto ? 'max-h-40 object-top' : 'max-h-64'}`} />
-                          )}
-                          {doc.meta && (
-                            <div className="grid grid-cols-3 gap-3 mt-3">
-                              {doc.meta.map(m => (
-                                <div key={m.key} className="rounded-lg bg-white p-3 border border-slate-100">
-                                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">{m.key}</p>
-                                  <p className="text-sm font-semibold text-slate-900">{m.val}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                      {docDefs.map((doc) => (
+                        <EmployeeDocCard
+                          key={doc.docType}
+                          label={doc.label}
+                          docType={doc.docType}
+                          fileUrl={doc.url}
+                          fileName={doc.name}
+                          userId={emp.id}
+                          onUploaded={(urlField, url, nameField, name) => {
+                            setSelectedEmployee((prev) =>
+                              prev ? { ...prev, [urlField]: url, [nameField]: name } : prev
+                            );
+                          }}
+                        />
                       ))}
                     </div>
                   );
@@ -1462,11 +1533,6 @@ export default function EmployeesPage() {
                             dl_issue_date: toISODate(data.issue_date || data.doi) || p.dl_issue_date,
                             dl_expiry_date: toISODate(data.expiry_date || data.validity || data.valid_till) || p.dl_expiry_date,
                           };
-                          if (data.holder_name && !p.first_name) {
-                            const parts = data.holder_name.trim().split(/\s+/);
-                            patch.first_name = parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0];
-                            patch.last_name = parts.length > 1 ? parts[parts.length - 1] : '';
-                          }
                           return patch;
                         });
                       }}
@@ -1764,15 +1830,7 @@ export default function EmployeesPage() {
                             dlNumber={createForm.dl_number}
                             dlIssueDate={createForm.dl_issue_date}
                             dlExpiryDate={createForm.dl_expiry_date}
-                            onChange={(patch) => setCreateForm((p) => {
-                              const update: typeof p = { ...p, ...patch };
-                              if (patch.dl_holder_name) {
-                                const parts = patch.dl_holder_name.trim().split(/\s+/);
-                                update.first_name = p.first_name || (parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0]);
-                                update.last_name = p.last_name || (parts.length > 1 ? parts[parts.length - 1] : '');
-                              }
-                              return update;
-                            })}
+                            onChange={(patch) => setCreateForm((p) => ({ ...p, ...patch }))}
                           />
                         </div>
                       )}

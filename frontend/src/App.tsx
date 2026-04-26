@@ -255,7 +255,7 @@ function App() {
           <Route path="/fleet/vehicles/:id" element={<FleetVehiclesPage />} />
           <Route path="/fleet/drivers" element={<FleetDriversPage />} />
           <Route path="/fleet/drivers/:id" element={<FleetDriversPage />} />
-          <Route path="/fleet/tracking" element={<FleetTrackingPage />} />
+          <Route path="/fleet/tracking" element={<Navigate to="/tracking" replace />} />
           <Route path="/fleet/maintenance" element={<FleetMaintenancePage />} />
           <Route path="/fleet/fuel" element={<FleetFuelPage />} />
           <Route path="/fleet/tyres" element={<TyreTrackerPage />} />

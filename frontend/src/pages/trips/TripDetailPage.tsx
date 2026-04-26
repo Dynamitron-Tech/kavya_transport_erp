@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tripService, financeService, lrService } from '@/services/dataService';
 import { StatusBadge, LoadingPage, Modal } from '@/components/common/Modal';
 import { useAuthStore } from '@/store/authStore';
-import { safeArray } from '@/utils/helpers';
+import { safeArray, openDocumentUrl } from '@/utils/helpers';
 import { useRealtimeTrip } from '@/services/useRealtimeDashboard';
 import {
   ArrowLeft, Play, Square, MapPin, Fuel, DollarSign, Navigation,
@@ -97,9 +97,26 @@ export default function TripDetailPage() {
 
   const expenses = safeArray<any>(expensesData);
 
-  // Helper: resolve file URL through Vite proxy
-  const fileUrl = (url: string | null | undefined) =>
-    url ? (url.startsWith('http') ? url : url) : null;
+  // Helper: resolve file URL to the API server
+  const fileUrl = (url: string | null | undefined) => {
+    if (!url) return null;
+    if (url.startsWith('data:')) return url; // base64 data URIs stay as-is
+    const clean = url.replace(/^https?:\/\/localhost:\d+/, 'https://api.kavyatransports.com');
+    return clean.startsWith('http') ? clean : `https://api.kavyatransports.com${clean}`;
+  };
+
+  // Helper: parse UTC timestamp — backend stores naive UTC (no "Z"), JS would treat it
+  // as local time without this fix. Append "Z" so it's correctly treated as UTC → IST.
+  const parseTs = (ts: string | null | undefined): Date | null => {
+    if (!ts) return null;
+    const s = ts.endsWith('Z') || ts.includes('+') ? ts : ts + 'Z';
+    return new Date(s);
+  };
+  const fmtTs = (ts: string | null | undefined, opts?: Intl.DateTimeFormatOptions) => {
+    const d = parseTs(ts);
+    if (!d) return '';
+    return d.toLocaleString('en-IN', opts ?? { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true });
+  };
 
   const startMutation = useMutation({
     mutationFn: () => tripService.start(Number(id), { start_odometer: 0 }),
@@ -132,14 +149,15 @@ export default function TripDetailPage() {
 
   // Document chip — shows thumbnail for images, PDF icon for docs; clicks open lightbox
   const DocChip = ({ url, label }: { url: string; label: string }) => {
-    const isImg = /\.(jpe?g|png|gif|webp|heic)$/i.test(url) || url.startsWith('data:image');
+    const resolvedUrl = fileUrl(url) || url;
+    const isImg = /\.(jpe?g|png|gif|webp|heic)$/i.test(resolvedUrl) || resolvedUrl.startsWith('data:image');
     return (
       <button
-        onClick={() => setViewDoc({ url, title: label })}
+        onClick={() => setViewDoc({ url: resolvedUrl, title: label })}
         className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-medium shadow-sm"
       >
         {isImg
-          ? <img src={url} alt={label} className="w-5 h-5 object-cover rounded" />
+          ? <img src={resolvedUrl} alt={label} className="w-5 h-5 object-cover rounded" />
           : <FileText size={13} className="text-red-500 flex-shrink-0" />
         }
         <span className="max-w-[120px] truncate">{label}</span>
@@ -156,9 +174,9 @@ export default function TripDetailPage() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
               <p className="font-semibold text-sm text-gray-900">{viewDoc.title}</p>
               <div className="flex items-center gap-3">
-                <a href={viewDoc.url} target="_blank" rel="noreferrer" className="text-xs text-primary-600 hover:underline flex items-center gap-1">
+                <button type="button" onClick={() => openDocumentUrl(viewDoc.url)} className="text-xs text-primary-600 hover:underline flex items-center gap-1">
                   <ExternalLink size={12} /> Open in new tab
-                </a>
+                </button>
                 <button onClick={() => setViewDoc(null)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500">
                   <X size={16} />
                 </button>
@@ -258,12 +276,11 @@ export default function TripDetailPage() {
                         <th className="table-header">Packages</th>
                         <th className="table-header">Actual Weight</th>
                         <th className="table-header">Charged Weight</th>
-                        <th className="table-header">Rate</th>
-                        <th className="table-header">Amount</th>
+                        <th className="table-header text-right">Amount</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {lr.items.map((item: any) => (
+                      {lr.items.map((item: any, idx: number) => (
                         <tr key={item.id} className="hover:bg-gray-50">
                           <td className="table-cell">
                             <div className="font-medium">{item.description}</div>
@@ -273,8 +290,9 @@ export default function TripDetailPage() {
                           <td className="table-cell">{item.packages ?? '—'}</td>
                           <td className="table-cell">{item.actual_weight != null ? `${item.actual_weight} kg` : '—'}</td>
                           <td className="table-cell">{item.charged_weight != null ? `${item.charged_weight} kg` : '—'}</td>
-                          <td className="table-cell">₹{Number(item.rate || 0).toLocaleString('en-IN')}</td>
-                          <td className="table-cell font-medium">₹{Number(item.amount || 0).toLocaleString('en-IN')}</td>
+                          <td className="table-cell text-right font-semibold text-gray-900">
+                            {idx === 0 ? `₹${Number(lr.total_freight || lr.freight_amount || 0).toLocaleString('en-IN')}` : '—'}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -294,7 +312,7 @@ export default function TripDetailPage() {
                       : <div className="flex justify-between"><span className="text-gray-500">E-way Bill</span><span className="text-gray-400 italic text-xs">Not added</span></div>
                     }
                     {lr.eway_bill_expiry && (
-                      <div className="flex justify-between"><span className="text-gray-500">EWB Expiry</span><span className="text-xs">{new Date(lr.eway_bill_expiry).toLocaleDateString('en-IN')}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">EWB Expiry</span><span className="text-xs">{fmtTs(lr.eway_bill_expiry, { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
                     )}
                   </div>
                 </div>
@@ -302,8 +320,6 @@ export default function TripDetailPage() {
                   <h4 className="font-semibold text-gray-900 mb-3 text-sm">Freight Details</h4>
                   <div className="space-y-2.5 text-sm">
                     <div className="flex justify-between"><span className="text-gray-500">Freight Amount</span><span className="font-semibold">₹{Number(lr.freight_amount || 0).toLocaleString('en-IN')}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Advance</span><span>₹{Number(lr.advance_amount || 0).toLocaleString('en-IN')}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Balance</span><span className="font-semibold text-red-600">₹{Number(lr.balance_amount || 0).toLocaleString('en-IN')}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Total Weight</span><span>{lr.total_weight || (lr.items?.reduce((s: number, i: any) => s + parseFloat(i.actual_weight || 0), 0) || null) ? `${lr.total_weight || lr.items?.reduce((s: number, i: any) => s + parseFloat(i.actual_weight || 0), 0)} kg` : '—'}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">Packages</span><span>{lr.total_packages || lr.items?.reduce((s: number, i: any) => s + (i.packages || 0), 0) || '—'}</span></div>
                   </div>
@@ -320,7 +336,7 @@ export default function TripDetailPage() {
                             </div>
                             <div>
                               <p className="font-semibold text-green-700 text-sm leading-tight">POD Received</p>
-                              {lr.pod_date && <p className="text-xs text-gray-400">{new Date(lr.pod_date).toLocaleDateString('en-IN')}</p>}
+                              {lr.pod_date && <p className="text-xs text-gray-400">{fmtTs(lr.pod_date, { day: '2-digit', month: 'short', year: 'numeric' })}</p>}
                             </div>
                           </div>
                           {lr.pod_file_url && (
@@ -455,7 +471,7 @@ export default function TripDetailPage() {
                 </p>
                 {ts ? (
                   <p className="text-[10px] text-gray-400 text-center leading-snug mt-0.5 px-0.5">
-                    {new Date(ts).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {fmtTs(ts)}
                   </p>
                 ) : active ? (
                   <p className="text-[10px] text-primary-500 font-medium text-center mt-0.5">● Live</p>
@@ -471,10 +487,11 @@ export default function TripDetailPage() {
       {/* Phase Photos — loaded, reached, unloaded, POD from driver app */}
       {(() => {
         const t = trip as any;
-        const baseUrl = 'http://localhost:8000';
+        const baseUrl = 'https://api.kavyatransports.com';
         const resolveUrl = (u: string | null | undefined) => {
           if (!u) return null;
-          return u.startsWith('http') ? u : `${baseUrl}${u}`;
+          const clean = u.replace(/^https?:\/\/localhost:\d+/, 'https://api.kavyatransports.com');
+          return clean.startsWith('http') ? clean : `${baseUrl}${clean}`;
         };
         type Phase = { label: string; url: string | null; icon: string; color: string };
         const phases: Phase[] = [
@@ -575,7 +592,7 @@ export default function TripDetailPage() {
 
         // Merge middle stops; logged ones sort to match journey order by timestamp
         const middle: StopNode[] = [...viaNodes, ...extraCheckpoints].sort((a, b) => {
-          if (a.ts && b.ts) return new Date(a.ts).getTime() - new Date(b.ts).getTime();
+          if (a.ts && b.ts) return (parseTs(a.ts)?.getTime() ?? 0) - (parseTs(b.ts)?.getTime() ?? 0);
           if (a.ts) return -1;
           if (b.ts) return 1;
           return 0;
@@ -596,14 +613,14 @@ export default function TripDetailPage() {
           if (idx === 0) return null;
           const prev = allStops[idx - 1];
           if (!prev.ts || !stop.ts) return null;
-          const diff = new Date(stop.ts).getTime() - new Date(prev.ts).getTime();
+          const diff = (parseTs(stop.ts)?.getTime() ?? 0) - (parseTs(prev.ts)?.getTime() ?? 0);
           return diff > 0 ? Math.round(diff / 60000) : null;
         });
 
         // Total elapsed
         const nowTs = tripCompleted && t.actual_end ? t.actual_end : new Date().toISOString();
         const elapsedMins: number | null = t.actual_start
-          ? Math.round((new Date(nowTs).getTime() - new Date(t.actual_start).getTime()) / 60000)
+          ? Math.round(((parseTs(nowTs)?.getTime() ?? 0) - (parseTs(t.actual_start)?.getTime() ?? 0)) / 60000)
           : null;
 
         const firstPendingIdx = allStops.findIndex((s, i) => i > 0 && !s.ts);
@@ -701,7 +718,7 @@ export default function TripDetailPage() {
                         </div>
                         <span className={`text-[11px] flex-shrink-0 ml-2 ${stop.ts ? 'text-gray-400' : 'text-gray-300'}`}>
                           {stop.ts
-                            ? new Date(stop.ts).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+                            ? fmtTs(stop.ts)
                             : isEnRoute ? '' : 'Pending'
                           }
                         </span>
@@ -737,10 +754,10 @@ export default function TripDetailPage() {
                   <p className="text-[11px] text-gray-400 mb-0.5">{tripCompleted ? 'Arrived' : 'ETA'}</p>
                   <p className="text-sm font-bold text-gray-800">
                     {tripCompleted && t.actual_end
-                      ? new Date(t.actual_end).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+                      ? fmtTs(t.actual_end)
                       : routeDetail?.estimated_hours && t.actual_start
-                        ? new Date(new Date(t.actual_start).getTime() + routeDetail.estimated_hours * 3600_000)
-                            .toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+                        ? new Date((parseTs(t.actual_start)?.getTime() ?? 0) + routeDetail.estimated_hours * 3600_000)
+                            .toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })
                         : '—'
                     }
                   </p>
@@ -791,8 +808,8 @@ export default function TripDetailPage() {
             <div><p className="text-gray-500 text-xs">Destination</p><p className="font-medium">{trip.destination}</p></div>
             <hr />
             <div className="flex justify-between"><span className="text-gray-500">Distance</span><span>{(() => { const t = trip as any; const db = parseFloat(t.actual_distance_km || t.planned_distance_km || t.total_distance || 0); const startOdo = parseFloat(t.start_odometer || 0); const endOdo = parseFloat(t.end_odometer || 0); const odo = startOdo && endOdo > startOdo ? endOdo - startOdo : 0; const d = db || odo; return d > 0 ? `${d.toFixed(0)} km` : '—'; })()}</span></div>
-            {trip.actual_start && <div className="flex justify-between"><span className="text-gray-500">Actual Start</span><span>{new Date(trip.actual_start).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span></div>}
-            {trip.actual_end && <div className="flex justify-between"><span className="text-gray-500">Actual End</span><span>{new Date(trip.actual_end).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span></div>}
+            {trip.actual_start && <div className="flex justify-between"><span className="text-gray-500">Actual Start</span><span>{fmtTs(trip.actual_start, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span></div>}
+            {trip.actual_end && <div className="flex justify-between"><span className="text-gray-500">Actual End</span><span>{fmtTs(trip.actual_end, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</span></div>}
           </div>
         </div>
 
@@ -810,7 +827,6 @@ export default function TripDetailPage() {
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2"><DollarSign size={18} /> Financials</h3>
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between"><span className="text-gray-500">Advance</span><span>₹{Number((trip.advance_amount || 0) ?? 0).toLocaleString('en-IN')}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Total Expenses</span><span>₹{Number((trip.total_expenses || 0) ?? 0).toLocaleString('en-IN')}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Revenue</span><span className="text-green-600 font-medium">₹{Number((trip.revenue || 0) ?? 0).toLocaleString('en-IN')}</span></div>
             <hr />
@@ -827,7 +843,7 @@ export default function TripDetailPage() {
                     <p className="text-xs mt-0.5">
                       Paid by Finance Manager {(trip as any).advance_paid_by_name || '—'}
                       {(trip as any).advance_paid_at
-                        ? ` on ${new Date((trip as any).advance_paid_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                        ? ` on ${fmtTs((trip as any).advance_paid_at, { day: '2-digit', month: 'short', year: 'numeric' })}`
                         : ''}
                     </p>
                   </div>
@@ -864,7 +880,7 @@ export default function TripDetailPage() {
                 <div className="bg-gray-50 rounded-lg p-3">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-sm font-semibold text-gray-900">LR & E-way Bills</p>
-                    {firstTs && <span className="text-xs text-gray-400">{new Date(firstTs).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}
+                    {firstTs && <span className="text-xs text-gray-400">{fmtTs(firstTs)}</span>}
                   </div>
                   {lrs.length === 0 ? (
                     <p className="text-xs text-gray-400">No LR created yet</p>
@@ -930,7 +946,7 @@ export default function TripDetailPage() {
                 <div className="bg-gray-50 rounded-lg p-3">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-sm font-semibold text-gray-900">Trip Started</p>
-                    {ts && <span className="text-xs text-gray-400">{new Date(ts).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}
+                    {ts && <span className="text-xs text-gray-400">{fmtTs(ts)}</span>}
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs text-gray-500">
                     {trip.start_odometer && <span>Odometer: {trip.start_odometer} km</span>}
@@ -957,7 +973,7 @@ export default function TripDetailPage() {
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-semibold text-gray-900">Loading Checklist</p>
                     {submitted && preChecklist.completed_at
-                      ? <span className="text-xs text-gray-400">{new Date(preChecklist.completed_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                      ? <span className="text-xs text-gray-400">{fmtTs(preChecklist.completed_at)}</span>
                       : <span className="text-xs bg-yellow-50 text-yellow-600 border border-yellow-200 px-2 py-0.5 rounded-full">⏳ Awaiting driver</span>
                     }
                   </div>
@@ -999,7 +1015,7 @@ export default function TripDetailPage() {
                 <div className="bg-gray-50 rounded-lg p-3">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-sm font-semibold text-gray-900">In Transit</p>
-                    {record.created_at && <span className="text-xs text-gray-400">{new Date(record.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}
+                    {record.created_at && <span className="text-xs text-gray-400">{fmtTs(record.created_at)}</span>}
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs text-gray-500">
                     <span>{trip.origin} → {trip.destination}</span>
@@ -1024,11 +1040,11 @@ export default function TripDetailPage() {
                 <div className="bg-gray-50 rounded-lg p-3">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-sm font-semibold text-gray-900">Unloading</p>
-                    {ts && <span className="text-xs text-gray-400">{new Date(ts).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}
+                    {ts && <span className="text-xs text-gray-400">{fmtTs(ts)}</span>}
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs text-gray-500 mb-2">
                     {record?.location_name && <span>📍 {record.location_name}</span>}
-                    {trip.unloading_end && <span>Done: {new Date(trip.unloading_end).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>}
+                    {trip.unloading_end && <span>Done: {fmtTs(trip.unloading_end, { hour: '2-digit', minute: '2-digit', hour12: true })}</span>}
                     <span className="text-blue-500">📱 Driver App</span>
                   </div>
                   {photos.length > 0 && (
@@ -1119,7 +1135,7 @@ export default function TripDetailPage() {
                 <div className="bg-green-50 rounded-lg p-3 border border-green-100">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-sm font-semibold text-green-800">Trip Completed</p>
-                    {ts && <span className="text-xs text-gray-400">{new Date(ts).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}
+                    {ts && <span className="text-xs text-gray-400">{fmtTs(ts)}</span>}
                   </div>
                   <div className="flex flex-wrap gap-3 text-xs text-gray-600">
                     {trip.end_odometer && <span>End Odo: {trip.end_odometer} km</span>}
@@ -1253,7 +1269,7 @@ export default function TripDetailPage() {
                     </div>
                     {exp.description && <p className="text-xs text-gray-500 mt-0.5">{exp.description}</p>}
                     <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-gray-400">
-                      {exp.expense_date && <span>{new Date(exp.expense_date).toLocaleDateString('en-IN')}</span>}
+                      {exp.expense_date && <span>{fmtTs(exp.expense_date, { day: '2-digit', month: 'short', year: 'numeric' })}</span>}
                       {exp.payment_mode && <span className="capitalize">{exp.payment_mode}</span>}
                       {exp.location && <span>📍 {exp.location}</span>}
                       {exp.entry_source && (
@@ -1324,7 +1340,7 @@ export default function TripDetailPage() {
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Expense Date</p>
                   <p className="text-gray-900 mt-0.5">
                     {selectedExpense.expense_date
-                      ? new Date(selectedExpense.expense_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+                      ? fmtTs(selectedExpense.expense_date, { day: 'numeric', month: 'long', year: 'numeric' })
                       : '—'}
                   </p>
                 </div>
@@ -1356,7 +1372,7 @@ export default function TripDetailPage() {
                   <div>
                     <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Submitted At</p>
                     <p className="text-gray-900 mt-0.5">
-                      {new Date(selectedExpense.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {fmtTs(selectedExpense.created_at, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>
@@ -1368,7 +1384,7 @@ export default function TripDetailPage() {
                   <div>
                     <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Paid At</p>
                     <p className="text-green-700 font-medium mt-0.5">
-                      {new Date(selectedExpense.paid_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {fmtTs(selectedExpense.paid_at, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>
@@ -1429,7 +1445,7 @@ export default function TripDetailPage() {
                   ) : rUrl ? (
                     <div className="flex items-center gap-3 px-4 py-3 bg-white">
                       <Paperclip size={18} className="text-gray-400" />
-                      <a href={rUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">View Document</a>
+                      <button type="button" onClick={() => openDocumentUrl(rUrl)} className="text-sm text-blue-600 hover:underline">View Document</button>
                     </div>
                   ) : null}
                 </div>
@@ -1480,7 +1496,7 @@ export default function TripDetailPage() {
                       {fe.quantity_litres} L × ₹{fe.rate_per_litre}/L · {fe.fuel_type || 'diesel'}
                     </p>
                     <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-gray-400">
-                      {fe.fuel_date && <span>{new Date(fe.fuel_date).toLocaleDateString('en-IN')}</span>}
+                      {fe.fuel_date && <span>{fmtTs(fe.fuel_date, { day: '2-digit', month: 'short', year: 'numeric' })}</span>}
                       {fe.pump_location && <span>📍 {fe.pump_location}</span>}
                       {fe.odometer_reading && <span>Odo: {fe.odometer_reading} km</span>}
                       <span className="text-blue-500">📱 Driver App</span>
@@ -1532,7 +1548,7 @@ export default function TripDetailPage() {
               (tripInvoices as any[]).map((inv) => (
                 <tr key={inv.id} className="hover:bg-gray-50">
                   <td className="table-cell font-medium text-primary-600">{inv.invoice_number}</td>
-                  <td className="table-cell">{inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString('en-IN') : '—'}</td>
+                  <td className="table-cell">{inv.invoice_date ? fmtTs(inv.invoice_date, { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</td>
                   <td className="table-cell">{inv.billing_name || inv.client_name || '—'}</td>
                   <td className="table-cell"><span className="flex items-center gap-1"><IndianRupee size={12} />{Number(inv.taxable_amount || inv.subtotal || 0).toLocaleString('en-IN')}</span></td>
                   <td className="table-cell"><span className="flex items-center gap-1"><IndianRupee size={12} />{Number(inv.total_tax || 0).toLocaleString('en-IN')}</span></td>
