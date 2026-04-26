@@ -151,8 +151,10 @@ async def add_security_headers(request: Request, call_next):
     if _is_production:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     # Never expose server info
-    response.headers.pop("Server", None)
-    response.headers.pop("X-Powered-By", None)
+    if "Server" in response.headers:
+        del response.headers["Server"]
+    if "X-Powered-By" in response.headers:
+        del response.headers["X-Powered-By"]
     return response
 
 
