@@ -72,7 +72,7 @@ export default function FleetMaintenancePage() {
     { key: 'description', header: 'Description', render: (r) => <span className="text-sm">{r.description}</span> },
     { key: 'due_date', header: 'Due Date', render: (r) => <span className="text-sm">{formatDate(r.due_date)}</span> },
     { key: 'due_km', header: 'Due KM', render: (r) => <span className="text-sm">{r.due_km ? Number(r.due_km).toLocaleString('en-IN') : '—'}</span> },
-    { key: 'current_km', header: 'Current KM', render: (r) => <span className="text-sm">{(r.current_km ?? 0).toLocaleString('en-IN')}</span> },
+    { key: 'current_km', header: 'Current KM', render: (r) => <span className="text-sm">{r.current_km ? Number(r.current_km).toLocaleString('en-IN') : '—'}</span> },
     { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
     { key: 'priority', header: 'Priority', render: (r) => <StatusBadge status={r.priority || 'medium'} /> },
     { key: 'estimated_cost', header: 'Est. Cost', render: (r) => <span className="text-sm">₹{(r.estimated_cost ?? 0).toLocaleString('en-IN')}</span> },
@@ -233,14 +233,14 @@ function PredictiveTab({ data, isLoading }: { data: MaintenancePrediction[]; isL
                 <p className="text-sm font-semibold text-gray-900">{p.registration_number}</p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   Last service: {p.last_service_date ? new Date(p.last_service_date).toLocaleDateString('en-IN') : '—'}
-                  {p.km_since_last != null && ` • ${Number(p.km_since_last).toLocaleString()} km since`}
+                  {p.km_since_last != null && p.km_since_last >= 0 && ` • ${Number(p.km_since_last).toLocaleString()} km since`}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium text-gray-900">
                   {p.predicted_date ? new Date(p.predicted_date).toLocaleDateString('en-IN') : 'N/A'}
                 </p>
-                {p.km_remaining != null && (
+                {p.km_remaining != null && p.km_remaining >= 0 && (
                   <p className="text-xs text-gray-500">{Number(p.km_remaining).toLocaleString()} km remaining</p>
                 )}
               </div>

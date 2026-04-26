@@ -728,11 +728,15 @@ async def fleet_maintenance_battery(db: AsyncSession = Depends(get_db), current_
         age_years = (date.today().year - v.year_of_manufacture) if v.year_of_manufacture else 3
         health = max(10, 100 - (age_years * 12))  # ~12% degradation per year
         voltage = 12.8 - (age_years * 0.15)
+        # Use vehicle make for battery model only when it's a real brand, not GPS system names
+        _gps_system_names = {"ktt", "gps", "tracker", "telematics", "ialert"}
+        raw_make = (v.make or "").strip()
+        battery_make = raw_make if raw_make.lower() not in _gps_system_names else v.vehicle_type.value.replace("_", " ").title() if v.vehicle_type else "Heavy Duty"
         items.append({
             "id": f"bat-{v.id}",
             "vehicle": v.registration_number,
             "brand": "Exide" if v.id % 2 == 0 else "Amaron",
-            "model": f"{v.make or 'Standard'} Battery",
+            "model": f"{battery_make} Battery",
             "installed_date": (date.today() - timedelta(days=age_years * 365)).isoformat(),
             "voltage": round(max(11.0, voltage), 1),
             "health_percent": health,
