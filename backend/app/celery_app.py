@@ -20,6 +20,23 @@ celery_app.conf.update(
     task_soft_time_limit=240,  # 4 min soft limit
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=100,
+    # ── Task routing — separate queues per domain ─────────────
+    task_routes={
+        "app.tasks.finance_tasks.*":        {"queue": "finance"},
+        "app.tasks.notification_tasks.*":   {"queue": "notifications"},
+        "app.tasks.intelligence_tasks.*":   {"queue": "reports"},
+        "app.tasks.scoring_tasks.*":        {"queue": "reports"},
+        "gps.*":                            {"queue": "default"},
+        "app.tasks.ialert_tasks.*":         {"queue": "default"},
+        "app.tasks.ktt_tasks.*":            {"queue": "default"},
+        # payments queue — highest priority
+        "app.tasks.payment_tasks.*":        {"queue": "payments"},
+    },
+    task_queue_max_priority=10,
+    task_default_priority=5,
+    # ── Default retry policy ─────────────────────────────────
+    task_acks_late=True,
+    task_reject_on_worker_lost=True,
     beat_schedule={
         "check-compliance-daily": {
             "task": "app.tasks.compliance_tasks.check_all_compliance",
@@ -142,6 +159,11 @@ celery_app.conf.update(
         "poll-ialert-gps": {
             "task": "app.tasks.ialert_tasks.poll_ialert_gps",
             "schedule": float(settings.IALERT_POLL_INTERVAL_SECONDS),
+        },
+        # ── KTT GPS Polling (KT Telematic Pull API) ──
+        "poll-ktt-gps": {
+            "task": "app.tasks.ktt_tasks.poll_ktt_gps",
+            "schedule": float(settings.KTT_POLL_INTERVAL_SECONDS),
         },
         # ── Unified GPS Polling (all providers) ──
         "gps-unified-poll": {
