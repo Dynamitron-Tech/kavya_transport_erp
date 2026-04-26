@@ -3,18 +3,28 @@
  * Mirrors the app's FleetDriverApprovalsScreen (two tabs: Leave, Advance)
  * APIs:
  *   Leave:   GET  /driver-requests/leaves/pending        → data: [...]
+ *            GET  /driver-requests/leaves/reviewed       → data: [...]
  *            POST /driver-requests/leaves/{id}/review    → { action, note? }
  *   Advance: GET  /driver-requests/advance-requests/fleet → data: [...]
  *            POST /driver-requests/advance-requests/{id}/acknowledge
  */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Wallet, Calendar, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
+import { User, Wallet, Calendar, CheckCircle, XCircle, Clock, RefreshCw, History } from 'lucide-react';
 import api from '@/services/api';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function fmtDate(s?: string) {
+  if (!s) return '—';
+  try {
+    const ts = s.endsWith('Z') || s.includes('+') ? s : s + 'Z';
+    return new Date(ts).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+  }
+  catch { return s; }
+}
+
+function fmtDay(s?: string) {
   if (!s) return '—';
   try { return new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
   catch { return s; }
@@ -71,8 +81,9 @@ export default function FleetDriverApprovalsPage() {
 
 function LeaveTab() {
   const queryClient = useQueryClient();
+  const [sub, setSub] = useState<'pending' | 'history'>('pending');
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data: pendingData, isLoading: pendingLoading, isError: pendingError, refetch: refetchPending } = useQuery({
     queryKey: ['fleet-pending-leaves'],
     queryFn: async () => {
       const res = await api.get('/driver-requests/leaves/pending');
@@ -80,27 +91,114 @@ function LeaveTab() {
     },
   });
 
+  const { data: historyData, isLoading: historyLoading, isError: historyError, refetch: refetchHistory } = useQuery({
+    queryKey: ['fleet-leaves-history'],
+    queryFn: async () => {
+      const res = await api.get('/driver-requests/leaves/reviewed');
+      return ((res as any)?.data ?? []) as any[];
+    },
+    enabled: sub === 'history',
+  });
+
   const reviewMutation = useMutation({
     mutationFn: async ({ id, action, note }: { id: number; action: string; note?: string }) => {
       return api.post(`/driver-requests/leaves/${id}/review`, { action, ...(note ? { note } : {}) });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fleet-pending-leaves'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fleet-pending-leaves'] });
+      queryClient.invalidateQueries({ queryKey: ['fleet-leaves-history'] });
+    },
   });
 
-  if (isLoading) return <LoadingSkeleton />;
-  if (isError) return <ErrorState onRetry={() => refetch()} message="Failed to load leave requests" />;
-
-  const leaves: any[] = data ?? [];
-
-  if (leaves.length === 0) {
-    return <EmptyState icon={<Calendar size={48} />} message="No pending leave requests" />;
-  }
+  const pendingList: any[] = pendingData ?? [];
+  const historyList: any[] = historyData ?? [];
 
   return (
     <div className="space-y-4">
-      {leaves.map((leave) => (
-        <LeaveCard key={leave.id} leave={leave} reviewMutation={reviewMutation} />
-      ))}
+      {/* Sub-tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+        <button
+          onClick={() => setSub('pending')}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${sub === 'pending' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          <Clock size={14} />
+          Pending
+          {pendingList.length > 0 && (
+            <span className="bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">{pendingList.length}</span>
+          )}
+        </button>
+        <button
+          onClick={() => setSub('history')}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${sub === 'history' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          <History size={14} />
+          History
+        </button>
+      </div>
+
+      {/* Pending */}
+      {sub === 'pending' && (
+        <>
+          {pendingLoading ? <LoadingSkeleton /> :
+           pendingError ? <ErrorState onRetry={() => refetchPending()} message="Failed to load leave requests" /> :
+           pendingList.length === 0 ? <EmptyState icon={<Calendar size={48} />} message="No pending leave requests" /> : (
+            <div className="space-y-4">
+              {pendingList.map((leave) => (
+                <LeaveCard key={leave.id} leave={leave} reviewMutation={reviewMutation} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* History */}
+      {sub === 'history' && (
+        <>
+          {historyLoading ? <LoadingSkeleton /> :
+           historyError ? <ErrorState onRetry={() => refetchHistory()} message="Failed to load leave history" /> :
+           historyList.length === 0 ? <EmptyState icon={<History size={48} />} message="No reviewed leave requests yet" /> : (
+            <div className="card overflow-hidden p-0">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Driver</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Leave Period</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Reason</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Review Note</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Reviewed On</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {historyList.map((leave) => (
+                    <tr key={leave.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-orange-50 flex items-center justify-center flex-shrink-0">
+                            <User size={13} className="text-orange-500" />
+                          </div>
+                          <span className="font-medium text-gray-900">{leave.driver_name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                        {fmtDay(leave.start_date)} → {fmtDay(leave.end_date)}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{leave.reason || '—'}</td>
+                      <td className="px-4 py-3">
+                        {leave.status === 'APPROVED'
+                          ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium flex items-center gap-1 w-fit"><CheckCircle size={11} />Approved</span>
+                          : <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium flex items-center gap-1 w-fit"><XCircle size={11} />Rejected</span>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate">{leave.review_note || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtDate(leave.reviewed_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -135,7 +233,7 @@ function LeaveCard({ leave, reviewMutation }: { leave: any; reviewMutation: any 
             </span>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            {fmtDate(leave.start_date)} → {fmtDate(leave.end_date)}
+            {fmtDay(leave.start_date)} → {fmtDay(leave.end_date)}
           </p>
           {leave.reason && (
             <div className="mt-3 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-700">
@@ -205,6 +303,7 @@ function LeaveCard({ leave, reviewMutation }: { leave: any; reviewMutation: any 
 
 function AdvanceTab() {
   const queryClient = useQueryClient();
+  const [sub, setSub] = useState<'pending' | 'history'>('pending');
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['fleet-advance-requests'],
@@ -226,16 +325,87 @@ function AdvanceTab() {
 
   const all: any[] = data ?? [];
   const pending = all.filter(r => r.status === 'PENDING');
-
-  if (pending.length === 0) {
-    return <EmptyState icon={<Wallet size={48} />} message="No pending advance requests" />;
-  }
+  const history = all.filter(r => r.status !== 'PENDING');
 
   return (
     <div className="space-y-4">
-      {pending.map((adv) => (
-        <AdvanceCard key={adv.id} adv={adv} ackMutation={ackMutation} />
-      ))}
+      {/* Sub-tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+        <button
+          onClick={() => setSub('pending')}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${sub === 'pending' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          <Clock size={14} />
+          Pending
+          {pending.length > 0 && (
+            <span className="bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">{pending.length}</span>
+          )}
+        </button>
+        <button
+          onClick={() => setSub('history')}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${sub === 'history' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          <History size={14} />
+          History
+          {history.length > 0 && (
+            <span className="bg-gray-400 text-white text-xs rounded-full px-1.5 py-0.5 leading-none">{history.length}</span>
+          )}
+        </button>
+      </div>
+
+      {/* Pending */}
+      {sub === 'pending' && (
+        pending.length === 0 ? <EmptyState icon={<Wallet size={48} />} message="No pending advance requests" /> : (
+          <div className="space-y-4">
+            {pending.map((adv) => (
+              <AdvanceCard key={adv.id} adv={adv} ackMutation={ackMutation} />
+            ))}
+          </div>
+        )
+      )}
+
+      {/* History */}
+      {sub === 'history' && (
+        history.length === 0 ? <EmptyState icon={<History size={48} />} message="No processed advance requests yet" /> : (
+          <div className="card overflow-hidden p-0">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Driver</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Trip</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Note</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Processed On</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {history.map((adv) => (
+                  <tr key={adv.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 text-xs font-bold text-blue-600">
+                          {initials(adv.driver_name ?? 'D')}
+                        </div>
+                        <span className="font-medium text-gray-900">{adv.driver_name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{adv.trip_number || '—'}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-900">₹{Number(adv.amount).toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3">
+                      {adv.status === 'APPROVED'
+                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium flex items-center gap-1 w-fit"><CheckCircle size={11} />Processed</span>
+                        : <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium flex items-center gap-1 w-fit"><XCircle size={11} />Rejected</span>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 text-xs max-w-xs truncate">{adv.review_note || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{fmtDate(adv.reviewed_at ?? adv.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
     </div>
   );
 }
