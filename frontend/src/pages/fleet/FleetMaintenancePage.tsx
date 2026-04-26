@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Calendar, ClipboardList, Package, CircleDot, Battery, AlertTriangle, TrendingUp,
-  CheckCircle2, Play, X, Loader2
+  CheckCircle2, Play, X, Loader2, Plus, Pencil
 } from 'lucide-react';
 import DataTable, { Column } from '@/components/common/DataTable';
 import { KPICard, StatusBadge } from '@/components/common/Modal';
@@ -26,6 +26,8 @@ export default function FleetMaintenancePage() {
   const [activeTab, setActiveTab] = useState<TabKey>('schedule');
   const [completingWO, setCompletingWO] = useState<WorkOrder | null>(null);
   const [form, setForm] = useState({ odometer: '', actual_cost: '', notes: '' });
+  const [woModal, setWoModal] = useState<{ mode: 'create' | 'edit'; wo?: WorkOrder } | null>(null);
+  const [woForm, setWoForm] = useState({ vehicle_id: '', service_type: 'oil_change', maintenance_type: 'scheduled', description: '', vendor_name: '', service_date: '', total_cost: '', notes: '' });
   const queryClient = useQueryClient();
 
   const formatDate = (value?: string | null) => {
@@ -70,6 +72,17 @@ export default function FleetMaintenancePage() {
     enabled: activeTab === 'predictive',
   });
 
+  const { data: vehiclesList } = useQuery<any[]>({
+    queryKey: ['vehicles-lookup-simple'],
+    queryFn: async () => {
+      const res = await api.get('/trips/lookup/vehicles', { params: { search: '' } });
+      const d = (res.data as any)?.data ?? res.data;
+      return Array.isArray(d) ? d : d?.items ?? [];
+    },
+    enabled: !!woModal,
+    staleTime: 5 * 60 * 1000,
+  });
+
   // ── Mutations ────────────────────────────────────────────────────────────
   const refetchAll = () => {
     queryClient.invalidateQueries({ queryKey: ['fleet-maintenance-schedule'] });
@@ -92,6 +105,70 @@ export default function FleetMaintenancePage() {
     },
     onSuccess: refetchAll,
   });
+
+  const openCreate = () => {
+    setWoForm({ vehicle_id: '', service_type: 'oil_change', maintenance_type: 'scheduled', description: '', vendor_name: '', service_date: '', total_cost: '', notes: '' });
+    setWoModal({ mode: 'create' });
+  };
+
+  const openEdit = (r: WorkOrder) => {
+    setWoForm({
+      vehicle_id: '',
+      service_type: (r as any).service_type || 'oil_change',
+      maintenance_type: (r as any).maintenance_type || 'scheduled',
+      description: r.description || '',
+      vendor_name: r.workshop || '',
+      service_date: (r as any).service_date || '',
+      total_cost: String(r.cost || ''),
+      notes: '',
+    });
+    setWoModal({ mode: 'edit', wo: r });
+  };
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await api.post('/fleet/maintenance/work-orders', data);
+      return (res.data as any)?.data ?? res.data;
+    },
+    onSuccess: () => { setWoModal(null); refetchAll(); },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await api.patch(`/fleet/maintenance/work-orders/${id}/edit`, data);
+      return (res.data as any)?.data ?? res.data;
+    },
+    onSuccess: () => { setWoModal(null); refetchAll(); },
+  });
+
+  const submitWoForm = () => {
+    if (woModal?.mode === 'create') {
+      if (!woForm.vehicle_id) return;
+      createMutation.mutate({
+        vehicle_id: parseInt(woForm.vehicle_id),
+        service_type: woForm.service_type,
+        maintenance_type: woForm.maintenance_type,
+        description: woForm.description || undefined,
+        vendor_name: woForm.vendor_name || undefined,
+        service_date: woForm.service_date || undefined,
+        total_cost: woForm.total_cost ? parseFloat(woForm.total_cost) : undefined,
+        notes: woForm.notes || undefined,
+      });
+    } else if (woModal?.mode === 'edit' && woModal.wo) {
+      editMutation.mutate({
+        id: (woModal.wo as any).id,
+        data: {
+          service_type: woForm.service_type || undefined,
+          maintenance_type: woForm.maintenance_type || undefined,
+          description: woForm.description || undefined,
+          vendor_name: woForm.vendor_name || undefined,
+          service_date: woForm.service_date || undefined,
+          total_cost: woForm.total_cost ? parseFloat(woForm.total_cost) : undefined,
+          notes: woForm.notes || undefined,
+        },
+      });
+    }
+  };
 
   // Schedule columns
   const scheduleColumns: Column<MaintenanceScheduleItem>[] = [
@@ -131,6 +208,13 @@ export default function FleetMaintenancePage() {
               <Play className="w-3 h-3" /> Start
             </button>
           )}
+          <button
+            onClick={() => openEdit(r)}
+            title="Edit"
+            className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-50 text-gray-600 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors"
+          >
+            <Pencil className="w-3 h-3" /> Edit
+          </button>
           <button
             onClick={() => { setCompletingWO(r); setForm({ odometer: '', actual_cost: String(r.cost || ''), notes: '' }); }}
             title="Mark as Done"
@@ -216,7 +300,17 @@ export default function FleetMaintenancePage() {
           <DataTable columns={scheduleColumns} data={safeArray<MaintenanceScheduleItem>((scheduleData as any)?.items ?? scheduleData)} isLoading={scheduleLoading} emptyMessage="No scheduled maintenance" />
         )}
         {activeTab === 'work-orders' && (
-          <DataTable columns={woColumns} data={safeArray<WorkOrder>((workOrderData as any)?.items ?? workOrderData)} isLoading={woLoading} emptyMessage="No work orders" />
+          <>
+            <div className="flex justify-end mb-3">
+              <button
+                onClick={openCreate}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" /> New Work Order
+              </button>
+            </div>
+            <DataTable columns={woColumns} data={safeArray<WorkOrder>((workOrderData as any)?.items ?? workOrderData)} isLoading={woLoading} emptyMessage="No work orders" />
+          </>
         )}
         {activeTab === 'parts' && (
           <>
@@ -251,6 +345,142 @@ export default function FleetMaintenancePage() {
           <PredictiveTab data={safeArray<MaintenancePrediction>(predictData)} isLoading={predictLoading} />
         )}
       </div>
+
+      {/* ── Create / Edit Work Order Modal ── */}
+      {woModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-semibold text-gray-900">
+                {woModal.mode === 'create' ? 'New Work Order' : `Edit — ${woModal.wo?.work_order_number}`}
+              </h3>
+              <button onClick={() => setWoModal(null)} className="p-1.5 rounded-lg hover:bg-gray-100"><X className="w-4 h-4 text-gray-500" /></button>
+            </div>
+
+            <div className="space-y-3">
+              {woModal.mode === 'create' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Vehicle <span className="text-red-500">*</span></label>
+                  <select
+                    value={woForm.vehicle_id}
+                    onChange={e => setWoForm(f => ({ ...f, vehicle_id: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select truck…</option>
+                    {(vehiclesList ?? []).map((v: any) => (
+                      <option key={v.id} value={v.id}>{v.registration_number}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Service Type</label>
+                  <select
+                    value={woForm.service_type}
+                    onChange={e => setWoForm(f => ({ ...f, service_type: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {['oil_change','tyre_rotation','brake_service','air_filter','battery_check','greasing','coolant_flush','clutch_service','suspension_check','electrical_check','tyre_change','general_service','other'].map(s => (
+                      <option key={s} value={s}>{s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Maintenance Type</label>
+                  <select
+                    value={woForm.maintenance_type}
+                    onChange={e => setWoForm(f => ({ ...f, maintenance_type: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="scheduled">Scheduled</option>
+                    <option value="breakdown">Breakdown</option>
+                    <option value="accident">Accident</option>
+                    <option value="inspection">Inspection</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Description / Issue</label>
+                <textarea
+                  placeholder="Describe the issue or service required…"
+                  value={woForm.description}
+                  onChange={e => setWoForm(f => ({ ...f, description: e.target.value }))}
+                  rows={2}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Workshop / Vendor</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. In-house, Gopal Workshop"
+                    value={woForm.vendor_name}
+                    onChange={e => setWoForm(f => ({ ...f, vendor_name: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Scheduled Date</label>
+                  <input
+                    type="date"
+                    value={woForm.service_date}
+                    onChange={e => setWoForm(f => ({ ...f, service_date: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Estimated Cost (₹)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 3500"
+                  value={woForm.total_cost}
+                  onChange={e => setWoForm(f => ({ ...f, total_cost: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Notes <span className="text-gray-400 font-normal">— optional</span></label>
+                <textarea
+                  placeholder="Any additional notes…"
+                  value={woForm.notes}
+                  onChange={e => setWoForm(f => ({ ...f, notes: e.target.value }))}
+                  rows={2}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+            </div>
+
+            {(createMutation.isError || editMutation.isError) && (
+              <p className="mt-2 text-xs text-red-600">Failed to save. Please try again.</p>
+            )}
+
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setWoModal(null)}
+                className="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitWoForm}
+                disabled={createMutation.isPending || editMutation.isPending || (woModal.mode === 'create' && !woForm.vehicle_id)}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+              >
+                {(createMutation.isPending || editMutation.isPending) ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {woModal.mode === 'create' ? 'Create Work Order' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Complete Work Order Modal ── */}
       {completingWO && (

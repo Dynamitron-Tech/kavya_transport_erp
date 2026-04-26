@@ -747,7 +747,106 @@ async def fleet_maintenance_battery(db: AsyncSession = Depends(get_db), current_
     return APIResponse(success=True, data=items)
 
 
-# ── Work-Order Action Endpoints ─────────────────────────────────────────────
+# ── Work-Order CRUD Endpoints ───────────────────────────────────────────────
+
+class CreateWorkOrderRequest(BaseModel):
+    vehicle_id: int
+    service_type: str
+    maintenance_type: str = "scheduled"
+    description: str | None = None
+    vendor_name: str | None = None
+    service_date: date | None = None
+    total_cost: float | None = None
+    notes: str | None = None
+
+
+class EditWorkOrderRequest(BaseModel):
+    service_type: str | None = None
+    maintenance_type: str | None = None
+    description: str | None = None
+    vendor_name: str | None = None
+    service_date: date | None = None
+    total_cost: float | None = None
+    notes: str | None = None
+
+
+@router.post("/fleet/maintenance/work-orders", response_model=APIResponse)
+async def create_work_order(
+    payload: CreateWorkOrderRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Manually create a new work order for a vehicle."""
+    from app.models.postgres.vehicle import VehicleMaintenance, Vehicle
+
+    vehicle = (await db.execute(
+        select(Vehicle).where(Vehicle.id == payload.vehicle_id, Vehicle.is_deleted == False)
+    )).scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    today = date.today()
+    svc_date = payload.service_date or today
+    # Auto-generate a work order number
+    count = (await db.execute(select(func.count(VehicleMaintenance.id)))).scalar_one() or 0
+    wo_number = f"WO-MAN-{vehicle.id:03d}-{count + 1:03d}"
+
+    svc = VehicleMaintenance(
+        vehicle_id=payload.vehicle_id,
+        maintenance_type=payload.maintenance_type,
+        service_type=payload.service_type,
+        description=payload.description or payload.service_type.replace("_", " ").title(),
+        vendor_name=payload.vendor_name,
+        service_date=svc_date,
+        invoice_number=wo_number,
+        total_cost=payload.total_cost or 0,
+        parts_description=payload.notes,
+        status="pending",
+    )
+    db.add(svc)
+    await db.commit()
+    await db.refresh(svc)
+    return APIResponse(success=True, data={"id": svc.id, "work_order_number": wo_number, "message": "Work order created"})
+
+
+@router.patch("/fleet/maintenance/work-orders/{wo_id}/edit", response_model=APIResponse)
+async def edit_work_order(
+    wo_id: int,
+    payload: EditWorkOrderRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Edit/update an existing work order."""
+    from app.models.postgres.vehicle import VehicleMaintenance
+
+    svc = (await db.execute(
+        select(VehicleMaintenance).where(VehicleMaintenance.id == wo_id)
+    )).scalar_one_or_none()
+    if not svc:
+        raise HTTPException(status_code=404, detail="Work order not found")
+    if svc.status == "completed":
+        raise HTTPException(status_code=400, detail="Cannot edit a completed work order")
+
+    if payload.service_type is not None:
+        svc.service_type = payload.service_type
+    if payload.maintenance_type is not None:
+        svc.maintenance_type = payload.maintenance_type
+    if payload.description is not None:
+        svc.description = payload.description
+    if payload.vendor_name is not None:
+        svc.vendor_name = payload.vendor_name
+    if payload.service_date is not None:
+        svc.service_date = payload.service_date
+    if payload.total_cost is not None:
+        svc.total_cost = payload.total_cost
+    if payload.notes is not None:
+        svc.parts_description = payload.notes
+
+    await db.commit()
+    return APIResponse(success=True, data={"message": "Work order updated"})
+
+
+# ── Work-Order Complete/Start ────────────────────────────────────────────────
 
 class CompleteWorkOrderRequest(BaseModel):
     completed_date: date | None = None
