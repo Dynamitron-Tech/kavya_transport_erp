@@ -79,6 +79,7 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Fleet Reports', route: '/fleet/reports', icon: 'chart', description: 'Fleet analytics and reports' },
           { label: 'Assign Drivers', route: '/fleet/assign-drivers', icon: 'user', description: 'Assign a default driver to each vehicle' },
           { label: 'Pump Management', route: '/fleet/pump-management', icon: 'fuel', description: 'Bunks, tanks, pumps and pump employee activity' },
+          { label: 'Driver Approvals', route: '/fleet/approvals', icon: 'check', description: 'Review and action driver leave and advance requests', badge: 'approvals' },
         ],
       },
       {
@@ -182,7 +183,7 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Fleet Reports', route: '/fleet/reports', icon: 'chart', description: 'Fleet analytics and reports' },
           { label: 'Assign Drivers', route: '/fleet/assign-drivers', icon: 'user', description: 'Assign a default driver to each vehicle' },
           { label: 'Pump Management', route: '/fleet/pump-management', icon: 'fuel', description: 'Bunks, tanks, pumps and pump employee activity' },
-          { label: 'Driver Approvals', route: '/fleet/approvals', icon: 'check', description: 'Review and action driver leave and advance requests' },
+          { label: 'Driver Approvals', route: '/fleet/approvals', icon: 'check', description: 'Review and action driver leave and advance requests', badge: 'approvals' },
         ],
       },
       {

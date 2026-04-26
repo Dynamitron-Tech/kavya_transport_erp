@@ -829,8 +829,6 @@ export default function TripDetailPage() {
           <div className="space-y-3 text-sm">
             <div className="flex justify-between"><span className="text-gray-500">Total Expenses</span><span>₹{Number((trip.total_expenses || 0) ?? 0).toLocaleString('en-IN')}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Revenue</span><span className="text-green-600 font-medium">₹{Number((trip.revenue || 0) ?? 0).toLocaleString('en-IN')}</span></div>
-            <hr />
-            <div className="flex justify-between"><span className="text-gray-500 font-medium">Profit</span><span className={`font-bold ${(trip.profit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>₹{Number((trip.profit || 0) ?? 0).toLocaleString('en-IN')}</span></div>
           </div>
           {/* Driver Advance Payment Status */}
           {(trip as any).loaded_image_url && (
