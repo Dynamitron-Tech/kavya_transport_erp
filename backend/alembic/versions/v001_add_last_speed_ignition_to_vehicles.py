@@ -8,7 +8,7 @@ Create Date: 2026-04-26 12:00:00.000000
 from alembic import op
 import sqlalchemy as sa
 
-revision = "v001_add_last_speed_ignition_to_vehicles"
+revision = "v002_vehicle_gps_realtime"
 down_revision = "v001_invoice_payment_proof"
 branch_labels = None
 depends_on = None
