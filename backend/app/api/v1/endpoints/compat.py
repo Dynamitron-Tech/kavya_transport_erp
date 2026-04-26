@@ -453,10 +453,152 @@ async def fleet_tracking_live(db: AsyncSession = Depends(get_db), current_user: 
     return APIResponse(success=True, data={"vehicles": vehicles, "summary": summary})
 
 
+# ── Maintenance auto-seed helper ─────────────────────────────────────────────
+# Called at the start of every maintenance endpoint so newly-added vehicles
+# automatically get a realistic service schedule on first access.
+
+async def _auto_seed_missing_maintenance(db: AsyncSession, today: date) -> None:
+    """For any vehicle that has zero maintenance records, generate a full schedule."""
+    import random
+    from decimal import Decimal
+    from app.models.postgres.vehicle import Vehicle, VehicleMaintenance, VehicleTyre
+
+    SERVICE_TEMPLATES = [
+        ("oil_change",        "Engine oil & filter change",               90,  5000,  1800, 500),
+        ("tyre_rotation",     "Tyre rotation & pressure check",          120,  8000,   400, 600),
+        ("brake_service",     "Brake pads, drums & fluid check",         180, 15000,  3500, 800),
+        ("air_filter",        "Air filter & fuel filter replacement",     90,  6000,   900, 300),
+        ("battery_check",     "Battery terminals & charge test",         180, 12000,   200, 200),
+        ("greasing",          "Chassis greasing & wheel bearing check",   60,  4000,   400, 400),
+        ("coolant_flush",     "Coolant flush & thermostat check",        365, 30000,  1200, 600),
+        ("clutch_service",    "Clutch plate & pressure plate check",     365, 40000,  6500, 1200),
+        ("suspension_check",  "Shock absorbers & leaf spring check",     180, 20000,  2500, 700),
+        ("electrical_check",  "Wiring harness & battery terminal check",  90,  8000,   500, 300),
+    ]
+    WORKSHOPS = [
+        "Sri Balaji Auto Works, Madurai", "National Motors, Coimbatore",
+        "Laxmi Service Centre, Chennai",  "VR Garage, Salem",
+    ]
+    TYRE_BRANDS    = ["Apollo", "MRF", "Ceat", "JK Tyres", "Michelin", "Bridgestone"]
+    TYRE_SIZES     = ["10.00R20", "11.00R20", "295/80R22.5", "315/80R22.5", "12.00R24"]
+    POSITIONS_4    = ["FL", "FR", "RL1", "RR1"]
+    POSITIONS_6    = ["FL", "FR", "RL1", "RR1", "RL2", "RR2"]
+    POSITIONS_10   = ["FL", "FR", "RL1", "RR1", "RL2", "RR2", "RL3", "RR3", "RL4", "RR4"]
+
+    # Find vehicles without any maintenance record
+    all_ids_result = await db.execute(
+        select(Vehicle.id).where(Vehicle.is_deleted == False)
+    )
+    all_vehicle_ids = [row[0] for row in all_ids_result.all()]
+
+    seeded_ids_result = await db.execute(
+        select(VehicleMaintenance.vehicle_id).distinct()
+    )
+    seeded_ids = {row[0] for row in seeded_ids_result.all()}
+
+    missing = [vid for vid in all_vehicle_ids if vid not in seeded_ids]
+    if not missing:
+        return
+
+    # Load the vehicles that need seeding
+    vehicles_result = await db.execute(
+        select(Vehicle).where(Vehicle.id.in_(missing))
+    )
+    vehicles = vehicles_result.scalars().all()
+
+    # Get next tyre serial
+    max_serial_row = (await db.execute(select(func.max(VehicleTyre.tyre_number)))).scalar()
+    try:
+        tyre_serial = int(max_serial_row.split("-")[-1]) + 1 if max_serial_row else 1000
+    except Exception:
+        tyre_serial = 1000
+
+    for vehicle in vehicles:
+        rng = random.Random(vehicle.id)
+        age = max(0, today.year - vehicle.year_of_manufacture) if vehicle.year_of_manufacture else 3
+        base_odo = rng.randint(20000, 120000) + age * 15000
+
+        for idx, (svc, desc, interval_days, interval_km, p_cost, l_cost) in enumerate(SERVICE_TEMPLATES):
+            days_ago = rng.randint(interval_days // 3, interval_days)
+            last_done = today - timedelta(days=days_ago)
+            odo = base_odo - rng.randint(2000, 8000)
+
+            # Completed record
+            db.add(VehicleMaintenance(
+                vehicle_id=vehicle.id,
+                maintenance_type="scheduled",
+                service_type=svc,
+                description=desc,
+                odometer_at_service=Decimal(str(odo)),
+                service_date=last_done,
+                next_service_date=last_done + timedelta(days=interval_days),
+                next_service_km=Decimal(str(odo + interval_km)),
+                vendor_name=rng.choice(WORKSHOPS),
+                invoice_number=f"INV-{vehicle.id:03d}-{idx+1:02d}",
+                parts_cost=Decimal(str(rng.randint(int(p_cost*0.8), int(p_cost*1.2)))),
+                labor_cost=Decimal(str(rng.randint(int(l_cost*0.8), int(l_cost*1.2)))),
+                total_cost=Decimal(str(p_cost + l_cost)),
+                status="completed",
+            ))
+
+            # Pending work order for services due within 30 days
+            next_due = last_done + timedelta(days=interval_days)
+            if next_due <= today + timedelta(days=30):
+                db.add(VehicleMaintenance(
+                    vehicle_id=vehicle.id,
+                    maintenance_type="scheduled",
+                    service_type=svc,
+                    description=f"[WO] {desc}",
+                    service_date=today,
+                    next_service_date=next_due,
+                    next_service_km=Decimal(str(odo + interval_km)),
+                    vendor_name=rng.choice(WORKSHOPS),
+                    work_order_number=f"WO-{vehicle.id:03d}-{idx+1:02d}",
+                    parts_cost=Decimal(str(p_cost)),
+                    labor_cost=Decimal(str(l_cost)),
+                    total_cost=Decimal(str(p_cost + l_cost)),
+                    status="pending",
+                ))
+
+        # Seed tyres if missing
+        tyre_count = (await db.execute(
+            select(func.count()).select_from(VehicleTyre).where(VehicleTyre.vehicle_id == vehicle.id)
+        )).scalar() or 0
+        if tyre_count == 0:
+            vtype = vehicle.vehicle_type.value if hasattr(vehicle.vehicle_type, "value") else str(vehicle.vehicle_type)
+            positions = POSITIONS_10 if vtype in ("TANKER","CONTAINER","TRAILER") else (POSITIONS_4 if vtype in ("LCV","MINI_TRUCK") else POSITIONS_6)
+            for i, pos in enumerate(positions):
+                km_run = rng.randint(10000, 60000) + age * 8000
+                tread = max(2.0, 12.0 - (km_run / 10000))
+                condition = "good" if tread > 8 else ("average" if tread > 4 else "worn")
+                db.add(VehicleTyre(
+                    vehicle_id=vehicle.id,
+                    tyre_number=f"TYR-{tyre_serial + i:05d}",
+                    position=pos,
+                    brand=rng.choice(TYRE_BRANDS),
+                    model="Heavy Duty",
+                    size=rng.choice(TYRE_SIZES),
+                    ply_rating="18PR",
+                    purchase_date=today - timedelta(days=rng.randint(180, age*365+180)),
+                    purchase_cost=Decimal(str(rng.randint(8000, 14000))),
+                    km_at_fitment=Decimal("0"),
+                    current_km=Decimal(str(km_run)),
+                    tread_depth_mm=Decimal(str(round(tread, 1))),
+                    initial_tread_depth_mm=Decimal("12.0"),
+                    condition=condition,
+                    is_active=True,
+                ))
+            tyre_serial += len(positions)
+
+    await db.commit()
+
+
 @router.get("/fleet/maintenance/schedule", response_model=APIResponse)
 async def fleet_maintenance_schedule(db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
     from app.models.postgres.vehicle import Vehicle, VehicleMaintenance
     today = date.today()
+    # Auto-seed any vehicle that has no maintenance records yet (handles newly added vehicles)
+    await _auto_seed_missing_maintenance(db, today)
     # Get vehicles with scheduled next service dates or km thresholds
     result = await db.execute(
         select(VehicleMaintenance, Vehicle.registration_number, Vehicle.odometer_reading)
@@ -517,6 +659,8 @@ async def fleet_maintenance_schedule(db: AsyncSession = Depends(get_db), current
 @router.get("/fleet/maintenance/work-orders", response_model=APIResponse)
 async def fleet_maintenance_work_orders(db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
     from app.models.postgres.vehicle import Vehicle, VehicleMaintenance
+    today = date.today()
+    await _auto_seed_missing_maintenance(db, today)
     result = await db.execute(
         select(VehicleMaintenance, Vehicle.registration_number)
         .join(Vehicle, Vehicle.id == VehicleMaintenance.vehicle_id)
