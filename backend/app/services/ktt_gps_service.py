@@ -147,8 +147,8 @@ def _parse_ktt_packet(pkt: dict) -> dict:
         "registration_number": reg,
         "registration_number_raw": raw_reg,
         "ktt_device_id": pkt.get("id"),
-        "latitude": _safe_float(pkt.get("lat")),
-        "longitude": _safe_float(pkt.get("lon")),
+        "latitude": _safe_float_or_none(pkt.get("lat")),
+        "longitude": _safe_float_or_none(pkt.get("lon")),
         "speed": _safe_float(pkt.get("spd")),
         "heading": _safe_float(pkt.get("crs")),
         "ignition_on": int(pkt.get("ign", 0)) == 1,
@@ -162,6 +162,15 @@ def _safe_float(val) -> float:
         return float(val) if val is not None else 0.0
     except (ValueError, TypeError):
         return 0.0
+
+
+def _safe_float_or_none(val) -> float | None:
+    """Return float, or None if val is None/0 (treat 0,0 as 'no GPS fix')."""
+    try:
+        f = float(val) if val is not None else None
+        return None if f == 0.0 else f
+    except (ValueError, TypeError):
+        return None
 
 
 # ── Ingest pipeline ──────────────────────────────────────────────
@@ -205,17 +214,22 @@ async def ingest_ktt_positions(positions: list[dict]) -> dict:
                     continue
 
                 # ── 1. Update PostgreSQL Vehicle row ──
+                update_values: dict = {
+                    "last_speed": pos["speed"],
+                    "last_ignition_on": pos["ignition_on"],
+                    "last_gps_at": pos["timestamp"],
+                }
+                # Only overwrite coordinates if KTT returned a valid (non-zero) fix
+                if pos["latitude"] is not None and pos["longitude"] is not None:
+                    update_values["current_latitude"] = pos["latitude"]
+                    update_values["current_longitude"] = pos["longitude"]
+                    update_values["current_location"] = (
+                        f"{pos['latitude']:.6f}, {pos['longitude']:.6f}"
+                    )
                 await db.execute(
                     update(Vehicle)
                     .where(Vehicle.id == vehicle_id)
-                    .values(
-                        current_latitude=pos["latitude"],
-                        current_longitude=pos["longitude"],
-                        current_location=f"{pos['latitude']:.6f}, {pos['longitude']:.6f}",
-                        last_speed=pos["speed"],
-                        last_ignition_on=pos["ignition_on"],
-                        last_gps_at=pos["timestamp"],
-                    )
+                    .values(**update_values)
                 )
 
                 # ── 2. Store in MongoDB ──

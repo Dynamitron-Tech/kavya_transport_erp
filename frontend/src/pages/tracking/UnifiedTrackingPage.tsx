@@ -646,7 +646,7 @@ function DetailPanel({ v }: { v: UnifiedVehicle|null }) {
 
       <InfoSection title="🚛 Vehicle">
         <InfoRow label="Make / Model" value={[v.make,v.model].filter(Boolean).join(' ') || '—'} />
-        <InfoRow label="Odometer"     value={`${v.odometer.toLocaleString()} km`} />
+        <InfoRow label="Odometer"     value={v.odometer > 0 ? `${v.odometer.toLocaleString()} km` : '—'} />
         <InfoRow label="Engine"    value={v.engine_on ? 'Running' : 'Off'} color={v.engine_on?'#16a34a':'#e11d48'} />
         <InfoRow label="Ignition"  value={v.ignition_on ? 'On' : 'Off'} />
         {v.battery_voltage != null && <InfoRow label="Battery" value={`${v.battery_voltage} V`} />}
