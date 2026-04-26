@@ -1514,7 +1514,7 @@ async def pending_advance_trips(
             Trip.advance_paid == False,
             Trip.advance_dismissed == False,
             Trip.is_deleted == False,
-            Trip.status.notin_([TripStatusEnum.COMPLETED, TripStatusEnum.CANCELLED]),
+            Trip.status.notin_([TripStatusEnum.CANCELLED]),
         )
         .order_by(Trip.id.desc())
     )
