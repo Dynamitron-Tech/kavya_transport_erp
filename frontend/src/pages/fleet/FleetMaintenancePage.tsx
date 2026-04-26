@@ -176,11 +176,27 @@ export default function FleetMaintenancePage() {
     { key: 'service_type', header: 'Type', render: (r) => <StatusBadge status={r.service_type} /> },
     { key: 'description', header: 'Description', render: (r) => <span className="text-sm">{r.description}</span> },
     { key: 'due_date', header: 'Due Date', render: (r) => <span className="text-sm">{formatDate(r.due_date)}</span> },
-    { key: 'due_km', header: 'Due KM', render: (r) => <span className="text-sm">{r.due_km ? Number(r.due_km).toLocaleString('en-IN') : '—'}</span> },
-    { key: 'current_km', header: 'Current KM', render: (r) => <span className="text-sm">{r.current_km ? Number(r.current_km).toLocaleString('en-IN') : '—'}</span> },
+    { key: 'due_km', header: 'Due KM', render: (r) => <span className="text-sm">{r.due_km > 0 ? Number(r.due_km).toLocaleString('en-IN') : '—'}</span> },
+    { key: 'current_km', header: 'Current KM', render: (r) => <span className="text-sm">{r.current_km > 0 ? Number(r.current_km).toLocaleString('en-IN') : '—'}</span> },
     { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
     { key: 'priority', header: 'Priority', render: (r) => <StatusBadge status={r.priority || 'medium'} /> },
     { key: 'estimated_cost', header: 'Est. Cost', render: (r) => <span className="text-sm">₹{(r.estimated_cost ?? 0).toLocaleString('en-IN')}</span> },
+    {
+      key: 'actions' as any,
+      header: '',
+      render: (r: any) => (
+        <button
+          onClick={() => {
+            setWoForm({ vehicle_id: '', service_type: r.service_type?.replace('_renewal','') || 'general_service', maintenance_type: 'scheduled', description: r.description || '', vendor_name: '', service_date: r.due_date || '', total_cost: String(r.estimated_cost || ''), notes: '' });
+            setWoModal({ mode: 'create' });
+            setActiveTab('work-orders');
+          }}
+          className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-100 whitespace-nowrap"
+        >
+          <Plus className="w-3 h-3" /> Create WO
+        </button>
+      ),
+    },
   ];
 
   // Work Order columns — with Start + Mark Done actions
@@ -268,9 +284,17 @@ export default function FleetMaintenancePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="page-title">Maintenance Management</h1>
-        <p className="page-subtitle">Service schedules, work orders, parts, tyres and battery monitoring</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="page-title">Maintenance Management</h1>
+          <p className="page-subtitle">Service schedules, work orders, parts, tyres and battery monitoring</p>
+        </div>
+        <button
+          onClick={openCreate}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="w-4 h-4" /> New Work Order
+        </button>
       </div>
 
       {/* Tab Navigation */}
@@ -300,17 +324,7 @@ export default function FleetMaintenancePage() {
           <DataTable columns={scheduleColumns} data={safeArray<MaintenanceScheduleItem>((scheduleData as any)?.items ?? scheduleData)} isLoading={scheduleLoading} emptyMessage="No scheduled maintenance" />
         )}
         {activeTab === 'work-orders' && (
-          <>
-            <div className="flex justify-end mb-3">
-              <button
-                onClick={openCreate}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-4 h-4" /> New Work Order
-              </button>
-            </div>
-            <DataTable columns={woColumns} data={safeArray<WorkOrder>((workOrderData as any)?.items ?? workOrderData)} isLoading={woLoading} emptyMessage="No work orders" />
-          </>
+          <DataTable columns={woColumns} data={safeArray<WorkOrder>((workOrderData as any)?.items ?? workOrderData)} isLoading={woLoading} emptyMessage="No work orders" />
         )}
         {activeTab === 'parts' && (
           <>
