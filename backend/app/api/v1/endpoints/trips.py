@@ -744,19 +744,23 @@ async def add_expense(
             status_code=400,
             detail=f"Biometric verification required for expenses ≥ ₹{threshold}",
         )
+    # Read route_id before any commit (post-commit access on expired objects fails in async)
+    trip_route_id = trip.route_id
     expense = await trip_service.add_trip_expense(db, trip_id, data.model_dump(), current_user.user_id)
     # Mark driver-submitted expenses so they show as "from Driver App" in the UI
     if _is_role(current_user, "driver"):
         expense.entry_source = "app"
         await db.commit()
+    # Read expense.id before background task registration (safe post-commit via PK identity map)
+    expense_id = expense.id
     # RUL-03: flag expense anomaly in background (fire-and-forget)
     from decimal import Decimal
     from app.services.tms_automation_service import rul_03_flag_expense_anomaly
     background_tasks.add_task(
         rul_03_flag_expense_anomaly,
-        db, expense.id, data.category, Decimal(str(data.amount)), trip.route_id
+        db, expense_id, data.category, Decimal(str(data.amount)), trip_route_id
     )
-    return APIResponse(success=True, data={"id": expense.id}, message="Expense added")
+    return APIResponse(success=True, data={"id": expense_id}, message="Expense added")
 
 
 @router.post("/expenses/{expense_id}/verify", response_model=APIResponse)
