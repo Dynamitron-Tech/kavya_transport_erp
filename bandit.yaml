@@ -1,0 +1,11 @@
+# Bandit configuration for Kavya Transports backend.
+# Run: bandit -r backend/app -ll -c bandit.yaml
+skips:
+  - B101  # assert_used: assertions are fine in tests / startup checks
+  - B104  # hardcoded_bind_all_interfaces: uvicorn 0.0.0.0 is intentional in dev
+  - B601  # paramiko (not used)
+
+exclude_dirs:
+  - backend/tests
+  - backend/alembic
+  - backend/_*

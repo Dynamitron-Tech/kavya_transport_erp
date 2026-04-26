@@ -23,9 +23,14 @@ from app.utils.tenant_guard import assert_tenant_access
 
 router = APIRouter()
 
-
 _DRIVER_DOC_TYPE_ALIASES = {
+    # Central documents table stores DocumentType enum values (uppercase → lowercased).
+    # Map them back to the canonical strings the app expects.
     "license": "driving_license",
+    "aadhaar": "aadhaar_card",
+    "driver_badge": "driver_badge",
+    "medical_fitness": "medical_fitness",
+    "pan_card": "pan_card",
 }
 
 
@@ -129,7 +134,8 @@ async def _collect_driver_documents(db: AsyncSession, driver_id: int):
         })
 
     for cd in central_docs:
-        doc_type = cd.document_type.value.lower() if hasattr(cd.document_type, "value") else str(cd.document_type).lower()
+        raw_type = cd.document_type.value.lower() if hasattr(cd.document_type, "value") else str(cd.document_type).lower()
+        doc_type = _normalize_driver_doc_type(raw_type)
         approval = cd.approval_status.value if hasattr(cd.approval_status, "value") else str(cd.approval_status)
         items.append({
             "id": cd.id,
@@ -883,23 +889,77 @@ async def get_my_vehicle(
     if not vehicle:
         return APIResponse(success=True, data=None, message="Vehicle not found")
 
-    # Get vehicle documents
-    docs_result = await db.execute(
+    # Normalize doc type strings from both tables to canonical app keys:
+    # rc_book, insurance, fitness_certificate, pollution_certificate, permit
+    def _canon_vdoc_type(raw: str) -> str:
+        t = (raw or "").upper().strip()
+        if t in ("RC", "RC_BOOK"):
+            return "rc_book"
+        if t == "INSURANCE":
+            return "insurance"
+        if t in ("FITNESS", "FITNESS_CERTIFICATE"):
+            return "fitness_certificate"
+        if t in ("PUC", "POLLUTION", "POLLUTION_CERTIFICATE"):
+            return "pollution_certificate"
+        if t == "PERMIT":
+            return "permit"
+        return raw.lower()
+
+    # Source 1: vehicle_documents table (uploaded via fleet manager direct upload)
+    vdocs_result = await db.execute(
         select(VehicleDocument).where(VehicleDocument.vehicle_id == vehicle.id)
     )
-    docs = docs_result.scalars().all()
-    doc_items = []
-    for d in docs:
-        doc_items.append({
+    vdocs = vdocs_result.scalars().all()
+    doc_map: dict = {}
+    for d in vdocs:
+        canon = _canon_vdoc_type(d.document_type or "")
+        doc_map[canon] = {
             "id": d.id,
-            "document_type": d.document_type,
+            "document_type": canon,
             "document_number": d.document_number,
             "issue_date": str(d.issue_date) if d.issue_date else None,
             "expiry_date": str(d.expiry_date) if d.expiry_date else None,
             "file_url": d.file_url,
             "is_verified": d.is_verified,
             "remarks": d.remarks,
-        })
+        }
+
+    # Source 2: general documents table (uploaded via frontend Document Upload page)
+    from app.models.postgres.document import DocumentType as GenDocType
+    gdocs_result = await db.execute(
+        select(Document).where(
+            Document.entity_type == EntityType.VEHICLE,
+            Document.entity_id == vehicle.id,
+            Document.is_deleted == False,
+        )
+    )
+    gdocs = gdocs_result.scalars().all()
+    _GDOC_TYPE_MAP = {
+        GenDocType.RC: "rc_book",
+        GenDocType.INSURANCE: "insurance",
+        GenDocType.FITNESS: "fitness_certificate",
+        GenDocType.PUC: "pollution_certificate",
+        GenDocType.POLLUTION: "pollution_certificate",
+        GenDocType.PERMIT: "permit",
+    }
+    for d in gdocs:
+        canon = _GDOC_TYPE_MAP.get(d.document_type)
+        if canon is None:
+            continue  # skip non-vehicle-compliance doc types
+        # Only fill in from general docs if vehicle_documents table has no entry
+        if canon not in doc_map:
+            doc_map[canon] = {
+                "id": d.id,
+                "document_type": canon,
+                "document_number": d.document_number,
+                "issue_date": str(d.issue_date) if d.issue_date else None,
+                "expiry_date": str(d.expiry_date) if d.expiry_date else None,
+                "file_url": d.file_url,
+                "is_verified": d.approval_status.value == "APPROVED" if d.approval_status else False,
+                "remarks": d.notes,
+            }
+
+    doc_items = list(doc_map.values())
 
     data = {
         "vehicle": {
@@ -952,10 +1012,7 @@ async def upload_my_document(
     if normalized_document_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail=f"Invalid document_type. Allowed: {ALLOWED_TYPES}")
 
-    driver = await db.execute(
-        select(Driver).where(Driver.user_id == current_user.user_id)
-    )
-    driver = driver.scalar_one_or_none()
+    driver = await _get_current_driver_profile(db, current_user)
     if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
 
@@ -1050,10 +1107,7 @@ async def update_my_document(
     current_user: TokenData = Depends(get_current_user),
 ):
     """Update (re-upload) a driver's personal document."""
-    driver = await db.execute(
-        select(Driver).where(Driver.user_id == current_user.user_id)
-    )
-    driver = driver.scalar_one_or_none()
+    driver = await _get_current_driver_profile(db, current_user)
     if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
 

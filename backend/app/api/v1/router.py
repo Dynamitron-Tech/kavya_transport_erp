@@ -59,6 +59,7 @@ from app.api.v1.endpoints import (
     document_ocr,
     driver_requests,
     expenses,
+    invoice_payments,
 )
 
 api_router = APIRouter()
@@ -102,6 +103,7 @@ api_router.include_router(driver_scoring.router, prefix="/driver-scoring", tags=
 # Finance
 api_router.include_router(finance.router, prefix="/finance", tags=["Finance"])
 api_router.include_router(finance_automation.router, prefix="/finance", tags=["Finance Automation"])
+api_router.include_router(invoice_payments.router, prefix="/finance", tags=["Invoice Payment Proof"])
 
 # Finance Manager — salary, advances, expenses, payables, Razorpay payouts
 api_router.include_router(finance_manager.router, prefix="/finance-manager", tags=["Finance Manager"])

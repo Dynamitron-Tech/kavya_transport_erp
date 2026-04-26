@@ -47,3 +47,30 @@ async def send_otp_msg91(phone: str, otp: str) -> tuple[bool, str]:
     except Exception as exc:
         logger.error(f"[MSG91] send_otp exception: {exc}")
         return False, str(exc)
+
+
+async def verify_otp_msg91(access_token: str, otp: str) -> tuple[bool, str]:
+    """
+    Verify an OTP via MSG91 Widget API.
+    access_token is returned by MSG91 widget after user enters OTP on client side.
+    Returns (success: bool, message: str).
+    """
+    url = "https://api.msg91.com/api/v5/widget/verifyAccessToken"
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                url,
+                json={"authkey": settings.MSG91_AUTH_KEY, "access-token": access_token},
+                headers={"Content-Type": "application/json"},
+            )
+        data = resp.json()
+        logger.info(f"[MSG91] verify response: {data}")
+        if data.get("type") == "success":
+            return True, data.get("message", "OTP verified")
+        else:
+            error = data.get("message", "MSG91 OTP verification failed")
+            logger.warning(f"[MSG91] verify error: {error}")
+            return False, error
+    except Exception as exc:
+        logger.error(f"[MSG91] verify_otp exception: {exc}")
+        return False, str(exc)

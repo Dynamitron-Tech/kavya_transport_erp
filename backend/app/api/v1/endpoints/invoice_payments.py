@@ -17,6 +17,7 @@ from app.middleware.permissions import Permissions, require_permission
 from app.models.postgres.finance import Invoice, InvoicePaymentStatus, InvoiceStatus
 from app.schemas.base import APIResponse
 from app.services.audit_logger import log_audit
+from app.services import email_service
 from app.utils.upload_validator import validate_upload, safe_original_name
 
 logger = logging.getLogger(__name__)
@@ -154,6 +155,17 @@ async def mark_invoice_paid(
     logger.info(
         "[InvoicePayment] Invoice #%s marked paid manually by user %s via %s",
         invoice_id, current_user.user_id, payment_method,
+    )
+
+    # Fire-and-forget email notification to the user who marked it paid (non-blocking)
+    email_service.notify_invoice_paid(
+        db,
+        triggered_by_user_id=current_user.user_id,
+        invoice_number=inv.invoice_number,
+        total_amount=str(inv.total_amount or "0.00"),
+        payment_method=payment_method,
+        paid_at=now.strftime("%d %b %Y, %I:%M %p UTC"),
+        proof_filename=display_name,
     )
 
     return APIResponse(

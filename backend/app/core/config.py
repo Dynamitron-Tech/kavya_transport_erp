@@ -120,7 +120,11 @@ class Settings(BaseSettings):
     AWS_REGION: str = "ap-south-1"
     MINIO_ENDPOINT: Optional[str] = None
     
-    # Communication — MSG91 SendOTP API
+    # Communication — 2Factor.in SMS OTP API
+    TWOFACTOR_ENABLED: bool = True
+    TWOFACTOR_API_KEY: str = "ca8497f8-41ac-11f1-9800-0200cd936042"
+
+    # Communication — MSG91 SendOTP API (fallback)
     MSG91_ENABLED: bool = True
     MSG91_AUTH_KEY: str = "YOUR_MSG91_AUTH_KEY_HERE"
     MSG91_OTP_TEMPLATE_ID: str = "69ebeb-b96f6cb395630194e2"
