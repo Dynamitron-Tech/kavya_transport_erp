@@ -7,7 +7,7 @@ import {
 import DataTable, { Column } from '@/components/common/DataTable';
 import { KPICard, StatusBadge } from '@/components/common/Modal';
 import { fleetService, tpmsService } from '@/services/dataService';
-import { api } from '@/services/api';
+import api from '@/services/api';
 import type { MaintenanceScheduleItem, WorkOrder, PartInventory, TyreRecord, BatteryRecord, MaintenancePrediction } from '@/types';
 import { safeArray } from '@/utils/helpers';
 
