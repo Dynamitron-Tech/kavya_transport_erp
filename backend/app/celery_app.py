@@ -7,6 +7,22 @@ celery_app = Celery(
     "transport_erp",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
+    include=[
+        "app.tasks.compliance_tasks",
+        "app.tasks.eway_bill_tasks",
+        "app.tasks.fuel_price_tasks",
+        "app.tasks.geofence_tasks",
+        "app.tasks.scoring_tasks",
+        "app.tasks.notification_tasks",
+        "app.tasks.intelligence_tasks",
+        "app.tasks.finance_tasks",
+        "app.tasks.banking_tasks",
+        "app.tasks.ialert_tasks",
+        "app.tasks.ktt_tasks",
+        "app.tasks.pipeline_tasks",
+        "app.tasks.gps_tasks",
+        "app.tasks.ewb_expiry_tasks",
+    ],
 )
 
 celery_app.conf.update(
