@@ -8,6 +8,7 @@
 
 import asyncio
 import logging
+from urllib.parse import quote
 import httpx
 
 from app.core.config import settings
@@ -24,7 +25,7 @@ def _build_url(phone: str, otp: str) -> str:
     api_key = settings.TWOFACTOR_API_KEY
     template = (settings.TWOFACTOR_TEMPLATE_NAME or "").strip()
     base = f"{_2FACTOR_BASE_URL}/{api_key}/SMS/{phone}/{otp}"
-    return f"{base}/{template}" if template else base
+    return f"{base}/{quote(template)}" if template else base
 
 
 async def _do_send(phone: str, otp: str) -> tuple[bool, str]:
