@@ -34,12 +34,21 @@ from datetime import datetime
 
 import httpx
 from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
-from app.db.postgres.connection import AsyncSessionLocal
 from app.db.mongodb.connection import MongoDB
 from app.models.postgres.vehicle import Vehicle
+
+
+def _make_session():
+    """Create a fresh NullPool engine+session for use inside celery forked workers.
+    NullPool avoids the asyncpg 'Future attached to a different loop' error that
+    occurs when a pooled connection is inherited across a fork boundary."""
+    engine = create_async_engine(settings.POSTGRES_URL, poolclass=NullPool)
+    return sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +180,7 @@ async def ingest_ktt_positions(positions: list[dict]) -> dict:
     skipped = 0
     errors = 0
 
+    AsyncSessionLocal = _make_session()
     async with AsyncSessionLocal() as db:
         all_vehicles = await db.execute(
             select(Vehicle.id, Vehicle.registration_number)
