@@ -42,9 +42,9 @@ celery_app.conf.update(
         "app.tasks.notification_tasks.*":   {"queue": "notifications"},
         "app.tasks.intelligence_tasks.*":   {"queue": "reports"},
         "app.tasks.scoring_tasks.*":        {"queue": "reports"},
-        "gps.*":                            {"queue": "default"},
-        "app.tasks.ialert_tasks.*":         {"queue": "default"},
-        "app.tasks.ktt_tasks.*":            {"queue": "default"},
+        "gps.*":                            {"queue": "celery"},
+        "app.tasks.ialert_tasks.*":         {"queue": "celery"},
+        "app.tasks.ktt_tasks.*":            {"queue": "celery"},
         # payments queue — highest priority
         "app.tasks.payment_tasks.*":        {"queue": "payments"},
     },
