@@ -65,6 +65,7 @@ import FuelPricePage from '@/pages/fleet/FuelPricePage';
 import RouteCalculatorPage from '@/pages/trips/RouteCalculatorPage';
 import PaymentLinkPage from '@/pages/finance/PaymentLinkPage';
 import PaymentsHubPage from '@/pages/finance/PaymentsHubPage';
+import AuditorReviewPage from '@/pages/finance/AuditorReviewPage';
 import NotificationCenterPage from '@/pages/settings/NotificationCenterPage';
 // Settings
 import SettingsPage from '@/pages/settings/SettingsPage';
@@ -234,6 +235,7 @@ function App() {
           {/* Reports */}
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/auditor" element={<AuditorReportPage />} />
+          <Route path="/auditor/payment-proofs" element={<AuthGuard requiredPermission="payment:proof:read"><AuditorReviewPage /></AuthGuard>} />
 
           {/* Settings */}
           <Route path="/settings" element={<SettingsPage />} />

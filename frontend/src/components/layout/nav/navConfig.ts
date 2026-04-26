@@ -475,4 +475,11 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
       { label: 'My Documents', path: '/driver/documents', roles: ['driver'] },
     ],
   },
+  {
+    label: 'Audit',
+    roles: ['auditor'],
+    items: [
+      { label: 'Payment Proofs', path: '/auditor/payment-proofs', roles: ['auditor'] },
+    ],
+  },
 ];

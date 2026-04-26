@@ -120,9 +120,13 @@ export const useAuthStore = create<AuthState>()(
               const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api/v1';
               const refreshRes = await axios.post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refreshToken });
               const newToken = refreshRes.data?.data?.access_token ?? refreshRes.data?.access_token;
+              const newRefresh = refreshRes.data?.data?.refresh_token ?? refreshRes.data?.refresh_token;
               if (newToken) {
                 localStorage.setItem('access_token', newToken);
                 set({ token: newToken });
+              }
+              if (newRefresh) {
+                localStorage.setItem('refresh_token', newRefresh);
               }
             } catch { /* ignore — will still try getMe with existing token */ }
           }

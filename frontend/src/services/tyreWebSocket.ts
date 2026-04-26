@@ -21,9 +21,18 @@ class TyreWebSocketService {
       return;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const host = window.location.host;
-    const wsUrl = `${protocol}://${host}/ws?token=${encodeURIComponent(token)}`;
+    // Derive WS host from VITE_API_URL so we always connect to api.kavyatransports.com
+    // even when the app is served from app.kavyatransports.com (CloudFront/S3).
+    const apiUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+    let wsBase: string;
+    if (apiUrl && apiUrl.startsWith('http')) {
+      const u = new URL(apiUrl);
+      wsBase = `${u.protocol === 'https:' ? 'wss' : 'ws'}://${u.host}`;
+    } else {
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      wsBase = `${protocol}://${window.location.host}`;
+    }
+    const wsUrl = `${wsBase}/ws?token=${encodeURIComponent(token)}`;
 
     this.ws = new WebSocket(wsUrl);
 
