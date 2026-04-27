@@ -1716,11 +1716,20 @@ function HistoryTab() {
    INVENTORY TAB — stock management (New / Retreaded / Removed)
    ═══════════════════════════════════════════════════════════ */
 
+const _emptyAddForm = {
+  brand: '', model: '', size: '', ply_rating: '',
+  manufacturer_serial: '', condition: 'new',
+  quality_pct: '', tread_depth: '', pressure: '', qty: '1',
+};
+
 function InventoryTab() {
   const queryClient = useQueryClient();
   const [stockType, setStockType] = useState<'new' | 'retreaded' | 'removed'>('new');
-  const [showEntry, setShowEntry] = useState(false);
   const [search, setSearch] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ ..._emptyAddForm });
+  const [nextTyreNum, setNextTyreNum] = useState('');
+  const [fetchingNum, setFetchingNum] = useState(false);
 
   const { data: stockData, isLoading } = useQuery({
     queryKey: ['tyre-stock', stockType],
@@ -1751,11 +1760,62 @@ function InventoryTab() {
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [items]);
 
+  const openAddModal = async () => {
+    setShowAddModal(true);
+    setFetchingNum(true);
+    try {
+      const apiMod = (await import('@/services/api')).default;
+      const res = await apiMod.get('/tyre/next-number');
+      const d = (res as any)?.data ?? res;
+      setNextTyreNum(d?.next ?? '');
+    } catch {
+      setNextTyreNum('');
+    } finally {
+      setFetchingNum(false);
+    }
+  };
+
+  const closeAddModal = () => {
+    setShowAddModal(false);
+    setAddForm({ ..._emptyAddForm });
+    setNextTyreNum('');
+  };
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const qualityPct = parseFloat(addForm.quality_pct);
+      const treadFromQuality = !isNaN(qualityPct) ? (qualityPct * 18.0) / 100.0 : undefined;
+      const treadRaw = parseFloat(addForm.tread_depth);
+      const tread = !isNaN(treadRaw) ? treadRaw : treadFromQuality;
+      const pressureVal = parseFloat(addForm.pressure);
+      return tyreTrackerService.addStock({
+        serial_number: nextTyreNum || undefined,
+        manufacturer_serial: addForm.manufacturer_serial.trim() || undefined,
+        brand: addForm.brand.trim(),
+        model: addForm.model.trim() || undefined,
+        size: addForm.size.trim(),
+        ply_rating: addForm.ply_rating.trim() || undefined,
+        status: addForm.condition,
+        tread_depth_mm: tread,
+        initial_tread_depth_mm: tread,
+        pressure_psi: !isNaN(pressureVal) ? pressureVal : undefined,
+        quantity: parseInt(addForm.qty) || 1,
+      });
+    },
+    onSuccess: () => {
+      const qty = parseInt(addForm.qty) || 1;
+      toast.success(`${qty} tyre${qty > 1 ? 's' : ''} added to stock`);
+      closeAddModal();
+      queryClient.invalidateQueries({ queryKey: ['tyre-stock'] });
+    },
+    onError: () => toast.error('Failed to add tyre to stock'),
+  });
+
   const handleFlagRetread = async (tyreId: number) => {
     try {
       await tyreTrackerService.getStock({ type: 'removed' }); // preload
-      const api = (await import('@/services/api')).default;
-      await api.post('/tyre/flag-retreading', { tyre_id: tyreId, notes: '' });
+      const apiMod = (await import('@/services/api')).default;
+      await apiMod.post('/tyre/flag-retreading', { tyre_id: tyreId, notes: '' });
       queryClient.invalidateQueries({ queryKey: ['tyre-retread-flags'] });
       queryClient.invalidateQueries({ queryKey: ['tyre-stock'] });
       toast.success('Tyre flagged for retreading');
@@ -1764,16 +1824,8 @@ function InventoryTab() {
     }
   };
 
-  if (showEntry) {
-    return (
-      <div>
-        <button onClick={() => setShowEntry(false)} className="mb-4 flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
-          ← Back to Inventory
-        </button>
-        <TyreEntryTab />
-      </div>
-    );
-  }
+  const f = (field: keyof typeof _emptyAddForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setAddForm(p => ({ ...p, [field]: e.target.value }));
 
   return (
     <div className="space-y-4">
@@ -1784,12 +1836,193 @@ function InventoryTab() {
           <p className="text-sm text-gray-500">{rawItems.length} {stockType} tyre(s) in stock</p>
         </div>
         <button
-          onClick={() => setShowEntry(true)}
-          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
+          onClick={openAddModal}
+          className="flex items-center gap-1.5 bg-teal-700 hover:bg-teal-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
         >
           <Plus className="w-4 h-4" /> Register Tyres
         </button>
       </div>
+
+      {/* Add Tyre to Stock Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center">
+                  <Plus className="w-4 h-4 text-teal-700" />
+                </div>
+                <h3 className="text-base font-bold text-gray-900">Add Tyre to Stock</h3>
+              </div>
+              <button onClick={closeAddModal} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              className="px-5 py-4 space-y-4"
+              onSubmit={e => { e.preventDefault(); addMutation.mutate(); }}
+            >
+              {/* Tyre Number (auto) */}
+              <div>
+                <label className="block text-xs font-semibold text-teal-700 mb-1">Tyre Number</label>
+                <div className="flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2.5">
+                  <span className="text-gray-400 text-sm">#</span>
+                  <span className="flex-1 text-sm font-semibold text-gray-800">
+                    {fetchingNum ? <span className="text-gray-400">Loading…</span> : (nextTyreNum || '—')}
+                  </span>
+                  <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-medium">Auto</span>
+                </div>
+              </div>
+
+              {/* Serial Number */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Serial Number <span className="text-gray-400">(optional)</span></label>
+                <input
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                  placeholder="Manufacturer serial"
+                  value={addForm.manufacturer_serial}
+                  onChange={f('manufacturer_serial')}
+                />
+              </div>
+
+              {/* Brand + Model */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Brand <span className="text-red-400">*</span></label>
+                  <input
+                    required
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                    placeholder="e.g. MRF, Apollo"
+                    value={addForm.brand}
+                    onChange={f('brand')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Model</label>
+                  <input
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                    placeholder="e.g. Zapper"
+                    value={addForm.model}
+                    onChange={f('model')}
+                  />
+                </div>
+              </div>
+
+              {/* Tyre Size + Ply Rating */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Tyre Size <span className="text-red-400">*</span></label>
+                  <input
+                    required
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                    placeholder="295/90 R20"
+                    value={addForm.size}
+                    onChange={f('size')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Ply Rating</label>
+                  <input
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                    placeholder="e.g. 16PR"
+                    value={addForm.ply_rating}
+                    onChange={f('ply_rating')}
+                  />
+                </div>
+              </div>
+
+              {/* Tyre Condition + Tyre Quality */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Tyre Condition <span className="text-red-400">*</span></label>
+                  <select
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none bg-white"
+                    value={addForm.condition}
+                    onChange={f('condition')}
+                  >
+                    <option value="new">New</option>
+                    <option value="retreaded">Retreaded</option>
+                    <option value="removed">Removed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Tyre Quality (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                    placeholder="e.g. 100"
+                    value={addForm.quality_pct}
+                    onChange={f('quality_pct')}
+                  />
+                </div>
+              </div>
+
+              {/* Tread Depth + Pressure */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Tread Depth (mm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                    placeholder="e.g. 18"
+                    value={addForm.tread_depth}
+                    onChange={f('tread_depth')}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Pressure (PSI)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                    placeholder="e.g. 110"
+                    value={addForm.pressure}
+                    onChange={f('pressure')}
+                  />
+                </div>
+              </div>
+
+              {/* Quantity */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Quantity <span className="text-red-400">*</span></label>
+                <input
+                  required
+                  type="number"
+                  min="1"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                  value={addForm.qty}
+                  onChange={f('qty')}
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeAddModal}
+                  className="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-lg hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addMutation.isPending}
+                  className="flex-1 bg-teal-700 hover:bg-teal-800 disabled:opacity-60 text-white text-sm font-semibold py-2.5 rounded-lg transition"
+                >
+                  {addMutation.isPending ? 'Adding…' : 'Add to Stock'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Filter chips */}
       <div className="flex gap-2">
