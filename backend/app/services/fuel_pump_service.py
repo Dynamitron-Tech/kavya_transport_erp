@@ -101,20 +101,37 @@ async def issue_fuel(
 
     total_amount = data.quantity_litres * data.rate_per_litre
 
-    # Tank is optional until pump management is configured by fleet manager
+    # Resolve tank: use explicit tank_id, or auto-find matching tank by fuel_type
     tank = None
     if data.tank_id is not None:
         tank = await get_tank(db, data.tank_id)
         if not tank:
             raise ValueError("Tank not found")
+    else:
+        # Auto-resolve: find first active tank matching the fuel type
+        _fuel_type_val = FuelType(data.fuel_type)
+        _tank_q = select(DepotFuelTank).where(
+            DepotFuelTank.is_deleted == False,
+            DepotFuelTank.fuel_type == _fuel_type_val,
+        )
+        if branch_id:
+            _tank_q = _tank_q.where(DepotFuelTank.branch_id == branch_id)
+        elif tenant_id:
+            _tank_q = _tank_q.where(DepotFuelTank.tenant_id == tenant_id)
+        _tank_result = await db.execute(_tank_q.order_by(DepotFuelTank.id).limit(1))
+        tank = _tank_result.scalar_one_or_none()
+
+    if tank is not None:
         if tank.current_stock_litres < data.quantity_litres:
             raise ValueError(
                 f"Insufficient stock: {tank.current_stock_litres}L available, "
                 f"{data.quantity_litres}L requested"
             )
 
+    resolved_tank_id = tank.id if tank is not None else data.tank_id
+
     issue = FuelIssue(
-        tank_id=data.tank_id,
+        tank_id=resolved_tank_id,
         pump_id=data.pump_id,
         vehicle_id=data.vehicle_id,
         external_vehicle_number=data.external_vehicle_number,
@@ -139,7 +156,7 @@ async def issue_fuel(
         tank.current_stock_litres = tank.current_stock_litres - data.quantity_litres
 
         txn = FuelStockTransaction(
-            tank_id=data.tank_id,
+            tank_id=resolved_tank_id,
             transaction_type=TransactionType.ISSUE,
             quantity_litres=data.quantity_litres,
             rate_per_litre=data.rate_per_litre,
