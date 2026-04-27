@@ -975,7 +975,7 @@ async def get_my_documents(
                 for doc_type, file_url, file_name in user_doc_fields:
                     if file_url and doc_type not in existing_types:
                         items.append({
-                            "id": None,
+                            "id": 0,
                             "document_type": doc_type,
                             "document_number": None,
                             "file_name": file_name,
