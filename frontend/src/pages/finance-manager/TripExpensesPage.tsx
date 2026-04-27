@@ -261,7 +261,7 @@ export default function TripExpensesPage() {
                             onClick={(e) => { e.stopPropagation(); setPayConfirmId(exp.id); }}
                             className="flex items-center gap-1 px-2.5 py-1 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 transition-colors"
                           >
-                            <IndianRupee size={11} /> Pay
+                            <IndianRupee size={11} /> Mark as Paid
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); setRejectId(exp.id); }}
@@ -332,7 +332,7 @@ export default function TripExpensesPage() {
                 className="flex-1 bg-green-500 text-white rounded-lg py-2 text-sm font-semibold hover:bg-green-600 disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 <IndianRupee size={14} />
-                {payMutation.isPending ? 'Processing…' : `Pay ${fmt(pendingItem.amount)}`}
+                {payMutation.isPending ? 'Processing…' : `Mark as Paid ${fmt(pendingItem.amount)}`}
               </button>
             </div>
           </div>

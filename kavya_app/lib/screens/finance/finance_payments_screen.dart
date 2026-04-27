@@ -1098,7 +1098,7 @@ class _TripExpenseGroupState extends ConsumerState<_TripExpenseGroup> {
                                         strokeWidth: 2,
                                         color: Colors.white))
                                 : const Text(
-                                    'Pay',
+                                    'Mark as Paid',
                                     style: TextStyle(
                                         fontSize: 11,
                                         color: Colors.white,
@@ -1138,7 +1138,7 @@ class _TripExpenseGroupState extends ConsumerState<_TripExpenseGroup> {
                                 strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.payments_rounded, size: 16),
                     label: Text(
-                      'Pay All  ·  ${_fmtAmt(total)}',
+                      'Mark All as Paid  ·  ${_fmtAmt(total)}',
                       style: const TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w700),
                     ),
