@@ -580,7 +580,7 @@ class _ScheduleCardState extends ConsumerState<_ScheduleCard> {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Pay'),
+            child: const Text('Mark as Paid'),
           ),
         ],
       ),
@@ -724,7 +724,7 @@ class _ScheduleCardState extends ConsumerState<_ScheduleCard> {
                             height: 12,
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white))
-                        : const Text('Pay'),
+                        : const Text('Mark as Paid'),
                   ),
                 ),
               ],
@@ -833,9 +833,9 @@ class _TripExpenseGroupState extends ConsumerState<_TripExpenseGroup> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Pay All Expenses'),
+        title: const Text('Mark All as Paid'),
         content: Text(
-          'Pay all ${expenses.length} expenses ($totalStr) for trip $tripNum to $driverName?\n\nPayments will be sent directly to the driver\'s registered bank account.',
+          'Mark all ${expenses.length} expenses ($totalStr) as paid for trip $tripNum to $driverName?\n\nPayments will be sent directly to the driver\'s registered bank account.',
         ),
         actions: [
           TextButton(
@@ -848,7 +848,7 @@ class _TripExpenseGroupState extends ConsumerState<_TripExpenseGroup> {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Pay $totalStr'),
+            child: Text('Mark as Paid $totalStr'),
           ),
         ],
       ),
