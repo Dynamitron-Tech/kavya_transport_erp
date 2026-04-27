@@ -123,9 +123,11 @@ export default function AccountantFuelExpensePage() {
       key: 'mileage' as const,
       header: 'Mileage',
       render: (item: AccountantFuelExpense) => (
-        <span className={`text-sm font-bold ${item.mileage >= 4 ? 'text-green-600' : item.mileage >= 3 ? 'text-amber-600' : 'text-red-600'}`}>
-          {safeNum(item.mileage, 1)} km/L
-        </span>
+        item.mileage > 0
+          ? <span className={`text-sm font-bold ${item.mileage >= 4 ? 'text-green-600' : item.mileage >= 3 ? 'text-amber-600' : 'text-red-600'}`}>
+              {safeNum(item.mileage, 1)} km/L
+            </span>
+          : <span className="text-sm text-gray-400">N/A</span>
       ),
     },
     {

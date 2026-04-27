@@ -1407,12 +1407,27 @@ async def accountant_fuel_expenses(
         select(TripFuelEntry, Trip, Vehicle)
         .join(Trip, Trip.id == TripFuelEntry.trip_id)
         .outerjoin(Vehicle, Vehicle.id == TripFuelEntry.vehicle_id)
-        .order_by(TripFuelEntry.fuel_date.desc())
+        .order_by(TripFuelEntry.vehicle_id, TripFuelEntry.fuel_date.asc())
         .limit(200)
     )
     rows = result.all()
-    items = []
+    # Calculate mileage from consecutive odometer readings per vehicle
+    prev_odo: dict = {}
+    mileage_by_id: dict = {}
     for fuel, trip, vehicle in rows:
+        curr_odo = float(fuel.odometer_reading or 0)
+        litres = float(fuel.quantity_litres or 0)
+        vid = fuel.vehicle_id
+        if curr_odo > 0 and litres > 0 and vid in prev_odo and prev_odo[vid] > 0 and curr_odo > prev_odo[vid]:
+            mileage_by_id[fuel.id] = round((curr_odo - prev_odo[vid]) / litres, 1)
+        else:
+            mileage_by_id[fuel.id] = 0
+        if curr_odo > 0:
+            prev_odo[vid] = curr_odo
+    # Sort back to most-recent-first for display
+    rows_sorted = sorted(rows, key=lambda r: r[0].fuel_date or datetime.min, reverse=True)
+    items = []
+    for fuel, trip, vehicle in rows_sorted:
         items.append({
             "id": fuel.id,
             "date": fuel.fuel_date.isoformat() if fuel.fuel_date else None,
@@ -1425,7 +1440,7 @@ async def accountant_fuel_expenses(
             "total_cost": float(fuel.total_amount or 0),
             "fuel_station": fuel.pump_name or "N/A",
             "odometer": float(fuel.odometer_reading or 0),
-            "mileage": 0,
+            "mileage": mileage_by_id.get(fuel.id, 0),
             "payment_method": fuel.payment_mode or "cash",
             "receipt": bool(fuel.bill_url),
             "is_verified": fuel.is_verified or False,
