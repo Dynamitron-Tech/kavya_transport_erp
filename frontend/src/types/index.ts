@@ -1784,8 +1784,8 @@ export interface AccountantFuelExpense {
   cost_per_litre: number;
   total_cost: number;
   fuel_station: string;
-  odometer: number;
-  mileage: number;
+  start_odometer: number;
+  end_odometer: number;
   payment_method: string;
   receipt: boolean;
   is_verified: boolean;

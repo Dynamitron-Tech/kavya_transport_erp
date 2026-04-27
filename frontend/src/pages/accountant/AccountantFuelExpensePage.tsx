@@ -113,21 +113,21 @@ export default function AccountantFuelExpensePage() {
       ),
     },
     {
-      key: 'odometer' as const,
-      header: 'Odometer',
+      key: 'start_odometer' as const,
+      header: 'Start Odo',
       render: (item: AccountantFuelExpense) => (
-        <span className="text-sm text-gray-600">{safeLocale(item.odometer)} km</span>
+        <span className="text-sm text-gray-600">
+          {item.start_odometer > 0 ? `${safeLocale(item.start_odometer)} km` : '—'}
+        </span>
       ),
     },
     {
-      key: 'mileage' as const,
-      header: 'Mileage',
+      key: 'end_odometer' as const,
+      header: 'End Odo',
       render: (item: AccountantFuelExpense) => (
-        item.mileage > 0
-          ? <span className={`text-sm font-bold ${item.mileage >= 4 ? 'text-green-600' : item.mileage >= 3 ? 'text-amber-600' : 'text-red-600'}`}>
-              {safeNum(item.mileage, 1)} km/L
-            </span>
-          : <span className="text-sm text-gray-400">N/A</span>
+        <span className="text-sm text-gray-600">
+          {item.end_odometer > 0 ? `${safeLocale(item.end_odometer)} km` : '—'}
+        </span>
       ),
     },
     {
