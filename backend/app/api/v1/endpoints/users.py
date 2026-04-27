@@ -16,7 +16,7 @@ from app.middleware.permissions import require_permission, Permissions
 from app.schemas.base import APIResponse, PaginationMeta
 from app.schemas.user import UserCreate, UserUpdate, UserUpdateSelf
 from app.services import user_service
-from app.models.postgres.user import User, Role, user_roles as user_roles_table, EmployeeAttendance
+from app.models.postgres.user import User, Role, UserRole, user_roles as user_roles_table, EmployeeAttendance
 from app.utils.tenant_guard import assert_tenant_access
 from app.services.token_blacklist import force_logout_user
 
@@ -31,12 +31,14 @@ async def list_pump_operators(
     _perm=Depends(require_permission(Permissions.FUEL_READ)),
 ):
     """List all pump operator users. Accessible to fleet managers via fuel:read permission."""
+    # Check both the legacy user_roles table and the extended user_role_assignments table
+    _pump_role_id_subq = select(Role.id).where(Role.name == "pump_operator").scalar_subquery()
+    legacy_ids = select(user_roles_table.c.user_id).where(user_roles_table.c.role_id == _pump_role_id_subq)
+    extended_ids = select(UserRole.user_id).where(UserRole.role_id == _pump_role_id_subq)
     query = (
         select(User)
-        .join(user_roles_table, user_roles_table.c.user_id == User.id)
-        .join(Role, Role.id == user_roles_table.c.role_id)
-        .where(Role.name == "pump_operator")
         .where(User.is_active == True)
+        .where(User.id.in_(legacy_ids.union(extended_ids)))
     )
     if search:
         search_filter = (

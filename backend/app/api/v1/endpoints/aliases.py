@@ -1,5 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from datetime import time as time_cls
+
+_IST = timezone(timedelta(hours=5, minutes=30))
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import select, func
@@ -310,8 +312,9 @@ async def attendance_check_in(
     if not photo_data_url.startswith('data:image/'):
         raise HTTPException(status_code=400, detail='Invalid photo format')
 
-    now = datetime.now()
-    today = now.date()
+    now = datetime.now(timezone.utc)
+    now_ist = now.astimezone(_IST)
+    today = now_ist.date()
 
     existing = (await db.execute(
         select(EmployeeAttendance)
@@ -321,7 +324,7 @@ async def attendance_check_in(
         raise HTTPException(status_code=400, detail='Attendance already marked for today')
 
     cutoff = time_cls(8, 30)
-    status_value = 'late' if now.time() > cutoff else 'present'
+    status_value = 'late' if now_ist.time() > cutoff else 'present'
 
     # Append location to remarks if provided
     location_note = f'Location: {lat:.6f}, {lng:.6f}' if (lat is not None and lng is not None) else None
@@ -376,7 +379,7 @@ async def attendance_check_in(
             'id': entry.id,
             'date': today.isoformat(),
             'status': status_value,
-            'check_in_time': now.isoformat(),
+            'check_in_time': now.isoformat(),  # UTC with +00:00 offset — browsers convert to local time
         },
         message=message,
     )
