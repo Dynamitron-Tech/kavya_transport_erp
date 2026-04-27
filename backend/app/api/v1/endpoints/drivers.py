@@ -5,6 +5,9 @@ from sqlalchemy import select, func, or_
 from typing import Optional
 from datetime import date, datetime, timedelta
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user, get_password_hash, verify_password
@@ -949,34 +952,41 @@ async def get_my_documents(
     items = await _collect_driver_documents(db, driver.id)
 
     # Also include documents stored directly on the User record (uploaded by fleet/HR)
-    if driver.user_id:
-        user_result = await db.execute(select(User).where(User.id == driver.user_id))
-        user = user_result.scalar_one_or_none()
-        if user:
-            from app.services import s3_service as _s3
-            async def _presign(url):
-                return await _s3.presign_stored_url(url) if url else None
+    try:
+        if driver.user_id:
+            user_result = await db.execute(select(User).where(User.id == driver.user_id))
+            user = user_result.scalar_one_or_none()
+            if user:
+                from app.services import s3_service as _s3
 
-            user_doc_fields = [
-                ("aadhaar_card",    user.aadhaar_file_url,  user.aadhaar_file_name),
-                ("pan_card",        user.pan_file_url,       user.pan_file_name),
-                ("driving_license", user.dl_file_url,        user.dl_file_name),
-                ("bank_passbook",   user.passbook_file_url,  user.passbook_file_name),
-            ]
-            existing_types = {i["document_type"] for i in items}
-            for doc_type, file_url, file_name in user_doc_fields:
-                if file_url and doc_type not in existing_types:
-                    items.append({
-                        "id": None,
-                        "document_type": doc_type,
-                        "document_number": None,
-                        "file_name": file_name,
-                        "file_url": await _presign(file_url),
-                        "is_verified": True,
-                        "remarks": None,
-                        "uploaded_at": None,
-                        "updated_at": None,
-                    })
+                async def _presign(url):
+                    try:
+                        return await _s3.presign_stored_url(url) if url else None
+                    except Exception:
+                        return url
+
+                user_doc_fields = [
+                    ("aadhaar_card",    user.aadhaar_file_url,  user.aadhaar_file_name),
+                    ("pan_card",        user.pan_file_url,       user.pan_file_name),
+                    ("driving_license", user.dl_file_url,        user.dl_file_name),
+                    ("bank_passbook",   user.passbook_file_url,  user.passbook_file_name),
+                ]
+                existing_types = {i["document_type"] for i in items}
+                for doc_type, file_url, file_name in user_doc_fields:
+                    if file_url and doc_type not in existing_types:
+                        items.append({
+                            "id": None,
+                            "document_type": doc_type,
+                            "document_number": None,
+                            "file_name": file_name,
+                            "file_url": await _presign(file_url),
+                            "is_verified": True,
+                            "remarks": None,
+                            "uploaded_at": None,
+                            "updated_at": None,
+                        })
+    except Exception as e:
+        logger.error(f"Error loading user-level documents for driver {driver.id}: {e}", exc_info=True)
     return APIResponse(success=True, data={"items": items})
 
 
