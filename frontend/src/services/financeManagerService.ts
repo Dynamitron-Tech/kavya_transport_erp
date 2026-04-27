@@ -208,6 +208,12 @@ export const financeManagerService = {
   rejectTripExpense: (id: number, reason: string) =>
     api.patch(`${BASE}/trip-expenses/${id}/reject`, reason, { headers: { 'Content-Type': 'application/json' } }),
 
+  // Fuel Entries
+  getFuelEntries: (is_verified?: boolean) =>
+    api.get(`${BASE}/fuel-entries`, { params: { is_verified } }).then((r: any) => (r.data as any[]) ?? []),
+  markFuelEntryPaid: (id: number) =>
+    api.patch(`${BASE}/fuel-entries/${id}/mark-paid`),
+
   // Payment Contacts
   getPaymentContacts: (entity_type?: string, entity_id?: number) =>
     api.get<{ data: PaymentContactItem[] }>(`${BASE}/payment-contacts`, { params: { entity_type, entity_id } }).then(r => r.data),

@@ -1399,14 +1399,65 @@ async def accountant_expense_reject_compat(
 
 
 @router.get("/accountant/fuel-expenses", response_model=APIResponse)
-async def accountant_fuel_expenses():
-    return APIResponse(success=True, data=[])
+async def accountant_fuel_expenses(
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(TripFuelEntry, Trip, Vehicle)
+        .join(Trip, Trip.id == TripFuelEntry.trip_id)
+        .outerjoin(Vehicle, Vehicle.id == TripFuelEntry.vehicle_id)
+        .order_by(TripFuelEntry.fuel_date.desc())
+        .limit(200)
+    )
+    rows = result.all()
+    items = []
+    for fuel, trip, vehicle in rows:
+        items.append({
+            "id": fuel.id,
+            "date": fuel.fuel_date.isoformat() if fuel.fuel_date else None,
+            "vehicle": vehicle.registration_number if vehicle else f"Vehicle #{fuel.vehicle_id}",
+            "vehicle_id": fuel.vehicle_id,
+            "driver": trip.driver_name or "N/A",
+            "trip_ref": trip.trip_number or str(trip.id),
+            "fuel_quantity": float(fuel.quantity_litres or 0),
+            "cost_per_litre": float(fuel.rate_per_litre or 0),
+            "total_cost": float(fuel.total_amount or 0),
+            "fuel_station": fuel.pump_name or "N/A",
+            "odometer": float(fuel.odometer_reading or 0),
+            "mileage": 0,
+            "payment_method": fuel.payment_mode or "cash",
+            "receipt": bool(fuel.bill_url),
+            "is_verified": fuel.is_verified or False,
+            "fuel_type": fuel.fuel_type or "diesel",
+        })
+    return APIResponse(success=True, data=items)
 
 
 @router.get("/accountant/fuel-expenses/summary", response_model=APIResponse)
-async def accountant_fuel_expenses_summary(period: str = "this_month"):
+async def accountant_fuel_expenses_summary(
+    period: str = "this_month",
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
     _ = period
-    return APIResponse(success=True, data={"total": 0, "avg_per_km": 0})
+    row = (await db.execute(
+        select(
+            func.count(TripFuelEntry.id),
+            func.coalesce(func.sum(TripFuelEntry.total_amount), 0),
+            func.coalesce(func.sum(TripFuelEntry.quantity_litres), 0),
+            func.coalesce(func.avg(TripFuelEntry.rate_per_litre), 0),
+        )
+    )).one()
+    count, total_cost, total_litres, avg_rate = row
+    return APIResponse(success=True, data={
+        "total_fuel_cost": float(total_cost),
+        "total_litres": float(total_litres),
+        "avg_rate_per_litre": float(avg_rate),
+        "avg_mileage": 0,
+        "by_vehicle": [],
+        "monthly_trend": [],
+    })
 
 
 @router.get("/accountant/banking/overview", response_model=APIResponse)

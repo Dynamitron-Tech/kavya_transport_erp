@@ -38,7 +38,15 @@ final _pendingTripExpensesProvider =
   return [];
 });
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
+final _pendingFuelEntriesProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  final res = await api.get('/finance-manager/fuel-entries?is_verified=false');
+  if (res['success'] == true) {
+    return List<Map<String, dynamic>>.from(res['data'] ?? []);
+  }
+  return [];
+});
 
 class FinancePaymentsScreen extends ConsumerWidget {
   const FinancePaymentsScreen({super.key});
@@ -78,6 +86,7 @@ class FinancePaymentsScreen extends ConsumerWidget {
     final schedulesAsync = ref.watch(_upcomingSchedulesProvider);
     final advancesAsync = ref.watch(_pendingAdvancesProvider);
     final tripExpensesAsync = ref.watch(_pendingTripExpensesProvider);
+    final fuelEntriesAsync = ref.watch(_pendingFuelEntriesProvider);
     final topUpsAsync = ref.watch(pendingTopUpRequestsProvider);
     final paidTopUpsAsync = ref.watch(paidTopUpRequestsProvider);
 
@@ -86,6 +95,7 @@ class FinancePaymentsScreen extends ConsumerWidget {
         ref.invalidate(_upcomingSchedulesProvider);
         ref.invalidate(_pendingAdvancesProvider);
         ref.invalidate(_pendingTripExpensesProvider);
+        ref.invalidate(_pendingFuelEntriesProvider);
         ref.invalidate(pendingTopUpRequestsProvider);
         ref.invalidate(paidTopUpRequestsProvider);
       },
@@ -144,6 +154,35 @@ class FinancePaymentsScreen extends ConsumerWidget {
               return Column(
                 children: grouped.values
                     .map((g) => _TripExpenseGroup(group: g))
+                    .toList(),
+              );
+            },
+          ),
+
+          const SizedBox(height: 28),
+
+          // ── Trip Fuel Entry Payments ─────────────────────────────────
+          _SectionHeader(
+            icon: Icons.local_gas_station_rounded,
+            label: 'Trip Fuel Entry Payments',
+            color: const Color(0xFFE65100),
+            count: fuelEntriesAsync.valueOrNull?.length ?? 0,
+          ),
+          const SizedBox(height: 10),
+          fuelEntriesAsync.when(
+            loading: () => const _Shimmer(count: 2),
+            error: (e, _) => _ErrorTile(msg: e.toString()),
+            data: (entries) {
+              if (entries.isEmpty) {
+                return const _EmptyTile(
+                  icon: Icons.check_circle_outline_rounded,
+                  color: KTColors.success,
+                  message: 'No pending fuel entry payments.',
+                );
+              }
+              return Column(
+                children: entries
+                    .map((e) => _FuelEntryPaymentCard(entry: e))
                     .toList(),
               );
             },
@@ -1222,6 +1261,167 @@ class _ErrorTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(10)),
       child: Text('Error: $msg',
           style: const TextStyle(fontSize: 12, color: KTColors.danger)),
+    );
+  }
+}
+
+// ─── Trip Fuel Entry Payment Card ─────────────────────────────────────────────
+
+class _FuelEntryPaymentCard extends ConsumerStatefulWidget {
+  final Map<String, dynamic> entry;
+  const _FuelEntryPaymentCard({required this.entry});
+
+  @override
+  ConsumerState<_FuelEntryPaymentCard> createState() =>
+      _FuelEntryPaymentCardState();
+}
+
+class _FuelEntryPaymentCardState
+    extends ConsumerState<_FuelEntryPaymentCard> {
+  bool _paying = false;
+
+  String _fmt(dynamic v) {
+    final d = (v is num) ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0;
+    return '₹${d.toStringAsFixed(0)}';
+  }
+
+  Future<void> _markPaid() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Mark Fuel Entry as Paid'),
+        content: Text(
+          'Mark fuel entry of ${_fmt(widget.entry['total_amount'])} for '
+          '${widget.entry['driver_name'] ?? 'Driver'} as paid?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF7C3AED),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Mark as Paid ${_fmt(widget.entry['total_amount'])}'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    setState(() => _paying = true);
+    try {
+      final api = ref.read(apiServiceProvider);
+      final id = widget.entry['id'];
+      await api.patch('/finance-manager/fuel-entries/$id/mark-paid', data: null);
+      if (mounted) {
+        ref.invalidate(_pendingFuelEntriesProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Fuel entry marked as paid'), backgroundColor: Color(0xFF16A34A)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _paying = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final e = widget.entry;
+    final litres = (e['quantity_litres'] as num?)?.toDouble() ?? 0;
+    final rate = (e['rate_per_litre'] as num?)?.toDouble() ?? 0;
+    final fuelType = (e['fuel_type'] ?? 'diesel').toString();
+    final date = e['fuel_date'] != null
+        ? DateTime.tryParse(e['fuel_date'].toString())
+        : null;
+    final dateStr = date != null
+        ? '${date.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][date.month - 1]} ${date.year}'
+        : '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: KTColors.surface,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFFE65100).withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE65100).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  e['trip_number']?.toString() ?? 'Trip',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFE65100)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  e['driver_name']?.toString() ?? '',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                _fmt(e['total_amount']),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFFE65100)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.local_gas_station_rounded, size: 13, color: KTColors.textSecondary),
+              const SizedBox(width: 4),
+              Text(
+                '${litres.toStringAsFixed(1)} L × ₹${rate.toStringAsFixed(0)}/L · $fuelType',
+                style: const TextStyle(fontSize: 12, color: KTColors.textSecondary),
+              ),
+              if (e['pump_name'] != null && e['pump_name'] != 'N/A') ...[
+                const Text(' · ', style: TextStyle(color: KTColors.textSecondary)),
+                Text(e['pump_name'].toString(),
+                    style: const TextStyle(fontSize: 12, color: KTColors.textSecondary)),
+              ],
+            ],
+          ),
+          if (dateStr.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(dateStr, style: const TextStyle(fontSize: 11, color: KTColors.textSecondary)),
+          ],
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 34,
+            child: ElevatedButton(
+              onPressed: _paying ? null : _markPaid,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: _paying
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Mark as Paid', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

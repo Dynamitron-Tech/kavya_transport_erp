@@ -1788,6 +1788,8 @@ export interface AccountantFuelExpense {
   mileage: number;
   payment_method: string;
   receipt: boolean;
+  is_verified: boolean;
+  fuel_type?: string;
 }
 
 export interface AccountantBankAccount {
