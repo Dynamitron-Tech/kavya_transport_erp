@@ -242,8 +242,10 @@ async def alias_attendance(
     if requested_date:
         query = query.where(EmployeeAttendance.date == requested_date)
 
-    # Admin can view all attendance; everyone else sees only their own.
-    if 'admin' not in [r.lower() for r in current_user.roles]:
+    # Admin, manager, and fleet_manager can view all attendance; others see only their own.
+    _management_roles = {'admin', 'manager', 'fleet_manager'}
+    _current_roles = {r.lower() for r in (current_user.roles or [])}
+    if not _management_roles.intersection(_current_roles):
         query = query.where(EmployeeAttendance.user_id == current_user.user_id)
 
     total_query = select(func.count()).select_from(query.subquery())
