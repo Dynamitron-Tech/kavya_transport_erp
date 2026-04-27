@@ -943,14 +943,14 @@ async def pay_trip_expense(
         raise HTTPException(status_code=400, detail="Expense already marked as paid.")
 
     # Resolve Finance Manager display name
-    fm_user_r = await db.execute(select(User).where(User.id == current_user.id))
+    fm_user_r = await db.execute(select(User).where(User.id == current_user.user_id))
     fm_user = fm_user_r.scalar_one_or_none()
     fm_name = f"{fm_user.first_name} {fm_user.last_name or ''}".strip() if fm_user else "Finance Manager"
 
     paid_at = datetime.utcnow()
     expense.expense_status = ExpenseStatusEnum.PAID
     expense.is_verified = True
-    expense.paid_by = current_user.id
+    expense.paid_by = current_user.user_id
     expense.paid_at = paid_at
     if notes:
         expense.description = (expense.description or "") + f" [Finance: {notes}]"
@@ -978,7 +978,7 @@ async def pay_trip_expense(
             target_user_ids=target_user_ids,
             data={"trip_id": str(trip.id)},
             urgency="normal",
-            triggered_by=current_user.id,
+            triggered_by=current_user.user_id,
         )
     else:
         trip_number = str(expense.trip_id)

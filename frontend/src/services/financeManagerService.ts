@@ -202,7 +202,9 @@ export const financeManagerService = {
       params: { status, trip_id, category, page },
     }).then((r: any) => (r.data as TripExpenseItem[]) ?? []),
   payTripExpense: (id: number, notes?: string) =>
-    api.patch(`${BASE}/trip-expenses/${id}/pay`, { notes }),
+    api.patch(`${BASE}/trip-expenses/${id}/pay`, notes ?? null, {
+      headers: { 'Content-Type': 'application/json' },
+    }),
   rejectTripExpense: (id: number, reason: string) =>
     api.patch(`${BASE}/trip-expenses/${id}/reject`, reason, { headers: { 'Content-Type': 'application/json' } }),
 
