@@ -873,8 +873,8 @@ async def get_my_vehicle(
     if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
 
-    # Find active trip (STARTED, IN_TRANSIT, LOADING, UNLOADING) with a vehicle
-    active_statuses = ["STARTED", "IN_TRANSIT", "LOADING", "UNLOADING", "READY", "VEHICLE_ASSIGNED", "DRIVER_ASSIGNED"]
+    # Find active or recently completed trip with a vehicle
+    active_statuses = ["STARTED", "IN_TRANSIT", "LOADING", "UNLOADING", "READY", "VEHICLE_ASSIGNED", "DRIVER_ASSIGNED", "COMPLETED"]
     trip_result = await db.execute(
         select(Trip).where(
             Trip.driver_id == driver.id,
@@ -942,11 +942,41 @@ async def get_my_documents(
     db: AsyncSession = Depends(get_db),
     current_user: TokenData = Depends(get_current_user),
 ):
-    """Get the current driver's own documents."""
+    """Get the current driver's own documents, including user-model uploads (Aadhaar, PAN, DL)."""
     driver = await _get_current_driver_profile(db, current_user)
     if not driver:
         raise HTTPException(status_code=404, detail="Driver profile not found")
     items = await _collect_driver_documents(db, driver.id)
+
+    # Also include documents stored directly on the User record (uploaded by fleet/HR)
+    if driver.user_id:
+        user_result = await db.execute(select(User).where(User.id == driver.user_id))
+        user = user_result.scalar_one_or_none()
+        if user:
+            from app.services import s3_service as _s3
+            async def _presign(url):
+                return await _s3.presign_stored_url(url) if url else None
+
+            user_doc_fields = [
+                ("aadhaar_card",    user.aadhaar_file_url,  user.aadhaar_file_name),
+                ("pan_card",        user.pan_file_url,       user.pan_file_name),
+                ("driving_license", user.dl_file_url,        user.dl_file_name),
+                ("bank_passbook",   user.passbook_file_url,  user.passbook_file_name),
+            ]
+            existing_types = {i["document_type"] for i in items}
+            for doc_type, file_url, file_name in user_doc_fields:
+                if file_url and doc_type not in existing_types:
+                    items.append({
+                        "id": None,
+                        "document_type": doc_type,
+                        "document_number": None,
+                        "file_name": file_name,
+                        "file_url": await _presign(file_url),
+                        "is_verified": True,
+                        "remarks": None,
+                        "uploaded_at": None,
+                        "updated_at": None,
+                    })
     return APIResponse(success=True, data={"items": items})
 
 
