@@ -2419,7 +2419,7 @@ export const auditorService = {
     const data = await api.get('/auditor/trips', { params });
     return unwrap(data);
   },
-  getLRProfitability: async (params?: { from_date?: string; to_date?: string }) => {
+  getLRProfitability: async (params?: { from_date?: string; to_date?: string; sort_by?: string; page?: number; per_page?: number }) => {
     const data = await api.get('/auditor/lr-profitability', { params });
     return unwrap(data);
   },
