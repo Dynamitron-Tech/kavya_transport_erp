@@ -21,7 +21,7 @@ export interface NavMenuGroup {
   roles?: RoleType[];
 }
 
-export type HeaderNavRole = 'ADMIN' | 'MANAGER' | 'FLEET_MANAGER' | 'ACCOUNTANT' | 'FINANCE_MANAGER' | 'PROJECT_ASSOCIATES' | 'DRIVER' | 'PUMP_OPERATOR' | 'AUDITOR' | 'TYRE_INSPECTOR';
+export type HeaderNavRole = 'ADMIN' | 'MANAGER' | 'FLEET_MANAGER' | 'ACCOUNTANT' | 'FINANCE_MANAGER' | 'PROJECT_ASSOCIATES' | 'DRIVER' | 'PUMP_OPERATOR' | 'AUDITOR' | 'TYRE_INSPECTOR' | 'CLERK';
 
 export interface HeaderNavItem {
   label: string;
@@ -386,6 +386,31 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       },
     ],
   },
+
+  CLERK: {
+    sections: [
+      {
+        label: 'Overview',
+        items: [
+          { label: 'Dashboard', route: '/clerk/dashboard', icon: 'home', description: 'Attendance and LR summary' },
+        ],
+      },
+      {
+        label: 'My Work',
+        items: [
+          { label: 'Attendance', route: '/my-work/attendance', icon: 'clock', description: 'Mark daily attendance with camera check-in' },
+        ],
+      },
+      {
+        label: 'LR',
+        items: [
+          { label: 'All Lorry Receipts', route: '/lr', icon: 'file-text', description: 'View all lorry receipts' },
+          { label: 'My LRs', route: '/lr?my_lrs=true', icon: 'user', description: 'LRs created by you' },
+          { label: 'Create LR', route: '/lr/new', icon: 'plus', description: 'Create a new lorry receipt' },
+        ],
+      },
+    ],
+  },
 };
 
 export const enterpriseNavConfig: NavMenuGroup[] = [
@@ -489,10 +514,10 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
   },
   {
     label: 'My Work',
-    roles: ['driver', 'manager', 'fleet_manager', 'accountant', 'project_associate'],
+    roles: ['driver', 'manager', 'fleet_manager', 'accountant', 'project_associate', 'clerk'],
     items: [
       { label: 'My Trips', path: '/driver/trips', roles: ['driver'] },
-      { label: 'Attendance', path: '/my-work/attendance', roles: ['driver', 'manager', 'fleet_manager', 'accountant', 'project_associate'] },
+      { label: 'Attendance', path: '/my-work/attendance', roles: ['driver', 'manager', 'fleet_manager', 'accountant', 'project_associate', 'clerk'] },
       { label: 'Expenses', path: '/driver/expenses', roles: ['driver'] },
       { label: 'My Documents', path: '/driver/documents', roles: ['driver'] },
     ],
@@ -502,6 +527,15 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
     roles: ['auditor'],
     items: [
       { label: 'Payment Proofs', path: '/auditor/payment-proofs', roles: ['auditor'] },
+    ],
+  },
+  {
+    label: 'LR',
+    roles: ['clerk'],
+    items: [
+      { label: 'All Lorry Receipts', path: '/lr', roles: ['clerk'] },
+      { label: 'My LRs', path: '/lr?my_lrs=true', roles: ['clerk'] },
+      { label: 'Create LR', path: '/lr/new', roles: ['clerk'] },
     ],
   },
 ];

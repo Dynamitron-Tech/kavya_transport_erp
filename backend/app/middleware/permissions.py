@@ -446,6 +446,13 @@ ROLE_PERMISSIONS = {
         Permissions.AUDIT_LOG_EXPORT,
         Permissions.ALERT_VIEW,
     ],
+
+    "clerk": [
+        # Clerks can create and read LRs, and mark their own attendance
+        Permissions.LR_CREATE,
+        Permissions.LR_READ,
+        Permissions.ALERT_VIEW,
+    ],
 }
 
 

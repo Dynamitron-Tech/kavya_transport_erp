@@ -33,6 +33,8 @@ export const getRoleHomePage = (role?: unknown): string => {
       return '/fm/dashboard';
     case 'AUDITOR':
       return '/auditor/dashboard';
+    case 'CLERK':
+      return '/clerk/dashboard';
     case 'TYRE_INSPECTOR':
       return '/fleet/tyres';
     case 'PROJECT_ASSOCIATE':

@@ -66,6 +66,9 @@ import AuditorFuelPage from '@/pages/auditor/AuditorFuelPage';
 import AuditorClientsPage from '@/pages/auditor/AuditorClientsPage';
 import AuditorMaintenancePage from '@/pages/auditor/AuditorMaintenancePage';
 
+// Clerk Pages
+import ClerkDashboardPage from '@/pages/clerk/ClerkDashboardPage';
+
 // Compliance & Tools
 import VehicleCompliancePage from '@/pages/fleet/VehicleCompliancePage';
 import DriverCompliancePage from '@/pages/fleet/DriverCompliancePage';
@@ -253,6 +256,9 @@ function App() {
           <Route path="/auditor/fuel" element={<AuditorFuelPage />} />
           <Route path="/auditor/clients" element={<AuditorClientsPage />} />
           <Route path="/auditor/maintenance" element={<AuditorMaintenancePage />} />
+
+          {/* Clerk Role Pages */}
+          <Route path="/clerk/dashboard" element={<ClerkDashboardPage />} />
 
           {/* Settings */}
           <Route path="/settings" element={<SettingsPage />} />
