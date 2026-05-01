@@ -2,8 +2,10 @@
  * Open a document URL in a new tab.
  * Chrome blocks navigation to data: URLs via <a target="_blank"> or window.open,
  * showing a black screen. This converts them to Blob URLs first.
+ * For S3 presigned URLs, a HEAD pre-check is performed so a missing file
+ * shows a toast error instead of the raw S3 XML error page.
  */
-export function openDocumentUrl(fileUrl: string | null | undefined): void {
+export async function openDocumentUrl(fileUrl: string | null | undefined): Promise<void> {
   if (!fileUrl) return;
   if (fileUrl.startsWith('data:')) {
     try {
@@ -19,9 +21,25 @@ export function openDocumentUrl(fileUrl: string | null | undefined): void {
     } catch {
       window.open(fileUrl, '_blank', 'noreferrer');
     }
-  } else {
-    window.open(fileUrl, '_blank', 'noreferrer');
+    return;
   }
+
+  // For S3 presigned URLs, do a HEAD check before opening.
+  // If the file is missing S3 returns 403/404 — catch it and show a toast.
+  if (fileUrl.includes('X-Amz-Algorithm=') || fileUrl.includes('.s3.') || fileUrl.includes('.s3.amazonaws.com')) {
+    try {
+      const res = await fetch(fileUrl, { method: 'HEAD' });
+      if (!res.ok) {
+        const { default: toast } = await import('react-hot-toast');
+        toast.error('File not found in storage. Please re-upload the document.');
+        return;
+      }
+    } catch {
+      // CORS or network error — open anyway; browser will show whatever it can
+    }
+  }
+
+  window.open(fileUrl, '_blank', 'noreferrer');
 }
 
 export const safeArray = <T>(val: any): T[] => {

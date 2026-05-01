@@ -106,6 +106,20 @@ async def presign_stored_url(url: str, expires_in: int = 3600) -> str:
                 aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                 region_name=region)
+            # Check if the key exists — only return '' for NoSuchKey/404,
+            # not for AccessDenied or other transient errors.
+            try:
+                s3.head_object(Bucket=bucket, Key=s3_key)
+            except Exception as head_err:
+                from botocore.exceptions import ClientError
+                if isinstance(head_err, ClientError):
+                    code = head_err.response.get('Error', {}).get('Code', '')
+                    if code in ('404', 'NoSuchKey'):
+                        logger.warning('presign_stored_url: key not found in S3: %s', s3_key)
+                        return ''
+                    # AccessDenied or other — fall through and try to presign anyway
+                else:
+                    logger.warning('presign_stored_url: head_object error: %s', str(head_err)[:100])
             return s3.generate_presigned_url('get_object',
                 Params={'Bucket': bucket, 'Key': s3_key}, ExpiresIn=expires_in)
         except Exception as e:
