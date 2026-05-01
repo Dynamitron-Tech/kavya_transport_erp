@@ -58,6 +58,7 @@ async def seed_roles(db: AsyncSession):
         {"name": "driver", "display_name": "Driver", "role_type": RoleType.DRIVER, "is_system": True},
         {"name": "pump_operator", "display_name": "Pump Operator", "role_type": RoleType.PUMP_OPERATOR, "is_system": True},
         {"name": "tyre_inspector", "display_name": "Tyre Inspector", "role_type": RoleType.TYRE_INSPECTOR, "is_system": True},
+        {"name": "clerk", "display_name": "Clerk", "role_type": RoleType.CLERK, "is_system": True},
     ]
     created = []
     for role_data in roles:
@@ -110,6 +111,7 @@ async def seed_demo_users(db: AsyncSession):
         {"email": "driver@kavyatransports.com", "first_name": "Karthik", "last_name": "Vel", "phone": "9876510005", "role": "driver"},
         {"email": "pump@kavyatransports.com", "first_name": "Ravi", "last_name": "Kumar", "phone": "9876510006", "role": "pump_operator"},
         {"email": "tyre@kavyatransports.com", "first_name": "Selvam", "last_name": "Tyre", "phone": "9876510008", "role": "tyre_inspector"},
+        {"email": "clerk@kavyatransports.com", "first_name": "Kavitha", "last_name": "Clerk", "phone": "9876510009", "role": "clerk"},
     ]
 
     created = []

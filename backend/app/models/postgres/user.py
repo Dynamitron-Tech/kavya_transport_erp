@@ -21,6 +21,7 @@ class RoleType(enum.Enum):
     DRIVER = "DRIVER"
     PUMP_OPERATOR = "PUMP_OPERATOR"
     TYRE_INSPECTOR = "TYRE_INSPECTOR"
+    CLERK = "CLERK"
 
 
 class PermissionAction(enum.Enum):
