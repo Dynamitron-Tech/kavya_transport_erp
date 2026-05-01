@@ -95,7 +95,6 @@ import TyreTrackerPage from '@/pages/fleet/TyreTrackerPage';
 import FleetPumpManagementPage from '@/pages/fleet/FleetPumpManagementPage';
 import GeofenceManagementPage from '@/pages/fleet/GeofenceManagementPage';
 import ComplianceDashboardPage from '@/pages/fleet/ComplianceDashboardPage';
-import DriverLeaderboardPage from '@/pages/fleet/DriverLeaderboardPage';
 import TPMSDashboardPage from '@/pages/fleet/TPMSDashboardPage';
 import CustomerLoginPage from '@/pages/portal/CustomerLoginPage';
 import CustomerDashboardPage from '@/pages/portal/CustomerDashboardPage';
@@ -276,7 +275,7 @@ function App() {
           <Route path="/fleet/vehicles/:id" element={<FleetVehiclesPage />} />
           <Route path="/fleet/drivers" element={<FleetDriversPage />} />
           <Route path="/fleet/drivers/:id" element={<FleetDriversPage />} />
-          <Route path="/fleet/tracking" element={<FleetTrackingPage />} />
+          <Route path="/fleet/tracking" element={<Navigate to="/tracking" replace />} />
           <Route path="/fleet/maintenance" element={<FleetMaintenancePage />} />
           <Route path="/fleet/fuel" element={<FleetFuelPage />} />
           <Route path="/fleet/tyres" element={<TyreTrackerPage />} />
@@ -285,7 +284,6 @@ function App() {
           <Route path="/fleet/reports" element={<FleetReportsPage />} />
           <Route path="/fleet/geofences" element={<GeofenceManagementPage />} />
           <Route path="/fleet/compliance" element={<ComplianceDashboardPage />} />
-          <Route path="/fleet/driver-leaderboard" element={<DriverLeaderboardPage />} />
           <Route path="/fleet/tpms" element={<TPMSDashboardPage />} />
           <Route path="/fleet/assign-drivers" element={<FleetAssignDriverPage />} />
 

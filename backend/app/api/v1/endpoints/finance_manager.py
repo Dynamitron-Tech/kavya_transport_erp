@@ -10,7 +10,8 @@ from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user
 from app.schemas.base import APIResponse, PaginationMeta
 from app.models.postgres.payment import PaymentContact, Payout, PaymentSchedule, ExpenseSubmission
-from app.models.postgres.trip import Trip, TripExpense, TripStatusEnum, ExpenseStatusEnum
+from app.models.postgres.trip import Trip, TripExpense, TripStatusEnum, ExpenseStatusEnum, TripFuelEntry
+from app.models.postgres.vehicle import Vehicle
 from app.models.postgres.user import User
 from app.services import payment_service
 
@@ -943,14 +944,14 @@ async def pay_trip_expense(
         raise HTTPException(status_code=400, detail="Expense already marked as paid.")
 
     # Resolve Finance Manager display name
-    fm_user_r = await db.execute(select(User).where(User.id == current_user.id))
+    fm_user_r = await db.execute(select(User).where(User.id == current_user.user_id))
     fm_user = fm_user_r.scalar_one_or_none()
     fm_name = f"{fm_user.first_name} {fm_user.last_name or ''}".strip() if fm_user else "Finance Manager"
 
     paid_at = datetime.utcnow()
     expense.expense_status = ExpenseStatusEnum.PAID
     expense.is_verified = True
-    expense.paid_by = current_user.id
+    expense.paid_by = current_user.user_id
     expense.paid_at = paid_at
     if notes:
         expense.description = (expense.description or "") + f" [Finance: {notes}]"
@@ -978,7 +979,7 @@ async def pay_trip_expense(
             target_user_ids=target_user_ids,
             data={"trip_id": str(trip.id)},
             urgency="normal",
-            triggered_by=current_user.id,
+            triggered_by=current_user.user_id,
         )
     else:
         trip_number = str(expense.trip_id)
@@ -1010,6 +1011,63 @@ async def reject_trip_expense(
     expense.description = (expense.description or "") + f" [Rejected: {reason}]"
     await db.commit()
     return APIResponse(success=True, data={"id": expense.id, "status": "REJECTED"})
+
+
+# ─── Trip Fuel Entries ─────────────────────────────────────────────────────────
+
+
+@router.get("/fuel-entries", response_model=APIResponse)
+async def list_fuel_entries(
+    is_verified: Optional[bool] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    _require_finance(current_user)
+    q = (
+        select(TripFuelEntry, Trip, Vehicle)
+        .join(Trip, Trip.id == TripFuelEntry.trip_id)
+        .outerjoin(Vehicle, Vehicle.id == TripFuelEntry.vehicle_id)
+        .order_by(TripFuelEntry.fuel_date.desc())
+    )
+    if is_verified is not None:
+        q = q.where(TripFuelEntry.is_verified == is_verified)
+    rows = (await db.execute(q.limit(200))).all()
+    items = []
+    for fuel, trip, vehicle in rows:
+        items.append({
+            "id": fuel.id,
+            "trip_id": fuel.trip_id,
+            "trip_number": trip.trip_number,
+            "driver_name": trip.driver_name or "N/A",
+            "vehicle_registration": vehicle.registration_number if vehicle else f"Vehicle #{fuel.vehicle_id}",
+            "fuel_date": fuel.fuel_date.isoformat() if fuel.fuel_date else None,
+            "fuel_type": fuel.fuel_type or "diesel",
+            "quantity_litres": float(fuel.quantity_litres or 0),
+            "rate_per_litre": float(fuel.rate_per_litre or 0),
+            "total_amount": float(fuel.total_amount or 0),
+            "pump_name": fuel.pump_name or "N/A",
+            "payment_mode": fuel.payment_mode or "cash",
+            "is_verified": fuel.is_verified or False,
+        })
+    return APIResponse(success=True, data=items)
+
+
+@router.patch("/fuel-entries/{entry_id}/mark-paid", response_model=APIResponse)
+async def mark_fuel_entry_paid(
+    entry_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    _require_finance(current_user)
+    result = await db.execute(select(TripFuelEntry).where(TripFuelEntry.id == entry_id))
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Fuel entry not found.")
+    if entry.is_verified:
+        raise HTTPException(status_code=400, detail="Fuel entry already marked as paid.")
+    entry.is_verified = True
+    await db.commit()
+    return APIResponse(success=True, data={"id": entry.id, "status": "PAID"})
 
 
 # ─── Payment Contacts ──────────────────────────────────────────────────────────
@@ -1514,7 +1572,7 @@ async def pending_advance_trips(
             Trip.advance_paid == False,
             Trip.advance_dismissed == False,
             Trip.is_deleted == False,
-            Trip.status.notin_([TripStatusEnum.COMPLETED, TripStatusEnum.CANCELLED]),
+            Trip.status.notin_([TripStatusEnum.CANCELLED]),
         )
         .order_by(Trip.id.desc())
     )

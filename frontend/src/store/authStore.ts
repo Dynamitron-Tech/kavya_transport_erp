@@ -155,27 +155,27 @@ export const useAuthStore = create<AuthState>()(
         const { user } = get();
         if (!user) return false;
         // roles is string array like ["admin"]
-        if (user.roles.includes('admin') || user.permissions.includes('*')) return true;
-        return user.permissions.includes(permission);
+        if ((user.roles ?? []).includes('admin') || (user.permissions ?? []).includes('*')) return true;
+        return (user.permissions ?? []).includes(permission);
       },
 
       hasAnyPermission: (permissions: string[]) => {
         const { user } = get();
         if (!user) return false;
-        if (user.roles.includes('admin') || user.permissions.includes('*')) return true;
-        return permissions.some(p => user.permissions.includes(p));
+        if ((user.roles ?? []).includes('admin') || (user.permissions ?? []).includes('*')) return true;
+        return permissions.some(p => (user.permissions ?? []).includes(p));
       },
 
       hasRole: (role: RoleType) => {
         const { user } = get();
         if (!user) return false;
-        return user.roles.includes(role);
+        return (user.roles ?? []).includes(role);
       },
 
       hasAnyRole: (roles: RoleType[]) => {
         const { user } = get();
         if (!user) return false;
-        return roles.some(role => user.roles.includes(role));
+        return roles.some(role => (user.roles ?? []).includes(role));
       },
     }),
     {

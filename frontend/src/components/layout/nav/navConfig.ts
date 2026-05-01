@@ -21,7 +21,7 @@ export interface NavMenuGroup {
   roles?: RoleType[];
 }
 
-export type HeaderNavRole = 'ADMIN' | 'MANAGER' | 'FLEET_MANAGER' | 'ACCOUNTANT' | 'FINANCE_MANAGER' | 'PROJECT_ASSOCIATES' | 'DRIVER' | 'PUMP_OPERATOR' | 'AUDITOR';
+export type HeaderNavRole = 'ADMIN' | 'MANAGER' | 'FLEET_MANAGER' | 'ACCOUNTANT' | 'FINANCE_MANAGER' | 'PROJECT_ASSOCIATES' | 'DRIVER' | 'PUMP_OPERATOR' | 'AUDITOR' | 'TYRE_INSPECTOR';
 
 export interface HeaderNavItem {
   label: string;
@@ -72,24 +72,19 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Fleet Dashboard', route: '/fleet', icon: 'gauge', description: 'Fleet overview and KPIs' },
           { label: 'Fleet Vehicles', route: '/fleet/vehicles', icon: 'truck', description: 'Vehicle health and maintenance' },
           { label: 'Fleet Drivers', route: '/fleet/drivers', icon: 'user', description: 'Driver performance and compliance' },
-          { label: 'Fleet Tracking', route: '/fleet/tracking', icon: 'pin', description: 'Fleet GPS tracking map' },
           { label: 'Maintenance', route: '/fleet/maintenance', icon: 'wrench', description: 'Service records and schedules' },
           { label: 'Fuel Mgmt', route: '/fleet/fuel', icon: 'fuel', description: 'Fuel entries and efficiency tracking' },
           { label: 'Tyres', route: '/fleet/tyres', icon: 'circle', description: 'Real-time tyre monitoring, stock & retreading' },
           { label: 'Fleet Alerts', route: '/fleet/alerts', icon: 'bell', description: 'Compliance and service alerts' },
-          { label: 'Driver Leaderboard', route: '/fleet/driver-leaderboard', icon: 'trophy', description: 'Driver behavior scores and rankings' },
-          { label: 'TPMS', route: '/fleet/tpms', icon: 'activity', description: 'Tyre pressure monitoring system' },
           { label: 'Fleet Reports', route: '/fleet/reports', icon: 'chart', description: 'Fleet analytics and reports' },
           { label: 'Assign Drivers', route: '/fleet/assign-drivers', icon: 'user', description: 'Assign a default driver to each vehicle' },
           { label: 'Pump Management', route: '/fleet/pump-management', icon: 'fuel', description: 'Bunks, tanks, pumps and pump employee activity' },
+          { label: 'Driver Approvals', route: '/fleet/approvals', icon: 'check', description: 'Review and action driver leave and advance requests', badge: 'approvals' },
         ],
       },
       {
         label: 'Tools',
         items: [
-          { label: 'GPS Live Map', route: '/tracking/gps', icon: 'pin', description: 'Live GPS positions of all vehicles' },
-          { label: 'Trip Replay', route: '/tracking/replay', icon: 'play', description: 'Historical vehicle path replay' },
-          { label: 'Route Calculator', route: '/trips/route-calculator', icon: 'route', description: 'Calculate distance between locations' },
           { label: 'Notifications', route: '/settings/notifications', icon: 'bell', description: 'Send SMS, WhatsApp, Push notifications' },
         ],
       },
@@ -141,13 +136,10 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Fleet Dashboard', route: '/fleet', icon: 'gauge', description: 'Fleet overview and KPIs' },
           { label: 'Fleet Vehicles', route: '/fleet/vehicles', icon: 'truck', description: 'Vehicle health and maintenance' },
           { label: 'Fleet Drivers', route: '/fleet/drivers', icon: 'user', description: 'Driver performance and compliance' },
-          { label: 'Fleet Tracking', route: '/fleet/tracking', icon: 'pin', description: 'Fleet GPS tracking map' },
           { label: 'Maintenance', route: '/fleet/maintenance', icon: 'wrench', description: 'Service records and schedules' },
           { label: 'Fuel Mgmt', route: '/fleet/fuel', icon: 'fuel', description: 'Fuel entries and efficiency tracking' },
           { label: 'Tyres', route: '/fleet/tyres', icon: 'circle', description: 'Real-time tyre monitoring, stock & retreading' },
           { label: 'Fleet Alerts', route: '/fleet/alerts', icon: 'bell', description: 'Compliance and service alerts' },
-          { label: 'Driver Leaderboard', route: '/fleet/driver-leaderboard', icon: 'trophy', description: 'Driver behavior scores and rankings' },
-          { label: 'TPMS', route: '/fleet/tpms', icon: 'activity', description: 'Tyre pressure monitoring system' },
           { label: 'Fleet Reports', route: '/fleet/reports', icon: 'chart', description: 'Fleet analytics and reports' },
         ],
       },
@@ -184,17 +176,14 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Fleet Dashboard', route: '/fleet', icon: 'gauge', description: 'Fleet overview and KPIs' },
           { label: 'Fleet Vehicles', route: '/fleet/vehicles', icon: 'truck', description: 'Vehicle health and maintenance' },
           { label: 'Fleet Drivers', route: '/fleet/drivers', icon: 'user', description: 'Driver performance and compliance' },
-          { label: 'Fleet Tracking', route: '/fleet/tracking', icon: 'pin', description: 'Fleet GPS tracking map' },
           { label: 'Maintenance', route: '/fleet/maintenance', icon: 'wrench', description: 'Service records and schedules' },
           { label: 'Fuel Mgmt', route: '/fleet/fuel', icon: 'fuel', description: 'Fuel entries and efficiency tracking' },
           { label: 'Tyres', route: '/fleet/tyres', icon: 'circle', description: 'Real-time tyre monitoring, stock & retreading' },
           { label: 'Fleet Alerts', route: '/fleet/alerts', icon: 'bell', description: 'Compliance and service alerts' },
-          { label: 'Driver Leaderboard', route: '/fleet/driver-leaderboard', icon: 'trophy', description: 'Driver behavior scores and rankings' },
-          { label: 'TPMS', route: '/fleet/tpms', icon: 'activity', description: 'Tyre pressure monitoring system' },
           { label: 'Fleet Reports', route: '/fleet/reports', icon: 'chart', description: 'Fleet analytics and reports' },
           { label: 'Assign Drivers', route: '/fleet/assign-drivers', icon: 'user', description: 'Assign a default driver to each vehicle' },
           { label: 'Pump Management', route: '/fleet/pump-management', icon: 'fuel', description: 'Bunks, tanks, pumps and pump employee activity' },
-          { label: 'Driver Approvals', route: '/fleet/approvals', icon: 'check', description: 'Review and action driver leave and advance requests' },
+          { label: 'Driver Approvals', route: '/fleet/approvals', icon: 'check', description: 'Review and action driver leave and advance requests', badge: 'approvals' },
         ],
       },
       {
@@ -338,6 +327,18 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
       },
     ],
   },
+
+  TYRE_INSPECTOR: {
+    sections: [
+      {
+        label: 'Tyre Management',
+        items: [
+          { label: 'Tyres', route: '/fleet/tyres', icon: 'circle', description: 'Tyre lifecycle, stock & retreading' },
+        ],
+      },
+    ],
+  },
+
   PUMP_OPERATOR: {
     sections: [
       { label: 'Overview', items: [{ label: 'Fuel Dashboard', route: '/pump/dashboard', icon: 'gauge', description: 'Fuel stock levels and daily activity' }] },
@@ -444,13 +445,11 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
       { label: 'Fleet Dashboard', path: '/fleet', roles: ['admin', 'fleet_manager'] },
       { label: 'Fleet Vehicles', path: '/fleet/vehicles', roles: ['admin', 'fleet_manager'] },
       { label: 'Fleet Drivers', path: '/fleet/drivers', roles: ['admin', 'fleet_manager'] },
-      { label: 'Live Tracking', path: '/fleet/tracking', roles: ['admin', 'fleet_manager'] },
+      { label: 'Live Tracking', path: '/tracking', roles: ['admin', 'fleet_manager'] },
       { label: 'Maintenance', path: '/fleet/maintenance', roles: ['admin', 'fleet_manager'] },
       { label: 'Fuel Mgmt', path: '/fleet/fuel', roles: ['admin', 'fleet_manager'] },
       { label: 'Tyres', path: '/fleet/tyres', roles: ['admin', 'fleet_manager'] },
       { label: 'Fleet Alerts', path: '/fleet/alerts', roles: ['admin', 'fleet_manager'] },
-      { label: 'Driver Leaderboard', path: '/fleet/driver-leaderboard', roles: ['admin', 'manager', 'fleet_manager'] },
-      { label: 'TPMS', path: '/fleet/tpms', roles: ['admin', 'fleet_manager'] },
       { label: 'Fleet Reports', path: '/fleet/reports', roles: ['admin', 'fleet_manager'] },
       { label: 'Assign Drivers', path: '/fleet/assign-drivers', roles: ['admin', 'fleet_manager'] },
     ],
@@ -476,9 +475,6 @@ export const enterpriseNavConfig: NavMenuGroup[] = [
     label: 'Tools',
     roles: ['admin', 'manager', 'fleet_manager', 'accountant'],
     items: [
-      { label: 'GPS Live Map', path: '/tracking/gps', roles: ['admin', 'manager', 'fleet_manager'] },
-      { label: 'Trip Replay', path: '/tracking/replay', roles: ['admin', 'manager'] },
-      { label: 'Route Calculator', path: '/trips/route-calculator', roles: ['admin', 'manager'] },
       { label: 'Notifications', path: '/settings/notifications', roles: ['admin', 'manager'] },
     ],
   },

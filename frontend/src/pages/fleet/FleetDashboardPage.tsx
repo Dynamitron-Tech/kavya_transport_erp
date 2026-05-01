@@ -248,7 +248,7 @@ export default function FleetDashboardPage() {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900">Active Trips</h3>
-            <button onClick={() => navigate('/fleet/tracking')} className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
+            <button onClick={() => navigate('/tracking')} className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
               View All <ChevronRight className="w-4 h-4" />
             </button>
           </div>

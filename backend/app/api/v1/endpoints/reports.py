@@ -19,7 +19,7 @@ from app.models.postgres.driver import Driver, DriverAttendance
 from app.models.postgres.finance import Invoice, Ledger, Payment, GSTEntry
 from app.models.postgres.job import Job
 from app.models.postgres.trip import Trip, TripExpense, TripFuelEntry
-from app.models.postgres.vehicle import Vehicle
+from app.models.postgres.vehicle import Vehicle, VehicleMaintenance
 from app.schemas.base import APIResponse
 from app.services import dashboard_service
 
@@ -665,6 +665,67 @@ async def client_outstanding_report(
                 "overdue_amount": _to_number(overdue_amount),
                 "oldest_invoice_date": oldest_invoice_date.isoformat() if oldest_invoice_date else None,
                 "invoice_count": int(invoice_count or 0),
+            }
+        )
+
+    return APIResponse(success=True, data=data or [], message="ok")
+
+
+@router.get("/maintenance", response_model=APIResponse)
+async def maintenance_report(
+    from_date_raw: Optional[str] = Query(None, alias="from"),
+    to_date_raw: Optional[str] = Query(None, alias="to"),
+    db: AsyncSession = Depends(get_db),
+    _perm: TokenData = Depends(require_permission(Permissions.REPORT_VIEW)),
+):
+    from_date, to_date = _resolve_date_range(from_date_raw, to_date_raw)
+
+    stmt = (
+        select(
+            Vehicle.registration_number,
+            VehicleMaintenance.maintenance_type,
+            VehicleMaintenance.service_type,
+            VehicleMaintenance.description,
+            VehicleMaintenance.service_date,
+            VehicleMaintenance.next_service_date,
+            VehicleMaintenance.odometer_at_service,
+            VehicleMaintenance.parts_cost,
+            VehicleMaintenance.labor_cost,
+            VehicleMaintenance.total_cost,
+            VehicleMaintenance.vendor_name,
+            VehicleMaintenance.status,
+        )
+        .join(Vehicle, VehicleMaintenance.vehicle_id == Vehicle.id)
+        .where(
+            and_(
+                VehicleMaintenance.service_date >= from_date,
+                VehicleMaintenance.service_date <= to_date,
+            )
+        )
+        .order_by(VehicleMaintenance.service_date.desc())
+    )
+    rows = (await db.execute(stmt)).all()
+
+    data = []
+    for (
+        vehicle_number, maintenance_type, service_type, description,
+        service_date, next_service_date, odometer_at_service,
+        parts_cost, labor_cost, total_cost, vendor_name, status,
+    ) in rows:
+        data.append(
+            {
+                "vehicle_number": vehicle_number or "Unknown",
+                "maintenance_type": maintenance_type or "",
+                "service_type": service_type or "",
+                "description": description or "",
+                "service_date": service_date.isoformat() if service_date else None,
+                "next_service_date": next_service_date.isoformat() if next_service_date else None,
+                "odometer_at_service": _to_number(odometer_at_service),
+                "parts_cost": _to_number(parts_cost),
+                "labor_cost": _to_number(labor_cost),
+                "total_cost": _to_number(total_cost),
+                "vendor_name": vendor_name or "",
+                "status": status or "",
             }
         )
 

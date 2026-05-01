@@ -1,18 +1,32 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { accountantService } from '@/services/dataService';
+import { financeManagerService } from '@/services/financeManagerService';
 import { KPICard, Modal } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import DataTable from '@/components/common/DataTable';
 import {
-  Fuel, TrendingUp, Truck, Plus, BarChart3,
+  Fuel, TrendingUp, Truck, Plus, BarChart3, IndianRupee,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { AccountantFuelExpense } from '@/types';
 import { safeArray } from '@/utils/helpers';
+import toast from 'react-hot-toast';
 
 export default function AccountantFuelExpensePage() {
+  const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  const [payConfirmId, setPayConfirmId] = useState<number | null>(null);
+
+  const payMutation = useMutation({
+    mutationFn: (id: number) => financeManagerService.markFuelEntryPaid(id),
+    onSuccess: () => {
+      toast.success('Fuel entry marked as paid');
+      setPayConfirmId(null);
+      queryClient.invalidateQueries({ queryKey: ['accountant-fuel-expenses'] });
+    },
+    onError: () => toast.error('Failed to mark as paid'),
+  });
   const [createForm, setCreateForm] = useState({
     vehicle: 'KA-01-AB-1234',
     driver: '',
@@ -99,19 +113,44 @@ export default function AccountantFuelExpensePage() {
       ),
     },
     {
-      key: 'odometer' as const,
-      header: 'Odometer',
+      key: 'start_odometer' as const,
+      header: 'Start Odo',
       render: (item: AccountantFuelExpense) => (
-        <span className="text-sm text-gray-600">{safeLocale(item.odometer)} km</span>
+        <span className="text-sm text-gray-600">
+          {item.start_odometer > 0 ? `${safeLocale(item.start_odometer)} km` : '—'}
+        </span>
       ),
     },
     {
-      key: 'mileage' as const,
-      header: 'Mileage',
+      key: 'end_odometer' as const,
+      header: 'End Odo',
       render: (item: AccountantFuelExpense) => (
-        <span className={`text-sm font-bold ${item.mileage >= 4 ? 'text-green-600' : item.mileage >= 3 ? 'text-amber-600' : 'text-red-600'}`}>
-          {safeNum(item.mileage, 1)} km/L
+        <span className="text-sm text-gray-600">
+          {item.end_odometer > 0 ? `${safeLocale(item.end_odometer)} km` : '—'}
         </span>
+      ),
+    },
+    {
+      key: 'is_verified' as const,
+      header: 'Status',
+      render: (item: AccountantFuelExpense) => (
+        item.is_verified
+          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Paid</span>
+          : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Pending</span>
+      ),
+    },
+    {
+      key: 'id' as const,
+      header: 'Action',
+      render: (item: AccountantFuelExpense) => (
+        !item.is_verified ? (
+          <button
+            onClick={() => setPayConfirmId(item.id)}
+            className="flex items-center gap-1 px-2.5 py-1 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 transition-colors"
+          >
+            <IndianRupee size={11} /> Mark as Paid
+          </button>
+        ) : null
       ),
     },
   ];
@@ -264,6 +303,37 @@ export default function AccountantFuelExpensePage() {
           </div>
         </form>
       </Modal>
+
+      {/* Mark as Paid confirm */}
+      {payConfirmId !== null && (() => {
+        const entry = items.find(i => i.id === payConfirmId);
+        return (
+          <Modal isOpen onClose={() => setPayConfirmId(null)} title="Mark Fuel Entry as Paid" size="sm">
+            <div className="space-y-4">
+              {entry && (
+                <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
+                  <div className="flex justify-between"><span className="text-gray-500">Driver</span><span className="font-medium">{entry.driver}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Vehicle</span><span className="font-medium">{entry.vehicle}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Litres</span><span className="font-medium">{entry.fuel_quantity} L</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Amount</span><span className="font-bold text-green-700">{fmt(entry.total_cost)}</span></div>
+                </div>
+              )}
+              <p className="text-sm text-gray-600">Mark this fuel entry as paid?</p>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setPayConfirmId(null)} className="btn-secondary text-sm">Cancel</button>
+                <button
+                  onClick={() => payMutation.mutate(payConfirmId)}
+                  disabled={payMutation.isPending}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 disabled:opacity-60"
+                >
+                  <IndianRupee size={14} />
+                  {payMutation.isPending ? 'Processing…' : `Mark as Paid ${entry ? fmt(entry.total_cost) : ''}`}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }

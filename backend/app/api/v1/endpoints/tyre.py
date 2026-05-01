@@ -335,6 +335,57 @@ async def get_retread_flags(
     return APIResponse(success=True, data={"items": items})
 
 
+@router.get("/lifecycle-events", response_model=APIResponse)
+async def get_lifecycle_events(
+    limit: int = Query(100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    _user: TokenData = Depends(require_permission(Permissions.VEHICLE_READ)),
+):
+    """Get recent tyre lifecycle events (MOUNTED, REMOVED, INSPECTION, ROTATED, RETREAD, etc.)."""
+    from app.models.postgres.user import User
+    result = await db.execute(
+        select(
+            TyreLifecycleEvent.id,
+            TyreLifecycleEvent.event_type,
+            TyreLifecycleEvent.notes,
+            TyreLifecycleEvent.created_at,
+            TyreLifecycleEvent.vehicle_tyre_id,
+            VehicleTyre.tyre_number,
+            VehicleTyre.brand,
+            VehicleTyre.size,
+            VehicleTyre.position,
+            VehicleTyre.vehicle_id,
+            Vehicle.registration_number,
+            User.first_name,
+            User.last_name,
+        )
+        .join(VehicleTyre, VehicleTyre.id == TyreLifecycleEvent.vehicle_tyre_id)
+        .outerjoin(Vehicle, Vehicle.id == VehicleTyre.vehicle_id)
+        .outerjoin(User, User.id == TyreLifecycleEvent.performed_by)
+        .order_by(TyreLifecycleEvent.created_at.desc())
+        .limit(limit)
+    )
+
+    items = []
+    for row in result.all():
+        performed_by = f"{row.first_name or ''} {row.last_name or ''}".strip() or None
+        items.append({
+            "id": row.id,
+            "event_type": row.event_type,
+            "notes": row.notes,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "tyre_id": row.vehicle_tyre_id,
+            "tyre_number": row.tyre_number,
+            "brand": row.brand,
+            "size": row.size,
+            "position": row.position,
+            "vehicle_number": row.registration_number,
+            "performed_by": performed_by,
+        })
+
+    return APIResponse(success=True, data={"items": items})
+
+
 # ── Stock management ──────────────────────────────────────
 @router.get("/next-number", response_model=APIResponse)
 async def next_tyre_number(

@@ -9,6 +9,7 @@ interface Props {
   entityType: string;    // e.g. 'vehicle', 'driver'
   label?: string;
   onExtracted?: (data: Record<string, any>) => void;
+  onFile?: (file: File) => void;
 }
 
 const DOC_LABELS: Record<string, string> = {
@@ -20,7 +21,7 @@ const DOC_LABELS: Record<string, string> = {
   permit: 'Permit',
 };
 
-export function DocAutoFill({ documentType, entityType, label, onExtracted }: Props) {
+export function DocAutoFill({ documentType, entityType, label, onExtracted, onFile }: Props) {
   const [state, setState] = useState<ExtractState>('idle');
   const [extractedData, setExtractedData] = useState<Record<string, any>>({});
   const [error, setError] = useState('');
@@ -32,6 +33,7 @@ export function DocAutoFill({ documentType, entityType, label, onExtracted }: Pr
   const processFile = useCallback(async (file: File) => {
     setState('extracting');
     setError('');
+    if (onFile) onFile(file);
     try {
       const fd = new FormData();
       fd.append('file', file);
@@ -47,7 +49,7 @@ export function DocAutoFill({ documentType, entityType, label, onExtracted }: Pr
       setError(String(msg));
       setState('error');
     }
-  }, [documentType, entityType, onExtracted]);
+  }, [documentType, entityType, onExtracted, onFile]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

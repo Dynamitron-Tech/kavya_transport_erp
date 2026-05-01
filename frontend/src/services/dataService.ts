@@ -287,7 +287,7 @@ export const lrService = {
   },
   print: async (id: number) => {
     const data = await api.get(`/lr/${id}/print`);
-    return data;
+    return unwrap(data);
   },
   getStatusHistory: async (id: number) => {
     const data = await api.get(`/lr/${id}/status-history`);
@@ -1063,6 +1063,10 @@ export const reportService = {
   },
   clientOutstanding: async (params?: FilterParams) => {
     const data = await api.get('/reports/client-outstanding', { params: buildReportParams(params) });
+    return data;
+  },
+  maintenanceReport: async (params?: FilterParams) => {
+    const data = await api.get('/reports/maintenance', { params: buildReportParams(params) });
     return data;
   },
   exportReport: async (reportType: string, format: string, params?: FilterParams) => {
@@ -2391,6 +2395,10 @@ export const tyreTrackerService = {
   },
   getRetreadFlags: async () => {
     const data = await api.get('/tyre/retread-flags');
+    return unwrap(data);
+  },
+  getLifecycleEvents: async (limit = 100) => {
+    const data = await api.get('/tyre/lifecycle-events', { params: { limit } });
     return unwrap(data);
   },
 };

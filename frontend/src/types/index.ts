@@ -3,7 +3,7 @@
 // ============================================================
 
 // ---- Enums ----
-export type RoleType = 'admin' | 'manager' | 'fleet_manager' | 'accountant' | 'finance_manager' | 'project_associate' | 'driver' | 'pump_operator' | 'auditor';
+export type RoleType = 'admin' | 'manager' | 'fleet_manager' | 'accountant' | 'finance_manager' | 'project_associate' | 'driver' | 'pump_operator' | 'auditor' | 'tyre_inspector';
 
 export type VehicleType = 'truck' | 'trailer' | 'tanker' | 'container' | 'mini_truck' | 'lcv' | 'pickup' | 'other';
 export type VehicleStatus = 'available' | 'on_trip' | 'maintenance' | 'breakdown' | 'inactive';
@@ -1784,10 +1784,12 @@ export interface AccountantFuelExpense {
   cost_per_litre: number;
   total_cost: number;
   fuel_station: string;
-  odometer: number;
-  mileage: number;
+  start_odometer: number;
+  end_odometer: number;
   payment_method: string;
   receipt: boolean;
+  is_verified: boolean;
+  fuel_type?: string;
 }
 
 export interface AccountantBankAccount {

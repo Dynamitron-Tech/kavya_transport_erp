@@ -7,6 +7,7 @@ import { Modal } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { handleApiError } from '../../utils/handleApiError';
+import { openDocumentUrl } from '@/utils/helpers';
 import {
   ArrowLeft, Truck, User, IndianRupee,
   CheckCircle, XCircle, Play, PackageCheck, CreditCard,
@@ -140,9 +141,9 @@ export default function MarketTripDetailPage() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
               <p className="font-semibold text-sm text-gray-900">{viewDoc.title}</p>
               <div className="flex items-center gap-3">
-                <a href={viewDoc.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                <button type="button" onClick={() => openDocumentUrl(viewDoc.url)} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
                   <ExternalLink size={12} /> Open in new tab
-                </a>
+                </button>
                 <button onClick={() => setViewDoc(null)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500">
                   <X size={16} />
                 </button>

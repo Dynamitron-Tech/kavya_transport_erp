@@ -13,7 +13,6 @@ from app.schemas.lr import LRCreate, LRUpdate, LRStatusChange
 from app.services import lr_service
 from app.services.lr_pdf_service import build_lr_pdf, generate_and_upload_lr_pdf
 from app.services.notification_service import notification_service
-from app.utils.tenant_guard import assert_tenant_access
 
 router = APIRouter()
 
@@ -69,15 +68,51 @@ async def get_last_cargo_items(
 
 
 @router.get("/{lr_id}", response_model=APIResponse)
-async def get_lr(
-    lr_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user),
-    _perm=Depends(require_permission(Permissions.LR_READ)),
-):
+async def get_lr(lr_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
     lr = await lr_service.get_lr(db, lr_id)
-    assert_tenant_access(lr, current_user, not_found_detail="LR not found")
+    if not lr:
+        raise HTTPException(status_code=404, detail="LR not found")
     data = await lr_service.get_lr_with_details(db, lr)
+    return APIResponse(success=True, data=data)
+
+
+@router.get("/{lr_id}/print", response_model=APIResponse)
+async def print_lr(lr_id: int, db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
+    lr = await lr_service.get_lr(db, lr_id)
+    if not lr:
+        raise HTTPException(status_code=404, detail="LR not found")
+    data = await lr_service.get_lr_with_details(db, lr)
+    # Serialize date/datetime fields
+    for key, val in data.items():
+        import datetime as _dt
+        if isinstance(val, (_dt.date, _dt.datetime)):
+            data[key] = str(val)
+    # Field aliases for print template
+    data["vehicle_number"] = data.get("vehicle_registration") or data.get("vehicle_number")
+    # Compute totals for print template
+    freight = float(data.get("freight_amount") or 0)
+    loading = float(data.get("loading_charges") or 0)
+    unloading = float(data.get("unloading_charges") or 0)
+    detention = float(data.get("detention_charges") or 0)
+    other = float(data.get("other_charges") or 0)
+    subtotal = freight + loading + unloading + detention + other
+    gst_pct = float(data.get("gst_percentage") or 5)
+    gst_amount = round(subtotal * gst_pct / 100, 2)
+    data["subtotal"] = subtotal
+    data["gst_percentage"] = gst_pct
+    data["gst_amount"] = gst_amount
+    data["total_amount"] = round(subtotal + gst_amount, 2)
+    # Company info
+    data["company_name"] = "Kavya Transports"
+    data["company_address"] = ""
+    data["company_gstin"] = ""
+    data["company_phone"] = ""
+    data["terms"] = [
+        "Goods once booked will not be returned without prior notice.",
+        "The consignor is responsible for proper packing of goods.",
+        "Liability is limited to the declared value of goods.",
+        "Subject to jurisdiction of local courts only.",
+    ]
     return APIResponse(success=True, data=data)
 
 
@@ -122,8 +157,6 @@ async def update_lr(
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.LR_UPDATE)),
 ):
-    existing = await lr_service.get_lr(db, lr_id)
-    assert_tenant_access(existing, current_user, not_found_detail="LR not found")
     lr = await lr_service.update_lr(db, lr_id, data.model_dump(exclude_unset=True))
     if not lr:
         raise HTTPException(status_code=404, detail="LR not found")
@@ -136,8 +169,6 @@ async def delete_lr(
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.LR_DELETE)),
 ):
-    existing = await lr_service.get_lr(db, lr_id)
-    assert_tenant_access(existing, current_user, not_found_detail="LR not found")
     success = await lr_service.delete_lr(db, lr_id)
     if not success:
         raise HTTPException(status_code=404, detail="LR not found")

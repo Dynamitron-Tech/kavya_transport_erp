@@ -3,7 +3,7 @@ import calendar
 import random
 import re as _re
 from datetime import date, datetime
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -14,11 +14,9 @@ from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user
 from app.middleware.permissions import require_permission, Permissions
 from app.schemas.base import APIResponse, PaginationMeta
-from app.schemas.user import UserCreate, UserUpdate, UserUpdateSelf
+from app.schemas.user import UserCreate, UserUpdate
 from app.services import user_service
 from app.models.postgres.user import User, Role, user_roles as user_roles_table, EmployeeAttendance
-from app.utils.tenant_guard import assert_tenant_access
-from app.services.token_blacklist import force_logout_user
 
 router = APIRouter()
 
@@ -222,6 +220,13 @@ async def list_users(
             "dl_issue_date": str(u.dl_issue_date) if u.dl_issue_date else None,
             "dl_expiry_date": str(u.dl_expiry_date) if u.dl_expiry_date else None,
         })
+    # presign document URLs
+    from app.services import s3_service as _s3
+    _doc_url_keys = ["aadhaar_file_url", "pan_file_url", "passbook_file_url", "dl_file_url"]
+    for item in items:
+        for key in _doc_url_keys:
+            if item.get(key):
+                item[key] = await _s3.presign_stored_url(item[key])
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 
 
@@ -231,7 +236,7 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db), current_use
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     roles = await user_service.get_user_roles(db, user.id)
-    return APIResponse(success=True, data={
+    data = {
         "id": user.id, "email": user.email, "first_name": user.first_name,
         "last_name": user.last_name, "phone": user.phone, "avatar_url": user.avatar_url, "roles": roles,
         "is_active": user.is_active, "created_at": str(user.created_at) if user.created_at else None,
@@ -249,18 +254,19 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db), current_use
         "upi_id": user.upi_id,
         "salary_amount": user.salary_amount,
         "pay_type": user.pay_type,
-        "aadhaar_file_url": user.aadhaar_file_url,
         "aadhaar_file_name": user.aadhaar_file_name,
-        "pan_file_url": user.pan_file_url,
         "pan_file_name": user.pan_file_name,
-        "passbook_file_url": user.passbook_file_url,
         "passbook_file_name": user.passbook_file_name,
-        "dl_file_url": user.dl_file_url,
         "dl_file_name": user.dl_file_name,
         "dl_number": user.dl_number,
         "dl_issue_date": str(user.dl_issue_date) if user.dl_issue_date else None,
         "dl_expiry_date": str(user.dl_expiry_date) if user.dl_expiry_date else None,
-    })
+    }
+    from app.services import s3_service as _s3
+    for key in ["aadhaar_file_url", "pan_file_url", "passbook_file_url", "dl_file_url"]:
+        raw = getattr(user, key, None)
+        data[key] = await _s3.presign_stored_url(raw) if raw else None
+    return APIResponse(success=True, data=data)
 
 
 @router.post("", response_model=APIResponse, status_code=201)
@@ -330,24 +336,9 @@ async def update_user(
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.USER_UPDATE)),
 ):
-    # Tenant scoping: load target first and verify same tenant.
-    target = await db.get(User, user_id)
-    assert_tenant_access(target, current_user, not_found_detail="User not found")
-
-    # Mass-assignment guard: only admin / super_admin may set privileged fields.
-    # Non-admin callers updating themselves get reduced to UserUpdateSelf, which
-    # silently drops role_names, is_active, salary_amount, branch_id, password,
-    # joining_date, pay_type. Cross-user edits require admin.
-    is_admin = any((r or "").lower() in ("admin", "super_admin") for r in current_user.roles)
-    if not is_admin and user_id != current_user.user_id:
-        # 404 (not 403) so we don't reveal whether the target id exists.
-        raise HTTPException(status_code=404, detail="User not found")
-    if not is_admin:
-        data = UserUpdateSelf.model_validate(data.model_dump(exclude_unset=True))
-
     payload = data.model_dump(exclude_unset=True)
     if "password" in payload and payload["password"]:
-        if not is_admin:
+        if not any((role or "").lower() == "admin" for role in current_user.roles):
             raise HTTPException(status_code=403, detail="Only admin can update employee password")
     normalized_phone = None
     if "phone" in payload:
@@ -366,13 +357,6 @@ async def update_user(
         raise HTTPException(status_code=400, detail="Unable to update user due to conflicting data")
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
-    # Force logout if security-sensitive fields changed: roles, password, or active state.
-    # This invalidates all existing access/refresh tokens via the forced_logout timestamp
-    # check in get_current_user, so demoted users lose access within seconds.
-    if any(k in payload for k in ("role_names", "password", "is_active")):
-        force_logout_user(user_id)
-
     return APIResponse(success=True, message="User updated")
 
 
@@ -430,3 +414,57 @@ async def reset_user_password(
     user.hashed_password = get_password_hash(payload.new_password)
     await db.commit()
     return APIResponse(success=True, message="Password reset successfully")
+
+
+_USER_DOC_FIELDS = {
+    "aadhaar_card":    ("aadhaar_file_url",    "aadhaar_file_name"),
+    "pan_card":        ("pan_file_url",         "pan_file_name"),
+    "bank_passbook":   ("passbook_file_url",    "passbook_file_name"),
+    "driving_license": ("dl_file_url",          "dl_file_name"),
+}
+
+
+@router.post("/{user_id}/documents", response_model=APIResponse, status_code=201)
+async def upload_user_document(
+    user_id: int,
+    file: UploadFile = File(...),
+    document_type: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+    _perm=Depends(require_permission(Permissions.USER_UPDATE)),
+):
+    """Upload or replace a document for an employee (aadhaar_card, pan_card, bank_passbook, driving_license)."""
+    doc_type = document_type.lower().strip()
+    if doc_type not in _USER_DOC_FIELDS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid document_type. Allowed: {list(_USER_DOC_FIELDS.keys())}",
+        )
+
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    from app.utils.upload_validator import validate_upload, ALLOWED_IMAGE_DOC_MIMES
+    from app.services import s3_service
+    content, detected_mime, safe_name = await validate_upload(
+        file, allowed_mimes=ALLOWED_IMAGE_DOC_MIMES, max_bytes=10 * 1024 * 1024,
+    )
+
+    folder = f"employee-documents/{user_id}"
+    result = await s3_service.upload_file(content, safe_name, folder, detected_mime)
+    file_url = result.get("url", "")
+
+    url_field, name_field = _USER_DOC_FIELDS[doc_type]
+    setattr(user, url_field, file_url)
+    setattr(user, name_field, safe_name)
+    await db.commit()
+
+    # Return a presigned URL so the frontend can display it immediately
+    view_url = await s3_service.presign_stored_url(file_url) if file_url else file_url
+
+    return APIResponse(
+        success=True,
+        data={url_field: view_url, name_field: safe_name},
+        message="Document uploaded successfully",
+    )

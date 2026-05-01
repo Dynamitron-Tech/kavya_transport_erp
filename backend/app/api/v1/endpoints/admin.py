@@ -89,7 +89,7 @@ async def admin_trips_pending_completion(
 ):
     """List trips that are COMPLETED but not yet payment-approved by admin."""
     _require_admin(current_user)
-    from app.models.postgres.trip import Trip, TripStatus
+    from app.models.postgres.trip import Trip, TripStatusEnum
     from app.models.postgres.driver import Driver
 
     q = (
@@ -99,7 +99,7 @@ async def admin_trips_pending_completion(
             Trip.actual_end, Trip.status, Trip.payment_approved,
         )
         .where(
-            Trip.status == TripStatus.COMPLETED,
+            Trip.status == TripStatusEnum.COMPLETED,
             Trip.payment_approved == False,
             Trip.is_deleted == False,
             Trip.driver_pay > 0,
@@ -131,7 +131,7 @@ async def admin_approve_trip_completion(
     """Admin approves a completed trip → creates PENDING driver payment entry."""
     _require_admin(current_user)
 
-    from app.models.postgres.trip import Trip, TripStatus
+    from app.models.postgres.trip import Trip, TripStatusEnum
     from app.models.postgres.finance import Payment, PaymentStatus, PaymentMethod
     from datetime import date as d
     import random, string
@@ -139,7 +139,7 @@ async def admin_approve_trip_completion(
     trip = await db.get(Trip, trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
-    if trip.status != TripStatus.COMPLETED:
+    if trip.status != TripStatusEnum.COMPLETED:
         raise HTTPException(status_code=400, detail="Trip is not in COMPLETED status")
     if trip.payment_approved:
         raise HTTPException(status_code=400, detail="Trip payment already approved")

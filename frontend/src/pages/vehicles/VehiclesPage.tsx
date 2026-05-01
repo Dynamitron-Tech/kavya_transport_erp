@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { vehicleService } from '@/services/dataService';
+import { vehicleService, documentService } from '@/services/dataService';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import DataTable, { Column } from '@/components/common/DataTable';
 import { StatusBadge, KPICard, Modal } from '@/components/common/Modal';
@@ -27,6 +27,7 @@ export default function VehiclesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createStep, setCreateStep] = useState<1 | 2>(1);
   const [createdVehicleId, setCreatedVehicleId] = useState<number | null>(null);
+  const [scannedRCFile, setScannedRCFile] = useState<File | null>(null);
   const [createForm, setCreateForm] = useState({
     registration_number: '',
     vehicle_size_class: 'hcv',
@@ -84,11 +85,25 @@ export default function VehiclesPage() {
       total_km_run: 0,
       is_active: true,
     }),
-    onSuccess: (data: any) => {
+    onSuccess: async (data: any) => {
       qc.invalidateQueries({ queryKey: ['vehicles'] });
       const vehicleId = data?.id ?? data?.data?.id;
       if (vehicleId) {
         setCreatedVehicleId(vehicleId);
+        // Auto-upload the scanned RC as a document for this vehicle
+        if (scannedRCFile) {
+          try {
+            const fd = new FormData();
+            fd.append('file', scannedRCFile);
+            fd.append('document_type', 'rc');
+            fd.append('entity_type', 'vehicle');
+            fd.append('entity_id', String(vehicleId));
+            await documentService.uploadFile(fd);
+            qc.invalidateQueries({ queryKey: ['documents', vehicleId, 'vehicle'] });
+          } catch {
+            // Non-fatal — user can upload manually in Step 2
+          }
+        }
         setCreateStep(2);
       } else {
         toast.success('Vehicle created successfully.');
@@ -117,6 +132,7 @@ export default function VehiclesPage() {
     });
     setCreateStep(1);
     setCreatedVehicleId(null);
+    setScannedRCFile(null);
     setIsCreateOpen(false);
   };
 
@@ -133,21 +149,10 @@ export default function VehiclesPage() {
     }));
   };
 
-  // Called by DocAutoFill inline widget (raw extraction data, not wrapped ExtractionResult)
+  // Called by DocAutoFill inline widget — only auto-fills Chassis Number and Engine Number
   const handleRCDocAutoFill = (d: Record<string, any>) => {
-    const rawFuel = String(d.fuel_type || '').toLowerCase();
     setCreateForm(prev => ({
       ...prev,
-      registration_number: d.registration_number || prev.registration_number,
-      fuel_type: rawFuel.includes('petrol') ? 'petrol'
-        : rawFuel.includes('cng') ? 'cng'
-        : rawFuel.includes('electric') ? 'electric'
-        : rawFuel.includes('lpg') ? 'lpg'
-        : rawFuel.includes('diesel') ? 'diesel'
-        : prev.fuel_type,
-      make: d.make || prev.make,
-      model: d.model_name || prev.model,
-      year_of_manufacture: d.year_of_manufacture ? String(d.year_of_manufacture) : prev.year_of_manufacture,
       chassis_number: d.chassis_number || prev.chassis_number,
       engine_number: d.engine_number || prev.engine_number,
     }));
@@ -355,7 +360,9 @@ export default function VehiclesPage() {
             <DocAutoFill
               documentType="rc"
               entityType="vehicle"
+              label="Scan Registration Certificate (RC) to auto-fill Chassis & Engine Number"
               onExtracted={handleRCDocAutoFill}
+              onFile={(file) => setScannedRCFile(file)}
             />
             <div>
               <label className="label">Registration Number <span className="text-red-500">*</span></label>

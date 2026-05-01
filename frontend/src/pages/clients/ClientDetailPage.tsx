@@ -6,7 +6,7 @@ import { clientService, jobService, documentService } from '@/services/dataServi
 import { StatusBadge, LoadingPage, Modal } from '@/components/common/Modal';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import { ArrowLeft, Phone, Mail, MapPin, Edit, ChevronRight, Plus, Truck, User, Package, IndianRupee, Calendar, CheckCircle2, FileText, ExternalLink } from 'lucide-react';
-import { safeArray } from '@/utils/helpers';
+import { safeArray, openDocumentUrl } from '@/utils/helpers';
 import { handleApiError } from '../../utils/handleApiError';
 import api from '@/services/api';
 
@@ -272,9 +272,6 @@ export default function ClientDetailPage() {
               <div><span className="text-gray-400">Client Type</span><p className="font-medium capitalize mt-0.5">{show(client.client_type)}</p></div>
               <div><span className="text-gray-400">Contact Person</span><p className="font-medium mt-0.5">{show(client.contact_person)}</p></div>
               <div><span className="text-gray-400">Designation</span><p className="font-medium mt-0.5">{show(client.designation)}</p></div>
-              <div><span className="text-gray-400">Industry</span><p className="font-medium mt-0.5">{show(client.industry)}</p></div>
-              <div><span className="text-gray-400">Company Size</span><p className="font-medium mt-0.5">{show(client.company_size)}</p></div>
-              <div><span className="text-gray-400">Nature of Business</span><p className="font-medium mt-0.5">{show(client.nature_of_business)}</p></div>
               <div><span className="text-gray-400">Legal Name</span><p className="font-medium mt-0.5">{show(client.legal_name)}</p></div>
               <div><span className="text-gray-400">Trade Name</span><p className="font-medium mt-0.5">{show(client.trade_name)}</p></div>
             </div>
@@ -285,20 +282,7 @@ export default function ClientDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
               <div><span className="text-gray-400">GSTIN</span><p className="font-medium font-mono mt-0.5">{show(client.gstin)}</p></div>
               <div><span className="text-gray-400">PAN</span><p className="font-medium font-mono mt-0.5">{show(client.pan)}</p></div>
-              <div><span className="text-gray-400">TDS Rate</span><p className="font-medium mt-0.5">{show(client.tds_rate)}</p></div>
               <div><span className="text-gray-400">Tax Exempt</span><p className="font-medium mt-0.5">{client.tax_exempt ? 'Yes' : 'No'}</p></div>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-semibold text-gray-900 mb-3">TDS Details (Form 16A)</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
-              <div><span className="text-gray-400">Name of Deductor</span><p className="font-medium mt-0.5">{show(client.name_deductor)}</p></div>
-              <div><span className="text-gray-400">Name of Deductee</span><p className="font-medium mt-0.5">{show(client.name_deductee)}</p></div>
-              <div><span className="text-gray-400">PAN of Deductor</span><p className="font-medium font-mono mt-0.5">{show(client.pan_deductor)}</p></div>
-              <div><span className="text-gray-400">PAN of Deductee</span><p className="font-medium font-mono mt-0.5">{show(client.pan_deductee)}</p></div>
-              <div><span className="text-gray-400">Nature of Payment</span><p className="font-medium mt-0.5">{show(client.nature_payment)}</p></div>
-              <div><span className="text-gray-400">TDS Amount</span><p className="font-medium mt-0.5">{show(client.tds_amount)}</p></div>
             </div>
           </div>
 
@@ -312,7 +296,6 @@ export default function ClientDetailPage() {
               <div className="md:col-span-2"><span className="text-gray-400">Address</span><p className="font-medium flex items-center gap-1.5 mt-0.5"><MapPin size={14} className="text-gray-400" /> {[client.address_line1, client.city, client.state, client.pincode].filter(Boolean).join(', ') || '—'}</p></div>
               <div><span className="text-gray-400">Invoice Frequency</span><p className="font-medium mt-0.5">{show(client.invoice_frequency)}</p></div>
               <div><span className="text-gray-400">Payment Method</span><p className="font-medium mt-0.5">{show(client.payment_method)}</p></div>
-              <div><span className="text-gray-400">IFSC Code</span><p className="font-medium font-mono mt-0.5">{show(client.ifsc_code)}</p></div>
             </div>
           </div>
         </div>
@@ -345,12 +328,12 @@ export default function ClientDetailPage() {
                   <div className="min-w-0">
                     <p className="font-medium text-gray-900 truncate flex items-center gap-2"><FileText size={14} /> {doc.title || doc.file_name || 'Document'}</p>
                     <p className="text-xs text-gray-500 mt-1">Type: {show(doc.document_type)}</p>
-                    <p className="text-xs text-gray-500">Uploaded: {doc.created_at ? new Date(doc.created_at).toLocaleString('en-IN') : '—'}</p>
+                    <p className="text-xs text-gray-500">Uploaded: {doc.created_at ? new Date(doc.created_at.endsWith('Z') || doc.created_at.includes('+') ? doc.created_at : doc.created_at + 'Z').toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—'}</p>
                   </div>
                   {doc.file_url && (
-                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-medium">
+                    <button type="button" onClick={() => openDocumentUrl(doc.file_url)} className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-medium">
                       View <ExternalLink size={14} />
-                    </a>
+                    </button>
                   )}
                 </div>
                 {doc.file_url && /\.(jpg|jpeg|png|webp)$/i.test(doc.file_url) && (
@@ -394,7 +377,7 @@ export default function ClientDetailPage() {
               </thead>
               <tbody>
                 {jobs.map((j: any) => (
-                  <tr key={j.id} onClick={() => navigate(`/jobs/${j.id}`)} className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors">
+                  <tr key={j.id} onClick={() => j.lr_id ? navigate(`/lr/${j.lr_id}`) : navigate(`/jobs/${j.id}`)} className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors">
                     <td className="py-2.5 px-3 font-mono font-semibold text-primary-600">{j.job_number}</td>
                     <td className="py-2.5 px-3">{j.origin_city || '—'} → {j.destination_city || '—'}</td>
                     <td className="py-2.5 px-3">{j.material_type || '—'}</td>
@@ -458,7 +441,7 @@ export default function ClientDetailPage() {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Contact Person</label>
               <input className="input-field" value={editPayload.contact_person} onChange={(e) => setEditPayload((p) => ({ ...p, contact_person: e.target.value }))} />
@@ -466,10 +449,6 @@ export default function ClientDetailPage() {
             <div>
               <label className="label">Designation</label>
               <input className="input-field" value={editPayload.designation} onChange={(e) => setEditPayload((p) => ({ ...p, designation: e.target.value }))} />
-            </div>
-            <div>
-              <label className="label">Industry</label>
-              <input className="input-field" value={editPayload.industry} onChange={(e) => setEditPayload((p) => ({ ...p, industry: e.target.value }))} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -484,7 +463,7 @@ export default function ClientDetailPage() {
           </div>
 
           <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 pb-1">Tax & Identity</div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="label">PAN</label>
               <input className="input-field font-mono" value={editPayload.pan} onChange={(e) => setEditPayload((p) => ({ ...p, pan: e.target.value }))} />
@@ -493,30 +472,12 @@ export default function ClientDetailPage() {
               <label className="label">GSTIN</label>
               <input className="input-field font-mono" value={editPayload.gstin} onChange={(e) => setEditPayload((p) => ({ ...p, gstin: e.target.value }))} />
             </div>
-          </div>
-
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 pb-1">TDS Details</div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="label">TDS Rate</label>
-              <input className="input-field" value={editPayload.tds_rate} onChange={(e) => setEditPayload((p) => ({ ...p, tds_rate: e.target.value }))} />
-            </div>
             <div>
               <label className="label">Tax Exempt</label>
               <select className="input-field" value={editPayload.tax_exempt ? 'yes' : 'no'} onChange={(e) => setEditPayload((p) => ({ ...p, tax_exempt: e.target.value === 'yes' }))}>
                 <option value="no">No</option>
                 <option value="yes">Yes</option>
               </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Name of Deductor</label>
-              <input className="input-field" value={editPayload.name_deductor} onChange={(e) => setEditPayload((p) => ({ ...p, name_deductor: e.target.value }))} />
-            </div>
-            <div>
-              <label className="label">Name of Deductee</label>
-              <input className="input-field" value={editPayload.name_deductee} onChange={(e) => setEditPayload((p) => ({ ...p, name_deductee: e.target.value }))} />
             </div>
           </div>
 
@@ -582,10 +543,6 @@ export default function ClientDetailPage() {
                 <option value="cash">Cash</option>
               </select>
             </div>
-          </div>
-          <div>
-            <label className="label">IFSC Code</label>
-            <input className="input-field font-mono" value={editPayload.ifsc_code} onChange={(e) => setEditPayload((p) => ({ ...p, ifsc_code: e.target.value }))} />
           </div>
           <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
             <button type="button" className="btn-secondary" onClick={() => setShowEditClient(false)}>Cancel</button>

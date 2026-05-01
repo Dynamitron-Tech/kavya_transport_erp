@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Eye, FileText, RefreshCw } from 'lucide-react';
 import { driverService } from '@/services/dataService';
-import { safeArray } from '@/utils/helpers';
+import { safeArray, openDocumentUrl } from '@/utils/helpers';
 
 type DriverDoc = {
   id: number;
@@ -139,7 +139,7 @@ export default function DriverDocumentsPage() {
                       <td className="px-4 py-3 text-right">
                         <button
                           type="button"
-                          onClick={() => fileUrl && window.open(fileUrl, '_blank')}
+                          onClick={() => openDocumentUrl(fileUrl)}
                           disabled={!fileUrl}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >

@@ -54,21 +54,13 @@ class KTWebSocketService {
   private _doConnect(): void {
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
 
-    const token = useAuthStore.getState().token ?? sessionStorage.getItem('access_token') ?? localStorage.getItem('access_token');
+    const token = useAuthStore.getState().token ?? localStorage.getItem('access_token');
     if (!token) return;
 
-    // Derive WS host from VITE_API_URL so we always connect to api.kavyatransports.com
-    // even when the app is served from app.kavyatransports.com (CloudFront/S3).
-    const apiUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
-    let wsBase: string;
-    if (apiUrl && apiUrl.startsWith('http')) {
-      const u = new URL(apiUrl);
-      wsBase = `${u.protocol === 'https:' ? 'wss:' : 'ws:'}//${u.host}`;
-    } else {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      wsBase = `${protocol}//${window.location.host}`;
-    }
-    const url = `${wsBase}/ws?token=${encodeURIComponent(token)}`;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    const host = apiUrl ? apiUrl.replace(/^https?:\/\//, '').replace(/\/api\/v1$/, '') : window.location.host;
+    const url = `${protocol}//${host}/ws?token=${encodeURIComponent(token)}`;
 
     try {
       this.ws = new WebSocket(url);

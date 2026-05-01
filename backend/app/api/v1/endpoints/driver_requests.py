@@ -271,6 +271,39 @@ async def list_pending_leaves(
     return APIResponse(success=True, data=data)
 
 
+@router.get("/leaves/reviewed", response_model=APIResponse)
+async def list_reviewed_leaves(
+    limit: int = Query(200, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(require_permission(Permissions.DRIVER_READ)),
+):
+    """Fleet manager: list all reviewed (approved/rejected) leave applications."""
+    result = await db.execute(
+        select(DriverLeave, Driver)
+        .join(Driver, Driver.id == DriverLeave.driver_id)
+        .where(DriverLeave.status.in_([LeaveStatusEnum.APPROVED, LeaveStatusEnum.REJECTED]))
+        .order_by(DriverLeave.reviewed_at.desc())
+        .limit(limit)
+    )
+    rows = result.all()
+    data = [
+        {
+            "id": l.id,
+            "driver_id": l.driver_id,
+            "driver_name": f"{d.first_name or ''} {d.last_name or ''}".strip(),
+            "start_date": l.start_date.isoformat(),
+            "end_date": l.end_date.isoformat(),
+            "reason": l.reason,
+            "status": l.status.value,
+            "review_note": l.review_note,
+            "reviewed_at": l.reviewed_at.isoformat() if l.reviewed_at else None,
+            "created_at": l.created_at.isoformat(),
+        }
+        for l, d in rows
+    ]
+    return APIResponse(success=True, data=data)
+
+
 # ── Driver: Request Advance ───────────────────────────────────────────────────
 
 @router.post("/advance-requests", response_model=APIResponse)

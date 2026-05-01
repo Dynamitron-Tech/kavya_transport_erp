@@ -16,6 +16,8 @@ export default function FleetDriversPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['fleet-drivers', search, statusFilter],
     queryFn: () => fleetService.getDrivers({ search, status: statusFilter || undefined }),
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const drivers: FleetDriver[] = safeArray((data as any)?.data?.items ?? (data as any)?.items ?? data);

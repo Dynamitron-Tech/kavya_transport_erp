@@ -1,8 +1,10 @@
 import { NavLink, useLocation, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { useAppStore } from '@/store/appStore';
 import { useFinanceAlertStore } from '@/store/financeAlertStore';
 import { NAV_CONFIG, type HeaderNavRole, type HeaderNavSection } from './nav/navConfig';
+import api from '@/services/api';
 import {
   LayoutDashboard, Building2, Truck, UserCheck, ClipboardList,
   FileText, Navigation, Receipt, DollarSign, BookOpen, TrendingUp,
@@ -10,7 +12,7 @@ import {
   ChevronRight, LogOut, PlusCircle, FilePlus, Route, Upload,
   Bell, Fuel, Wrench, Gauge, Wallet, Landmark, Clock,
   Folder, List, Database, AlertTriangle, Shield, Trophy, Circle,
-  Activity, Calendar, Wifi,
+  Activity, Calendar, Wifi, CheckSquare,
 } from 'lucide-react';
 
 const resolveRole = (rawRole?: string): HeaderNavRole => {
@@ -23,6 +25,7 @@ const resolveRole = (rawRole?: string): HeaderNavRole => {
   if (normalized === 'DRIVER') return 'DRIVER';
   if (normalized === 'PUMP_OPERATOR') return 'PUMP_OPERATOR';
   if (normalized === 'AUDITOR') return 'AUDITOR';
+  if (normalized === 'TYRE_INSPECTOR') return 'TYRE_INSPECTOR';
   return 'ADMIN';
 };
 
@@ -69,6 +72,7 @@ const iconMap: Record<string, React.ReactNode> = {
   building: <Building2 size={20} />,
   calendar: <Calendar size={20} />,
   wifi: <Wifi size={20} />,
+  check: <CheckSquare size={20} />,
 };
 
 // Roles that have their own dedicated sidebar nav (no generic finance context override)
@@ -117,6 +121,28 @@ export default function Sidebar() {
   const { user, logout } = useAuthStore();
   const { sidebarCollapsed, toggleSidebarCollapse } = useAppStore();
   const { alertCount } = useFinanceAlertStore();
+
+  // Pending driver approvals count (leave + advance)
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [leavesRes, advRes] = await Promise.all([
+          api.get('/driver-requests/leaves/pending'),
+          api.get('/driver-requests/advance-requests/fleet'),
+        ]);
+        if (cancelled) return;
+        const leaves = (leavesRes as any)?.data ?? [];
+        const advances = ((advRes as any)?.data ?? []).filter((r: any) => r.status === 'PENDING');
+        setPendingApprovalsCount(leaves.length + advances.length);
+      } catch { /* ignore */ }
+    };
+    load();
+    const interval = setInterval(load, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const userRole = resolveRole((user as any)?.role || user?.roles?.[0]);
@@ -236,6 +262,14 @@ export default function Sidebar() {
                       {sidebarCollapsed && item.badge === 'alerts' && alertCount > 0 && (
                         <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500" />
                       )}
+                      {!sidebarCollapsed && item.badge === 'approvals' && pendingApprovalsCount > 0 && (
+                        <span className="ml-auto flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                          {pendingApprovalsCount > 9 ? '9+' : pendingApprovalsCount}
+                        </span>
+                      )}
+                      {sidebarCollapsed && item.badge === 'approvals' && pendingApprovalsCount > 0 && (
+                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-orange-500" />
+                      )}
                       {/* Tooltip for collapsed */}
                       {sidebarCollapsed && (
                         <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg
@@ -265,7 +299,7 @@ export default function Sidebar() {
             <div className="flex-1 min-w-0">
               <p className="text-gray-900 text-sm font-medium truncate">{user?.full_name}</p>
               <p className="text-gray-500 text-[11px] truncate capitalize">
-                {user?.roles[0]?.replace('_', ' ') || 'User'}
+                {user?.roles?.[0]?.replace('_', ' ') || 'User'}
               </p>
             </div>
             <button

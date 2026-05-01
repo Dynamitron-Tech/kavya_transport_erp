@@ -15,6 +15,7 @@ from app.services import dashboard_service, vehicle_service, trip_service
 from app.models.postgres.vehicle import Vehicle
 from app.models.postgres.driver import Driver, DriverLicense, DriverStatus
 from app.models.postgres.trip import Trip, TripStatusEnum
+from app.models.postgres.user import User
 
 router = APIRouter()
 
@@ -205,10 +206,24 @@ async def fleet_drivers(
     total = (await db.execute(count_query)).scalar() or 0
     offset = (page - 1) * limit
     drivers_result = await db.execute(query.offset(offset).limit(limit).order_by(Driver.id))
-    drivers = drivers_result.scalars().all()
+    drivers_orm = drivers_result.scalars().all()
+
+    # Snapshot all Driver fields IMMEDIATELY before any other DB query can expire the ORM objects
+    drivers = [
+        {
+            "id": d.id,
+            "user_id": d.user_id,
+            "first_name": d.first_name,
+            "last_name": d.last_name,
+            "phone": d.phone,
+            "status": d.status,
+            "safety_score": getattr(d, "safety_score", 0),
+        }
+        for d in drivers_orm
+    ]
 
     # Batch: Vehicle assigned per driver (Vehicle.default_driver_id = driver.id)
-    driver_ids = [d.id for d in drivers]
+    driver_ids = [d["id"] for d in drivers]
     vehicle_map: dict = {}
     if driver_ids:
         veh_result = await db.execute(
@@ -241,20 +256,38 @@ async def fleet_drivers(
             if lic.driver_id not in lic_map:
                 lic_map[lic.driver_id] = lic
 
+    # Batch: user dl fields for fallback (column-level select, plain dicts — avoids lazy-load expiry)
+    user_ids = [d["user_id"] for d in drivers if d["user_id"]]
+    user_dl_map: dict = {}  # user_id -> {"dl_number": ..., "dl_expiry_date": ...}
+    if user_ids:
+        u_res = await db.execute(
+            select(User.id, User.dl_number, User.dl_expiry_date)
+            .where(User.id.in_(user_ids))
+        )
+        for row in u_res.all():
+            user_dl_map[row[0]] = {"dl_number": row[1], "dl_expiry_date": row[2]}
+
     items = []
     for d in drivers:
-        status_val = d.status.value if hasattr(d.status, 'value') else str(d.status)
-        lic = lic_map.get(d.id)
+        status_val = d["status"].value if hasattr(d["status"], 'value') else str(d["status"])
+        lic = lic_map.get(d["id"])
+        if lic:
+            license_number = lic.license_number
+            license_expiry = str(lic.expiry_date) if lic.expiry_date else None
+        else:
+            u_dl = user_dl_map.get(d["user_id"]) if d["user_id"] else None
+            license_number = u_dl["dl_number"] if u_dl and u_dl["dl_number"] else None
+            license_expiry = str(u_dl["dl_expiry_date"]) if u_dl and u_dl["dl_expiry_date"] else None
         items.append({
-            "id": d.id,
-            "name": f"{d.first_name} {d.last_name or ''}".strip(),
-            "phone": d.phone,
+            "id": d["id"],
+            "name": f"{d['first_name']} {d['last_name'] or ''}".strip(),
+            "phone": d["phone"],
             "status": status_val,
-            "assigned_vehicle": vehicle_map.get(d.id),
-            "trips_completed": trips_map.get(d.id, 0),
-            "license_number": lic.license_number if lic else None,
-            "license_expiry": str(lic.expiry_date) if lic and lic.expiry_date else None,
-            "safety_score": d.safety_score if hasattr(d, 'safety_score') else 0,
+            "assigned_vehicle": vehicle_map.get(d["id"]),
+            "trips_completed": trips_map.get(d["id"], 0),
+            "license_number": license_number,
+            "license_expiry": license_expiry,
+            "safety_score": d["safety_score"],
         })
 
     pages = (total + limit - 1) // limit

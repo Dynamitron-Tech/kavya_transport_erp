@@ -44,6 +44,8 @@ export default function DashboardPage() {
   if (hasRole('manager')) return <ManagerDashboardPage />;
   if (hasRole('finance_manager')) return <Navigate to="/fm/dashboard" replace />;
   if (hasRole('accountant')) return <Navigate to="/accountant/dashboard" replace />;
+  if (hasRole('tyre_inspector')) return <Navigate to="/fleet/tyres" replace />;
+  if (hasRole('pump_operator')) return <Navigate to="/pump/dashboard" replace />;
 
   // ── Data Queries ────────────────────────────────────────────────
   const { data: overview, refetch } = useQuery({
@@ -80,6 +82,7 @@ export default function DashboardPage() {
   const { data: recentJobsRaw } = useQuery({
     queryKey: ['recent-jobs'],
     queryFn: async () => api.get('/jobs?limit=6&sort=desc'),
+    enabled: hasPermission('jobs:read'),
   });
   const { data: branches } = useQuery({
     queryKey: ['branches-list'],

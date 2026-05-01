@@ -157,6 +157,15 @@ export interface DriverAdvanceRequest {
   created_at: string;
 }
 
+export interface PaymentHistoryItem {
+  type: 'TRIP_ADVANCE' | 'DRIVER_ADVANCE' | 'TRIP_EXPENSE' | 'FUEL_REFILL';
+  title: string;
+  subtitle: string;
+  amount_rupees: number;
+  detail: string;
+  date: string | null;
+}
+
 // ─── API calls ─────────────────────────────────────────────────────────────────
 
 const BASE = '/finance-manager';
@@ -193,9 +202,17 @@ export const financeManagerService = {
       params: { status, trip_id, category, page },
     }).then((r: any) => (r.data as TripExpenseItem[]) ?? []),
   payTripExpense: (id: number, notes?: string) =>
-    api.patch(`${BASE}/trip-expenses/${id}/pay`, { notes }),
+    api.patch(`${BASE}/trip-expenses/${id}/pay`, notes ?? null, {
+      headers: { 'Content-Type': 'application/json' },
+    }),
   rejectTripExpense: (id: number, reason: string) =>
     api.patch(`${BASE}/trip-expenses/${id}/reject`, reason, { headers: { 'Content-Type': 'application/json' } }),
+
+  // Fuel Entries
+  getFuelEntries: (is_verified?: boolean) =>
+    api.get(`${BASE}/fuel-entries`, { params: { is_verified } }).then((r: any) => (r.data as any[]) ?? []),
+  markFuelEntryPaid: (id: number) =>
+    api.patch(`${BASE}/fuel-entries/${id}/mark-paid`),
 
   // Payment Contacts
   getPaymentContacts: (entity_type?: string, entity_id?: number) =>
@@ -231,4 +248,8 @@ export const financeManagerService = {
     api.get<{ data: DriverAdvanceRequest[] }>('/driver-requests/advance-requests/fleet').then(r => r.data),
   acknowledgeAdvanceRequest: (advanceId: number, note?: string) =>
     api.post(`/driver-requests/advance-requests/${advanceId}/acknowledge`, { note: note ?? '' }).then(r => r.data),
+
+  // Unified payment history (fuel, expenses, advances)
+  getPaymentHistory: (limit = 200) =>
+    api.get<{ data: PaymentHistoryItem[] }>(`${BASE}/payment-history`, { params: { limit } }).then(r => r.data),
 };

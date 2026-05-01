@@ -108,9 +108,9 @@ const LAYOUT_POSITIONS: Record<string, string[]> = {
 export default function TyreTrackerPage() {
   const [activeTab, setActiveTab] = useState<TyreTab>('dashboard');
 
-  // Connect WS on mount (use token from sessionStorage then localStorage fallback)
+  // Connect WS on mount (use token from localStorage)
   useEffect(() => {
-    const token = sessionStorage.getItem('access_token') || localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
     if (token) tyreWS.connect(token);
     return () => { /* keep connection alive across tab switches */ };
   }, []);
@@ -1591,71 +1591,79 @@ function InspectionsTab() {
    HISTORY TAB — readings and lifecycle events timeline
    ═══════════════════════════════════════════════════════════ */
 
+const EVENT_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
+  MOUNTED:          { label: 'Tyre Allocated',      color: 'bg-green-500',  icon: '🔩' },
+  REMOVED:          { label: 'Tyre Removed',        color: 'bg-red-500',    icon: '🔧' },
+  ROTATED:          { label: 'Tyre Rotated',        color: 'bg-blue-500',   icon: '🔄' },
+  INSPECTION:       { label: 'Tread/Pressure Update', color: 'bg-indigo-500', icon: '📏' },
+  RETREAD:          { label: 'Sent for Retreading', color: 'bg-orange-500', icon: '♻️' },
+  FLAG_INSPECTION:  { label: 'Flagged for Inspection', color: 'bg-amber-500', icon: '⚠️' },
+  FLAG_RETREADING:  { label: 'Flagged for Retreading', color: 'bg-orange-400', icon: '🚩' },
+};
+
 function HistoryTab() {
-  const { data: readingsData, isLoading } = useQuery({
+  const { data: lifecycleData, isLoading } = useQuery({
+    queryKey: ['tyre-lifecycle-events'],
+    queryFn: () => tyreTrackerService.getLifecycleEvents(100),
+    refetchInterval: 30000,
+  });
+
+  const { data: readingsData } = useQuery({
     queryKey: ['tyre-readings-history'],
     queryFn: () => tyreTrackerService.getReadings({ limit: 60 }),
     refetchInterval: 60000,
   });
 
-  const { data: flagsData } = useQuery({
-    queryKey: ['tyre-inspection-flags'],
-    queryFn: tyreTrackerService.getInspectionFlags,
-  });
-
-  const { data: retreadData } = useQuery({
-    queryKey: ['tyre-retread-flags'],
-    queryFn: tyreTrackerService.getRetreadFlags,
-  });
-
+  const lifecycleItems: any[] = (lifecycleData as any)?.items || [];
   const rawReadings: any[] = (readingsData as any)?.items || [];
-  const flagItems: any[] = (flagsData as any)?.items || [];
-  const retreadItems: any[] = (retreadData as any)?.items || [];
 
   // Build unified timeline entries
   const timeline = useMemo(() => {
-    const entries: { id: string; type: string; label: string; sub: string; time: string; color: string }[] = [];
+    const entries: { id: string; type: string; label: string; sub: string; time: string; color: string; icon: string }[] = [];
 
+    // Lifecycle events (MOUNTED, REMOVED, INSPECTION, RETREAD, etc.)
+    for (const e of lifecycleItems) {
+      const cfg = EVENT_CONFIG[e.event_type] || { label: e.event_type, color: 'bg-gray-500', icon: '📋' };
+      const tyreName = [e.brand, e.size].filter(Boolean).join(' · ') || e.tyre_number || 'Tyre';
+      const parts: string[] = [];
+      if (e.tyre_number) parts.push(`#${e.tyre_number}`);
+      if (e.vehicle_number) parts.push(e.vehicle_number);
+      if (e.position) parts.push(`Pos: ${e.position}`);
+      if (e.notes) parts.push(e.notes);
+      if (e.performed_by) parts.push(`by ${e.performed_by}`);
+      entries.push({
+        id: `lc-${e.id}`,
+        type: e.event_type.toLowerCase(),
+        label: `${cfg.label} — ${tyreName}`,
+        sub: parts.join(' · '),
+        time: e.created_at || '',
+        color: cfg.color,
+        icon: cfg.icon,
+      });
+    }
+
+    // Field readings (PSI + tread logged via Log Reading)
     for (const r of rawReadings) {
+      const parts: string[] = [];
+      if (r.psi != null) parts.push(`PSI: ${r.psi}`);
+      if (r.tread_depth_mm != null) parts.push(`Tread: ${r.tread_depth_mm}mm`);
+      if (r.condition) parts.push(`Cond: ${r.condition}`);
+      if (r.odometer_at_reading != null) parts.push(`ODO: ${r.odometer_at_reading.toLocaleString()} km`);
+      if (r.driver_name) parts.push(`by ${r.driver_name}`);
+      if (r.notes) parts.push(r.notes);
       entries.push({
-        id: `r-${r.id}`,
+        id: `rd-${r.id}`,
         type: 'reading',
-        label: `${r.vehicle_number || 'Vehicle'} — Tyre ${r.position || r.tyre_number || ''}`,
-        sub: [
-          r.psi_front != null ? `PSI: ${r.psi_front}` : null,
-          r.tread_depth_mm != null ? `Tread: ${r.tread_depth_mm}mm` : null,
-          r.odometer_km != null ? `ODO: ${r.odometer_km.toLocaleString()} km` : null,
-          r.notes || null,
-        ].filter(Boolean).join(' · '),
+        label: `${r.vehicle_number || 'Vehicle'} — Post-Trip Reading (${r.position || ''})`,
+        sub: parts.join(' · '),
         time: r.created_at || '',
-        color: 'bg-blue-500',
-      });
-    }
-
-    for (const f of flagItems) {
-      entries.push({
-        id: `fi-${f.id}`,
-        type: 'flag_inspection',
-        label: `${f.vehicle_number || 'Vehicle'} — Flagged for Inspection`,
-        sub: `Tyre ${f.tyre_number || ''} at ${f.position || ''}${f.notes ? ' · ' + f.notes : ''}`,
-        time: f.created_at || '',
-        color: 'bg-amber-500',
-      });
-    }
-
-    for (const r of retreadItems) {
-      entries.push({
-        id: `rt-${r.id}`,
-        type: 'flag_retread',
-        label: `${r.tyre_number || 'Tyre'} — Flagged for Retreading`,
-        sub: [r.brand, r.size].filter(Boolean).join(' · ') + (r.notes ? ' · ' + r.notes : ''),
-        time: r.created_at || '',
-        color: 'bg-orange-500',
+        color: 'bg-blue-400',
+        icon: '📊',
       });
     }
 
     return entries.sort((a, b) => (b.time > a.time ? 1 : -1));
-  }, [rawReadings, flagItems, retreadItems]);
+  }, [lifecycleItems, rawReadings]);
 
   // Group by date
   const grouped = useMemo(() => {
@@ -1674,14 +1682,14 @@ function HistoryTab() {
     <div className="space-y-4">
       <div>
         <h2 className="text-base font-bold text-gray-900">Tyre Activity History</h2>
-        <p className="text-sm text-gray-500">Readings, inspections, and retreading flags — latest 60 entries</p>
+        <p className="text-sm text-gray-500">Allocations, removals, tread/pressure updates & readings</p>
       </div>
 
       {timeline.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <RotateCw className="w-10 h-10 text-gray-300 mx-auto mb-3" />
           <p className="font-medium text-gray-600">No history yet</p>
-          <p className="text-sm text-gray-400 mt-1">Tyre readings logged via the mobile app or web will appear here</p>
+          <p className="text-sm text-gray-400 mt-1">Tyre allocations, removals, and readings will appear here</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -1693,12 +1701,14 @@ function HistoryTab() {
               <div className="space-y-2">
                 {events.map(e => (
                   <div key={e.id} className="flex gap-3 bg-white rounded-xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition">
-                    <div className={`w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0 ${e.color}`} />
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-sm ${e.color} text-white`}>
+                      {e.icon}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{e.label}</p>
                       {e.sub && <p className="text-xs text-gray-500 mt-0.5 truncate">{e.sub}</p>}
                     </div>
-                    <span className="text-[10px] text-gray-400 whitespace-nowrap pt-0.5">
+                    <span className="text-[10px] text-gray-400 whitespace-nowrap pt-1">
                       {e.time ? timeAgo(e.time) : ''}
                     </span>
                   </div>
@@ -4125,6 +4135,15 @@ function BuyTyresTab() {
    ═══════════════════════════════════════════════════════════ */
 
 function estimateLife(tyre: any): number {
+  // Tread depth is the most reliable signal — use it if available
+  const treadMm = tyre.tread_depth_mm != null ? Number(tyre.tread_depth_mm) : null;
+  if (treadMm != null) {
+    const initialMm = tyre.initial_tread_depth_mm != null ? Number(tyre.initial_tread_depth_mm) : 10;
+    const minMm = 2.5;
+    const usableInitial = Math.max(initialMm, treadMm); // handle tyres thicker than assumed initial
+    return Math.max(0, Math.min(100, ((treadMm - minMm) / (usableInitial - minMm)) * 100));
+  }
+  // Fallback: km-based estimate with condition cap
   const maxKm = 100000;
   const km = Number(tyre.km_run || 0);
   let life = Math.max(0, Math.min(100, 100 - (km / maxKm * 100)));
@@ -4135,13 +4154,12 @@ function estimateLife(tyre: any): number {
 }
 
 function timeAgo(timestamp: string): string {
-  const diff = Date.now() - new Date(timestamp).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (!timestamp) return '';
+  // Backend returns UTC without 'Z' — force UTC interpretation, then display in IST
+  const ts = (timestamp.includes('+') || timestamp.endsWith('Z')) ? timestamp : timestamp + 'Z';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
 }
 
 function secondsAgo(date: Date): string {

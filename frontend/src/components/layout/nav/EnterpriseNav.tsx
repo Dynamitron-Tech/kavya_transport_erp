@@ -19,7 +19,7 @@ export default function EnterpriseNav() {
   const isItemVisible = useCallback(
     (item: NavMenuItem): boolean => {
       if (item.roles && !hasAnyRole(item.roles)) return false;
-      if (user?.roles.includes('admin')) return true;
+      if (user?.roles?.includes('admin')) return true;
       if (item.permission && !hasPermission(item.permission)) return false;
       return true;
     },
@@ -29,7 +29,7 @@ export default function EnterpriseNav() {
   const isGroupVisible = useCallback(
     (group: NavMenuGroup): boolean => {
       if (group.roles && !hasAnyRole(group.roles)) return false;
-      if (user?.roles.includes('admin')) return true;
+      if (user?.roles?.includes('admin')) return true;
       if (group.permission && !hasPermission(group.permission)) return false;
       // If it has children, at least one must be visible
       if (group.items) {

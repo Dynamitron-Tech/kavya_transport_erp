@@ -6,12 +6,16 @@ dist/
 build/
 venv/
 .venv/
-.env
-*.env
 
-# Node
+
+# Node / Frontend
 node_modules/
-dist/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Uploads (user files)
+uploads/
 
 # IDE
 .vscode/
@@ -74,59 +78,9 @@ frontend/*_result.png
 # Uploaded user files (binaries, not source code)
 backend/uploads/documents/
 
-# Flutter obfuscation symbol mapping — REQUIRED for stack-trace symbolication
-# but MUST NEVER be committed (contains the de-obfuscation map for the APK).
-kavya_app/build/debug-info/
-**/build/debug-info/
-*.symbols
+# Environment secrets
+.env
+*.env
+.env.*
+!.env.example
 
-# ── Test & coverage artifacts ─────────────────────────────────────────────────
-.coverage
-.coverage.*
-htmlcov/
-backend/htmlcov/
-backend/.coverage
-backend/.pytest_cache/
-.pytest_cache/
-coverage.xml
-
-# ── Load / smoke test reports ─────────────────────────────────────────────────
-load_report.html
-locust_report.html
-locust_stats.csv
-locust_failures.csv
-locust_report*
-
-# ── Celery runtime files ──────────────────────────────────────────────────────
-celerybeat-schedule
-celerybeat-schedule.db
-celerybeat.pid
-backend/celerybeat-schedule
-backend/celerybeat-schedule.db
-
-# ── Cleanup script output ─────────────────────────────────────────────────────
-cleanup_log.txt
-kavya_cleanup_report.txt
-
-# ── Frontend build cache ──────────────────────────────────────────────────────
-frontend/.vite/
-frontend/node_modules/.cache/
-
-# ── Diagnostic one-off scripts (prefixed with _) ─────────────────────────────
-backend/_*.py
-
-# ── Backup / temp files ───────────────────────────────────────────────────────
-*.bak
-*.orig
-*_old.*
-
-# ── Production env (contains real secrets — store on server only) ─────────────
-backend/.env.production
-frontend/.env.production.local
-
-# ── Misc ──────────────────────────────────────────────────────────────────────
-*.pyc
-*.pyo
-pip-wheel-metadata/
-.mypy_cache/
-.ruff_cache/

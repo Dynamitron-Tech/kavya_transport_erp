@@ -63,11 +63,6 @@ class Permissions:
     PAYMENT_READ = "payment:read"
     PAYMENT_UPDATE = "payment:update"
     PAYMENT_DELETE = "payment:delete"
-
-    # Manual payment proof (mark invoice as paid with evidence upload)
-    PAYMENT_PROOF_UPLOAD = "payment:proof:upload"   # accountant / finance_manager
-    PAYMENT_PROOF_READ = "payment:proof:read"       # accountant / finance_manager / auditor
-    PAYMENT_PROOF_REVIEW = "payment:proof:review"   # auditor only
     
     # Finance - Ledger
     LEDGER_READ = "ledger:read"
@@ -265,6 +260,8 @@ ROLE_PERMISSIONS = {
         Permissions.REPORT_VIEW,
         # Documents
         Permissions.DOCUMENT_CREATE, Permissions.DOCUMENT_READ, Permissions.DOCUMENT_UPDATE,
+        # User (read — needed for driver/user cross-reference in drivers dashboard and attendance)
+        Permissions.USER_READ,
         # Intelligence
         Permissions.GPS_DATA_READ, Permissions.DRIVER_SCORE_READ,
         Permissions.INTELLIGENCE_VIEW, Permissions.EVENT_BUS_READ, Permissions.EVENT_BUS_ACK,
@@ -279,8 +276,6 @@ ROLE_PERMISSIONS = {
         # Payment
         Permissions.PAYMENT_CREATE, Permissions.PAYMENT_READ, 
         Permissions.PAYMENT_UPDATE,
-        # Manual payment proof
-        Permissions.PAYMENT_PROOF_UPLOAD, Permissions.PAYMENT_PROOF_READ,
         # Ledger
         Permissions.LEDGER_READ, Permissions.LEDGER_EXPORT,
         # Banking
@@ -339,6 +334,8 @@ ROLE_PERMISSIONS = {
         Permissions.VEHICLE_READ,
         # Driver
         Permissions.DRIVER_READ,
+        # User (read — needed for driver user cross-reference on Create LR and Attendance)
+        Permissions.USER_READ,
         # Documents
         Permissions.DOCUMENT_CREATE, Permissions.DOCUMENT_READ, Permissions.DOCUMENT_UPDATE,
         # Alerts / Notifications
@@ -372,8 +369,6 @@ ROLE_PERMISSIONS = {
         # Payment (full access for payroll, payouts)
         Permissions.PAYMENT_CREATE, Permissions.PAYMENT_READ,
         Permissions.PAYMENT_UPDATE, Permissions.PAYMENT_DELETE,
-        # Manual payment proof
-        Permissions.PAYMENT_PROOF_UPLOAD, Permissions.PAYMENT_PROOF_READ,
         # Expense (approve / reimburse)
         Permissions.EXPENSE_READ, Permissions.EXPENSE_APPROVE,
         Permissions.EXPENSE_CREATE, Permissions.EXPENSE_UPDATE,
@@ -425,30 +420,6 @@ ROLE_PERMISSIONS = {
         # Driver (read — context for trip/vehicle assignment)
         Permissions.DRIVER_READ,
         # Alerts / Notifications
-        Permissions.ALERT_VIEW,
-    ],
-
-    "auditor": [
-        # Invoice (read-only + payment proof review)
-        Permissions.INVOICE_READ,
-        # Payment proof — read + mark approved/flagged
-        Permissions.PAYMENT_PROOF_READ,
-        Permissions.PAYMENT_PROOF_REVIEW,
-        # Payment (read-only for audit trail)
-        Permissions.PAYMENT_READ,
-        # Ledger (read-only)
-        Permissions.LEDGER_READ,
-        # Expense (read-only)
-        Permissions.EXPENSE_READ,
-        # Client / Trip / Driver / Vehicle (read for context)
-        Permissions.CLIENT_READ,
-        Permissions.TRIP_READ,
-        Permissions.DRIVER_READ,
-        Permissions.VEHICLE_READ,
-        Permissions.JOB_READ,
-        # Reports
-        Permissions.REPORT_VIEW,
-        # Alerts
         Permissions.ALERT_VIEW,
     ],
 }
