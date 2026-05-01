@@ -106,12 +106,6 @@ async def presign_stored_url(url: str, expires_in: int = 3600) -> str:
                 aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                 region_name=region)
-            try:
-                s3.head_object(Bucket=bucket, Key=s3_key)
-            except Exception:
-                import logging as _log
-                _log.getLogger(__name__).warning(f'presign_stored_url: key not found: {s3_key}')
-                return ''
             return s3.generate_presigned_url('get_object',
                 Params={'Bucket': bucket, 'Key': s3_key}, ExpiresIn=expires_in)
         except Exception as e:

@@ -174,7 +174,7 @@ export default function VehicleDetailPage() {
           <h3 className="font-semibold text-gray-900">Documents</h3>
         </div>
         {/* Compliance expiry summary */}
-        {(() => {
+        {(() => { try {
           const COMPLIANCE_TYPES = [
             { type: 'fitness', label: 'Fitness' },
             { type: 'insurance', label: 'Insurance' },
@@ -228,7 +228,7 @@ export default function VehicleDetailPage() {
               ))}
             </div>
           );
-        })()}
+        } catch { return null; } })()}
         <DocumentChecklist
           entityType="vehicle"
           entityId={vehicle.id}
