@@ -226,7 +226,7 @@ async def list_users(
     for item in items:
         for key in _doc_url_keys:
             if item.get(key):
-                item[key] = await _s3.presign_stored_url(item[key])
+                item[key] = await _s3.get_presigned_url(item[key])
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 
 
@@ -265,7 +265,7 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db), current_use
     from app.services import s3_service as _s3
     for key in ["aadhaar_file_url", "pan_file_url", "passbook_file_url", "dl_file_url"]:
         raw = getattr(user, key, None)
-        data[key] = await _s3.presign_stored_url(raw) if raw else None
+        data[key] = await _s3.get_presigned_url(raw) if raw else None
     return APIResponse(success=True, data=data)
 
 
@@ -461,7 +461,7 @@ async def upload_user_document(
     await db.commit()
 
     # Return a presigned URL so the frontend can display it immediately
-    view_url = await s3_service.presign_stored_url(file_url) if file_url else file_url
+    view_url = await s3_service.get_presigned_url(file_url) if file_url else file_url
 
     return APIResponse(
         success=True,

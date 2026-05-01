@@ -961,7 +961,7 @@ async def get_my_documents(
 
                 async def _presign(url):
                     try:
-                        return await _s3.presign_stored_url(url) if url else None
+                        return await _s3.get_presigned_url(url) if url else None
                     except Exception:
                         return url
 
@@ -1210,7 +1210,7 @@ async def get_driver(
             from app.services import s3_service as _s3
 
             async def _presign(url):
-                return await _s3.presign_stored_url(url) if url else None
+                return await _s3.get_presigned_url(url) if url else None
 
             data["avatar_url"] = data.get("photo_url") or user.avatar_url
             data["aadhaar_file_url"] = await _presign(user.aadhaar_file_url)
@@ -1504,7 +1504,7 @@ async def get_driver_documents(
     for dd in extra_docs:
         raw_url = dd.get("file_url")
         from app.services import s3_service as _s3
-        view_url = await _s3.presign_stored_url(raw_url) if raw_url else None
+        view_url = await _s3.get_presigned_url(raw_url) if raw_url else None
         docs.append({
             "id": dd.get("id"),
             "doc_type": dd.get("document_type"),
