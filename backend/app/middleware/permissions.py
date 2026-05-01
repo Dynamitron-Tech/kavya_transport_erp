@@ -63,6 +63,9 @@ class Permissions:
     PAYMENT_READ = "payment:read"
     PAYMENT_UPDATE = "payment:update"
     PAYMENT_DELETE = "payment:delete"
+    PAYMENT_PROOF_UPLOAD = "payment_proof:upload"
+    PAYMENT_PROOF_READ = "payment_proof:read"
+    PAYMENT_PROOF_REVIEW = "payment_proof:review"
     
     # Finance - Ledger
     LEDGER_READ = "ledger:read"
