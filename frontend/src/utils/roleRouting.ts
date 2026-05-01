@@ -31,6 +31,8 @@ export const getRoleHomePage = (role?: unknown): string => {
       return '/accountant/dashboard';
     case 'FINANCE_MANAGER':
       return '/fm/dashboard';
+    case 'AUDITOR':
+      return '/auditor/dashboard';
     case 'PROJECT_ASSOCIATE':
     case 'PROJECT_ASSOCIATES':
       return '/dashboard';

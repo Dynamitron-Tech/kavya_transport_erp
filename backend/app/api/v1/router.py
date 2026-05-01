@@ -59,6 +59,7 @@ from app.api.v1.endpoints import (
     document_ocr,
     driver_requests,
     expenses,
+    auditor,
 )
 
 api_router = APIRouter()
@@ -191,6 +192,7 @@ api_router.include_router(receivable_payments.router, tags=["Receivable Payments
 
 # Company Expenses (field GPay, driver advance, salaries, rent, etc.)
 api_router.include_router(expenses.router, prefix="/expenses", tags=["Company Expenses"])
+api_router.include_router(auditor.router, prefix="/auditor", tags=["Auditor"])
 
 # IFIAS — Intelligent Freight Invoice Automation
 api_router.include_router(invoice_batches.router, prefix="", tags=["IFIAS Invoice Automation"])

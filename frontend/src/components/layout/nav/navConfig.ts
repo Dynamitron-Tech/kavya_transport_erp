@@ -21,7 +21,7 @@ export interface NavMenuGroup {
   roles?: RoleType[];
 }
 
-export type HeaderNavRole = 'ADMIN' | 'MANAGER' | 'FLEET_MANAGER' | 'ACCOUNTANT' | 'FINANCE_MANAGER' | 'PROJECT_ASSOCIATES' | 'DRIVER' | 'PUMP_OPERATOR';
+export type HeaderNavRole = 'ADMIN' | 'MANAGER' | 'FLEET_MANAGER' | 'ACCOUNTANT' | 'FINANCE_MANAGER' | 'PROJECT_ASSOCIATES' | 'DRIVER' | 'PUMP_OPERATOR' | 'AUDITOR';
 
 export interface HeaderNavItem {
   label: string;
@@ -355,6 +355,32 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
           { label: 'Theft Alerts', route: '/pump/alerts', icon: 'alert', description: 'Anomaly detection alerts' },
           { label: 'Reports', route: '/pump/reports', icon: 'chart', description: 'Fuel consumption reports' },
           { label: 'Fuel Audit', route: '/pump/fuel-verification', icon: 'shield', description: 'Cross-verify pump vs driver records' },
+        ],
+      },
+    ],
+  },
+  AUDITOR: {
+    sections: [
+      { label: 'Overview', items: [{ label: 'Dashboard', route: '/auditor/dashboard', icon: 'shield', description: 'Audit risk overview and exception summary' }] },
+      {
+        label: 'Operations',
+        items: [
+          { label: 'Trip Audit', route: '/auditor/trips', icon: 'truck', description: 'Review delayed, deviated, and empty runs' },
+          { label: 'LR Profitability', route: '/auditor/lr-profitability', icon: 'trending-up', description: 'Per-LR revenue and profit margins' },
+          { label: 'Fuel Efficiency', route: '/auditor/fuel', icon: 'fuel', description: 'Fuel consumption vs benchmark' },
+        ],
+      },
+      {
+        label: 'Finance',
+        items: [
+          { label: 'Expense Audit', route: '/auditor/expenses', icon: 'receipt', description: 'Anomaly-flagged and no-receipt expenses' },
+          { label: 'Client Risk', route: '/auditor/clients', icon: 'users', description: 'Client risk scores and overdue aging' },
+        ],
+      },
+      {
+        label: 'Fleet',
+        items: [
+          { label: 'Maintenance Audit', route: '/auditor/maintenance', icon: 'wrench', description: 'Document expiry and pending services' },
         ],
       },
     ],

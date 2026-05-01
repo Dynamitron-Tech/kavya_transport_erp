@@ -57,6 +57,15 @@ import UnifiedTrackingPage from '@/pages/tracking/UnifiedTrackingPage';
 import ReportsPage from '@/pages/reports/ReportsPage';
 import AuditorReportPage from '@/pages/reports/AuditorReportPage';
 
+// Auditor Pages
+import AuditorDashboardPage from '@/pages/auditor/AuditorDashboardPage';
+import AuditorTripsPage from '@/pages/auditor/AuditorTripsPage';
+import AuditorExpensesPage from '@/pages/auditor/AuditorExpensesPage';
+import AuditorLRProfitabilityPage from '@/pages/auditor/AuditorLRProfitabilityPage';
+import AuditorFuelPage from '@/pages/auditor/AuditorFuelPage';
+import AuditorClientsPage from '@/pages/auditor/AuditorClientsPage';
+import AuditorMaintenancePage from '@/pages/auditor/AuditorMaintenancePage';
+
 // Compliance & Tools
 import VehicleCompliancePage from '@/pages/fleet/VehicleCompliancePage';
 import DriverCompliancePage from '@/pages/fleet/DriverCompliancePage';
@@ -234,6 +243,15 @@ function App() {
           {/* Reports */}
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/auditor" element={<AuditorReportPage />} />
+
+          {/* Auditor Role Pages */}
+          <Route path="/auditor/dashboard" element={<AuditorDashboardPage />} />
+          <Route path="/auditor/trips" element={<AuditorTripsPage />} />
+          <Route path="/auditor/expenses" element={<AuditorExpensesPage />} />
+          <Route path="/auditor/lr-profitability" element={<AuditorLRProfitabilityPage />} />
+          <Route path="/auditor/fuel" element={<AuditorFuelPage />} />
+          <Route path="/auditor/clients" element={<AuditorClientsPage />} />
+          <Route path="/auditor/maintenance" element={<AuditorMaintenancePage />} />
 
           {/* Settings */}
           <Route path="/settings" element={<SettingsPage />} />
