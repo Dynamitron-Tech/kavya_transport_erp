@@ -201,6 +201,7 @@ export function DocumentUploadWithExtraction({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const docLabel = label ?? DOC_TYPE_LABELS[documentType] ?? documentType;
+  const isSystemGenerated = SYSTEM_GENERATED_TYPES.has(documentType);
 
   // ── File handlers ─────────────────────────────────────────────────────────
 
