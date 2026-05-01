@@ -193,12 +193,30 @@ async def public_tracking(token: str):
     return {"success": True, "data": info}
 
 
-# Mount local uploads directory for serving uploaded files
+# Serve local uploads with JWT authentication — never expose as public static files
 from pathlib import Path as _Path
-from fastapi.staticfiles import StaticFiles as _StaticFiles
+from fastapi.responses import FileResponse as _FileResponse
+from fastapi import Depends as _Depends
+from app.core.security import get_current_user as _get_current_user
+
 _uploads_dir = _Path(__file__).resolve().parents[1] / "uploads"
 _uploads_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", _StaticFiles(directory=str(_uploads_dir)), name="uploads")
+
+
+@app.get("/uploads/{file_path:path}", include_in_schema=False)
+async def serve_upload(
+    file_path: str,
+    _current_user=_Depends(_get_current_user),
+):
+    """Serve an uploaded file. Requires a valid JWT access token."""
+    from fastapi import HTTPException as _HTTPException
+    safe = (_uploads_dir / file_path).resolve()
+    # Path-traversal guard
+    if not str(safe).startswith(str(_uploads_dir)):
+        raise _HTTPException(status_code=404)
+    if not safe.exists() or not safe.is_file():
+        raise _HTTPException(status_code=404)
+    return _FileResponse(safe)
 
 
 # ── WebSocket endpoint ─────────────────────────────────────

@@ -12,7 +12,7 @@ from app.models.postgres.base import Base
 # Async engine for FastAPI
 async_engine = create_async_engine(
     settings.POSTGRES_URL,
-    echo=settings.DEBUG,
+    echo=False,  # Never log SQL in production — was: echo=settings.DEBUG
     pool_size=20,
     max_overflow=10,
     pool_pre_ping=True,

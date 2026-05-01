@@ -72,16 +72,18 @@ async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends
         joining_date=str(user.joining_date) if user.joining_date else None,
         emergency_contact_name=user.emergency_contact_name,
         emergency_contact_phone=user.emergency_contact_phone,
-        bank_account_holder=user.bank_account_holder,
-        bank_name=user.bank_name,
-        account_number=user.account_number,
-        ifsc_code=user.ifsc_code,
-        account_type=user.account_type,
-        upi_id=user.upi_id,
-        salary_amount=user.salary_amount,
+        # Sensitive financial/ID fields intentionally excluded from login response.
+        # Fetch them via GET /api/v1/users/me when needed.
+        bank_account_holder=None,
+        bank_name=None,
+        account_number=None,
+        ifsc_code=None,
+        account_type=None,
+        upi_id=None,
+        salary_amount=None,
         pay_type=user.pay_type,
-        aadhaar_file_url=user.aadhaar_file_url,
-        aadhaar_file_name=user.aadhaar_file_name,
+        aadhaar_file_url=None,
+        aadhaar_file_name=None,
     )
     return APIResponse(success=True, data={
         "access_token": tokens.access_token,

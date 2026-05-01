@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "transport_erp"
-    POSTGRES_PASSWORD: str = "password"
+    POSTGRES_PASSWORD: str = ""  # Must be set via environment variable — no default allowed in production
     POSTGRES_DB: str = "transport_erp"
     
     @property
@@ -107,10 +107,7 @@ class Settings(BaseSettings):
     
     # Google APIs
     GOOGLE_MAPS_API_KEY: str = "YOUR_GOOGLE_MAPS_API_KEY_HERE"
-    
-    # Firebase
-    FIREBASE_CREDENTIALS_PATH: str = "YOUR_FIREBASE_CREDENTIALS_PATH_HERE"
-    
+
     # File Storage (S3)
     STORAGE_TYPE: str = "local"
     STORAGE_BUCKET: str = "transport-erp"
@@ -218,9 +215,6 @@ class Settings(BaseSettings):
     # GPS feature flags
     GPS_CACHE_TTL: int = 120  # seconds to show stale data before marking offline
     
-    # Push Notifications (Firebase)
-    FCM_SERVER_KEY: Optional[str] = None
-
     # Razorpay — incoming client payment gateway
     # Set RAZORPAY_ENABLED=true once keys arrive (2-3 days)
     RAZORPAY_ENABLED: bool = False

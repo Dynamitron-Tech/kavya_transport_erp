@@ -431,13 +431,5 @@ def send_review_notification(batch_id: int):
         )
         logger.info(f"[batch:{batch_id}] Notification: {message}")
 
-        # Try FCM push notification if configured
-        try:
-            from app.services.fcm_service import send_push_notification
-            # Would send to accountant's device token
-            logger.info(f"[batch:{batch_id}] FCM push sent")
-        except Exception:
-            pass
-
     finally:
         db.close()

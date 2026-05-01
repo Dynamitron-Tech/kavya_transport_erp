@@ -68,11 +68,6 @@ class LogoutRequest(BaseModel):
     refresh_token: Optional[str] = None
 
 
-class FCMTokenRequest(BaseModel):
-    fcm_token: str
-    device_type: str = "android"  # android, ios, web
-
-
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str = Field(..., min_length=6)
