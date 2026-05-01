@@ -46,6 +46,8 @@ export default function DashboardPage() {
   if (hasRole('accountant')) return <Navigate to="/accountant/dashboard" replace />;
   if (hasRole('tyre_inspector')) return <Navigate to="/fleet/tyres" replace />;
   if (hasRole('pump_operator')) return <Navigate to="/pump/dashboard" replace />;
+  if (hasRole('auditor')) return <Navigate to="/auditor/dashboard" replace />;
+  if (hasRole('clerk')) return <Navigate to="/clerk/dashboard" replace />;
 
   // ── Data Queries ────────────────────────────────────────────────
   const { data: overview, refetch } = useQuery({
