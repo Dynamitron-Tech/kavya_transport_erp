@@ -425,6 +425,27 @@ ROLE_PERMISSIONS = {
         # Alerts / Notifications
         Permissions.ALERT_VIEW,
     ],
+
+    "auditor": [
+        # Core read access for all auditable data
+        Permissions.REPORT_VIEW,
+        Permissions.TRIP_READ,
+        Permissions.EXPENSE_READ,
+        Permissions.CLIENT_READ,
+        Permissions.VEHICLE_READ,
+        Permissions.DRIVER_READ,
+        Permissions.LR_READ,
+        Permissions.INVOICE_READ,
+        Permissions.PAYMENT_READ,
+        Permissions.PAYMENT_PROOF_READ,
+        Permissions.PAYMENT_PROOF_REVIEW,
+        Permissions.FUEL_READ,
+        Permissions.MAINTENANCE_READ,
+        Permissions.DOCUMENT_READ,
+        Permissions.AUDIT_LOG_READ,
+        Permissions.AUDIT_LOG_EXPORT,
+        Permissions.ALERT_VIEW,
+    ],
 }
 
 

@@ -122,9 +122,11 @@ export default function Sidebar() {
   const { sidebarCollapsed, toggleSidebarCollapse } = useAppStore();
   const { alertCount } = useFinanceAlertStore();
 
-  // Pending driver approvals count (leave + advance)
+  // Pending driver approvals count (leave + advance) — only for roles with access
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
   useEffect(() => {
+    const role = resolveRole((user as any)?.role || user?.roles?.[0]);
+    if (role !== 'ADMIN' && role !== 'FLEET_MANAGER') return;
     let cancelled = false;
     const load = async () => {
       try {
