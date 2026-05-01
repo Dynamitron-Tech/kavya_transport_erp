@@ -155,6 +155,16 @@ async def _collect_driver_documents(db: AsyncSession, driver_id: int):
         seen_urls.add(key)
         deduped.append(item)
 
+    # Presign all file URLs so the mobile app / web can load images
+    from app.services import s3_service as _s3svc
+    for item in deduped:
+        raw = item.get("file_url")
+        if raw:
+            try:
+                item["file_url"] = await _s3svc.presign_stored_url(raw, expires_in=7200)
+            except Exception:
+                pass  # keep original URL on failure
+
     return deduped
 
 
@@ -1210,7 +1220,7 @@ async def get_driver(
             from app.services import s3_service as _s3
 
             async def _presign(url):
-                return await _s3.presign_stored_url(url) if url else None
+                return await _s3.presign_stored_url(url, expires_in=7200) if url else None
 
             data["avatar_url"] = data.get("photo_url") or user.avatar_url
             data["aadhaar_file_url"] = await _presign(user.aadhaar_file_url)
@@ -1502,15 +1512,13 @@ async def get_driver_documents(
 
     extra_docs = await _collect_driver_documents(db, driver_id)
     for dd in extra_docs:
-        raw_url = dd.get("file_url")
-        from app.services import s3_service as _s3
-        view_url = await _s3.presign_stored_url(raw_url) if raw_url else None
+        # file_url is already presigned by _collect_driver_documents
         docs.append({
             "id": dd.get("id"),
             "doc_type": dd.get("document_type"),
             "doc_name": dd.get("file_name") or str(dd.get("document_type") or "Document").replace('_', ' ').title(),
             "doc_number": dd.get("document_number"),
-            "file_url": view_url,
+            "file_url": dd.get("file_url") or None,
             "status": "verified" if dd.get("is_verified") else "pending",
             "verified": bool(dd.get("is_verified")),
             "uploaded_at": dd.get("uploaded_at"),

@@ -21,19 +21,9 @@ from app.services.document_extraction_service import (
     SYSTEM_GENERATED_TYPES,
 )
 from app.middleware.permissions import require_permission, require_any_permission, Permissions
+from app.utils.tenant_guard import assert_tenant_access
 
 logger = logging.getLogger(__name__)
-
-
-async def _presign_if_s3(url: Optional[str]) -> Optional[str]:
-    """Replace a direct S3 URL with a presigned URL (1-hour expiry). Returns original on failure."""
-    if not url or ".amazonaws.com/" not in url:
-        return url
-    try:
-        s3_key = url.split(".amazonaws.com/", 1)[1]
-        return await s3_service.get_presigned_url(s3_key, expires_in=3600)
-    except Exception:
-        return url
 
 ALLOWED_MIME_TYPES = {
     "image/jpeg", "image/png", "image/webp",
@@ -111,15 +101,16 @@ async def extract_document(
             detail="Unsupported file type. Upload JPEG, PNG, WEBP, HEIC, PDF, PPT, or PPTX.",
         )
 
-    file_bytes = await file.read()
-    if len(file_bytes) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File too large. Maximum size is 10 MB.")
+    from app.utils.upload_validator import validate_upload, ALLOWED_IMAGE_DOC_MIMES
+    file_bytes, detected_mime, _safe = await validate_upload(
+        file, allowed_mimes=ALLOWED_IMAGE_DOC_MIMES, max_bytes=MAX_FILE_SIZE,
+    )
 
     service = DocumentExtractionService()
     result = await service.extract(
         document_type=_normalize_doc_type(document_type),
         file_bytes=file_bytes,
-        media_type=file.content_type,
+        media_type=detected_mime,
     )
 
     extraction_message = (
@@ -236,8 +227,15 @@ async def list_documents(
         return row
 
     items = [_serialize_doc(d) for d in docs]
+    # Presign file_url for private S3 bucket
+    from app.services.s3_service import presign_stored_url
     for item in items:
-        item["file_url"] = await _presign_if_s3(item.get("file_url"))
+        raw = item.get('file_url') or ''
+        if raw:
+            try:
+                item['file_url'] = await presign_stored_url(raw, expires_in=7200)
+            except Exception:
+                pass
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 
 
@@ -307,11 +305,22 @@ async def get_document(
 ):
     result = await db.execute(select(Document).where(Document.id == doc_id))
     doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    data = {c.key: getattr(doc, c.key) for c in doc.__table__.columns}
-    data["file_url"] = await _presign_if_s3(data.get("file_url"))
-    return APIResponse(success=True, data=data)
+    assert_tenant_access(doc, current_user, not_found_detail="Document not found")
+    from app.services.s3_service import presign_stored_url
+    row = {}
+    for c in doc.__table__.columns:
+        v = getattr(doc, c.key)
+        if hasattr(v, 'isoformat'):
+            v = v.isoformat()
+        elif hasattr(v, 'value'):
+            v = v.value
+        row[c.key] = v
+    if row.get('file_url'):
+        try:
+            row['file_url'] = await presign_stored_url(row['file_url'], expires_in=7200)
+        except Exception:
+            pass
+    return APIResponse(success=True, data=row)
 
 
 @router.post("/upload", response_model=APIResponse, status_code=201)
@@ -337,13 +346,14 @@ async def upload_document(
     Expiry alerts are auto-created if the document expires within 30 days.
     """
     from app.utils.generators import generate_number
-    content = await file.read()
-
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File too large. Maximum size is 10 MB.")
+    from app.utils.upload_validator import validate_upload, safe_original_name, ALLOWED_IMAGE_DOC_MIMES
+    content, detected_mime, safe_name = await validate_upload(
+        file, allowed_mimes=ALLOWED_IMAGE_DOC_MIMES, max_bytes=MAX_FILE_SIZE,
+    )
+    display_name = safe_original_name(file.filename)
 
     folder = f"documents/{entity_type}"
-    upload_result = await s3_service.upload_file(content, file.filename, folder, file.content_type)
+    upload_result = await s3_service.upload_file(content, safe_name, folder, detected_mime)
 
     # Parse extracted_data JSON string
     parsed_extracted: Optional[dict] = None
@@ -361,7 +371,7 @@ async def upload_document(
             extraction_result = await extraction_service.extract(
                 document_type=_normalize_doc_type(document_type),
                 file_bytes=content,
-                media_type=file.content_type or "application/octet-stream",
+                media_type=detected_mime,
             )
             extracted_payload = extraction_result.get("data")
             if extraction_result.get("extracted") and isinstance(extracted_payload, dict):
@@ -412,7 +422,7 @@ async def upload_document(
 
     doc = Document(
         doc_number=generate_number("DOC", 4),
-        title=title or file.filename,
+        title=title or display_name,
         document_type=resolved_doc_type,
         entity_type=resolved_entity_type,
         entity_id=entity_id,
@@ -420,13 +430,14 @@ async def upload_document(
         document_number=resolved_document_number,
         file_url=upload_result.get("url", ""),
         file_key=upload_result.get("key", ""),
-        file_name=file.filename,
+        file_name=display_name,
         file_size=len(content),
-        file_type=file.content_type,
+        file_type=detected_mime,
         uploaded_by=current_user.user_id,
         extracted_data=parsed_extracted,
         issue_date=resolved_issue_date,
         expiry_date=resolved_expiry_date,
+        tenant_id=current_user.tenant_id,
     )
     db.add(doc)
     await db.commit()
@@ -683,8 +694,7 @@ async def delete_document(
 ):
     result = await db.execute(select(Document).where(Document.id == doc_id))
     doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    assert_tenant_access(doc, current_user, not_found_detail="Document not found")
 
     # Delete underlying file first when we have a storage key.
     if doc.file_key:

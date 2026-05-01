@@ -226,7 +226,7 @@ async def list_users(
     for item in items:
         for key in _doc_url_keys:
             if item.get(key):
-                item[key] = await _s3.presign_stored_url(item[key])
+                item[key] = await _s3.presign_stored_url(item[key]) or None
     return APIResponse(success=True, data=items, pagination=PaginationMeta(page=page, limit=limit, total=total, pages=pages))
 
 
@@ -265,7 +265,7 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db), current_use
     from app.services import s3_service as _s3
     for key in ["aadhaar_file_url", "pan_file_url", "passbook_file_url", "dl_file_url"]:
         raw = getattr(user, key, None)
-        data[key] = await _s3.presign_stored_url(raw) if raw else None
+        data[key] = await _s3.presign_stored_url(raw) or None if raw else None
     return APIResponse(success=True, data=data)
 
 
@@ -372,25 +372,6 @@ async def delete_user(
     if not success:
         raise HTTPException(status_code=404, detail="User not found")
     return APIResponse(success=True, message="User deactivated")
-
-
-class FCMTokenRequest(BaseModel):
-    fcm_token: str
-
-
-@router.patch("/me/fcm-token", response_model=APIResponse)
-async def update_fcm_token(
-    payload: FCMTokenRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user),
-):
-    """Save or update the FCM device token for push notifications."""
-    user = await db.get(User, current_user.user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    user.fcm_token = payload.fcm_token
-    await db.commit()
-    return APIResponse(success=True, message="FCM token saved")
 
 
 class ResetPasswordRequest(BaseModel):

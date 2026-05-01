@@ -288,6 +288,8 @@ export function DocumentChecklist({ entityType, entityId, onExtracted, onAllRequ
   const getStatus = (type: string): { status: DocStatus | 'missing'; expiryDate?: string; documentNumber?: string; fileUrl?: string } => {
     const doc = docMap[normalizeDocType(type)];
     if (!doc) return { status: 'missing' };
+    // If file_url is empty (S3 key missing / file not found), treat as not uploaded
+    if (!doc.file_url) return { status: 'missing', documentNumber: doc.document_number };
     const status = getDocStatus(doc.expiry_date);
     return { status, expiryDate: doc.expiry_date, documentNumber: doc.document_number, fileUrl: doc.file_url };
   };

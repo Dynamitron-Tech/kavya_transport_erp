@@ -77,33 +77,47 @@ async def get_presigned_url(s3_key: str, expires_in: int = 3600) -> str:
         raise HTTPException(status_code=503, detail=f"S3 presigned URL failed: {str(e)[:200]}")
 
 
-def _extract_s3_key_from_url(file_url: str) -> str | None:
-    """Extract the S3 object key from a stored S3 URL."""
-    if not file_url:
-        return None
-    try:
-        from urllib.parse import urlparse
-        parsed = urlparse(file_url)
-        if "amazonaws.com" in parsed.netloc:
-            # Virtual-hosted: https://{bucket}.s3.{region}.amazonaws.com/{key}
-            return parsed.path.lstrip("/")
-    except Exception:
-        pass
-    return None
 
-
-async def presign_stored_url(file_url: str, expires_in: int = 3600) -> str:
-    """Return a presigned URL for viewing a stored S3 URL. Returns file_url unchanged if not S3."""
-    if _use_local_storage():
-        return file_url
-    key = _extract_s3_key_from_url(file_url)
-    if not key:
-        return file_url
-    try:
-        return await get_presigned_url(key, expires_in)
-    except Exception:
-        return file_url
-
+async def presign_stored_url(url: str, expires_in: int = 3600) -> str:
+    if not url:
+        return url
+    if url.startswith('data:'):
+        return url
+    if url.startswith('/uploads/') or url.startswith('/api/'):
+        return url
+    # Already presigned — skip to avoid double-presigning
+    if 'X-Amz-Algorithm=' in url or 'X-Amz-Credential=' in url:
+        return url
+    if not _use_local_storage():
+        try:
+            import boto3
+            bucket = getattr(settings, 'AWS_S3_BUCKET', '')
+            region = getattr(settings, 'AWS_REGION', '')
+            full_prefix = 'https://' + bucket + '.s3.' + region + '.amazonaws.com/'
+            alt_prefix = 'https://' + bucket + '.s3.amazonaws.com/'
+            if url.startswith(full_prefix):
+                s3_key = url[len(full_prefix):]
+            elif url.startswith(alt_prefix):
+                s3_key = url[len(alt_prefix):]
+            else:
+                s3_key = url
+            s3_key = s3_key.split('?')[0]
+            s3 = boto3.client('s3',
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                region_name=region)
+            try:
+                s3.head_object(Bucket=bucket, Key=s3_key)
+            except Exception:
+                import logging as _log
+                _log.getLogger(__name__).warning(f'presign_stored_url: key not found: {s3_key}')
+                return ''
+            return s3.generate_presigned_url('get_object',
+                Params={'Bucket': bucket, 'Key': s3_key}, ExpiresIn=expires_in)
+        except Exception as e:
+            logger.warning('presign_stored_url failed: ' + str(e)[:120])
+            return url
+    return url
 
 async def delete_file(s3_key: str) -> bool:
     try:
