@@ -26,6 +26,7 @@ const resolveRole = (rawRole?: string): HeaderNavRole => {
   if (normalized === 'PUMP_OPERATOR') return 'PUMP_OPERATOR';
   if (normalized === 'AUDITOR') return 'AUDITOR';
   if (normalized === 'TYRE_INSPECTOR') return 'TYRE_INSPECTOR';
+  if (normalized === 'CLERK') return 'CLERK';
   return 'ADMIN';
 };
 
