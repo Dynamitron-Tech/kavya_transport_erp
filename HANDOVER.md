@@ -1,7 +1,7 @@
 # Kavya Transport ERP — Comprehensive Project Handover
 
-**Version:** 2.0  
-**Date:** 2025-07-24  
+**Version:** 3.0  
+**Date:** 2026-04-25  
 **Project Root:** `kavya_transport_erp/`
 
 ---
@@ -47,12 +47,15 @@ Kavya Transport ERP is a full-stack transport operations platform managing the c
 - **Mobile App**: Flutter driver app with role-based navigation for drivers, fleet managers, accountants, and project associates
 
 ### Current Status: **WORKING**
-- ✅ Backend: FastAPI with 150+ API endpoints — all operational
-- ✅ Frontend: React 18 with 73 pages, 0 TypeScript errors, builds successfully (2822 modules)
+- ✅ Backend: FastAPI with 150+ API endpoints — all operational on EC2
+- ✅ Frontend: React 18 deployed to S3 + CloudFront (`app.kavyatransports.com`)
 - ✅ Flutter App: 86 Dart files with 4 role-based navigation shells — implemented
-- ✅ Database: PostgreSQL (45 tables) + MongoDB (11 collections) — seeded with demo data
-- ✅ Authentication: JWT-based with role-permission system — working
-- ✅ All 6 user roles can login and access their dashboards
+- ✅ Database: PostgreSQL (RDS) + MongoDB — operational
+- ✅ Authentication: JWT + OTP login (email delivery working, SMS pending DLT)
+- ✅ Quick Login removed from frontend login page
+- ✅ GPS providers table created, 20 iALERT vehicles seeded
+- ⏳ iALERT GPS token from Ashok Leyland — not yet received
+- ⏳ MSG91 SMS — API integrated but inactive (no wallet credits + DLT pending)
 
 ---
 
@@ -229,17 +232,24 @@ npm run build
 ### Flutter App Setup
 
 ```bash
-cd flutter_driver_app
+cd kavya_app
 
 # Get dependencies
 flutter pub get
 
-# Run on device/emulator
+# Run on device/emulator (dev — hits Android emulator's host at 10.0.2.2:8000)
 flutter run
 
-# Build APK
-flutter build apk --release
+# Build release APK — MUST pass API_BASE_URL for production
+flutter build apk --release --dart-define=API_BASE_URL=https://api.kavyatransports.com
+
+# Build release App Bundle (Play Store)
+flutter build appbundle --release --dart-define=API_BASE_URL=https://api.kavyatransports.com
 ```
+
+> **Important**: Omitting `--dart-define=API_BASE_URL=...` causes the app to fall back to
+> `http://10.0.2.2:8000` (Android emulator) or `http://localhost:8000` (iOS/desktop),
+> which will not work in production. Always pass the flag for release builds.
 
 ### Vite Proxy Configuration
 
@@ -1305,6 +1315,88 @@ Defined in `app/main.py` at `/ws` path.
 ### Driver Demo
 - Login as `driver@kavyatransports.com` / `demo123`
 - Driver trips page, view assigned trips, submit expenses, manage documents
+
+---
+
+## 21. Production Deployment State (as of 2026-04-25)
+
+### Infrastructure
+| Resource | Value |
+|---|---|
+| EC2 Instance | `ubuntu@ip-172-31-31-66` (ARM64 Graviton, ap-south-1) |
+| EC2 Public IP | `65.0.116.224` |
+| API URL | `https://api.kavyatransports.com` |
+| Frontend URL | `https://app.kavyatransports.com` |
+| S3 Bucket | `kavya-erp-app` (ap-south-1) |
+| CloudFront | `E2DFXB5EZNVY82` |
+| RDS | `database-1.cja60iaay252.ap-south-1.rds.amazonaws.com:5432` |
+| DB | `postgres` / user: `postgres` / password: `Kavyatransport2004` |
+| Code path | `/home/ubuntu/kavya_erp/backend` |
+| Venv | `/home/ubuntu/kavya_erp/backend/venv` |
+| Systemd | `kavya-api.service` (4 gunicorn workers, port 8001) |
+| Branch | `Rhenius` on `kavya` remote |
+
+### EC2 Pull & Restart
+```bash
+cd ~/kavya_erp && git fetch origin Rhenius && git reset --hard origin/Rhenius
+sudo systemctl restart kavya-api
+sudo systemctl status kavya-api --no-pager | grep "Active:"
+```
+
+### Frontend Deploy
+```bash
+cd /Users/ajaikumarn/Desktop/kavya_transport_erp/frontend
+npm run build
+aws s3 sync dist/ s3://kavya-erp-app --delete
+aws cloudfront create-invalidation --distribution-id E2DFXB5EZNVY82 --paths "/*"
+```
+
+### Admin Credentials (Production DB)
+| Field | Value |
+|---|---|
+| Phone | `6385700718` |
+| Email | `ajaikumar0609@gmail.com` |
+| Password | `Kavya@Admin2026!` |
+
+### OTP Login Status
+- **Email OTP**: ✅ Working — Brevo SMTP sends OTP to registered email
+- **SMS OTP**: ❌ Blocked — MSG91 account has no wallet credits
+  - Template created: `kavya_otp_login` (Template ID: `69ebeb-b96f6cb395630194e2`)
+  - Sender ID: `KAVYAT`
+  - To enable SMS: (1) Recharge MSG91 wallet, (2) Register DLT template on TRAI portal, (3) Add DLT Template ID to MSG91 template, (4) Set `MSG91_ENABLED=true` in EC2 `.env`
+- **Toggle**: `MSG91_ENABLED=false` in EC2 `.env` forces email fallback
+
+### GPS / iALERT
+- `gps_providers` table created in production DB (via raw SQL, not alembic)
+- 20 Ashok Leyland iALERT vehicles seeded with `gps_provider='ialert'`, `gps_provider_status='active'`
+- iALERT API token **not yet received** from Ashok Leyland
+- When token arrives, add to EC2 `.env`:
+  ```
+  IALERT_API_TOKEN=<token>
+  IALERT_ENABLED=true
+  ```
+- EC2 IP `65.0.116.224` must be whitelisted by Ashok Leyland
+
+### Rate Limiting
+- All OTP and login limiters set to `fail_closed=False` (fail-open)
+- Redis is NOT running on EC2 — rate limiting is disabled but login still works
+- To enable rate limiting: `sudo systemctl start redis-server && sudo systemctl enable redis-server`
+
+### Key EC2 `.env` Variables
+```
+MSG91_AUTH_KEY=507963AUN4M9xxrW6k69e99caeP1
+MSG91_OTP_TEMPLATE_ID=69ebeb-b96f6cb395630194e2
+MSG91_SENDER_ID=KAVYAT
+MSG91_ENABLED=false
+```
+
+### Pending Actions
+| Task | Owner | Status |
+|---|---|---|
+| Recharge MSG91 wallet (min ₹500) | Client | ⏳ Pending |
+| Register DLT template on TRAI portal | Client | ⏳ Pending |
+| Receive iALERT API token from Ashok Leyland | Client/Ashok Leyland | ⏳ Waiting |
+| Start Redis on EC2 for rate limiting | Dev | ⏳ Optional |
 
 ---
 

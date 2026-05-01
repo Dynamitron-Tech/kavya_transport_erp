@@ -2,6 +2,7 @@
 # Transport ERP - FastAPI Backend
 
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from typing import Optional, List
 from functools import lru_cache
 from pathlib import Path
@@ -26,11 +27,23 @@ class Settings(BaseSettings):
     # API
     API_V1_PREFIX: str = "/api/v1"
     
-    # Security
-    SECRET_KEY: str = "your-super-secret-key-change-in-production"
+    # Security — SECRET_KEY must be set in .env (min 64 hex chars: secrets.token_hex(32))
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def _secret_key_must_be_strong(cls, v: str) -> str:
+        # Refuse to start the app with a missing or weak SECRET_KEY.
+        # Generate a strong one with: python -c "import secrets; print(secrets.token_hex(32))"
+        if not v or len(v) < 32:
+            raise ValueError(
+                "SECRET_KEY must be set and at least 32 characters. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        return v
     
     # PostgreSQL
     POSTGRES_HOST: str = "localhost"
@@ -69,9 +82,16 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
+        "https://app.kavyatransports.com",
+        "https://www.kavyatransports.com",
+        "https://kavyatransports.com",
     ]
-    
-    # Government APIs
+
+    # Public-facing URLs (used in email links, Razorpay callbacks, etc.)
+    FRONTEND_URL: str = "http://localhost:5173"
+    BACKEND_URL: str = "http://localhost:8000"
+
+
     VAHAN_API_KEY: str = "YOUR_VAHAN_API_KEY_HERE"
     VAHAN_API_URL: str = "https://vahan.nic.in/nrservices/faces/user/searchstatus.xhtml"
     SARATHI_API_KEY: str = "YOUR_SARATHI_API_KEY_HERE"
@@ -100,9 +120,17 @@ class Settings(BaseSettings):
     AWS_REGION: str = "ap-south-1"
     MINIO_ENDPOINT: Optional[str] = None
     
-    # Communication — MSG91 Widget API (for OTP)
-    MSG91_AUTH_KEY: str = "507963A4xXGr4c69da9418P1"
-    MSG91_WIDGET_ID: str = "36646b72316d313131353435"
+    # Communication — 2Factor.in SMS OTP API
+    TWOFACTOR_ENABLED: bool = True
+    TWOFACTOR_API_KEY: str = "ca8497f8-41ac-11f1-9800-0200cd936042"
+    # Optional: name of an approved SMS OTP template on 2Factor dashboard.
+    # When set, appended to the URL to force SMS delivery instead of voice.
+    TWOFACTOR_TEMPLATE_NAME: str = ""
+
+    # Communication — MSG91 SendOTP API (fallback)
+    MSG91_ENABLED: bool = True
+    MSG91_AUTH_KEY: str = "YOUR_MSG91_AUTH_KEY_HERE"
+    MSG91_OTP_TEMPLATE_ID: str = "69ebeb-b96f6cb395630194e2"
     MSG91_API_KEY: str = "YOUR_MSG91_API_KEY_HERE"
     MSG91_SENDER_ID: str = "KAVYAT"
     WHATSAPP_API_KEY: str = "YOUR_GUPSHUP_API_KEY_HERE"
@@ -174,6 +202,11 @@ class Settings(BaseSettings):
     IALERT_POLL_INTERVAL_SECONDS: int = 60  # Polling frequency (seconds)
     IALERT_ENABLED: bool = False  # Enable only after token is configured
 
+    # KT Telematic (KTT) GPS Pull API
+    KTT_ENABLED: bool = False  # Enable after setting KTT_ACCESS_TOKEN
+    KTT_ACCESS_TOKEN: Optional[str] = None  # Token from KTT email (X-AT-AccessToken)
+    KTT_POLL_INTERVAL_SECONDS: int = 30
+
     # Tata Motors GPS (fill when API key arrives)
     TATA_GPS_API_KEY: Optional[str] = None
     TATA_GPS_API_ENDPOINT: str = "https://fleet.tatamotors.com/api/v1"
@@ -213,6 +246,19 @@ class Settings(BaseSettings):
     DEFAULT_PAGE_SIZE: int = 20
     MAX_PAGE_SIZE: int = 100
     
+    def __init__(self, **values):
+        super().__init__(**values)
+        # Enforce strong secret key in production
+        if self.ENVIRONMENT == "production":
+            if not self.SECRET_KEY or len(self.SECRET_KEY) < 64:
+                raise ValueError(
+                    "SECRET_KEY must be at least 64 characters in production. "
+                    "Generate with: python -c \"import secrets; print(secrets.token_hex(32))\""
+                )
+            weak = {"your-super-secret-key-change-in-production", "changeme", "secret", "test"}
+            if self.SECRET_KEY in weak:
+                raise ValueError("SECRET_KEY uses an insecure placeholder value. Change it.")
+
     class Config:
         env_file = str(ENV_FILE_PATH)
         case_sensitive = True

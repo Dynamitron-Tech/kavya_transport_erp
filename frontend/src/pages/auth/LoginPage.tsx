@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
-import { Eye, EyeOff, Shield, Zap, BarChart3, Phone, MessageSquare } from 'lucide-react';
+import { Eye, EyeOff, Shield, Zap, BarChart3, Phone, MessageSquare, Mail } from 'lucide-react';
 import { getRoleHomePage } from '@/utils/roleRouting';
 import { SubmitButton } from '@/components/common/SubmitButton';
 import { authService } from '@/services/authService';
@@ -9,6 +9,7 @@ import brandLogo from '@/assets/logo.png';
 
 type LoginTab = 'password' | 'otp';
 type OtpStep = 'phone' | 'verify';
+type OtpChannel = 'sms' | 'email';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -24,13 +25,16 @@ export default function LoginPage() {
 
   // OTP tab
   const [activeTab, setActiveTab] = useState<LoginTab>('password');
+  const [otpChannel, setOtpChannel] = useState<OtpChannel>('sms');
   const [otpStep, setOtpStep] = useState<OtpStep>('phone');
   const [otpPhone, setOtpPhone] = useState('');
+  const [otpIdentifier, setOtpIdentifier] = useState('');
   const [otpPassword, setOtpPassword] = useState('');
   const [showOtpPassword, setShowOtpPassword] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [sessionId, setSessionId] = useState('');
   const [phoneMasked, setPhoneMasked] = useState('');
+  const [emailMasked, setEmailMasked] = useState('');
   const [otpDelivery, setOtpDelivery] = useState<'SMS' | 'email' | 'none' | ''>('');
   const [otpDevCode, setOtpDevCode] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
@@ -41,8 +45,9 @@ export default function LoginPage() {
     clearError();
     try {
       await login(email, password);
-      const nextRole = useAuthStore.getState().user?.roles?.[0];
-      navigate(getRoleHomePage(nextRole), { replace: true });
+      const loggedInUser = useAuthStore.getState().user;
+      const dest = loggedInUser?.redirect_to || getRoleHomePage(loggedInUser?.roles?.[0]);
+      navigate(dest, { replace: true });
     } catch {
       // error is set in the store
     }
@@ -53,14 +58,23 @@ export default function LoginPage() {
     setOtpError('');
     setOtpLoading(true);
     try {
-      const res = await authService.sendOtp(otpPhone, otpPassword);
+      const credential = otpChannel === 'sms'
+        ? { phone: otpPhone, channel: 'sms' as const }
+        : { identifier: otpIdentifier, channel: 'email' as const };
+      const res = await authService.sendOtp(credential, otpPassword);
       setSessionId(res.session_id);
-      setPhoneMasked(res.phone_masked);
-      setOtpDelivery((res as any).delivery ?? 'SMS');
-      setOtpDevCode((res as any).otp_dev ?? '');
+      if (res.phone_masked) setPhoneMasked(res.phone_masked);
+      if (res.email_masked) setEmailMasked(res.email_masked);
+      setOtpDelivery((res.delivery as any) ?? (otpChannel === 'sms' ? 'SMS' : 'email'));
+      setOtpDevCode('');
       setOtpStep('verify');
     } catch (err: any) {
-      setOtpError(err?.response?.data?.detail ?? 'Failed to send OTP. Check your phone number and password.');
+      setOtpError(
+        err?.response?.data?.detail ??
+        (otpChannel === 'sms'
+          ? 'Failed to send OTP. Check your phone number and password.'
+          : 'Failed to send OTP. Check your email / Employee ID and password.'),
+      );
     } finally {
       setOtpLoading(false);
     }
@@ -75,12 +89,15 @@ export default function LoginPage() {
       const token = (res as any).access_token;
       const refreshToken = (res as any).refresh_token;
       if (token) {
-        localStorage.setItem('access_token', token);
+        // Access token in sessionStorage (cleared when tab closes) — XSS safer than localStorage
+        sessionStorage.setItem('access_token', token);
+        // Refresh token in localStorage only when user chose "Keep me logged in"
         if (refreshToken && keepLoggedIn) localStorage.setItem('refresh_token', refreshToken);
         // Hydrate the auth store with the returned user
         const user = (res as any).user;
         useAuthStore.setState({ user, isAuthenticated: true });
-        navigate(getRoleHomePage(user?.roles?.[0]), { replace: true });
+        const dest = user?.redirect_to || getRoleHomePage(user?.roles?.[0]);
+        navigate(dest, { replace: true });
       }
     } catch (err: any) {
       setOtpError(err?.response?.data?.detail ?? 'Invalid or expired OTP. Try again.');
@@ -97,6 +114,15 @@ export default function LoginPage() {
     setOtpCode('');
     setSessionId('');
     setOtpDevCode('');
+    setOtpDelivery('');
+  };
+
+  const switchOtpChannel = (ch: OtpChannel) => {
+    setOtpChannel(ch);
+    setOtpStep('phone');
+    setOtpError('');
+    setOtpCode('');
+    setSessionId('');
     setOtpDelivery('');
   };
 
@@ -273,6 +299,30 @@ export default function LoginPage() {
             {/* ── OTP Tab ── */}
             {activeTab === 'otp' && (
               <>
+                {/* SMS / Email sub-toggle */}
+                <div className="flex rounded-md border border-gray-200 overflow-hidden mb-5">
+                  <button
+                    type="button"
+                    onClick={() => switchOtpChannel('sms')}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-all ${
+                      otpChannel === 'sms' ? 'bg-primary-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Phone size={13} />
+                    OTP via SMS
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchOtpChannel('email')}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium transition-all border-l border-gray-200 ${
+                      otpChannel === 'email' ? 'bg-primary-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Mail size={13} />
+                    OTP via Email
+                  </button>
+                </div>
+
                 {otpError && (
                   <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
@@ -282,22 +332,37 @@ export default function LoginPage() {
 
                 {otpStep === 'phone' && (
                   <form onSubmit={handleSendOtp} className="space-y-4">
-                    <div>
-                      <label className="label">Mobile Number</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">+91</span>
+                    {otpChannel === 'sms' ? (
+                      <div>
+                        <label className="label">Mobile Number</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">+91</span>
+                          <input
+                            type="tel"
+                            value={otpPhone}
+                            onChange={(e) => setOtpPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                            placeholder="9876543210"
+                            className="input-field pl-12"
+                            maxLength={10}
+                            required
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="label">Email or Employee ID</label>
                         <input
-                          type="tel"
-                          value={otpPhone}
-                          onChange={(e) => setOtpPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                          placeholder="9876543210"
-                          className="input-field pl-12"
-                          maxLength={10}
+                          type="text"
+                          value={otpIdentifier}
+                          onChange={(e) => setOtpIdentifier(e.target.value)}
+                          placeholder="you@example.com or KTD01"
+                          className="input-field"
                           required
                           autoFocus
                         />
                       </div>
-                    </div>
+                    )}
 
                     <div>
                       <label className="label">Password</label>
@@ -338,8 +403,11 @@ export default function LoginPage() {
                       </div>
                     ) : (
                       <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center gap-2">
-                        <MessageSquare size={14} className="flex-shrink-0" />
-                        {otpDelivery === 'email' ? 'OTP sent to your registered email' : <>OTP sent to <span className="font-semibold ml-1">{phoneMasked}</span></>}
+                        {otpChannel === 'email' ? <Mail size={14} className="flex-shrink-0" /> : <MessageSquare size={14} className="flex-shrink-0" />}
+                        {otpChannel === 'email'
+                          ? <>OTP sent to <span className="font-semibold ml-1">{emailMasked}</span></>
+                          : <>OTP sent to <span className="font-semibold ml-1">{phoneMasked}</span></>
+                        }
                       </div>
                     )}
 
@@ -369,31 +437,14 @@ export default function LoginPage() {
                       onClick={() => { setOtpStep('phone'); setOtpCode(''); setOtpError(''); }}
                       className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"
                     >
-                      ← Change phone number
+                      ← {otpChannel === 'email' ? 'Change email / ID' : 'Change phone number'}
                     </button>
                   </form>
                 )}
               </>
             )}
 
-            {/* Demo credentials (password tab only) */}
-            {activeTab === 'password' && (
-              <div className="mt-6 pt-5 border-t border-gray-100">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Quick Login</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {demoRoles.map((role) => (
-                    <button
-                      key={role.label}
-                      onClick={() => { setEmail(role.email); setPassword(role.password); }}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-full ring-1 ring-inset transition-all hover:scale-105 ${role.color}`}
-                    >
-                      {role.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-gray-400 mt-2">Click any role to auto-fill credentials</p>
-              </div>
-            )}
+
           </div>
         </div>
       </div>

@@ -53,6 +53,7 @@ async def seed_roles(db: AsyncSession):
         {"name": "fleet_manager", "display_name": "Fleet Manager", "role_type": RoleType.FLEET_MANAGER, "is_system": True},
         {"name": "accountant", "display_name": "Accountant", "role_type": RoleType.ACCOUNTANT, "is_system": True},
         {"name": "auditor", "display_name": "Auditor", "role_type": RoleType.AUDITOR, "is_system": True},
+        {"name": "finance_manager", "display_name": "Finance Manager", "role_type": RoleType.FINANCE_MANAGER, "is_system": True},
         {"name": "project_associate", "display_name": "Project Associate", "role_type": RoleType.PROJECT_ASSOCIATE, "is_system": True},
         {"name": "driver", "display_name": "Driver", "role_type": RoleType.DRIVER, "is_system": True},
         {"name": "pump_operator", "display_name": "Pump Operator", "role_type": RoleType.PUMP_OPERATOR, "is_system": True},

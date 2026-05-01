@@ -21,6 +21,7 @@ from app.services.document_extraction_service import (
     SYSTEM_GENERATED_TYPES,
 )
 from app.middleware.permissions import require_permission, require_any_permission, Permissions
+from app.utils.tenant_guard import assert_tenant_access
 
 logger = logging.getLogger(__name__)
 
@@ -100,15 +101,16 @@ async def extract_document(
             detail="Unsupported file type. Upload JPEG, PNG, WEBP, HEIC, PDF, PPT, or PPTX.",
         )
 
-    file_bytes = await file.read()
-    if len(file_bytes) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File too large. Maximum size is 10 MB.")
+    from app.utils.upload_validator import validate_upload, ALLOWED_IMAGE_DOC_MIMES
+    file_bytes, detected_mime, _safe = await validate_upload(
+        file, allowed_mimes=ALLOWED_IMAGE_DOC_MIMES, max_bytes=MAX_FILE_SIZE,
+    )
 
     service = DocumentExtractionService()
     result = await service.extract(
         document_type=_normalize_doc_type(document_type),
         file_bytes=file_bytes,
-        media_type=file.content_type,
+        media_type=detected_mime,
     )
 
     extraction_message = (
@@ -294,8 +296,7 @@ async def get_document(
 ):
     result = await db.execute(select(Document).where(Document.id == doc_id))
     doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    assert_tenant_access(doc, current_user, not_found_detail="Document not found")
     return APIResponse(success=True, data={c.key: getattr(doc, c.key) for c in doc.__table__.columns})
 
 
@@ -322,13 +323,14 @@ async def upload_document(
     Expiry alerts are auto-created if the document expires within 30 days.
     """
     from app.utils.generators import generate_number
-    content = await file.read()
-
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File too large. Maximum size is 10 MB.")
+    from app.utils.upload_validator import validate_upload, safe_original_name, ALLOWED_IMAGE_DOC_MIMES
+    content, detected_mime, safe_name = await validate_upload(
+        file, allowed_mimes=ALLOWED_IMAGE_DOC_MIMES, max_bytes=MAX_FILE_SIZE,
+    )
+    display_name = safe_original_name(file.filename)
 
     folder = f"documents/{entity_type}"
-    upload_result = await s3_service.upload_file(content, file.filename, folder, file.content_type)
+    upload_result = await s3_service.upload_file(content, safe_name, folder, detected_mime)
 
     # Parse extracted_data JSON string
     parsed_extracted: Optional[dict] = None
@@ -346,7 +348,7 @@ async def upload_document(
             extraction_result = await extraction_service.extract(
                 document_type=_normalize_doc_type(document_type),
                 file_bytes=content,
-                media_type=file.content_type or "application/octet-stream",
+                media_type=detected_mime,
             )
             extracted_payload = extraction_result.get("data")
             if extraction_result.get("extracted") and isinstance(extracted_payload, dict):
@@ -397,7 +399,7 @@ async def upload_document(
 
     doc = Document(
         doc_number=generate_number("DOC", 4),
-        title=title or file.filename,
+        title=title or display_name,
         document_type=resolved_doc_type,
         entity_type=resolved_entity_type,
         entity_id=entity_id,
@@ -405,13 +407,14 @@ async def upload_document(
         document_number=resolved_document_number,
         file_url=upload_result.get("url", ""),
         file_key=upload_result.get("key", ""),
-        file_name=file.filename,
+        file_name=display_name,
         file_size=len(content),
-        file_type=file.content_type,
+        file_type=detected_mime,
         uploaded_by=current_user.user_id,
         extracted_data=parsed_extracted,
         issue_date=resolved_issue_date,
         expiry_date=resolved_expiry_date,
+        tenant_id=current_user.tenant_id,
     )
     db.add(doc)
     await db.commit()
@@ -668,8 +671,7 @@ async def delete_document(
 ):
     result = await db.execute(select(Document).where(Document.id == doc_id))
     doc = result.scalar_one_or_none()
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+    assert_tenant_access(doc, current_user, not_found_detail="Document not found")
 
     # Delete underlying file first when we have a storage key.
     if doc.file_key:

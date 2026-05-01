@@ -49,7 +49,8 @@ async def seed():
                     text("""
                         UPDATE vehicles SET
                             make = 'ASHOK LEYLAND',
-                            gps_provider = 'iALERT',
+                            gps_provider = 'ialert',
+                            gps_provider_status = 'pending',
                             gps_device_id = :vin,
                             chassis_number = :vin
                         WHERE id = :id
@@ -64,12 +65,13 @@ async def seed():
                     text("""
                         INSERT INTO vehicles (
                             registration_number, vehicle_type, make, ownership_type,
-                            status, fuel_type, gps_provider, gps_device_id,
-                            chassis_number, owner_name, created_at, updated_at, is_deleted
+                            status, fuel_type, gps_provider, gps_provider_status,
+                            gps_device_id, chassis_number, owner_name,
+                            created_at, updated_at, is_deleted
                         ) VALUES (
                             :reg, 'TRUCK', 'ASHOK LEYLAND', 'OWNED',
-                            'AVAILABLE', 'diesel', 'iALERT', :vin,
-                            :vin, 'Kavya Transports', NOW(), NOW(), false
+                            'AVAILABLE', 'diesel', 'ialert', 'pending',
+                            :vin, :vin, 'Kavya Transports', NOW(), NOW(), false
                         )
                     """),
                     {"reg": v["reg"], "vin": v["vin"]},

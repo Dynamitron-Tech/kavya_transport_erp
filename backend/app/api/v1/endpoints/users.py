@@ -14,9 +14,11 @@ from app.db.postgres.connection import get_db
 from app.core.security import TokenData, get_current_user
 from app.middleware.permissions import require_permission, Permissions
 from app.schemas.base import APIResponse, PaginationMeta
-from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.user import UserCreate, UserUpdate, UserUpdateSelf
 from app.services import user_service
 from app.models.postgres.user import User, Role, user_roles as user_roles_table, EmployeeAttendance
+from app.utils.tenant_guard import assert_tenant_access
+from app.services.token_blacklist import force_logout_user
 
 router = APIRouter()
 
@@ -328,9 +330,24 @@ async def update_user(
     current_user: TokenData = Depends(get_current_user),
     _perm=Depends(require_permission(Permissions.USER_UPDATE)),
 ):
+    # Tenant scoping: load target first and verify same tenant.
+    target = await db.get(User, user_id)
+    assert_tenant_access(target, current_user, not_found_detail="User not found")
+
+    # Mass-assignment guard: only admin / super_admin may set privileged fields.
+    # Non-admin callers updating themselves get reduced to UserUpdateSelf, which
+    # silently drops role_names, is_active, salary_amount, branch_id, password,
+    # joining_date, pay_type. Cross-user edits require admin.
+    is_admin = any((r or "").lower() in ("admin", "super_admin") for r in current_user.roles)
+    if not is_admin and user_id != current_user.user_id:
+        # 404 (not 403) so we don't reveal whether the target id exists.
+        raise HTTPException(status_code=404, detail="User not found")
+    if not is_admin:
+        data = UserUpdateSelf.model_validate(data.model_dump(exclude_unset=True))
+
     payload = data.model_dump(exclude_unset=True)
     if "password" in payload and payload["password"]:
-        if not any((role or "").lower() == "admin" for role in current_user.roles):
+        if not is_admin:
             raise HTTPException(status_code=403, detail="Only admin can update employee password")
     normalized_phone = None
     if "phone" in payload:
@@ -349,6 +366,13 @@ async def update_user(
         raise HTTPException(status_code=400, detail="Unable to update user due to conflicting data")
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Force logout if security-sensitive fields changed: roles, password, or active state.
+    # This invalidates all existing access/refresh tokens via the forced_logout timestamp
+    # check in get_current_user, so demoted users lose access within seconds.
+    if any(k in payload for k in ("role_names", "password", "is_active")):
+        force_logout_user(user_id)
+
     return APIResponse(success=True, message="User updated")
 
 

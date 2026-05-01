@@ -108,9 +108,9 @@ const LAYOUT_POSITIONS: Record<string, string[]> = {
 export default function TyreTrackerPage() {
   const [activeTab, setActiveTab] = useState<TyreTab>('dashboard');
 
-  // Connect WS on mount (use token from localStorage)
+  // Connect WS on mount (use token from sessionStorage then localStorage fallback)
   useEffect(() => {
-    const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+    const token = sessionStorage.getItem('access_token') || localStorage.getItem('access_token') || localStorage.getItem('token') || '';
     if (token) tyreWS.connect(token);
     return () => { /* keep connection alive across tab switches */ };
   }, []);

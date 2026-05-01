@@ -1,17 +1,24 @@
-﻿# Auth Endpoints - Login, Refresh, Profile
+# Auth Endpoints - Login, Refresh, Profile
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 
 from app.db.postgres.connection import get_db
+from app.core.config import settings
 from app.core.security import TokenData, get_current_user, create_tokens, decode_token, bearer_scheme
-from app.schemas.auth import LoginRequest, OtpSendRequest, OtpVerifyRequest, TokenResponse, UserInfo, RefreshRequest, ChangePasswordRequest, UpdatePhotoRequest, MarketDriverOtpSendRequest, MarketDriverOtpVerifyRequest, MarketDriverOtpResendRequest
+from app.schemas.auth import LoginRequest, OtpSendRequest, OtpVerifyRequest, TokenResponse, UserInfo, RefreshRequest, LogoutRequest, ChangePasswordRequest, UpdatePhotoRequest, MarketDriverOtpSendRequest, MarketDriverOtpVerifyRequest, MarketDriverOtpResendRequest
 from app.schemas.base import APIResponse
 from app.services.auth_service import authenticate_by_identifier, authenticate_by_phone, authenticate_user, get_user_roles, refresh_access_token, change_password, get_user_by_id
 from app.middleware.permissions import get_user_permissions
 from app.services.token_blacklist import blacklist_token
+from app.utils.rate_limit import (
+    otp_send_limiter,
+    otp_send_ip_limiter,
+    otp_verify_limiter,
+    login_limiter,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -39,7 +46,8 @@ def _get_redirect(roles: list[str]) -> str:
 
 
 @router.post("/login", response_model=APIResponse)
-async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    await login_limiter.check(request.client.host if request.client else "unknown")
     user = await authenticate_by_identifier(db, data.identifier, data.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
@@ -83,16 +91,68 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/send-otp", response_model=APIResponse)
-async def send_otp_for_login(data: OtpSendRequest, db: AsyncSession = Depends(get_db)):
+async def send_otp_for_login(data: OtpSendRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """
-    Step 1 of phone OTP login.
-    Verifies password first (prevents phone enumeration), then sends OTP via
-    Brevo SMS (primary) + Brevo email (fallback). In dev mode, returns OTP
-    in the response if both delivery channels fail.
+    Step 1 of OTP login. Supports two channels:
+      channel='sms'   — phone (10-digit) + password → OTP via MSG91/Brevo SMS
+      channel='email' — identifier (email or employee ID) + password → OTP via Brevo email
+    Rate-limited per phone/identifier and per IP.
+    Password is verified first to prevent enumeration.
     """
     import asyncio
     from app.services.otp_service import create_otp_session, send_otp as _send_otp
     from app.services.brevo_service import send_email_otp
+    from app.services.msg91_service import send_otp_msg91
+    from app.db.mongodb.connection import MongoDB
+
+    channel = (data.channel or "sms").lower()
+    client_ip = request.client.host if request.client else "unknown"
+
+    # ── Email channel ────────────────────────────────────────────────────────
+    if channel == "email":
+        if not data.identifier:
+            raise HTTPException(status_code=400, detail="Provide your email address or Employee ID")
+        identifier = data.identifier.strip()
+
+        await otp_send_limiter.check(f"identifier:{identifier}")
+        await otp_send_ip_limiter.check(f"ip:{client_ip}")
+
+        user = await authenticate_by_identifier(db, identifier, data.password)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        if not user.email:
+            raise HTTPException(status_code=400, detail="No email address on file — use SMS OTP instead")
+
+        # Use phone for session storage (fallback to "email" placeholder if no phone)
+        phone_for_session = user.phone.lstrip("+91").lstrip("91")[-10:] if user.phone else "0000000000"
+        session = await create_otp_session(user.id, phone_for_session)
+        otp = session["otp"]
+
+        email_ok = await send_email_otp(user.email, otp)
+        delivery = "email" if email_ok else "none"
+
+        # Mask email: abc***@example.com
+        parts = user.email.split("@")
+        email_masked = parts[0][:3] + "***@" + parts[1] if len(parts) == 2 else user.email[:3] + "***"
+
+        if delivery == "none":
+            logger.warning(f"[OTP] Email delivery failed for user {user.id}")
+            if settings.ENVIRONMENT != "production":
+                logger.warning(f"[OTP-DEV] OTP for session {session['session_id']}: {otp}")
+
+        return APIResponse(
+            success=True,
+            data={
+                "session_id": session["session_id"],
+                "email_masked": email_masked,
+                "delivery": delivery,
+            },
+            message=f"OTP sent to {email_masked}" if delivery == "email" else "OTP generated — check server logs",
+        )
+
+    # ── SMS channel (default) ─────────────────────────────────────────────────
+    if not data.phone:
+        raise HTTPException(status_code=400, detail="Provide your registered mobile number")
 
     phone = data.phone.strip()
     if phone.startswith("+91"):
@@ -102,6 +162,9 @@ async def send_otp_for_login(data: OtpSendRequest, db: AsyncSession = Depends(ge
     if len(phone) != 10 or not phone.isdigit():
         raise HTTPException(status_code=400, detail="Enter a valid 10-digit Indian mobile number")
 
+    await otp_send_limiter.check(f"phone:{phone}")
+    await otp_send_ip_limiter.check(f"ip:{client_ip}")
+
     user = await authenticate_by_phone(db, phone, data.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid phone number or password")
@@ -109,14 +172,41 @@ async def send_otp_for_login(data: OtpSendRequest, db: AsyncSession = Depends(ge
     session = await create_otp_session(user.id, phone)
     otp = session["otp"]
 
-    # Fire SMS and email in parallel — both are best-effort
-    sms_ok, email_ok = await asyncio.gather(
-        _send_otp(phone, otp),
-        send_email_otp(user.email, otp),
-        return_exceptions=True,
-    )
-    sms_ok = sms_ok is True
-    email_ok = email_ok is True
+    # ── SMS delivery priority: 2Factor → MSG91 → Brevo SMS → email ──
+    sms_ok = False
+
+    # 1. Try 2Factor.in (primary)
+    if settings.TWOFACTOR_ENABLED:
+        try:
+            from app.services.twofactor_service import send_otp_2factor
+            tf_ok, tf_msg = await send_otp_2factor(phone, otp)
+            sms_ok = tf_ok
+            if not sms_ok:
+                logger.warning(f"[OTP] 2Factor send failed: {tf_msg}")
+        except Exception as exc:
+            logger.warning(f"[OTP] 2Factor exception: {exc}")
+
+    # 2. Fall back to MSG91 if 2Factor failed
+    if not sms_ok and settings.MSG91_ENABLED:
+        try:
+            msg91_ok, _ = await send_otp_msg91(phone, otp)
+            sms_ok = msg91_ok
+        except Exception as exc:
+            logger.warning(f"[OTP] MSG91 send failed: {exc}")
+
+    email_ok = False
+    if not sms_ok:
+        # 3. Final fallback: Brevo SMS + email in parallel
+        async def _noop() -> bool:
+            return False
+
+        brevo_sms_ok, email_result = await asyncio.gather(
+            _send_otp(phone, otp),
+            send_email_otp(user.email, otp) if user.email else _noop(),
+            return_exceptions=True,
+        )
+        sms_ok = brevo_sms_ok is True
+        email_ok = email_result is True
 
     if sms_ok:
         delivery = "SMS"
@@ -124,7 +214,7 @@ async def send_otp_for_login(data: OtpSendRequest, db: AsyncSession = Depends(ge
         delivery = "email"
     else:
         delivery = "none"
-        logger.warning(f"[OTP] Both SMS and email delivery failed for user {user.id}")
+        logger.warning(f"[OTP] All delivery channels failed for user {user.id}")
 
     response_data: dict = {
         "session_id": session["session_id"],
@@ -132,10 +222,8 @@ async def send_otp_for_login(data: OtpSendRequest, db: AsyncSession = Depends(ge
         "delivery": delivery,
     }
 
-    # Dev safety net: include OTP in response when delivery failed
-    # Remove this block before production hardening
-    if delivery == "none":
-        response_data["otp_dev"] = otp
+    if delivery == "none" and settings.ENVIRONMENT != "production":
+        logger.warning(f"[OTP-DEV] OTP for session {session['session_id']}: {otp}")
 
     msg = {
         "SMS": "OTP sent to your registered number",
@@ -147,9 +235,38 @@ async def send_otp_for_login(data: OtpSendRequest, db: AsyncSession = Depends(ge
 
 
 @router.post("/verify-otp", response_model=APIResponse)
-async def verify_otp(data: OtpVerifyRequest, db: AsyncSession = Depends(get_db)):
+async def verify_otp(data: OtpVerifyRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    client_ip = request.client.host if request.client else "unknown"
+    # Per-session limits brute force of 6-digit OTP for a given session.
+    # Per-IP guards against parallel attacks across many sessions.
+    await otp_verify_limiter.check(f"session:{data.session_id}")
+    await otp_verify_limiter.check(f"ip:{client_ip}")
     from app.services.otp_service import verify_otp as _verify
-    success, user_id = await _verify(data.session_id, data.otp)
+    from app.services.msg91_service import verify_otp_msg91
+    from app.db.mongodb.connection import MongoDB
+
+    # Check if this session used MSG91 Widget — if so, verify via MSG91
+    session_doc = await MongoDB.db.otp_sessions.find_one({"session_id": data.session_id})
+    msg91_token = session_doc.get("msg91_access_token") if session_doc else None
+
+    if msg91_token:
+        # MSG91 Widget verification
+        msg91_valid, _ = await verify_otp_msg91(msg91_token, data.otp)
+        if not msg91_valid:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired OTP — request a new one",
+            )
+        # Mark session as used
+        await MongoDB.db.otp_sessions.update_one(
+            {"session_id": data.session_id},
+            {"$set": {"verified": True}},
+        )
+        user_id = session_doc.get("user_id")
+        success = bool(user_id)
+    else:
+        success, user_id = await _verify(data.session_id, data.otp)
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -185,10 +302,14 @@ async def verify_otp(data: OtpVerifyRequest, db: AsyncSession = Depends(get_db))
 
 @router.post("/refresh", response_model=APIResponse)
 async def refresh_token(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
-    new_token = await refresh_access_token(db, data.refresh_token)
-    if not new_token:
+    result = await refresh_access_token(db, data.refresh_token)
+    if not result:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
-    return APIResponse(success=True, data={"access_token": new_token, "token_type": "bearer"})
+    return APIResponse(success=True, data={
+        "access_token": result["access_token"],
+        "refresh_token": result["refresh_token"],
+        "token_type": "bearer",
+    })
 
 
 @router.get("/me", response_model=APIResponse)
@@ -251,6 +372,7 @@ async def api_change_password(data: ChangePasswordRequest, current_user: TokenDa
 
 @router.post("/logout", response_model=APIResponse)
 async def logout(
+    payload_body: LogoutRequest | None = None,
     current_user: TokenData = Depends(get_current_user),
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
@@ -266,6 +388,15 @@ async def logout(
         if jti and exp:
             expires_at = datetime.fromtimestamp(exp, tz=timezone.utc)
             blacklist_token(jti, expires_at)
+    # Also blacklist the refresh token if provided to prevent reuse after logout.
+    if payload_body and payload_body.refresh_token:
+        rt_payload = decode_token(payload_body.refresh_token)
+        if rt_payload and rt_payload.get("type") == "refresh":
+            rt_jti = rt_payload.get("jti")
+            rt_exp = rt_payload.get("exp")
+            if rt_jti and rt_exp:
+                expires_at = datetime.fromtimestamp(rt_exp, tz=timezone.utc)
+                blacklist_token(rt_jti, expires_at)
     # Audit log
     from app.services.audit_logger import log_audit
     await log_audit(

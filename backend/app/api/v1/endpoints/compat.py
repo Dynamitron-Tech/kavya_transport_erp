@@ -2,6 +2,7 @@
 from datetime import date, datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import func, select, case, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -453,10 +454,152 @@ async def fleet_tracking_live(db: AsyncSession = Depends(get_db), current_user: 
     return APIResponse(success=True, data={"vehicles": vehicles, "summary": summary})
 
 
+# ── Maintenance auto-seed helper ─────────────────────────────────────────────
+# Called at the start of every maintenance endpoint so newly-added vehicles
+# automatically get a realistic service schedule on first access.
+
+async def _auto_seed_missing_maintenance(db: AsyncSession, today: date) -> None:
+    """For any vehicle that has zero maintenance records, generate a full schedule."""
+    import random
+    from decimal import Decimal
+    from app.models.postgres.vehicle import Vehicle, VehicleMaintenance, VehicleTyre
+
+    SERVICE_TEMPLATES = [
+        ("oil_change",        "Engine oil & filter change",               90,  5000,  1800, 500),
+        ("tyre_rotation",     "Tyre rotation & pressure check",          120,  8000,   400, 600),
+        ("brake_service",     "Brake pads, drums & fluid check",         180, 15000,  3500, 800),
+        ("air_filter",        "Air filter & fuel filter replacement",     90,  6000,   900, 300),
+        ("battery_check",     "Battery terminals & charge test",         180, 12000,   200, 200),
+        ("greasing",          "Chassis greasing & wheel bearing check",   60,  4000,   400, 400),
+        ("coolant_flush",     "Coolant flush & thermostat check",        365, 30000,  1200, 600),
+        ("clutch_service",    "Clutch plate & pressure plate check",     365, 40000,  6500, 1200),
+        ("suspension_check",  "Shock absorbers & leaf spring check",     180, 20000,  2500, 700),
+        ("electrical_check",  "Wiring harness & battery terminal check",  90,  8000,   500, 300),
+    ]
+    WORKSHOPS = [
+        "Sri Balaji Auto Works, Madurai", "National Motors, Coimbatore",
+        "Laxmi Service Centre, Chennai",  "VR Garage, Salem",
+    ]
+    TYRE_BRANDS    = ["Apollo", "MRF", "Ceat", "JK Tyres", "Michelin", "Bridgestone"]
+    TYRE_SIZES     = ["10.00R20", "11.00R20", "295/80R22.5", "315/80R22.5", "12.00R24"]
+    POSITIONS_4    = ["FL", "FR", "RL1", "RR1"]
+    POSITIONS_6    = ["FL", "FR", "RL1", "RR1", "RL2", "RR2"]
+    POSITIONS_10   = ["FL", "FR", "RL1", "RR1", "RL2", "RR2", "RL3", "RR3", "RL4", "RR4"]
+
+    # Find vehicles without any maintenance record
+    all_ids_result = await db.execute(
+        select(Vehicle.id).where(Vehicle.is_deleted == False)
+    )
+    all_vehicle_ids = [row[0] for row in all_ids_result.all()]
+
+    seeded_ids_result = await db.execute(
+        select(VehicleMaintenance.vehicle_id).distinct()
+    )
+    seeded_ids = {row[0] for row in seeded_ids_result.all()}
+
+    missing = [vid for vid in all_vehicle_ids if vid not in seeded_ids]
+    if not missing:
+        return
+
+    # Load the vehicles that need seeding
+    vehicles_result = await db.execute(
+        select(Vehicle).where(Vehicle.id.in_(missing))
+    )
+    vehicles = vehicles_result.scalars().all()
+
+    # Get next tyre serial
+    max_serial_row = (await db.execute(select(func.max(VehicleTyre.tyre_number)))).scalar()
+    try:
+        tyre_serial = int(max_serial_row.split("-")[-1]) + 1 if max_serial_row else 1000
+    except Exception:
+        tyre_serial = 1000
+
+    for vehicle in vehicles:
+        rng = random.Random(vehicle.id)
+        age = max(0, today.year - vehicle.year_of_manufacture) if vehicle.year_of_manufacture else 3
+        base_odo = rng.randint(20000, 120000) + age * 15000
+
+        for idx, (svc, desc, interval_days, interval_km, p_cost, l_cost) in enumerate(SERVICE_TEMPLATES):
+            days_ago = rng.randint(interval_days // 3, interval_days)
+            last_done = today - timedelta(days=days_ago)
+            odo = base_odo - rng.randint(2000, 8000)
+
+            # Completed record
+            db.add(VehicleMaintenance(
+                vehicle_id=vehicle.id,
+                maintenance_type="scheduled",
+                service_type=svc,
+                description=desc,
+                odometer_at_service=Decimal(str(odo)),
+                service_date=last_done,
+                next_service_date=last_done + timedelta(days=interval_days),
+                next_service_km=Decimal(str(odo + interval_km)),
+                vendor_name=rng.choice(WORKSHOPS),
+                invoice_number=f"INV-{vehicle.id:03d}-{idx+1:02d}",
+                parts_cost=Decimal(str(rng.randint(int(p_cost*0.8), int(p_cost*1.2)))),
+                labor_cost=Decimal(str(rng.randint(int(l_cost*0.8), int(l_cost*1.2)))),
+                total_cost=Decimal(str(p_cost + l_cost)),
+                status="completed",
+            ))
+
+            # Pending work order for services due within 30 days
+            next_due = last_done + timedelta(days=interval_days)
+            if next_due <= today + timedelta(days=30):
+                db.add(VehicleMaintenance(
+                    vehicle_id=vehicle.id,
+                    maintenance_type="scheduled",
+                    service_type=svc,
+                    description=f"[WO] {desc}",
+                    service_date=today,
+                    next_service_date=next_due,
+                    next_service_km=Decimal(str(odo + interval_km)),
+                    vendor_name=rng.choice(WORKSHOPS),
+                    work_order_number=f"WO-{vehicle.id:03d}-{idx+1:02d}",
+                    parts_cost=Decimal(str(p_cost)),
+                    labor_cost=Decimal(str(l_cost)),
+                    total_cost=Decimal(str(p_cost + l_cost)),
+                    status="pending",
+                ))
+
+        # Seed tyres if missing
+        tyre_count = (await db.execute(
+            select(func.count()).select_from(VehicleTyre).where(VehicleTyre.vehicle_id == vehicle.id)
+        )).scalar() or 0
+        if tyre_count == 0:
+            vtype = vehicle.vehicle_type.value if hasattr(vehicle.vehicle_type, "value") else str(vehicle.vehicle_type)
+            positions = POSITIONS_10 if vtype in ("TANKER","CONTAINER","TRAILER") else (POSITIONS_4 if vtype in ("LCV","MINI_TRUCK") else POSITIONS_6)
+            for i, pos in enumerate(positions):
+                km_run = rng.randint(10000, 60000) + age * 8000
+                tread = max(2.0, 12.0 - (km_run / 10000))
+                condition = "good" if tread > 8 else ("average" if tread > 4 else "worn")
+                db.add(VehicleTyre(
+                    vehicle_id=vehicle.id,
+                    tyre_number=f"TYR-{tyre_serial + i:05d}",
+                    position=pos,
+                    brand=rng.choice(TYRE_BRANDS),
+                    model="Heavy Duty",
+                    size=rng.choice(TYRE_SIZES),
+                    ply_rating="18PR",
+                    purchase_date=today - timedelta(days=rng.randint(180, age*365+180)),
+                    purchase_cost=Decimal(str(rng.randint(8000, 14000))),
+                    km_at_fitment=Decimal("0"),
+                    current_km=Decimal(str(km_run)),
+                    tread_depth_mm=Decimal(str(round(tread, 1))),
+                    initial_tread_depth_mm=Decimal("12.0"),
+                    condition=condition,
+                    is_active=True,
+                ))
+            tyre_serial += len(positions)
+
+    await db.commit()
+
+
 @router.get("/fleet/maintenance/schedule", response_model=APIResponse)
 async def fleet_maintenance_schedule(db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
     from app.models.postgres.vehicle import Vehicle, VehicleMaintenance
     today = date.today()
+    # Auto-seed any vehicle that has no maintenance records yet (handles newly added vehicles)
+    await _auto_seed_missing_maintenance(db, today)
     # Get vehicles with scheduled next service dates or km thresholds
     result = await db.execute(
         select(VehicleMaintenance, Vehicle.registration_number, Vehicle.odometer_reading)
@@ -517,6 +660,8 @@ async def fleet_maintenance_schedule(db: AsyncSession = Depends(get_db), current
 @router.get("/fleet/maintenance/work-orders", response_model=APIResponse)
 async def fleet_maintenance_work_orders(db: AsyncSession = Depends(get_db), current_user: TokenData = Depends(get_current_user)):
     from app.models.postgres.vehicle import Vehicle, VehicleMaintenance
+    today = date.today()
+    await _auto_seed_missing_maintenance(db, today)
     result = await db.execute(
         select(VehicleMaintenance, Vehicle.registration_number)
         .join(Vehicle, Vehicle.id == VehicleMaintenance.vehicle_id)
@@ -584,11 +729,15 @@ async def fleet_maintenance_battery(db: AsyncSession = Depends(get_db), current_
         age_years = (date.today().year - v.year_of_manufacture) if v.year_of_manufacture else 3
         health = max(10, 100 - (age_years * 12))  # ~12% degradation per year
         voltage = 12.8 - (age_years * 0.15)
+        # Use vehicle make for battery model only when it's a real brand, not GPS system names
+        _gps_system_names = {"ktt", "gps", "tracker", "telematics", "ialert"}
+        raw_make = (v.make or "").strip()
+        battery_make = raw_make if raw_make.lower() not in _gps_system_names else v.vehicle_type.value.replace("_", " ").title() if v.vehicle_type else "Heavy Duty"
         items.append({
             "id": f"bat-{v.id}",
             "vehicle": v.registration_number,
             "brand": "Exide" if v.id % 2 == 0 else "Amaron",
-            "model": f"{v.make or 'Standard'} Battery",
+            "model": f"{battery_make} Battery",
             "installed_date": (date.today() - timedelta(days=age_years * 365)).isoformat(),
             "voltage": round(max(11.0, voltage), 1),
             "health_percent": health,
@@ -596,6 +745,232 @@ async def fleet_maintenance_battery(db: AsyncSession = Depends(get_db), current_
             "expected_replacement": (date.today() + timedelta(days=max(0, (100 - health) * 30))).isoformat(),
         })
     return APIResponse(success=True, data=items)
+
+
+# ── Work-Order CRUD Endpoints ───────────────────────────────────────────────
+
+class CreateWorkOrderRequest(BaseModel):
+    vehicle_id: int
+    service_type: str
+    maintenance_type: str = "scheduled"
+    description: str | None = None
+    vendor_name: str | None = None
+    service_date: date | None = None
+    total_cost: float | None = None
+    notes: str | None = None
+
+
+class EditWorkOrderRequest(BaseModel):
+    service_type: str | None = None
+    maintenance_type: str | None = None
+    description: str | None = None
+    vendor_name: str | None = None
+    service_date: date | None = None
+    total_cost: float | None = None
+    notes: str | None = None
+
+
+@router.post("/fleet/maintenance/work-orders", response_model=APIResponse)
+async def create_work_order(
+    payload: CreateWorkOrderRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Manually create a new work order for a vehicle."""
+    from app.models.postgres.vehicle import VehicleMaintenance, Vehicle
+
+    vehicle = (await db.execute(
+        select(Vehicle).where(Vehicle.id == payload.vehicle_id, Vehicle.is_deleted == False)
+    )).scalar_one_or_none()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    today = date.today()
+    svc_date = payload.service_date or today
+    # Auto-generate a work order number
+    count = (await db.execute(select(func.count(VehicleMaintenance.id)))).scalar_one() or 0
+    wo_number = f"WO-MAN-{vehicle.id:03d}-{count + 1:03d}"
+
+    svc = VehicleMaintenance(
+        vehicle_id=payload.vehicle_id,
+        maintenance_type=payload.maintenance_type,
+        service_type=payload.service_type,
+        description=payload.description or payload.service_type.replace("_", " ").title(),
+        vendor_name=payload.vendor_name,
+        service_date=svc_date,
+        invoice_number=wo_number,
+        total_cost=payload.total_cost or 0,
+        parts_description=payload.notes,
+        status="pending",
+    )
+    db.add(svc)
+    await db.commit()
+    await db.refresh(svc)
+    return APIResponse(success=True, data={"id": svc.id, "work_order_number": wo_number, "message": "Work order created"})
+
+
+@router.patch("/fleet/maintenance/work-orders/{wo_id}/edit", response_model=APIResponse)
+async def edit_work_order(
+    wo_id: int,
+    payload: EditWorkOrderRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Edit/update an existing work order."""
+    from app.models.postgres.vehicle import VehicleMaintenance
+
+    svc = (await db.execute(
+        select(VehicleMaintenance).where(VehicleMaintenance.id == wo_id)
+    )).scalar_one_or_none()
+    if not svc:
+        raise HTTPException(status_code=404, detail="Work order not found")
+    if svc.status == "completed":
+        raise HTTPException(status_code=400, detail="Cannot edit a completed work order")
+
+    if payload.service_type is not None:
+        svc.service_type = payload.service_type
+    if payload.maintenance_type is not None:
+        svc.maintenance_type = payload.maintenance_type
+    if payload.description is not None:
+        svc.description = payload.description
+    if payload.vendor_name is not None:
+        svc.vendor_name = payload.vendor_name
+    if payload.service_date is not None:
+        svc.service_date = payload.service_date
+    if payload.total_cost is not None:
+        svc.total_cost = payload.total_cost
+    if payload.notes is not None:
+        svc.parts_description = payload.notes
+
+    await db.commit()
+    return APIResponse(success=True, data={"message": "Work order updated"})
+
+
+# ── Work-Order Complete/Start ────────────────────────────────────────────────
+
+class CompleteWorkOrderRequest(BaseModel):
+    completed_date: date | None = None
+    odometer_reading: float | None = None
+    actual_cost: float | None = None
+    notes: str | None = None
+
+
+@router.patch("/fleet/maintenance/work-orders/{wo_id}/complete", response_model=APIResponse)
+async def complete_work_order(
+    wo_id: int,
+    payload: CompleteWorkOrderRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Mark a work order as completed.
+
+    - Sets status → 'completed', records actual service date and odometer
+    - Auto-creates the NEXT scheduled record based on the service interval
+      so the service reappears in future (not immediately)
+    - Updates vehicle odometer if provided
+    """
+    from app.models.postgres.vehicle import Vehicle, VehicleMaintenance
+    from decimal import Decimal
+
+    svc = (await db.execute(
+        select(VehicleMaintenance).where(VehicleMaintenance.id == wo_id)
+    )).scalar_one_or_none()
+    if not svc:
+        raise HTTPException(status_code=404, detail="Work order not found")
+    if svc.status == "completed":
+        raise HTTPException(status_code=400, detail="Work order is already completed")
+
+    done_date = payload.completed_date or date.today()
+    done_odo = Decimal(str(payload.odometer_reading)) if payload.odometer_reading else svc.odometer_at_service
+
+    # 1. Mark this WO completed
+    svc.status = "completed"
+    svc.service_date = done_date
+    if done_odo:
+        svc.odometer_at_service = done_odo
+    if payload.actual_cost is not None:
+        svc.total_cost = Decimal(str(payload.actual_cost))
+    if payload.notes:
+        svc.description = (svc.description or "") + f"\n[Done {done_date}] {payload.notes}"
+
+    # 2. Update vehicle odometer if provided
+    if payload.odometer_reading:
+        vehicle = (await db.execute(
+            select(Vehicle).where(Vehicle.id == svc.vehicle_id)
+        )).scalar_one_or_none()
+        if vehicle:
+            current_odo = float(vehicle.odometer_reading or 0)
+            if payload.odometer_reading > current_odo:
+                vehicle.odometer_reading = Decimal(str(payload.odometer_reading))
+
+    # 3. Auto-schedule next service
+    # Determine interval from service_type
+    INTERVALS = {
+        "oil_change":         (90,   5000),
+        "tyre_rotation":      (120,  8000),
+        "brake_service":      (180, 15000),
+        "air_filter":         (90,   6000),
+        "battery_check":      (180, 12000),
+        "greasing":           (60,   4000),
+        "coolant_flush":      (365, 30000),
+        "clutch_service":     (365, 40000),
+        "suspension_check":   (180, 20000),
+        "electrical_check":   (90,   8000),
+    }
+    svc_key = (svc.service_type or "").lower().replace(" ", "_")
+    interval_days, interval_km = INTERVALS.get(svc_key, (180, 15000))
+
+    next_date = done_date + timedelta(days=interval_days)
+    next_km = (done_odo + Decimal(str(interval_km))) if done_odo else svc.next_service_km
+
+    # Only create next record if one doesn't already exist for this vehicle+service_type in the future
+    existing_next = (await db.execute(
+        select(VehicleMaintenance).where(
+            VehicleMaintenance.vehicle_id == svc.vehicle_id,
+            VehicleMaintenance.service_type == svc.service_type,
+            VehicleMaintenance.status.in_(["pending", "in_progress"]),
+        )
+    )).scalar_one_or_none()
+
+    if not existing_next:
+        db.add(VehicleMaintenance(
+            vehicle_id=svc.vehicle_id,
+            maintenance_type="scheduled",
+            service_type=svc.service_type,
+            description=svc.description.split("\n[Done")[0].strip() if svc.description else f"{svc.service_type or 'Service'} (auto-scheduled)",
+            service_date=next_date,
+            next_service_date=next_date,
+            next_service_km=next_km,
+            vendor_name=svc.vendor_name,
+            work_order_number=f"WO-AUTO-{svc.vehicle_id}-{svc_key[:8]}",
+            parts_cost=svc.parts_cost,
+            labor_cost=svc.labor_cost,
+            total_cost=svc.total_cost,
+            status="pending",
+        ))
+
+    await db.commit()
+    return APIResponse(success=True, data={"message": "Work order completed. Next service scheduled.", "next_due": next_date.isoformat()})
+
+
+@router.patch("/fleet/maintenance/work-orders/{wo_id}/start", response_model=APIResponse)
+async def start_work_order(
+    wo_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Move a work order from pending → in_progress."""
+    from app.models.postgres.vehicle import VehicleMaintenance
+
+    svc = (await db.execute(
+        select(VehicleMaintenance).where(VehicleMaintenance.id == wo_id)
+    )).scalar_one_or_none()
+    if not svc:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    svc.status = "in_progress"
+    await db.commit()
+    return APIResponse(success=True, data={"message": "Work order started"})
 
 
 @router.get("/fleet/fuel/records", response_model=APIResponse)

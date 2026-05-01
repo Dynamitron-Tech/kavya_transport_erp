@@ -471,7 +471,9 @@ export default function TripDetailPage() {
       {/* Phase Photos — loaded, reached, unloaded, POD from driver app */}
       {(() => {
         const t = trip as any;
-        const baseUrl = 'http://localhost:8000';
+        const baseUrl = import.meta.env.DEV
+          ? (import.meta.env.VITE_PROXY_TARGET || 'http://localhost:8000').replace(/\/$/, '')
+          : (import.meta.env.VITE_PROXY_TARGET || '').replace(/\/$/, '');
         const resolveUrl = (u: string | null | undefined) => {
           if (!u) return null;
           return u.startsWith('http') ? u : `${baseUrl}${u}`;

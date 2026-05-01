@@ -493,9 +493,12 @@ async def get_unified_vehicles(
         if t.vehicle_id:
             trip_by_vehicle[t.vehicle_id] = t
 
-    # Get provider statuses
+    # Get provider statuses (table may not exist yet if migration hasn't run)
     from app.services.gps.provider_registry import get_all_provider_statuses
-    provider_statuses = await get_all_provider_statuses()
+    try:
+        provider_statuses = await get_all_provider_statuses()
+    except Exception:
+        provider_statuses = []
     provider_status_map = {p["id"]: p for p in provider_statuses}
 
     now = datetime.now(timezone.utc)
@@ -520,11 +523,13 @@ async def get_unified_vehicles(
         elif minutes_ago > 120:
             veh_status = "offline"
         else:
-            # Read from MongoDB trip_tracking or derive from vehicle
-            trip = trip_by_vehicle.get(v.id)
-            if trip and trip.status in (TripStatusEnum.IN_TRANSIT, TripStatusEnum.STARTED):
+            # Use real-time speed + ignition from GPS provider (KTT/iALERT)
+            # Industry-standard thresholds: >2 km/h = moving, engine on = idle, else stopped
+            spd = v.last_speed if v.last_speed is not None else 0.0
+            ign = v.last_ignition_on if v.last_ignition_on is not None else False
+            if spd > 2:
                 veh_status = "moving"
-            elif trip and trip.status in (TripStatusEnum.LOADING, TripStatusEnum.UNLOADING):
+            elif ign:
                 veh_status = "idle"
             else:
                 veh_status = "stopped"
@@ -546,11 +551,11 @@ async def get_unified_vehicles(
             "provider_live": prov_is_active and has_gps and minutes_ago < 10,
             "lat": float(v.current_latitude) if v.current_latitude else None,
             "lng": float(v.current_longitude) if v.current_longitude else None,
-            "speed": 0,  # Will come from MongoDB/WebSocket
+            "speed": float(v.last_speed or 0),
             "heading": 0,
             "odometer": float(v.odometer_reading or 0),
-            "ignition_on": veh_status in ("moving", "idle"),
-            "engine_on": veh_status in ("moving", "idle"),
+            "ignition_on": bool(v.last_ignition_on),
+            "engine_on": bool(v.last_ignition_on),
             "fuel_level": None,
             "battery_voltage": None,
             "status": veh_status,
@@ -589,7 +594,10 @@ async def get_provider_statuses(
 ):
     """Get GPS provider status info (for the provider pills in the UI)."""
     from app.services.gps.provider_registry import get_all_provider_statuses
-    providers = await get_all_provider_statuses()
+    try:
+        providers = await get_all_provider_statuses()
+    except Exception:
+        providers = []
     return APIResponse(success=True, data=providers)
 
 
