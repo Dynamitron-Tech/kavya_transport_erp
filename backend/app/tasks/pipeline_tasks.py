@@ -1,39 +1,42 @@
 """
-IFIAS Pipeline Tasks — Phase 7
-Full Celery orchestration: Excel parse → Email search → OCR → Validate → DB update.
-
-Pipeline flow:
-  process_invoice_excel
-      └─► [per LR] search_and_extract_slip
-               └─► validate_and_store (inline)
-
-  reprocess_single_lr  — triggered from dashboard "Reprocess" button
-  send_review_notification — sent after batch completes
+IFIAS Pipeline Tasks — Thin Celery Wrapper
+All processing logic lives in IfiasProcessor.
+This file only handles:
+  - Celery task registration
+  - DB batch status bookkeeping (PENDING → PROCESSING → COMPLETED / FAILED)
 """
 
-import asyncio
-import json
 import logging
 import os
-import tempfile
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Optional
 
-from celery import shared_task, group
-from sqlalchemy import select, update, func
+from sqlalchemy import update
 
 from app.celery_app import celery_app
 from app.db.postgres.connection import SyncSessionLocal
-from app.services.excel_parser_service import parse_invoice_excel
-from app.services.email_intelligence_service import EmailIntelligenceService
-from app.services.satisfaction_slip_parser import SatisfactionSlipParser, pdf_contains_lr
-from app.services.validation_engine import ValidationEngine, VALID_TRUCK_TYPES
-from app.models.postgres.ifias import ProcessingBatch, IfiasLineItem
+from app.models.postgres.ifias import ProcessingBatch
 
 # ---------------------------------------------------------------------------
-# PART 5 — OneDrive path (multi-PC fix)
+# Logging
+# ---------------------------------------------------------------------------
+
+log_dir = Path(__file__).resolve().parents[3] / "logs"
+log_dir.mkdir(exist_ok=True)
+
+_fh = RotatingFileHandler(
+    log_dir / "pipeline.log", maxBytes=10 * 1024 * 1024, backupCount=5
+)
+_fh.setFormatter(
+    logging.Formatter("[%(asctime)s] [%(levelname)s] [pipeline] %(message)s")
+)
+logger = logging.getLogger("pipeline")
+logger.setLevel(logging.INFO)
+logger.addHandler(_fh)
+
+# ---------------------------------------------------------------------------
+# Constants — re-exported for backward compat
 # ---------------------------------------------------------------------------
 
 ONEDRIVE_WATCH_PATH = os.getenv(
@@ -42,473 +45,95 @@ ONEDRIVE_WATCH_PATH = os.getenv(
 )
 
 
-def _find_lr_pdf_in_onedrive(lr_number: str) -> Optional[str]:
-    """
-    Fallback: search the local OneDrive sync folder for a PDF that:
-      1. Has the LR number in its filename, OR
-      2. Contains the LR number in its first page text.
-    Returns the first matching path or None.
-    """
-    if not os.path.isdir(ONEDRIVE_WATCH_PATH):
-        logger.warning(f"OneDrive path not found: {ONEDRIVE_WATCH_PATH}")
-        return None
-
-    normalized_lr = lr_number.replace(" ", "").upper()
-    logger.info(f"[{lr_number}] Searching OneDrive: {ONEDRIVE_WATCH_PATH}")
-
-    for root, _dirs, files in os.walk(ONEDRIVE_WATCH_PATH):
-        for fname in files:
-            if not fname.lower().endswith(".pdf"):
-                continue
-            full_path = os.path.join(root, fname)
-            # Quick filename check first (cheap)
-            if normalized_lr in fname.replace(" ", "").upper():
-                logger.info(f"[{lr_number}] OneDrive match (filename): {full_path}")
-                return full_path
-            # Full PDF text check (slower — only if filename didn't match)
-            if pdf_contains_lr(full_path, lr_number):
-                logger.info(f"[{lr_number}] OneDrive match (pdf text): {full_path}")
-                return full_path
-
-    logger.warning(f"[{lr_number}] No PDF found in OneDrive")
-    return None
-
-
-
-# --- Logging ---
-log_dir = Path(__file__).resolve().parents[3] / "logs"
-log_dir.mkdir(exist_ok=True)
-
-_pipeline_fh = RotatingFileHandler(log_dir / "pipeline.log", maxBytes=10 * 1024 * 1024, backupCount=5)
-_pipeline_fh.setFormatter(
-    logging.Formatter("[%(asctime)s] [%(levelname)s] [pipeline] %(message)s")
-)
-logger = logging.getLogger("pipeline")
-logger.setLevel(logging.INFO)
-logger.addHandler(_pipeline_fh)
-
-_error_fh = RotatingFileHandler(log_dir / "errors.log", maxBytes=10 * 1024 * 1024, backupCount=5)
-_error_fh.setFormatter(
-    logging.Formatter("[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s\n%(exc_info)s")
-)
-logging.getLogger().addHandler(_error_fh)
-
-
 # ---------------------------------------------------------------------------
-# Helper: Redis progress tracking
-# ---------------------------------------------------------------------------
-
-def _update_progress(batch_id: int, processed: int, total: int):
-    """Store batch progress in Redis for WebSocket streaming."""
-    try:
-        from app.celery_app import celery_app
-        celery_app.backend.client.set(
-            f"batch:{batch_id}:progress",
-            json.dumps({"processed": processed, "total": total}),
-            ex=3600,  # expire in 1 hour
-        )
-    except Exception as exc:
-        logger.warning(f"Redis progress update failed: {exc}")
-
-
-# ---------------------------------------------------------------------------
-# Task 1: Process Invoice Excel
+# Main IFIAS batch task
 # ---------------------------------------------------------------------------
 
 @celery_app.task(
-    name="ifias.process_invoice_excel",
     bind=True,
-    max_retries=3,
-    default_retry_delay=30,
+    name="ifias.run_batch",
+    max_retries=0,
 )
-def process_invoice_excel(self, file_path: str, triggered_by: str = "file_watcher"):
+def run_ifias_batch(
+    self,
+    excel_path: str,
+    batch_id: int,
+    triggered_by: str = "api",
+) -> dict:
     """
-    Step 1: Parse billing Excel → create ProcessingBatch → dispatch per-LR sub-tasks.
+    Main IFIAS Celery task.
+
+    Steps:
+      1. Mark ProcessingBatch → PROCESSING
+      2. Call IfiasProcessor.run(excel_path, batch_id)
+      3. Mark ProcessingBatch → COMPLETED with counts + output paths
+      4. On any error → mark FAILED with error_message
     """
-    logger.info(f"[task] process_invoice_excel | file={file_path} | by={triggered_by}")
-
-    try:
-        parse_result = parse_invoice_excel(file_path)
-    except Exception as exc:
-        logger.error(f"Excel parse failed: {exc}", exc_info=True)
-        raise self.retry(exc=exc)
-
-    if parse_result.errors and not parse_result.line_items:
-        logger.error(f"Parse failed with errors: {parse_result.errors}")
-        return {"status": "FAILED", "errors": parse_result.errors}
+    from app.services.ifias_processor import IfiasProcessor
 
     db = SyncSessionLocal()
     try:
-        batch = ProcessingBatch(
-            transporter_name=parse_result.transporter_name,
-            client_name=parse_result.client_name,
-            billing_period=parse_result.billing_period,
-            source_excel_path=file_path,
-            sheet_name=parse_result.sheet_name,
-            total_lrs=parse_result.total_rows,
-            status="PROCESSING",
-            triggered_by=triggered_by,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-        )
-        db.add(batch)
-        db.flush()  # Get batch.id
-
-        # Bulk insert all line items
-        items_to_create = []
-        for item in parse_result.line_items:
-            items_to_create.append(IfiasLineItem(
-                batch_id=batch.id,
-                lr_number=item.lr_number,
-                truck_number=item.truck_number,
-                sat_slip_no=item.sat_slip_no,
-                detention_days=item.detention_days,
-                truck_type=item.truck_type,
-                shipment_no=item.shipment_no,
-                service_po=item.service_po,
-                entry_sheet_no=item.entry_sheet_no,
-                region=item.region,
-                from_location=item.from_location,
-                to_location=item.to_location,
-                total_units=item.total_units,
-                total_wt=item.total_wt,
-                shortage=item.shortage,
-                detention_charge=item.detention_charge,
-                master_rate=item.master_rate,
-                payable=item.payable,
-                remarks=item.remarks,
-                excel_row_number=item.excel_row_index,  # ✅ FIXED field name
-                processing_status="PENDING",
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            ))
-
-        db.bulk_save_objects(items_to_create)
-        db.commit()
-        batch_id = batch.id
-        logger.info(
-            f"[batch:{batch_id}] Created | transporter={parse_result.transporter_name} "
-            f"| period={parse_result.billing_period} | LRs={parse_result.total_rows}"
-        )
-
-    except Exception as exc:
-        db.rollback()
-        logger.error(f"DB save failed: {exc}", exc_info=True)
-        raise self.retry(exc=exc)
-    finally:
-        db.close()
-
-    # Dispatch sub-tasks for LRs that need OCR
-    dispatched = 0
-    for item in parse_result.line_items:
-        if item.needs_ocr or item.needs_ocr_verify:
-            excel_row_data = {
-                "lr_number": item.lr_number,
-                "truck_number": item.truck_number,
-                "sat_slip_no": item.sat_slip_no,
-            }
-            search_and_extract_slip.delay(
-                lr_number=item.lr_number,
-                batch_id=batch_id,
-                excel_row_data=excel_row_data,
-            )
-            dispatched += 1
-
-    _update_progress(batch_id, 0, parse_result.total_rows)
-    logger.info(f"[batch:{batch_id}] Dispatched {dispatched} OCR sub-tasks")
-
-    return {
-        "batch_id": batch_id,
-        "total_lrs": parse_result.total_rows,
-        "dispatched_ocr": dispatched,
-        "status": "PROCESSING",
-    }
-
-
-# ---------------------------------------------------------------------------
-# Task 2: Search email + extract slip + validate + save
-# ---------------------------------------------------------------------------
-
-@celery_app.task(
-    name="ifias.search_and_extract_slip",
-    bind=True,
-    max_retries=2,
-    default_retry_delay=60,
-)
-def search_and_extract_slip(self, lr_number: str, batch_id: int, excel_row_data: dict):
-    """
-    Step 2: For a single LR:
-      - Search Outlook for matching email
-      - Download PDF
-      - Run OCR parser
-      - Run validation engine
-      - Update DB record
-    """
-    logger.info(f"[batch:{batch_id}] [LR:{lr_number}] Starting extraction")
-
-    # --- Email search ---
-    email_svc = EmailIntelligenceService()
-    pdf_path = None
-    s3_key = None
-    message_id = None
-    email_folder = None
-
-    if email_svc.connect():
-        try:
-            best = email_svc.get_best_match(lr_number)
-            if best and best.has_pdf_attachment:
-                tmp_dir = Path(tempfile.mkdtemp())
-                tmp_pdf = str(tmp_dir / f"slip_{lr_number.replace('/', '_')}.pdf")
-                dl = email_svc.download_attachment(best.message_id, best.folder, tmp_pdf)
-                if dl.success:
-                    # RULE 5 — validate PDF contains the SAME LR number
-                    if pdf_contains_lr(dl.local_path, lr_number):
-                        pdf_path = dl.local_path
-                        s3_key = dl.s3_key
-                        message_id = best.message_id
-                        email_folder = best.folder
-                    else:
-                        logger.warning(
-                            f"[{lr_number}] PDF LR mismatch — discarding email attachment"
-                        )
-                else:
-                    logger.warning(f"[{lr_number}] Download failed: {dl.error}")
-            else:
-                logger.warning(f"[{lr_number}] No email match found")
-        finally:
-            email_svc.disconnect()
-    else:
-        logger.warning(f"[{lr_number}] IMAP connection failed — skipping email search")
-
-    # --- PART 5: OneDrive fallback ---
-    if not pdf_path:
-        pdf_path = _find_lr_pdf_in_onedrive(lr_number)
-        if pdf_path:
-            # Validate LR match for OneDrive PDFs too
-            if not pdf_contains_lr(pdf_path, lr_number):
-                logger.warning(
-                    f"[{lr_number}] OneDrive PDF LR mismatch — discarding"
-                )
-                pdf_path = None
-
-    # --- OCR parsing ---
-    slip_data = None
-    if pdf_path and os.path.exists(pdf_path):
-        parser = SatisfactionSlipParser()
-        try:
-            slip_data = parser.parse(pdf_path, s3_key=s3_key)
-            logger.info(
-                f"[{lr_number}] OCR complete | truck_type={slip_data.truck_type} "
-                f"detention={slip_data.detention_days} confidence={slip_data.confidence_score:.2f}"
-            )
-        except Exception as exc:
-            logger.error(f"[{lr_number}] OCR parse error: {exc}", exc_info=True)
-
-    # --- Validation engine ---
-    validation_result = None
-    processing_status = "NEEDS_REVIEW"
-
-    if slip_data:
-        # Build a minimal excel_row proxy for validation
-        class _ExcelRow:
-            pass
-        row = _ExcelRow()
-        row.lr_number = excel_row_data.get("lr_number", lr_number)
-        row.truck_number = excel_row_data.get("truck_number")
-
-        engine = ValidationEngine()
-        # Create a dummy InvoiceLineItem for cross-validation
-        from app.services.excel_parser_service import InvoiceLineItem
-        dummy_item = InvoiceLineItem(
-            lr_number=row.lr_number,
-            truck_number=row.truck_number,
-            sat_slip_no=excel_row_data.get("sat_slip_no"),
-            detention_days=None,
-            truck_type=None,
-            shipment_no=None,
-            service_po=None,
-            entry_sheet_no=None,
-            region=None,
-            from_location=None,
-            to_location=None,
-            total_units=None,
-            total_wt=None,
-            shortage=None,
-            detention_charge=None,
-            master_rate=None,
-            payable=None,
-            remarks=None,
-            needs_ocr=True,
-            needs_ocr_verify=True,
-            excel_row_index=0,
-        )
-        validation_result = engine.validate_and_score(slip_data, dummy_item)
-        processing_status = validation_result.status
-
-        # Override: detention > 60 always needs review regardless of engine score
-        if slip_data.detention_days is not None and slip_data.detention_days > 60:
-            processing_status = "NEEDS_REVIEW"
-
-        # Override: unknown truck type always needs review
-        if slip_data.truck_type:
-            valid_types_upper = [t.upper() for t in VALID_TRUCK_TYPES]
-            if slip_data.truck_type.upper() not in valid_types_upper:
-                processing_status = "NEEDS_REVIEW"
-
-    # --- DB update ---
-    db = SyncSessionLocal()
-    try:
-        stmt = (
-            update(IfiasLineItem)
-            .where(IfiasLineItem.batch_id == batch_id)
-            .where(IfiasLineItem.lr_number == lr_number)
-            .values(
-                processing_status=processing_status,
-                truck_type_verified=slip_data.truck_type if slip_data else None,
-                detention_days_verified=slip_data.detention_days if slip_data else None,
-                confidence_score=slip_data.confidence_score if slip_data else None,
-                extraction_method=slip_data.extraction_method if slip_data else None,
-                auto_filled=bool(slip_data and slip_data.truck_type),
-                auto_filled_at=datetime.utcnow() if slip_data else None,
-                auto_fill_data=validation_result.auto_fill_data if validation_result else None,
-                flags=[
-                    {"field": f.field, "severity": f.severity, "message": f.message,
-                     "value_found": f.value_found, "value_expected": f.value_expected}
-                    for f in validation_result.flags
-                ] if validation_result else None,
-                source_pdf_local=pdf_path,
-                source_pdf_s3=s3_key,
-                email_message_id=message_id,
-                email_folder=email_folder,
-                ocr_raw_text=slip_data.raw_text[:5000] if slip_data else None,
-                updated_at=datetime.utcnow(),
-            )
-        )
-        db.execute(stmt)
-
-        # Update batch progress counters
-        _increment_batch_counters(db, batch_id, processing_status)
-        db.commit()
-
-    except Exception as exc:
-        db.rollback()
-        logger.error(f"[{lr_number}] DB update error: {exc}", exc_info=True)
-        raise self.retry(exc=exc)
-    finally:
-        db.close()
-
-    logger.info(f"[batch:{batch_id}] [LR:{lr_number}] Done → {processing_status}")
-    return {"lr_number": lr_number, "status": processing_status}
-
-
-def _increment_batch_counters(db, batch_id: int, status: str):
-    """Atomically increment processed_lrs and status-specific counter."""
-    update_vals = {
-        "processed_lrs": ProcessingBatch.processed_lrs + 1,
-        "updated_at": datetime.utcnow(),
-    }
-    if status == "AUTO_APPROVED":
-        update_vals["approved_lrs"] = ProcessingBatch.approved_lrs + 1
-    elif status == "NEEDS_REVIEW":
-        update_vals["review_lrs"] = ProcessingBatch.review_lrs + 1
-    elif status == "REJECTED":
-        update_vals["rejected_lrs"] = ProcessingBatch.rejected_lrs + 1
-
-    db.execute(
-        update(ProcessingBatch)
-        .where(ProcessingBatch.id == batch_id)
-        .values(**update_vals)
-    )
-
-    # Check if batch is now complete
-    batch = db.execute(
-        select(ProcessingBatch).where(ProcessingBatch.id == batch_id)
-    ).scalar_one_or_none()
-
-    if batch and batch.processed_lrs >= batch.total_lrs:
+        # Mark PROCESSING
         db.execute(
             update(ProcessingBatch)
             .where(ProcessingBatch.id == batch_id)
-            .values(status="COMPLETED", completed_at=datetime.utcnow())
+            .values(status="PROCESSING", updated_at=datetime.utcnow())
         )
-        logger.info(f"[batch:{batch_id}] All LRs processed → COMPLETED")
-        # Dispatch review notification
-        send_review_notification.delay(batch_id)
+        db.commit()
+        logger.info(f"[batch:{batch_id}] PROCESSING | file={excel_path}")
 
+        # Run full pipeline
+        processor = IfiasProcessor()
+        result = processor.run(excel_path=excel_path, batch_id=batch_id)
 
-# ---------------------------------------------------------------------------
-# Task 3: Reprocess a single LR
-# ---------------------------------------------------------------------------
-
-@celery_app.task(name="ifias.reprocess_single_lr")
-def reprocess_single_lr(lr_id: int):
-    """Re-run search + extract for one LR. Triggered from dashboard."""
-    db = SyncSessionLocal()
-    try:
-        item = db.execute(
-            select(IfiasLineItem).where(IfiasLineItem.id == lr_id)
-        ).scalar_one_or_none()
-
-        if not item:
-            logger.warning(f"reprocess_single_lr: LR id={lr_id} not found")
-            return {"error": "not_found"}
-
-        # Reset status to PENDING
+        # Mark COMPLETED
         db.execute(
-            update(IfiasLineItem)
-            .where(IfiasLineItem.id == lr_id)
-            .values(processing_status="PENDING", updated_at=datetime.utcnow())
+            update(ProcessingBatch)
+            .where(ProcessingBatch.id == batch_id)
+            .values(
+                status="COMPLETED",
+                total_lrs=result.total,
+                processed_lrs=result.successful + result.errors,
+                approved_lrs=result.successful,
+                review_lrs=result.manual_required,
+                completed_at=datetime.utcnow(),
+                export_excel_path=result.processed_excel_path,
+                updated_at=datetime.utcnow(),
+            )
         )
         db.commit()
 
-        excel_row_data = {
-            "lr_number": item.lr_number,
-            "truck_number": item.truck_number,
-            "sat_slip_no": item.sat_slip_no,
+        logger.info(
+            f"[batch:{batch_id}] COMPLETED | "
+            f"total={result.total}  ok={result.successful}  "
+            f"manual={result.manual_required}  err={result.errors}"
+        )
+        return {
+            "batch_id":        batch_id,
+            "status":          "COMPLETED",
+            "total":           result.total,
+            "successful":      result.successful,
+            "manual_required": result.manual_required,
+            "errors":          result.errors,
+            "processed_excel": result.processed_excel_path,
+            "report_json":     result.report_json_path,
+            "report_txt":      result.report_txt_path,
         }
-        search_and_extract_slip.delay(
-            lr_number=item.lr_number,
-            batch_id=item.batch_id,
-            excel_row_data=excel_row_data,
+
+    except Exception as exc:
+        logger.error(f"[batch:{batch_id}] FAILED: {exc}", exc_info=True)
+        db.execute(
+            update(ProcessingBatch)
+            .where(ProcessingBatch.id == batch_id)
+            .values(
+                status="FAILED",
+                error_message=str(exc),
+                updated_at=datetime.utcnow(),
+            )
         )
-        logger.info(f"Reprocess dispatched for LR id={lr_id} ({item.lr_number})")
-        return {"status": "reprocessing", "lr_number": item.lr_number}
+        db.commit()
+        raise
+
     finally:
         db.close()
 
-
-# ---------------------------------------------------------------------------
-# Task 4: Review notification
-# ---------------------------------------------------------------------------
-
-@celery_app.task(name="ifias.send_review_notification")
-def send_review_notification(batch_id: int):
-    """Send notification to accountant after batch processing completes."""
-    db = SyncSessionLocal()
-    try:
-        batch = db.execute(
-            select(ProcessingBatch).where(ProcessingBatch.id == batch_id)
-        ).scalar_one_or_none()
-
-        if not batch:
-            return
-
-        message = (
-            f"IFIAS: {batch.transporter_name} {batch.billing_period} batch complete. "
-            f"{batch.total_lrs} LRs processed | "
-            f"{batch.approved_lrs} auto-approved | "
-            f"{batch.review_lrs} need review | "
-            f"{batch.rejected_lrs} rejected."
-        )
-        logger.info(f"[batch:{batch_id}] Notification: {message}")
-
-        # Try FCM push notification if configured
-        try:
-            from app.services.fcm_service import send_push_notification
-            # Would send to accountant's device token
-            logger.info(f"[batch:{batch_id}] FCM push sent")
-        except Exception:
-            pass
-
-    finally:
-        db.close()
