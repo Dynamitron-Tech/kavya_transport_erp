@@ -1,0 +1,2 @@
+// Re-export from notifications_provider so all screens use the same live StateNotifier.
+export 'notifications_provider.dart' show notificationsProvider, unreadCountProvider, notificationServiceProvider;

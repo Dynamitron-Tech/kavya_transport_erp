@@ -1,0 +1,1067 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:math' as math;
+import '../core/theme/kt_colors.dart';
+import '../core/theme/kt_text_styles.dart';
+
+/// Main splash screen for Kavya Transports
+/// Production only — no debug UI, no replay button
+class SplashScreen extends ConsumerStatefulWidget {
+  final VoidCallback? onReadyForLogin;
+  final VoidCallback onComplete;
+
+  const SplashScreen({
+    Key? key,
+    this.onReadyForLogin,
+    required this.onComplete,
+  }) : super(key: key);
+
+  @override
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends ConsumerState<SplashScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _mainController;
+  
+  // Phase-specific animations based on normalized timeline (0.0 → 1.0)
+  late Animation<double> _truckMoveX;         // Phase 1: 0.00 → 0.22
+  late Animation<double> _truckRotate;        // Phase 2: 0.22 → 0.406
+  late Animation<double> _truckScale;         // Phase 2-3: 0.22 → 0.594
+  late Animation<double> _flashOpacity;       // Phase 3: peak at 0.531
+  late Animation<double> _doorAngle;          // Phase 4: 0.594 → 0.781
+  late Animation<double> _truckFade;          // Phase 5: 0.781 → 0.94
+  late Animation<double> _cardSettle;         // Phase 5: 0.781 → 1.0 (elastic)
+  late Animation<double> _subtitleFade;       // Phase 5: 0.9 → 1.0
+  late Animation<double> _roadLineFade;       // Phase 5: 0.781 → 1.0
+
+  double _currentProgress = 0.0;
+  bool _skipTapped = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFirstLaunchAndStart();
+  }
+
+  Future<void> _checkFirstLaunchAndStart() async {
+    const storage = FlutterSecureStorage();
+    final splashShown = await storage.read(key: 'splash_shown');
+
+    if (mounted) {
+      if (splashShown == 'true') {
+        // Skip animation, go straight to login
+        if (mounted) {
+          context.go('/login');
+        }
+        return;
+      }
+
+      // Mark splash as shown
+      await storage.write(key: 'splash_shown', value: 'true');
+      
+      // Initialize and start animation
+      _initAnimationsAndStart();
+    }
+  }
+
+  void _initAnimationsAndStart() {
+    // Single 3.2 second controller
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 3200),
+      vsync: this,
+    );
+
+    // ============= PHASE 1: TRUCK ENTERS (0.0 → 0.22) =============
+    _truckMoveX = Tween<double>(begin: -0.3, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.22, curve: Curves.easeInOut),
+      ),
+    );
+
+    // ============= PHASE 2: TRUCK ROTATES (0.22 → 0.406) =============
+    _truckRotate = Tween<double>(begin: 0.0, end: 0.35).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.22, 0.406, curve: Curves.easeInOut),
+      ),
+    );
+
+    // ============= PHASE 2-3: TRUCK SCALES (0.22 → 0.594) =============
+    _truckScale = Tween<double>(begin: 0.18, end: 9.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.22, 0.594, curve: Curves.easeIn),
+      ),
+    );
+
+    // ============= PHASE 3: HEADLIGHT FLASH (peak at 0.531) =============
+    _flashOpacity = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: 0.75),
+        weight: 30,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.75, end: 0.0),
+        weight: 70,
+      ),
+    ]).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.531, 0.594, curve: Curves.easeOut),
+      ),
+    );
+
+    // ============= PHASE 4: DOOR OPENS (0.594 → 0.781) =============
+    _doorAngle = Tween<double>(begin: 0.0, end: -1.2).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.594, 0.781, curve: Curves.easeInOut),
+      ),
+    );
+
+    // ============= PHASE 5: TRUCK FADES (0.781 → 0.94) =============
+    _truckFade = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.781, 0.94, curve: Curves.easeOut),
+      ),
+    );
+
+    // ============= PHASE 5: CARD SETTLES (0.781 → 1.0, elastic) =============
+    _cardSettle = Tween<double>(begin: 12.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.781, 1.0, curve: Curves.elasticOut),
+      ),
+    );
+
+    // ============= PHASE 5: SUBTITLE FADES IN LAST (0.9 → 1.0) =============
+    _subtitleFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.9, 1.0, curve: Curves.easeIn),
+      ),
+    );
+
+    // ============= PHASE 5: ROAD LINE FADES (0.781 → 1.0) =============
+    _roadLineFade = Tween<double>(begin: 0.6, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.781, 1.0, curve: Curves.easeOut),
+      ),
+    );
+
+    // Track progress and trigger haptic feedback at flash moment
+    _controller.addListener(() {
+      setState(() => _currentProgress = _controller.value);
+      
+      // Haptic feedback at headlight flash (≈ 0.531)
+      if (_currentProgress > 0.53 && _currentProgress < 0.545 && !_skipTapped) {
+        HapticFeedback.mediumImpact();
+      }
+    });
+
+    // Handle completion
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        Future.delayed(const Duration(milliseconds: 150), () {
+          if (mounted) context.go('/login');
+        });
+      }
+    });
+
+    // Start animation
+    _controller.forward();
+  }
+
+  void _handleTap() {
+    if (_skipTapped || _controller.isAnimating == false) return;
+
+    _skipTapped = true;
+
+    if (_currentProgress < 0.594) {
+      // Skip to door opening phase
+      _controller.animateTo(
+        0.594,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    } else if (_currentProgress < 1.0) {
+      // Skip to end
+      _controller.animateTo(
+        1.0,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+
+    return Scaffold(
+      backgroundColor: KTColors.navy950,
+      body: GestureDetector(
+        onTap: _handleTap,
+        child: Stack(
+          children: [
+            // ============= BACKGROUND + HATCHING =============
+            _buildBackground(),
+
+            // ============= ROAD LINE =============
+            Positioned(
+              top: screenSize.height * 0.5,
+              left: 0,
+              right: 0,
+              child: AnimatedBuilder(
+                animation: _roadLineFade,
+                builder: (context, _) {
+                  return Container(
+                    height: 2,
+                    color: KTColors.amber500.withOpacity(_roadLineFade.value),
+                  );
+                },
+              ),
+            ),
+
+            // ============= HEADLIGHT BEAMS =============
+            _buildHeadlightBeams(screenSize),
+
+            // ============= TRUCK ANIMATION =============
+            AnimatedBuilder(
+              animation: Listenable.merge([
+                _truckMoveX,
+                _truckRotate,
+                _truckScale,
+              ]),
+              builder: (context, _) {
+                // Show truck based on scale and fade
+                if (_currentProgress > 0.94) {
+                  return const SizedBox.shrink();
+                }
+
+                final screenWidth = screenSize.width;
+                final truckWidth = screenWidth * _truckScale.value;
+                final truckHeight = truckWidth * 0.45; // Maintain aspect ratio
+
+                // Determine truck mode based on rotation
+                final isFrontMode = _truckRotate.value > 0.3;
+
+                return Positioned(
+                  left: (screenWidth / 2) + (screenWidth * _truckMoveX.value),
+                  top: (screenSize.height * 0.5) - truckHeight,
+                  child: Opacity(
+                    opacity: _truckFade.value,
+                    child: Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.identity()
+                        ..setEntry(3, 2, 0.001) // Perspective
+                        ..rotateZ(_truckRotate.value * 0.3), // Slight tilt
+                      child: SizedBox(
+                        width: truckWidth,
+                        height: truckHeight,
+                        child: CustomPaint(
+                          painter: TruckPainter(
+                            mode: isFrontMode ? 'front' : 'side',
+                            headlightsGlowing: _currentProgress > 0.4,
+                          ),
+                          size: Size(truckWidth, truckHeight),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+
+            // ============= FLASH OVERLAY =============
+            AnimatedBuilder(
+              animation: _flashOpacity,
+              builder: (context, _) {
+                return Opacity(
+                  opacity: _flashOpacity.value,
+                  child: Container(
+                    color: KTColors.amber500,
+                  ),
+                );
+              },
+            ),
+
+            // ============= DOOR LAYER =============
+            _buildDoor(screenSize),
+
+            // ============= LOGIN CARD (ALWAYS RENDERED) =============
+            _buildLoginCard(screenSize),
+
+            // ============= SKIP LABEL =============
+            Positioned(
+              bottom: 32,
+              left: 0,
+              right: 0,
+              child: Opacity(
+                opacity: (_currentProgress < 0.594 ? 1.0 : 0.0) * 0.3,
+                child: Text(
+                  'Tap to skip',
+                  textAlign: TextAlign.center,
+                  style: KTTextStyles.label.copyWith(
+                    color: KTColors.white,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackground() {
+    return Container(
+      color: KTColors.navy950,
+      child: CustomPaint(
+        painter: BackgroundPainter(),
+        size: Size.infinite,
+      ),
+    );
+  }
+
+  Widget _buildHeadlightBeams(Size screenSize) {
+    return AnimatedBuilder(
+      animation: _truckScale,
+      builder: (context, _) {
+        // Show beams only during Phase 2+
+        if (_truckScale.value < 0.5) return const SizedBox.shrink();
+
+        final beamOpacity = math.min(1.0, (_truckScale.value - 0.5) / 2.0) * 0.15;
+
+        return Opacity(
+          opacity: beamOpacity,
+          child: CustomPaint(
+            painter: HeadlightBeamPainter(),
+            size: Size.infinite,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDoor(Size screenSize) {
+    return AnimatedBuilder(
+      animation: _doorAngle,
+      builder: (context, _) {
+        // Door only shows during Phase 4+
+        if (_currentProgress < 0.594) return const SizedBox.shrink();
+
+        const doorWidth = 320.0;
+        const doorHeight = 480.0;
+
+        return Align(
+          alignment: Alignment.center,
+          child: Transform(
+            alignment: Alignment.centerLeft, // Hinge on left edge
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.0015) // Perspective
+              ..rotateY(_doorAngle.value),
+            child: Container(
+              width: doorWidth,
+              height: doorHeight,
+              decoration: BoxDecoration(
+                color: KTColors.navy800,
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(8),
+                  bottomRight: Radius.circular(8),
+                ),
+                border: Border.all(
+                  color: KTColors.navy600,
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.6),
+                    blurRadius: 20,
+                    offset: Offset(_doorAngle.value * -20, 0),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Amber outline (panel line)
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: KTColors.amber500.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Chrome handle
+                  Positioned(
+                    right: 20,
+                    top: doorHeight / 2 - 20,
+                    child: Container(
+                      width: 10,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: KTColors.gray400,
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                  ),
+
+                  // Trim line at 35% height
+                  Positioned(
+                    top: doorHeight * 0.35,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 1,
+                      color: KTColors.gray600,
+                    ),
+                  ),
+
+                  // "KT" plate (bottom right)
+                  Positioned(
+                    bottom: 16,
+                    right: 16,
+                    child: Text(
+                      'KT',
+                      style: KTTextStyles.label.copyWith(
+                        color: KTColors.amber500,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoginCard(Size screenSize) {
+    return Align(
+      alignment: Alignment.center,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_cardSettle, _subtitleFade]),
+        builder: (context, _) {
+          return Transform.translate(
+            offset: Offset(0, _cardSettle.value),
+            child: Container(
+              width: 320,
+              decoration: BoxDecoration(
+                color: KTColors.navy800,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: KTColors.navy700,
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 40,
+                    spreadRadius: 8,
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Logo
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: KTColors.amber500.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.local_shipping,
+                      size: 56,
+                      color: KTColors.amber500,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Company name
+                  Text(
+                    'Kavya Transports',
+                    style: KTTextStyles.displaySmall.copyWith(
+                      color: KTColors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Subtitle (fades in last)
+                  Opacity(
+                    opacity: _subtitleFade.value,
+                    child: Text(
+                      'Employee Portal',
+                      style: KTTextStyles.label.copyWith(
+                        color: KTColors.gray400,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Hint text
+                  Text(
+                    'Sign in on the next screen',
+                    style: KTTextStyles.caption.copyWith(
+                      color: KTColors.gray500,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ============= CUSTOM PAINTERS =============
+
+class TruckPainter extends CustomPainter {
+  final String mode; // 'side' or 'front'
+  final bool headlightsGlowing;
+
+  TruckPainter({
+    required this.mode,
+    this.headlightsGlowing = false,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (mode == 'front') {
+      _paintFrontFace(canvas, size);
+    } else {
+      _paintSideProfile(canvas, size);
+    }
+  }
+
+  void _paintSideProfile(Canvas canvas, Size size) {
+    final width = size.width;
+    final height = size.height;
+
+    // Trailer cargo area
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, height * 0.25, width * 0.54, height * 0.40),
+        Radius.circular(2),
+      ),
+      Paint()
+        ..color = KTColors.navy900
+        ..style = PaintingStyle.fill,
+    );
+
+    // Amber stripe on trailer
+    canvas.drawRect(
+      Rect.fromLTWH(0, height * 0.30, width * 0.54, height * 0.03),
+      Paint()..color = KTColors.amber500,
+    );
+
+    // Cabin
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(width * 0.52, height * 0.10, width * 0.38, height * 0.55),
+        Radius.circular(2),
+      ),
+      Paint()
+        ..color = KTColors.navy800
+        ..style = PaintingStyle.fill,
+    );
+
+    // Windshield trapezoid
+    final windshieldPath = Path()
+      ..moveTo(width * 0.62, height * 0.12)
+      ..lineTo(width * 0.88, height * 0.12)
+      ..lineTo(width * 0.88, height * 0.35)
+      ..lineTo(width * 0.68, height * 0.35)
+      ..close();
+
+    canvas.drawPath(
+      windshieldPath,
+      Paint()
+        ..color = KTColors.navy700.withOpacity(0.5)
+        ..style = PaintingStyle.fill,
+    );
+
+    // Wheels (4)
+    final wheelPaint = Paint()..color = KTColors.gray700;
+    final rimPaint = Paint()..color = KTColors.gray500;
+
+    // Front wheel
+    canvas.drawCircle(Offset(width * 0.75, height * 0.68), height * 0.10, wheelPaint);
+    canvas.drawCircle(Offset(width * 0.75, height * 0.68), height * 0.05, rimPaint);
+
+    // Rear wheels
+    for (final x in [0.25, 0.15, 0.05]) {
+      canvas.drawCircle(Offset(width * x, height * 0.68), height * 0.10, wheelPaint);
+      canvas.drawCircle(Offset(width * x, height * 0.68), height * 0.05, rimPaint);
+    }
+
+    // Headlight
+    canvas.drawRect(
+      Rect.fromLTWH(width * 0.87, height * 0.40, width * 0.05, height * 0.08),
+      Paint()..color = KTColors.amber500,
+    );
+
+    // Exhaust pipe
+    canvas.drawRect(
+      Rect.fromLTWH(width * 0.60, height * 0.0, width * 0.03, height * 0.12),
+      Paint()..color = KTColors.gray500,
+    );
+  }
+
+  void _paintFrontFace(Canvas canvas, Size size) {
+    final width = size.width;
+    final height = size.height;
+
+    // Hood trapezoid
+    final hoodPath = Path()
+      ..moveTo(0.05 * width, 0.30 * height)
+      ..lineTo(0.95 * width, 0.30 * height)
+      ..lineTo(0.85 * width, 0.05 * height)
+      ..lineTo(0.15 * width, 0.05 * height)
+      ..close();
+
+    canvas.drawPath(
+      hoodPath,
+      Paint()
+        ..color = KTColors.navy800
+        ..style = PaintingStyle.fill,
+    );
+
+    // Grille
+    canvas.drawRect(
+      Rect.fromLTWH(0.15 * width, 0.30 * height, 0.70 * width, 0.45 * height),
+      Paint()..color = KTColors.navy900,
+    );
+
+    // Grille bars (8 horizontal)
+    for (int i = 1; i < 8; i++) {
+      final y = 0.30 * height + (0.45 * height / 8) * i;
+      canvas.drawLine(
+        Offset(0.15 * width, y),
+        Offset(0.85 * width, y),
+        Paint()
+          ..color = KTColors.gray700.withOpacity(0.8)
+          ..strokeWidth = 2,
+      );
+    }
+
+    // Center vertical bar
+    canvas.drawLine(
+      Offset(0.50 * width, 0.30 * height),
+      Offset(0.50 * width, 0.75 * height),
+      Paint()
+        ..color = KTColors.gray600
+        ..strokeWidth = 2,
+    );
+
+    // Headlights (left and right)
+    _drawHeadlight(canvas, size, 0.22, headlightsGlowing);
+    _drawHeadlight(canvas, size, 0.78, headlightsGlowing);
+
+    // Bumper
+    canvas.drawRect(
+      Rect.fromLTWH(0.05 * width, 0.72 * height, 0.90 * width, 0.12 * height),
+      Paint()..color = KTColors.gray600,
+    );
+
+    // Cabin roof
+    canvas.drawRect(
+      Rect.fromLTWH(0.10 * width, 0.0, 0.80 * width, 0.06 * height),
+      Paint()..color = KTColors.navy700,
+    );
+
+    // Marker lights on roof
+    for (final x in [0.3, 0.5, 0.7]) {
+      canvas.drawCircle(
+        Offset(x * width, 0.03 * height),
+        4,
+        Paint()..color = KTColors.amber500,
+      );
+    }
+  }
+
+  void _drawHeadlight(Canvas canvas, Size size, double xFraction, bool glowing) {
+    final x = size.width * xFraction;
+    final y = size.height * 0.22;
+    final radius = size.height * 0.14;
+
+    // Glass background
+    canvas.drawCircle(
+      Offset(x, y),
+      radius,
+      Paint()
+        ..color = KTColors.navy700
+        ..style = PaintingStyle.fill,
+    );
+
+    if (glowing) {
+      // Glow gradient
+      canvas.drawCircle(
+        Offset(x, y),
+        radius,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              KTColors.amber400.withOpacity(0.8),
+              KTColors.amber500.withOpacity(0.3),
+              Colors.transparent,
+            ],
+          ).createShader(Rect.fromCircle(center: Offset(x, y), radius: radius * 1.5)),
+      );
+    }
+
+    // Rim ring
+    canvas.drawCircle(
+      Offset(x, y),
+      radius,
+      Paint()
+        ..color = KTColors.gray500
+        ..strokeWidth = 4
+        ..style = PaintingStyle.stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(TruckPainter oldDelegate) =>
+      oldDelegate.mode != mode || oldDelegate.headlightsGlowing != headlightsGlowing;
+}
+
+class BackgroundPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Diagonal hatching pattern (top half)
+    for (int i = 0; i < 12; i++) {
+      final x = (size.width / 12) * i;
+      canvas.drawLine(
+        Offset(x + size.width * 0.2, 0),
+        Offset(x - size.width * 0.2, size.height * 0.5),
+        Paint()
+          ..color = Colors.white.withOpacity(0.04)
+          ..strokeWidth = 1,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(BackgroundPainter oldDelegate) => false;
+}
+
+class HeadlightBeamPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Left beam
+    final leftBeamPath = Path()
+      ..moveTo(size.width * 0.35, size.height * 0.48)
+      ..lineTo(size.width * 0.1, size.height)
+      ..lineTo(size.width * 0.0, size.height)
+      ..lineTo(size.width * 0.25, size.height * 0.48)
+      ..close();
+
+    // Right beam
+    final rightBeamPath = Path()
+      ..moveTo(size.width * 0.65, size.height * 0.48)
+      ..lineTo(size.width * 0.9, size.height)
+      ..lineTo(size.width * 1.0, size.height)
+      ..lineTo(size.width * 0.75, size.height * 0.48)
+      ..close();
+
+    final beamPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          KTColors.amber400.withOpacity(0.25),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    canvas.drawPath(leftBeamPath, beamPaint);
+    canvas.drawPath(rightBeamPath, beamPaint);
+  }
+
+  @override
+  bool shouldRepaint(HeadlightBeamPainter oldDelegate) => false;
+}
+
+/// Custom easing curve for door opening (ease-in first half, ease-out second half)
+class _DoorOpeningCurve extends Curve {
+  const _DoorOpeningCurve();
+
+  @override
+  double transformInternal(double t) {
+    // First half: ease-in (resisting)
+    if (t < 0.5) {
+      return (t * 2) * (t * 2) * 0.5;
+    }
+    // Second half: ease-out (swinging freely)
+    final t2 = (t - 0.5) * 2;
+    return 0.5 + (1 - (1 - t2) * (1 - t2)) * 0.5;
+  }
+}
+
+/// Truck silhouette with side and front views
+class TruckSilhouette extends StatelessWidget {
+  final double scale;
+  final bool isFullScreenPhase;
+
+  const TruckSilhouette({
+    Key? key,
+    required this.scale,
+    required this.isFullScreenPhase,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final baseWidth = 140.0 * scale;
+    const baseHeight = 70.0;
+
+    return SizedBox(
+      width: baseWidth,
+      height: baseHeight,
+      child: CustomPaint(
+        painter: TruckPainter(
+          isFullScreen: isFullScreenPhase,
+        ),
+        size: Size(baseWidth, baseHeight),
+      ),
+    );
+  }
+}
+
+/// Paints truck in side-profile (Phases 1-2) or front-facing (Phases 3-4)
+class TruckPainter extends CustomPainter {
+  final bool isFullScreen;
+
+  TruckPainter({required this.isFullScreen});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final width = size.width;
+    final height = size.height;
+
+    if (isFullScreen) {
+      _paintFrontFace(canvas, size);
+    } else {
+      _paintSideProfile(canvas, size);
+    }
+  }
+
+  void _paintSideProfile(Canvas canvas, Size size) {
+    final width = size.width;
+    final height = size.height;
+
+    // Trailer cargo area
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, height * 0.35, width * 0.65, height * 0.45),
+        const Radius.circular(3),
+      ),
+      Paint()
+        ..color = KTColors.navy700
+        ..style = PaintingStyle.fill,
+    );
+
+    // Cabin
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(width * 0.62, height * 0.2, width * 0.3, height * 0.6),
+        const Radius.circular(2),
+      ),
+      Paint()
+        ..color = KTColors.navy800
+        ..style = PaintingStyle.fill,
+    );
+
+    // Wheels
+    canvas.drawCircle(
+      Offset(width * 0.18, height * 0.82),
+      height * 0.12,
+      Paint()
+        ..color = Colors.black87,
+    );
+
+    canvas.drawCircle(
+      Offset(width * 0.52, height * 0.82),
+      height * 0.12,
+      Paint()
+        ..color = Colors.black87,
+    );
+
+    // Headlight glow
+    canvas.drawCircle(
+      Offset(width * 0.92, height * 0.4),
+      height * 0.08,
+      Paint()
+        ..color = KTColors.amber500.withOpacity(0.4),
+    );
+  }
+
+  void _paintFrontFace(Canvas canvas, Size size) {
+    final width = size.width;
+    final height = size.height;
+
+    // Cabin front face
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(width * 0.1, height * 0.1, width * 0.8, height * 0.8),
+        const Radius.circular(8),
+      ),
+      Paint()
+        ..color = KTColors.navy800,
+    );
+
+    // Grille
+    for (int i = 0; i < 4; i++) {
+      canvas.drawLine(
+        Offset(width * 0.2, height * 0.3 + (i * 12)),
+        Offset(width * 0.9, height * 0.3 + (i * 12)),
+        Paint()
+          ..color = KTColors.gray500
+          ..strokeWidth = 1,
+      );
+    }
+
+    // Headlights (large amber circles)
+    canvas.drawCircle(
+      Offset(width * 0.3, height * 0.35),
+      height * 0.15,
+      Paint()
+        ..color = KTColors.amber500,
+    );
+
+    canvas.drawCircle(
+      Offset(width * 0.7, height * 0.35),
+      height * 0.15,
+      Paint()
+        ..color = KTColors.amber500,
+    );
+
+    // Headlight glows
+    canvas.drawCircle(
+      Offset(width * 0.3, height * 0.35),
+      height * 0.18,
+      Paint()
+        ..color = KTColors.amber500.withOpacity(0.2)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+
+    canvas.drawCircle(
+      Offset(width * 0.7, height * 0.35),
+      height * 0.18,
+      Paint()
+        ..color = KTColors.amber500.withOpacity(0.2)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+  }
+
+  @override
+  bool shouldRepaint(TruckPainter oldDelegate) =>
+      oldDelegate.isFullScreen != isFullScreen;
+}
+
+/// Background with road line and speed lines
+class BackgroundPainter extends CustomPainter {
+  final double roadLineOpacity;
+
+  BackgroundPainter({required this.roadLineOpacity});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Road line (horizontal amber line, 60% opacity, 2px)
+    canvas.drawLine(
+      Offset(0, size.height * 0.5),
+      Offset(size.width, size.height * 0.5),
+      Paint()
+        ..color = KTColors.amber500.withOpacity(0.6 * roadLineOpacity)
+        ..strokeWidth = 2,
+    );
+
+    // Dashed centerline below road
+    const dashWidth = 12.0;
+    const dashGap = 8.0;
+    var x = 0.0;
+
+    while (x < size.width) {
+      canvas.drawLine(
+        Offset(x, size.height * 0.505),
+        Offset(x + dashWidth, size.height * 0.505),
+        Paint()
+          ..color = KTColors.amber500.withOpacity(0.3 * roadLineOpacity)
+          ..strokeWidth = 1,
+      );
+      x += dashWidth + dashGap;
+    }
+
+    // Speed lines during Phase 1 (subtle motion effect)
+    for (int i = 0; i < 4; i++) {
+      canvas.drawLine(
+        Offset(0, size.height * 0.4 + (i * 15)),
+        Offset(size.width * 0.3, size.height * 0.4 + (i * 15)),
+        Paint()
+          ..color = Colors.white.withOpacity(0.05)
+          ..strokeWidth = 1.5,
+      );
+    }
+
+    // Subtle diagonal hatching pattern (very faint)
+    for (int i = 0; i < (size.width / 50).toInt(); i++) {
+      canvas.drawLine(
+        Offset(i * 50.0, size.height * 0.2),
+        Offset(i * 50.0 + 40, size.height * 0.1),
+        Paint()
+          ..color = Colors.white.withOpacity(0.02)
+          ..strokeWidth = 0.5,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(BackgroundPainter oldDelegate) =>
+      oldDelegate.roadLineOpacity != roadLineOpacity;
+}
+
+/// Perspective helper widget for 3D effects (simplified)
+class Perspective extends StatelessWidget {
+  final Widget child;
+
+  const Perspective({
+    Key? key,
+    required this.child,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return child;
+  }
+}
