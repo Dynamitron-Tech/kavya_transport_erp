@@ -956,7 +956,7 @@ export default function CreateLRPage() {
 
   // ── Permission Check ──
   const hasPermission = user?.permissions?.includes('lr:create') ||
-    user?.roles?.some((r) => ['admin', 'manager', 'project_associate'].includes(r));
+    user?.roles?.some((r) => ['admin', 'manager', 'project_associate', 'fleet_manager'].includes(r));
 
   if (!hasPermission) {
     return (

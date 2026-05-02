@@ -243,7 +243,7 @@ ROLE_PERMISSIONS = {
         # Client (read-only, needed to fill consignee on LR creation)
         Permissions.CLIENT_READ,
         # LR
-        Permissions.LR_READ,
+        Permissions.LR_CREATE, Permissions.LR_READ, Permissions.LR_UPDATE,
         # Invoice (view only for trip reference)
         Permissions.INVOICE_READ,
         # Fuel

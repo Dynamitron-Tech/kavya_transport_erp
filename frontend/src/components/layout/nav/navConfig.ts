@@ -166,6 +166,7 @@ export const NAV_CONFIG: Record<HeaderNavRole, { sections: HeaderNavSection[] }>
         label: 'Operations',
         items: [
           { label: 'Lorry Receipts', route: '/lr', icon: 'file', description: 'Generate and manage LR documents' },
+          { label: 'Create LR', route: '/lr/new', icon: 'fileplus', description: 'Create a new lorry receipt' },
           { label: 'Trips', route: '/trips', icon: 'map', description: 'Track and manage vehicle trips' },
           { label: 'Market Trips', route: '/market-trips', icon: 'truck', description: 'Hired truck trips and P&L' },
         ],
