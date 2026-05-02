@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import '../../core/theme/kt_colors.dart';
 import '../../providers/fleet_dashboard_provider.dart';
 import '../../providers/pump_dashboard_provider.dart';
@@ -901,9 +902,10 @@ class _TripExpenseGroupState extends ConsumerState<_TripExpenseGroup> {
       if (id == null) continue;
       if (mounted) setState(() => _paying.add(id));
       try {
-        final res = await api.patch(
-            '/finance-manager/trip-expenses/$id/pay', data: {});
-        if (!((res is Map) && res['success'] == true)) anyFailed = true;
+        await api.patch('/finance-manager/trip-expenses/$id/pay', data: {});
+      } on DioException catch (e) {
+        // 400 means already paid — treat as success, skip
+        if (e.response?.statusCode != 400) anyFailed = true;
       } catch (_) {
         anyFailed = true;
       }

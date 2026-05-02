@@ -168,7 +168,7 @@ async def payment_history(
         trip = trips_map_exp.get(e.trip_id)
         trip_number = trip.trip_number if trip else str(e.trip_id)
         driver_name = (trip.driver_name or "Driver") if trip else "Driver"
-        exp_type = getattr(e.expense_type, "value", str(e.expense_type or "EXPENSE"))
+        exp_type = getattr(e.category, "value", str(e.category or "EXPENSE"))
         exp_label = exp_type.replace("_", " ").title()
         items.append({
             "type": "TRIP_EXPENSE",
