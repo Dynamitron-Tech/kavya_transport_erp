@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
+import { Upload, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { invoiceWorkspaceService } from '@/services/invoiceWorkspaceService';
 import type { ProcessingBatch } from '@/services/invoiceWorkspaceService';
 
 interface BatchSelectorProps {
@@ -6,6 +9,7 @@ interface BatchSelectorProps {
   selectedBatchId: number | null;
   onSelect: (id: number) => void;
   isLoading?: boolean;
+  onUploadSuccess?: (batchId: number) => void;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -16,8 +20,26 @@ const STATUS_COLOR: Record<string, string> = {
   EXPORTED: 'bg-purple-100 text-purple-700',
 };
 
-export default function BatchSelector({ batches, selectedBatchId, onSelect, isLoading }: BatchSelectorProps) {
+export default function BatchSelector({ batches, selectedBatchId, onSelect, isLoading, onUploadSuccess }: BatchSelectorProps) {
   const selected = batches.find(b => b.id === selectedBatchId);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const result = await invoiceWorkspaceService.uploadExcel(file);
+      toast.success(`Batch created — processing ${result.total_lrs ?? ''} LRs`);
+      onUploadSuccess?.(result.batch_id);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail ?? 'Upload failed');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -37,6 +59,29 @@ export default function BatchSelector({ batches, selectedBatchId, onSelect, isLo
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Upload new batch */}
+        <div className="shrink-0">
+          <label className="block text-xs font-medium text-gray-500 mb-1 sm:text-right">New Batch</label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {uploading ? (
+              <><Loader2 size={14} className="animate-spin" /> Uploading…</>
+            ) : (
+              <><Upload size={14} /> Upload Excel</>
+            )}
+          </button>
         </div>
 
         {selected && (

@@ -210,6 +210,12 @@ export default function InvoiceWorkspacePage() {
             setPage(1);
           }}
           isLoading={batchesLoading}
+          onUploadSuccess={(batchId) => {
+            qc.invalidateQueries({ queryKey: ['ifias-batches'] });
+            setSelectedBatchId(batchId);
+            setActiveTab('ALL');
+            setPage(1);
+          }}
         />
 
         {selectedBatchId && (

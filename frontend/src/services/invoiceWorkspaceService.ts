@@ -112,8 +112,12 @@ export const invoiceWorkspaceService = {
     return unwrap(res);
   },
 
-  uploadExcel: async (filePath: string) => {
-    const res = await api.post(`/invoice-batches/upload`, { file_path: filePath });
+  uploadExcel: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post(`/invoice-batches/upload`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return unwrap(res);
   },
 };

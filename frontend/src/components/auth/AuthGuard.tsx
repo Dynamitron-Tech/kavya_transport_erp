@@ -8,9 +8,17 @@ interface AuthGuardProps {
   requiredRole?: string;
 }
 
+// Dev-only preview bypass: add ?preview=1 to any URL to skip auth in development
+const isDevPreview =
+  import.meta.env.DEV &&
+  new URLSearchParams(window.location.search).get('preview') === '1';
+
 export default function AuthGuard({ children, requiredPermission, requiredRole }: AuthGuardProps) {
   const { isAuthenticated, isLoading, hasPermission, hasRole } = useAuthStore();
   const location = useLocation();
+
+  // In dev preview mode, skip all auth checks
+  if (isDevPreview) return <>{children}</>;
 
   if (isLoading) {
     return (
