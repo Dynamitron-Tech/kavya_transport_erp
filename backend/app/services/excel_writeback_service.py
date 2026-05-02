@@ -147,8 +147,12 @@ class ExcelWritebackService:
         sat_slip_col = col_index.get("sat_slip_no")
 
         # Build a lookup: normalized LR → ConfirmedLineItem
+        # PART 6 — safety guard: only write confirmed items
         item_map: Dict[str, ConfirmedLineItem] = {
-            _normalize_lr(item.lr_number): item for item in confirmed_items
+            _normalize_lr(item.lr_number): item
+            for item in confirmed_items
+            if getattr(item, "processing_status", "CONFIRMED").upper() == "CONFIRMED"
+            or not hasattr(item, "processing_status")  # ConfirmedLineItem has no status field — already filtered
         }
 
         # 5. Iterate rows and write matching items
