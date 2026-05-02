@@ -19,6 +19,7 @@ import tempfile
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Optional
 
 from celery import shared_task, group
 from sqlalchemy import select, update, func
@@ -27,9 +28,52 @@ from app.celery_app import celery_app
 from app.db.postgres.connection import SyncSessionLocal
 from app.services.excel_parser_service import parse_invoice_excel
 from app.services.email_intelligence_service import EmailIntelligenceService
-from app.services.satisfaction_slip_parser import SatisfactionSlipParser
-from app.services.validation_engine import ValidationEngine
+from app.services.satisfaction_slip_parser import SatisfactionSlipParser, pdf_contains_lr
+from app.services.validation_engine import ValidationEngine, VALID_TRUCK_TYPES
 from app.models.postgres.ifias import ProcessingBatch, IfiasLineItem
+
+# ---------------------------------------------------------------------------
+# PART 5 — OneDrive path (multi-PC fix)
+# ---------------------------------------------------------------------------
+
+ONEDRIVE_WATCH_PATH = os.getenv(
+    "ONEDRIVE_WATCH_PATH",
+    os.path.join(os.path.expanduser("~"), "OneDrive"),
+)
+
+
+def _find_lr_pdf_in_onedrive(lr_number: str) -> Optional[str]:
+    """
+    Fallback: search the local OneDrive sync folder for a PDF that:
+      1. Has the LR number in its filename, OR
+      2. Contains the LR number in its first page text.
+    Returns the first matching path or None.
+    """
+    if not os.path.isdir(ONEDRIVE_WATCH_PATH):
+        logger.warning(f"OneDrive path not found: {ONEDRIVE_WATCH_PATH}")
+        return None
+
+    normalized_lr = lr_number.replace(" ", "").upper()
+    logger.info(f"[{lr_number}] Searching OneDrive: {ONEDRIVE_WATCH_PATH}")
+
+    for root, _dirs, files in os.walk(ONEDRIVE_WATCH_PATH):
+        for fname in files:
+            if not fname.lower().endswith(".pdf"):
+                continue
+            full_path = os.path.join(root, fname)
+            # Quick filename check first (cheap)
+            if normalized_lr in fname.replace(" ", "").upper():
+                logger.info(f"[{lr_number}] OneDrive match (filename): {full_path}")
+                return full_path
+            # Full PDF text check (slower — only if filename didn't match)
+            if pdf_contains_lr(full_path, lr_number):
+                logger.info(f"[{lr_number}] OneDrive match (pdf text): {full_path}")
+                return full_path
+
+    logger.warning(f"[{lr_number}] No PDF found in OneDrive")
+    return None
+
+
 
 # --- Logging ---
 log_dir = Path(__file__).resolve().parents[3] / "logs"
@@ -133,7 +177,7 @@ def process_invoice_excel(self, file_path: str, triggered_by: str = "file_watche
                 master_rate=item.master_rate,
                 payable=item.payable,
                 remarks=item.remarks,
-                excel_row_number=item.row_number,
+                excel_row_number=item.excel_row_index,  # ✅ FIXED field name
                 processing_status="PENDING",
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
@@ -217,10 +261,16 @@ def search_and_extract_slip(self, lr_number: str, batch_id: int, excel_row_data:
                 tmp_pdf = str(tmp_dir / f"slip_{lr_number.replace('/', '_')}.pdf")
                 dl = email_svc.download_attachment(best.message_id, best.folder, tmp_pdf)
                 if dl.success:
-                    pdf_path = dl.local_path
-                    s3_key = dl.s3_key
-                    message_id = best.message_id
-                    email_folder = best.folder
+                    # RULE 5 — validate PDF contains the SAME LR number
+                    if pdf_contains_lr(dl.local_path, lr_number):
+                        pdf_path = dl.local_path
+                        s3_key = dl.s3_key
+                        message_id = best.message_id
+                        email_folder = best.folder
+                    else:
+                        logger.warning(
+                            f"[{lr_number}] PDF LR mismatch — discarding email attachment"
+                        )
                 else:
                     logger.warning(f"[{lr_number}] Download failed: {dl.error}")
             else:
@@ -229,6 +279,17 @@ def search_and_extract_slip(self, lr_number: str, batch_id: int, excel_row_data:
             email_svc.disconnect()
     else:
         logger.warning(f"[{lr_number}] IMAP connection failed — skipping email search")
+
+    # --- PART 5: OneDrive fallback ---
+    if not pdf_path:
+        pdf_path = _find_lr_pdf_in_onedrive(lr_number)
+        if pdf_path:
+            # Validate LR match for OneDrive PDFs too
+            if not pdf_contains_lr(pdf_path, lr_number):
+                logger.warning(
+                    f"[{lr_number}] OneDrive PDF LR mismatch — discarding"
+                )
+                pdf_path = None
 
     # --- OCR parsing ---
     slip_data = None
@@ -243,7 +304,7 @@ def search_and_extract_slip(self, lr_number: str, batch_id: int, excel_row_data:
         except Exception as exc:
             logger.error(f"[{lr_number}] OCR parse error: {exc}", exc_info=True)
 
-    # --- Validation ---
+    # --- Validation engine ---
     validation_result = None
     processing_status = "NEEDS_REVIEW"
 
@@ -279,10 +340,20 @@ def search_and_extract_slip(self, lr_number: str, batch_id: int, excel_row_data:
             remarks=None,
             needs_ocr=True,
             needs_ocr_verify=True,
-            row_number=0,
+            excel_row_index=0,
         )
         validation_result = engine.validate_and_score(slip_data, dummy_item)
         processing_status = validation_result.status
+
+        # Override: detention > 60 always needs review regardless of engine score
+        if slip_data.detention_days is not None and slip_data.detention_days > 60:
+            processing_status = "NEEDS_REVIEW"
+
+        # Override: unknown truck type always needs review
+        if slip_data.truck_type:
+            valid_types_upper = [t.upper() for t in VALID_TRUCK_TYPES]
+            if slip_data.truck_type.upper() not in valid_types_upper:
+                processing_status = "NEEDS_REVIEW"
 
     # --- DB update ---
     db = SyncSessionLocal()
