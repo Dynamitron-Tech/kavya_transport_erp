@@ -451,7 +451,15 @@ ROLE_PERMISSIONS = {
         # Clerks can create and read LRs, and mark their own attendance
         Permissions.LR_CREATE,
         Permissions.LR_READ,
+        Permissions.LR_UPDATE,
+        # Needed to populate dropdowns on the Create LR form
+        Permissions.CLIENT_READ,
+        Permissions.VEHICLE_READ,
+        Permissions.DRIVER_READ,
+        Permissions.TRIP_READ,
         Permissions.ALERT_VIEW,
+        Permissions.ATTENDANCE_CREATE,
+        Permissions.ATTENDANCE_READ,
     ],
 }
 

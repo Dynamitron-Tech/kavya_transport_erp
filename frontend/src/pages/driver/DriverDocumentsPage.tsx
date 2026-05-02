@@ -43,7 +43,7 @@ function resolveFileUrl(fileUrl?: string): string {
   }
 
   if (import.meta.env.DEV) {
-    const backendOrigin = (import.meta.env.VITE_PROXY_TARGET || 'http://localhost:8000').replace(/\/$/, '');
+    const backendOrigin = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/api\/v1$/, '').replace(/\/$/, '');
     return `${backendOrigin}${normalized}`;
   }
   return normalized;
