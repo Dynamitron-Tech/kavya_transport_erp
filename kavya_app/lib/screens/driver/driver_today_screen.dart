@@ -555,7 +555,7 @@ class _DriverTodayScreenState extends ConsumerState<DriverTodayScreen> {
     String checkInDisplay = '--:--';
     if (attendance?.checkInTime != null) {
       try {
-        final dt = DateTime.parse(attendance!.checkInTime!);
+        final dt = DateTime.parse(attendance!.checkInTime!).toLocal();
         final hh = dt.hour.toString().padLeft(2, '0');
         final mm = dt.minute.toString().padLeft(2, '0');
         checkInDisplay = '$hh:$mm';
