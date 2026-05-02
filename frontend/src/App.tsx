@@ -68,6 +68,9 @@ import AuditorMaintenancePage from '@/pages/auditor/AuditorMaintenancePage';
 
 // Clerk Pages
 import ClerkDashboardPage from '@/pages/clerk/ClerkDashboardPage';
+import ClerkLRsPage from '@/pages/clerk/ClerkLRsPage';
+import ClerkPODPage from '@/pages/clerk/ClerkPODPage';
+import ClerkAttendancePage from '@/pages/clerk/ClerkAttendancePage';
 
 // Compliance & Tools
 import VehicleCompliancePage from '@/pages/fleet/VehicleCompliancePage';
@@ -93,7 +96,6 @@ import FleetMaintenancePage from '@/pages/fleet/FleetMaintenancePage';
 import FleetFuelPage from '@/pages/fleet/FleetFuelPage';
 import FleetAlertsPage from '@/pages/fleet/FleetAlertsPage';
 import FleetReportsPage from '@/pages/fleet/FleetReportsPage';
-import TyrePage from '@/pages/fleet/TyrePage';
 import TyreTrackerPage from '@/pages/fleet/TyreTrackerPage';
 import FleetPumpManagementPage from '@/pages/fleet/FleetPumpManagementPage';
 import GeofenceManagementPage from '@/pages/fleet/GeofenceManagementPage';
@@ -259,6 +261,9 @@ function App() {
 
           {/* Clerk Role Pages */}
           <Route path="/clerk/dashboard" element={<ClerkDashboardPage />} />
+          <Route path="/clerk/lrs" element={<ClerkLRsPage />} />
+          <Route path="/clerk/pod" element={<ClerkPODPage />} />
+          <Route path="/clerk/attendance" element={<ClerkAttendancePage />} />
 
           {/* Settings */}
           <Route path="/settings" element={<SettingsPage />} />
@@ -285,7 +290,6 @@ function App() {
           <Route path="/fleet/maintenance" element={<FleetMaintenancePage />} />
           <Route path="/fleet/fuel" element={<FleetFuelPage />} />
           <Route path="/fleet/tyres" element={<TyreTrackerPage />} />
-          <Route path="/fleet/tyres-old" element={<TyrePage />} />
           <Route path="/fleet/alerts" element={<FleetAlertsPage />} />
           <Route path="/fleet/reports" element={<FleetReportsPage />} />
           <Route path="/fleet/geofences" element={<GeofenceManagementPage />} />
