@@ -38,6 +38,12 @@ class IfiasReportBuilder:
         manual_required = sum(1 for r in lr_results if r.status == STATUS_MANUAL)
         errors         = sum(1 for r in lr_results if r.status == STATUS_ERROR)
 
+        # Source breakdown (how many LRs came from each source)
+        source_breakdown: Dict[str, int] = {}
+        for r in lr_results:
+            if r.source:
+                source_breakdown[r.source] = source_breakdown.get(r.source, 0) + 1
+
         per_lr: Dict[str, dict] = {}
         for r in lr_results:
             entry: Dict = {"status": r.status}
@@ -47,6 +53,8 @@ class IfiasReportBuilder:
                 entry["detention_days"] = r.detention_days
             if r.error_detail:
                 entry["reason"] = r.error_detail
+            if r.source:
+                entry["source"] = r.source
             if r.from_cache:
                 entry["from_cache"] = True
             per_lr[r.lr_number] = entry
@@ -61,6 +69,7 @@ class IfiasReportBuilder:
             "manual_required": manual_required,
             "errors":          errors,
             "success_rate_pct": round(successful / total * 100, 1) if total else 0,
+            "source_breakdown": source_breakdown,
             "per_lr":          per_lr,
         }
 
@@ -92,6 +101,19 @@ class IfiasReportBuilder:
             f"   Manual Reqd  : {report['manual_required']}",
             f"   Errors       : {report['errors']}",
             f"   Success %    : {report['success_rate_pct']}%",
+            "-" * 65,
+            "   SOURCE BREAKDOWN",
+            "-" * 65,
+        ]
+
+        breakdown = report.get("source_breakdown") or {}
+        if breakdown:
+            for src, count in sorted(breakdown.items()):
+                lines.append(f"   {src:<20} : {count} LR(s)")
+        else:
+            lines.append("   (no automated sources used)")
+
+        lines += [
             "=" * 65,
             "   PER-LR LOG",
             "-" * 65,
@@ -106,6 +128,8 @@ class IfiasReportBuilder:
                 extras.append(f"detention={data['detention_days']}")
             if data.get("reason"):
                 extras.append(f"reason={data['reason']}")
+            if data.get("source"):
+                extras.append(f"src={data['source']}")
             if data.get("from_cache"):
                 extras.append("CACHE")
 

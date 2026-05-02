@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -67,6 +68,7 @@ class LRResult:
     status: str = STATUS_MANUAL
     error_detail: Optional[str] = None
     from_cache: bool = False
+    source: Optional[str] = None    # CACHE | IMAP | BROWSER | ONEDRIVE
 
 
 @dataclass
@@ -165,6 +167,7 @@ class IfiasProcessor:
                         "truck_type":    result.truck_type,
                         "detention_days": result.detention_days,
                         "status":        STATUS_SUCCESS,
+                        "source":        result.source,
                         "cached_at":     datetime.utcnow().isoformat(),
                     }
         finally:
@@ -225,9 +228,46 @@ class IfiasProcessor:
         browser_svc: Optional[BrowserEmailService] = None,
     ) -> LRResult:
         """
-        Process a single LR. Returns LRResult with status one of:
-            SUCCESS | REQUIRES MANUAL INSPECTION | ERROR
-        Never raises — all exceptions are caught and mapped to ERROR.
+        Thin wrapper: runs _do_process_lr with a 20-second per-LR timeout.
+        Never raises.
+        """
+        lr = item.lr_number
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(
+                self._do_process_lr, item, cache, email_svc, browser_svc
+            )
+            try:
+                return future.result(timeout=20)
+            except FuturesTimeoutError:
+                logger.warning(f"[{lr}] Processing timeout (20s) → ERROR")
+                return LRResult(
+                    sl_no=item.sl_no,
+                    lr_number=lr,
+                    excel_row_index=item.excel_row_index,
+                    status=STATUS_ERROR,
+                    error_detail="Processing timeout exceeded 20 seconds",
+                )
+            except Exception as exc:
+                logger.error(f"[{lr}] Unexpected outer error: {exc}", exc_info=True)
+                return LRResult(
+                    sl_no=item.sl_no,
+                    lr_number=lr,
+                    excel_row_index=item.excel_row_index,
+                    status=STATUS_ERROR,
+                    error_detail=str(exc),
+                )
+
+    def _do_process_lr(
+        self,
+        item: InvoiceLineItem,
+        cache: Dict,
+        email_svc: Optional[EmailIntelligenceService],
+        browser_svc: Optional[BrowserEmailService] = None,
+    ) -> LRResult:
+        """
+        Core per-LR logic.
+        Search order: CACHE → IMAP → BROWSER → ONEDRIVE
+        pdf_contains_lr() is validated per-source before moving to the next.
         """
         lr = item.lr_number
         result = LRResult(
@@ -241,41 +281,54 @@ class IfiasProcessor:
             cache_key = self._cache_key(item)
             if cache_key in cache:
                 cached = cache[cache_key]
-                result.truck_type    = cached.get("truck_type")
+                result.truck_type     = cached.get("truck_type")
                 result.detention_days = cached.get("detention_days")
-                result.status        = STATUS_SUCCESS
-                result.from_cache    = True
+                result.status         = STATUS_SUCCESS
+                result.source         = "CACHE"
+                result.from_cache     = True
                 logger.info(f"[{lr}] Cache hit")
                 return result
 
-            # 2. IMAP email search
-            pdf_path = None
+            pdf_path: Optional[str] = None
+
+            # 2. Try IMAP (validate per-source — if wrong PDF, continue to next source)
             if email_svc:
-                pdf_path = self._fetch_from_email(lr, email_svc)
+                candidate = self._fetch_from_email(lr, email_svc)
+                if candidate and pdf_contains_lr(candidate, lr):
+                    pdf_path = candidate
+                    result.source = "IMAP"
+                    logger.info(f"[{lr}] PDF validated via IMAP")
+                elif candidate:
+                    logger.warning(f"[{lr}] IMAP PDF does not contain LR — trying next source")
 
-            # 3. Browser automation fallback (if IMAP blocked or LR not found in email)
+            # 3. Try Browser (if IMAP missed or returned wrong PDF)
             if not pdf_path and browser_svc:
-                logger.info(f"[{lr}] IMAP miss — trying browser automation")
-                pdf_path = self._fetch_from_browser(lr, browser_svc)
+                logger.info(f"[{lr}] Trying browser automation")
+                candidate = self._fetch_from_browser(lr, browser_svc)
+                if candidate and pdf_contains_lr(candidate, lr):
+                    pdf_path = candidate
+                    result.source = "BROWSER"
+                    logger.info(f"[{lr}] PDF validated via Browser")
+                elif candidate:
+                    logger.warning(f"[{lr}] Browser PDF does not contain LR — trying OneDrive")
 
-            # 4. OneDrive local folder fallback
+            # 4. Try OneDrive local folder (limited depth)
             if not pdf_path:
-                pdf_path = self._fetch_from_onedrive(lr)
+                candidate = self._fetch_from_onedrive(lr)
+                if candidate and pdf_contains_lr(candidate, lr):
+                    pdf_path = candidate
+                    result.source = "ONEDRIVE"
+                    logger.info(f"[{lr}] PDF validated via OneDrive")
+                elif candidate:
+                    logger.warning(f"[{lr}] OneDrive PDF does not contain LR")
 
             if not pdf_path:
                 result.status       = STATUS_MANUAL
-                result.error_detail = "No satisfaction slip PDF found (IMAP + Browser + OneDrive searched)"
+                result.error_detail = "No valid satisfaction slip PDF found (IMAP + Browser + OneDrive searched)"
                 logger.info(f"[{lr}] No PDF found → MANUAL")
                 return result
 
-            # 4. Validate PDF contains this LR
-            if not pdf_contains_lr(pdf_path, lr):
-                result.status       = STATUS_MANUAL
-                result.error_detail = "PDF found but does not contain this LR number"
-                logger.warning(f"[{lr}] PDF LR mismatch → MANUAL")
-                return result
-
-            # 5. Extract
+            # 5. Extract (truck_type + detention_days)
             parser = SatisfactionSlipParser()
             slip = parser.parse(pdf_path)
 
@@ -285,11 +338,12 @@ class IfiasProcessor:
                 logger.warning(f"[{lr}] OCR failed → ERROR")
                 return result
 
-            result.truck_type    = slip.truck_type
+            result.truck_type     = slip.truck_type
             result.detention_days = slip.detention_days
-            result.status        = STATUS_SUCCESS
+            result.status         = STATUS_SUCCESS
             logger.info(
-                f"[{lr}] SUCCESS | truck_type={slip.truck_type}  detention={slip.detention_days}"
+                f"[{lr}] SUCCESS | source={result.source}  "
+                f"truck_type={slip.truck_type}  detention={slip.detention_days}"
             )
 
         except Exception as exc:
@@ -344,32 +398,34 @@ class IfiasProcessor:
         return None
 
     @staticmethod
-    def _fetch_from_onedrive(lr: str) -> Optional[str]:
-        """Walk the local OneDrive sync folder for a PDF matching this LR. Returns path or None."""
+    def _fetch_from_onedrive(lr: str, max_depth: int = 3) -> Optional[str]:
+        """
+        Walk the local OneDrive sync folder up to max_depth levels deep,
+        searching for a PDF whose filename contains the LR number.
+        Validation (pdf_contains_lr) is performed by the caller.
+        Returns the first filename-matched path, or None.
+        """
         if not os.path.isdir(ONEDRIVE_WATCH_PATH):
             return None
 
         normalized_lr = lr.replace(" ", "").upper()
-        logger.info(f"[{lr}] Searching OneDrive: {ONEDRIVE_WATCH_PATH}")
+        base_depth = ONEDRIVE_WATCH_PATH.rstrip(os.sep).count(os.sep)
+        logger.info(f"[{lr}] Searching OneDrive (depth≤{max_depth}): {ONEDRIVE_WATCH_PATH}")
 
-        for root, _dirs, files in os.walk(ONEDRIVE_WATCH_PATH):
+        for root, dirs, files in os.walk(ONEDRIVE_WATCH_PATH):
+            current_depth = root.count(os.sep) - base_depth
+            if current_depth >= max_depth:
+                dirs[:] = []  # prune — do not recurse deeper
+
             for fname in files:
                 if not fname.lower().endswith(".pdf"):
                     continue
-                full_path = os.path.join(root, fname)
-                # Cheap: filename contains LR
                 if normalized_lr in fname.replace(" ", "").upper():
-                    logger.info(f"[{lr}] OneDrive match (filename): {full_path}")
+                    full_path = os.path.join(root, fname)
+                    logger.info(f"[{lr}] OneDrive candidate: {full_path}")
                     return full_path
-                # Expensive: scan PDF text
-                try:
-                    if pdf_contains_lr(full_path, lr):
-                        logger.info(f"[{lr}] OneDrive match (pdf text): {full_path}")
-                        return full_path
-                except Exception:
-                    pass
 
-        logger.info(f"[{lr}] Not found in OneDrive")
+        logger.info(f"[{lr}] Not found in OneDrive (depth≤{max_depth})")
         return None
 
     # ------------------------------------------------------------------
@@ -397,9 +453,16 @@ class IfiasProcessor:
             ws.cell(row=header_row_idx, column=new_col, value="STATUS")
             col_map["status"] = new_col
 
+        # Add SOURCE column if missing
+        if "source" not in col_map:
+            new_col = ws.max_column + 1
+            ws.cell(row=header_row_idx, column=new_col, value="SOURCE")
+            col_map["source"] = new_col
+
         truck_type_col  = col_map.get("truck_type")
         detention_col   = col_map.get("detention_days")
         status_col      = col_map["status"]
+        source_col      = col_map["source"]
 
         # Build lookup: excel_row_index → LRResult
         row_map: Dict[int, LRResult] = {r.excel_row_index: r for r in results}
@@ -417,6 +480,9 @@ class IfiasProcessor:
                 status_cell.fill = FILL_MANUAL
             else:
                 status_cell.fill = FILL_ERROR
+
+            if lr_result.source:
+                ws.cell(row=row_idx, column=source_col, value=lr_result.source)
 
         wb.save(output_path)
         logger.info(f"[IFIAS] Processed Excel saved → {output_path}")
@@ -469,6 +535,7 @@ class IfiasProcessor:
         "detention_days": ["DETENTN DAYS", "DETENTION DAYS", "DET DAYS", "DETENTION"],
         "lr_number":     ["LR NO", "LR_NO", "LR NUMBER", "LR.NO"],
         "status":        ["STATUS"],
+        "source":        ["SOURCE"],
     }
 
     def _find_headers(self, ws) -> tuple:
