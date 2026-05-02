@@ -8,7 +8,7 @@ Create Date: 2026-05-02 00:00:00.000000
 from alembic import op
 import sqlalchemy as sa
 
-revision = 'w001_add_payment_proof_url_to_trip_expenses'
+revision = 'w001'
 down_revision = 'v001_invoice_payment_proof'
 branch_labels = None
 depends_on = None
