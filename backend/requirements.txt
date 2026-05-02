@@ -69,6 +69,10 @@ Pillow>=10.3.0
 apscheduler>=3.10.0
 pytesseract>=0.3.10
 
+# Browser Automation (IFIAS fallback — Playwright headless Chromium)
+# After pip install: run  playwright install chromium
+playwright>=1.40.0
+
 # OCR Image Pre-processing
 opencv-python-headless>=4.8.0
 numpy>=1.24.0

@@ -27,6 +27,7 @@ from openpyxl.styles import PatternFill
 
 from app.services.excel_parser_service import parse_invoice_excel, InvoiceLineItem
 from app.services.email_intelligence_service import EmailIntelligenceService
+from app.services.browser_email_service import BrowserEmailService
 from app.services.satisfaction_slip_parser import SatisfactionSlipParser, pdf_contains_lr
 
 logger = logging.getLogger(__name__)
@@ -142,11 +143,20 @@ class IfiasProcessor:
         email_svc = EmailIntelligenceService()
         email_connected = email_svc.connect()
         if not email_connected:
-            logger.warning("[IFIAS] IMAP connect failed — will rely on OneDrive fallback only")
+            logger.warning("[IFIAS] IMAP connect failed — will try browser automation fallback")
+
+        browser_svc = BrowserEmailService()
+        browser_connected = browser_svc.connect()
+        if not browser_connected:
+            logger.info("[IFIAS] Browser fallback not available (credentials not set or Playwright not installed)")
 
         try:
             for item in parse_result.line_items:
-                result = self._process_lr(item, cache, email_svc if email_connected else None)
+                result = self._process_lr(
+                    item, cache,
+                    email_svc if email_connected else None,
+                    browser_svc if browser_connected else None,
+                )
                 lr_results.append(result)
 
                 # Update in-memory cache for successful results
@@ -160,6 +170,7 @@ class IfiasProcessor:
         finally:
             if email_connected:
                 email_svc.disconnect()
+            browser_svc.disconnect()
 
         # STEP 3 — Write Excel ONCE (after loop)
         stem = Path(excel_path).stem
@@ -211,6 +222,7 @@ class IfiasProcessor:
         item: InvoiceLineItem,
         cache: Dict,
         email_svc: Optional[EmailIntelligenceService],
+        browser_svc: Optional[BrowserEmailService] = None,
     ) -> LRResult:
         """
         Process a single LR. Returns LRResult with status one of:
@@ -241,13 +253,18 @@ class IfiasProcessor:
             if email_svc:
                 pdf_path = self._fetch_from_email(lr, email_svc)
 
-            # 3. OneDrive fallback
+            # 3. Browser automation fallback (if IMAP blocked or LR not found in email)
+            if not pdf_path and browser_svc:
+                logger.info(f"[{lr}] IMAP miss — trying browser automation")
+                pdf_path = self._fetch_from_browser(lr, browser_svc)
+
+            # 4. OneDrive local folder fallback
             if not pdf_path:
                 pdf_path = self._fetch_from_onedrive(lr)
 
             if not pdf_path:
                 result.status       = STATUS_MANUAL
-                result.error_detail = "No satisfaction slip PDF found (email + OneDrive searched)"
+                result.error_detail = "No satisfaction slip PDF found (IMAP + Browser + OneDrive searched)"
                 logger.info(f"[{lr}] No PDF found → MANUAL")
                 return result
 
@@ -308,6 +325,22 @@ class IfiasProcessor:
             logger.warning(f"[{lr}] Email download failed: {dl.error}")
         except Exception as exc:
             logger.warning(f"[{lr}] Email search error: {exc}")
+        return None
+
+    def _fetch_from_browser(
+        self, lr: str, browser_svc: BrowserEmailService
+    ) -> Optional[str]:
+        """
+        Use browser automation to find and download a PDF from Outlook Web.
+        Returns local path to downloaded PDF, or None.
+        """
+        try:
+            pdf_path = browser_svc.get_pdf_for_lr(lr)
+            if pdf_path:
+                logger.info(f"[{lr}] Browser PDF downloaded: {pdf_path}")
+            return pdf_path
+        except Exception as exc:
+            logger.warning(f"[{lr}] Browser search error: {exc}")
         return None
 
     @staticmethod
